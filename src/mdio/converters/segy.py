@@ -23,7 +23,7 @@ from mdio.segy.parsers import parse_text_header
 from mdio.segy.utilities import get_grid_plan
 
 
-API_VERSION = metadata.version("mdio")
+API_VERSION = metadata.version("multidimio")
 BACKENDS = ["s3", "gcs", "gs"]
 
 

@@ -446,7 +446,7 @@ pycodestyle = "*"
 
 [[package]]
 name = "flake8-bugbear"
-version = "22.8.22"
+version = "22.8.23"
 description = "A plugin for flake8 finding likely bugs and design problems in your program. Contains warnings that don't belong in pyflakes and pycodestyle."
 category = "dev"
 optional = false
@@ -1425,7 +1425,7 @@ numpy = ">=1.10"
 
 [[package]]
 name = "setuptools"
-version = "65.2.0"
+version = "65.3.0"
 description = "Easily download, build, install, upgrade, and uninstall Python packages"
 category = "main"
 optional = false
@@ -1841,7 +1841,7 @@ jupyter = ["notebook", "ipytree"]
 
 [[package]]
 name = "zfpy"
-version = "1.0.0.post1"
+version = "1.0.0.post3"
 description = "zfp compression in Python"
 category = "main"
 optional = true
@@ -2092,8 +2092,8 @@ filelock = [
 flake8 = []
 flake8-bandit = []
 flake8-bugbear = [
-    {file = "flake8-bugbear-22.8.22.tar.gz", hash = "sha256:1d240736dc93ecad9ff21e1d521283b9461d132b3ff2170569bd5ff3dacda385"},
-    {file = "flake8_bugbear-22.8.22-py3-none-any.whl", hash = "sha256:b5718bf5d0d28a4cfd15054f4706fc2936f7339ed8366b919a1979eb5df50764"},
+    {file = "flake8-bugbear-22.8.23.tar.gz", hash = "sha256:de0717d11124a082118dd08387b34fd86b2721642ec2d8e92be66cfa5ea7c445"},
+    {file = "flake8_bugbear-22.8.23-py3-none-any.whl", hash = "sha256:1b0ebe0873d1cd55bf9f1588bfcb930db339018ef44a3981a26532daa9fd14a8"},
 ]
 flake8-docstrings = []
 flake8-polyfill = []
@@ -2673,8 +2673,8 @@ segyio = [
     {file = "segyio-1.9.9-cp39-cp39-win_amd64.whl", hash = "sha256:cdf3c4f811251ab1b80417e4448b34ca8863c2fbfea8442b131839e2a8655957"},
 ]
 setuptools = [
-    {file = "setuptools-65.2.0-py3-none-any.whl", hash = "sha256:a3ca5857c89f82f5c9410e8508cb32f4872a3bafd4aa7ae122a24ca33bccc750"},
-    {file = "setuptools-65.2.0.tar.gz", hash = "sha256:7f4bc85450898a09f76ebf28b72fa25bc7111f6c7d665d514a60bba9c75ef2a9"},
+    {file = "setuptools-65.3.0-py3-none-any.whl", hash = "sha256:2e24e0bec025f035a2e72cdd1961119f557d78ad331bb00ff82efb2ab8da8e82"},
+    {file = "setuptools-65.3.0.tar.gz", hash = "sha256:7732871f4f7fa58fb6bdcaeadb0161b2bd046c85905dbaa066bdcbcc81953b57"},
 ]
 six = [
     {file = "six-1.16.0-py2.py3-none-any.whl", hash = "sha256:8abb2f1d86890a2dfb989f9a77cfcfd3e47c2a354b01111771326f8aa26e0254"},
@@ -2848,13 +2848,21 @@ yarl = [
 ]
 zarr = []
 zfpy = [
-    {file = "zfpy-1.0.0.post1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:85f38bc8287be9216c5900e5d39bade4ade83dc5a6081e91fac7412dfb4b9f1d"},
-    {file = "zfpy-1.0.0.post1-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:b627810a87f823ce12488972d6a9a788fc3f388b66f673c6c74959f4cfc17fb0"},
-    {file = "zfpy-1.0.0.post1-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:945b4df12d0daf69f1dc16021c827d06d1fbf2c632024b1d72e0ea5bbbe57b00"},
-    {file = "zfpy-1.0.0.post1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:9eb68b9b2d38a73112284786ccb157d2c5e7027df3baf3b26bc24866a6cf5206"},
-    {file = "zfpy-1.0.0.post1-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:ce2353c2c68e9a1acdba0fe8621ef5555e0dc3ed2914c4e95de3c59acaeacc9e"},
-    {file = "zfpy-1.0.0.post1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:8cd2bf4ab540d0bbd4c335bf38632e2b5980d704984e6d0a6ff19d8acad5ff06"},
-    {file = "zfpy-1.0.0.post1-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:817ce81616a2e73ba931a81000b064ee136f8fdeb3ef63d2f94aadab5c395e79"},
+    {file = "zfpy-1.0.0.post3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:4526ef9625c5bf2c6ed88923fb88573df85e22bc9ed0d0ad3b11b0ed023d32a3"},
+    {file = "zfpy-1.0.0.post3-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:0b8e39946c177f921f52ca7d750cece949c14f721080b26f9cf922da1fe51cb1"},
+    {file = "zfpy-1.0.0.post3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:74bc0bb3e614cda7a17847d7b9c58653373875d1d6502edf3f282b3edfdd42e1"},
+    {file = "zfpy-1.0.0.post3-cp310-cp310-win_amd64.whl", hash = "sha256:6218546cc5b2083334544035390a5bcf91d009c5146cdb8a2c8149f5c5adf5ac"},
+    {file = "zfpy-1.0.0.post3-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:f1e9078ec805e75d01a74dbb0a8f2ed8f81ac3e6fd0d4a82c83f7275a15d86a6"},
+    {file = "zfpy-1.0.0.post3-cp37-cp37m-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:8745d6149de0337489048374ca49526fac5973ef636534a01d9033abb8b9cfc9"},
+    {file = "zfpy-1.0.0.post3-cp37-cp37m-win_amd64.whl", hash = "sha256:034d000df731a4cb9723b6f86620cd2b8ff6dee60bb0954f953b23b62b1f57ad"},
+    {file = "zfpy-1.0.0.post3-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:96911fb1113dd52400bae13617a880c8c7445a7f30bf219816773ab43ebef675"},
+    {file = "zfpy-1.0.0.post3-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:e133453bdc2ef3efe890cc7aa57bcf2457dbba7043693f34d09d8b62c434b9f0"},
+    {file = "zfpy-1.0.0.post3-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fbe10fc867739f398869c3fa17a81b25bbb841c35a0d6e752bb843127eff759b"},
+    {file = "zfpy-1.0.0.post3-cp38-cp38-win_amd64.whl", hash = "sha256:c1eb29f732650ca78c77d4e9e45f19d9e8831ee15f1c18bc2c4fe31bae75e00c"},
+    {file = "zfpy-1.0.0.post3-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:7b7bc6048c8baf64784d03da27e1d13c1ce56455c69c0edd49692e34f3b1d995"},
+    {file = "zfpy-1.0.0.post3-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:4538a63375dd66cc09dbb6b5b158d6d6c66e259ec9c96193035dbec2a62048d2"},
+    {file = "zfpy-1.0.0.post3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:91adbdf11d0e92f35aab3254e0a7419593397d18a13cda87dcecafd9d5be28f0"},
+    {file = "zfpy-1.0.0.post3-cp39-cp39-win_amd64.whl", hash = "sha256:2bf2806d7cc18d9cc71a5b729a6294fc79e89b690426ce3014cc33776989a94b"},
 ]
 zict = []
 zipp = []
