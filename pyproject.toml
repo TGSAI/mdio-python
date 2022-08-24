@@ -37,11 +37,12 @@ distributed = {version = "^2022.8.1", optional = true}
 bokeh = {version = "^2.4.3", optional = true}
 s3fs = {version = "^2022.7.1", optional = true}
 gcsfs = {version = "^2022.7.1", optional = true}
+adlfs = {version = "<2022.7.0", optional = true}
 zfpy = {version = "^1.0.0", optional = true}
 
 [tool.poetry.extras]
 distributed = ["distributed", "bokeh"]
-cloud = ["s3fs", "gcsfs"]
+cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]

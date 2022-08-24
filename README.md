@@ -56,8 +56,21 @@ machine learning, and data processing workflows.
 You can install _MDIO_ via [pip] from [PyPI]:
 
 ```console
-$ pip install mdio
+$ pip install multidimio
 ```
+
+You can also install some optional dependencies (extras) like this:
+
+```console
+$ pip install multidimio[distributed]
+$ pip install multidimio[cloud]
+$ pip install multidimio[lossy]
+```
+
+`distributed` installs [Dask][dask] for parallel, distributed processing.\
+`cloud` installs [fsspec][fsspec] backed I/O libraries for [AWS' S3][s3fs],
+[Google's GCS][gcsfs], and [Azure ABS][adlfs].\
+`lossy` will install the ZFPY library for lossy chunk compression.
 
 ## Usage
 
@@ -90,6 +103,9 @@ This project was generated from [@cjolowicz]'s [Hypermodern Python Cookiecutter]
 [dask]: https://www.dask.org/
 [zarr]: https://zarr.dev/
 [fsspec]: https://filesystem-spec.readthedocs.io/en/latest/
+[s3fs]: https://s3fs.readthedocs.io/
+[gcsfs]: https://gcsfs.readthedocs.io/
+[adlfs]: https://github.com/fsspec/adlfs
 [blosc]: https://www.blosc.org/
 [zfp]: https://computing.llnl.gov/projects/zfp
 [xarray]: https://xarray.dev/

@@ -48,6 +48,8 @@ def process_url(
             storage_options = {"s3": storage_options}
         elif "gcs://" in url or "gs://" in url:
             storage_options = {"gcs": storage_options}
+        elif "az://" in url or "abfs://" in url:
+            storage_options = {"abfs": storage_options}
 
     # Flag for checking write access
     check = True if mode == "w" else False
