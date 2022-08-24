@@ -1,4 +1,7 @@
-# MDIO
+<div>
+  <img src="https://raw.githubusercontent.com/TGSAI/mdio.github.io/gh-pages/assets/images/mdio.png",
+width=200"><br>
+</div>
 
 [![PyPI](https://img.shields.io/pypi/v/multidimio.svg)][pypi_]
 [![Status](https://img.shields.io/pypi/status/multidimio.svg)][status]
