@@ -22,7 +22,7 @@ def copy_mdio(
     and `includes` parameters.
 
     More documentation about `excludes` and `includes` can be found
-    in `zarr.convenience.copy_store`
+    in Zarr's documentation in `zarr.convenience.copy_store`.
 
     Args:
         source: MDIO reader or accessor instance. Data will be copied from here
