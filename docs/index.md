@@ -19,5 +19,5 @@ reference
 contributing
 Code of Conduct <codeofconduct>
 License <license>
-Changelog <https://github.com/TGSAI/mdio/releases>
+Changelog <https://github.com/TGSAI/mdio-python/releases>
 ```

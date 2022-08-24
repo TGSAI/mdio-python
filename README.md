@@ -1,23 +1,23 @@
 # MDIO
 
-[![PyPI](https://img.shields.io/pypi/v/mdio.svg)][pypi_]
-[![Status](https://img.shields.io/pypi/status/mdio.svg)][status]
-[![Python Version](https://img.shields.io/pypi/pyversions/mdio)][python version]
-[![License](https://img.shields.io/pypi/l/mdio)][license]
+[![PyPI](https://img.shields.io/pypi/v/multidimio.svg)][pypi_]
+[![Status](https://img.shields.io/pypi/status/multidimio.svg)][status]
+[![Python Version](https://img.shields.io/pypi/pyversions/multidimio)][python version]
+[![License](https://img.shields.io/pypi/l/multidimio)][license]
 
-[![Read the documentation at https://mdio.readthedocs.io/](https://img.shields.io/readthedocs/mdio/latest.svg?label=Read%20the%20Docs)][read the docs]
-[![Tests](https://github.com/TGSAI/mdio/workflows/Tests/badge.svg)][tests]
-[![Codecov](https://codecov.io/gh/TGSAI/mdio/branch/main/graph/badge.svg)][codecov]
+[![Read the documentation at https://mdio-python.readthedocs.io/](https://img.shields.io/readthedocs/mdio-python/latest.svg?label=Read%20the%20Docs)][read the docs]
+[![Tests](https://github.com/TGSAI/mdio-python/workflows/Tests/badge.svg)][tests]
+[![Codecov](https://codecov.io/gh/TGSAI/mdio-python/branch/main/graph/badge.svg)][codecov]
 
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)][pre-commit]
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)][black]
 
-[pypi_]: https://pypi.org/project/mdio/
-[status]: https://pypi.org/project/mdio/
-[python version]: https://pypi.org/project/mdio
-[read the docs]: https://mdio.readthedocs.io/
-[tests]: https://github.com/TGSAI/mdio/actions?workflow=Tests
-[codecov]: https://app.codecov.io/gh/TGSAI/mdio
+[pypi_]: https://pypi.org/project/multidimio/
+[status]: https://pypi.org/project/multidimio/
+[python version]: https://pypi.org/project/multidimio
+[read the docs]: https://mdio-python.readthedocs.io/
+[tests]: https://github.com/TGSAI/mdio-python/actions?workflow=Tests
+[codecov]: https://app.codecov.io/gh/TGSAI/mdio-python
 [pre-commit]: https://github.com/pre-commit/pre-commit
 [black]: https://github.com/psf/black
 
