@@ -15,7 +15,7 @@ from mdio.core.utils_write import write_attribute
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 
 
-API_VERSION = metadata.version("mdio")
+API_VERSION = metadata.version("multidimio")
 
 TEST_DIMS = {
     "inline": np.arange(101, 131, 2),
