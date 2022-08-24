@@ -72,13 +72,15 @@ class MyCLI(click.MultiCommand):
 @click.command(cls=MyCLI)
 @click.version_option()
 def main() -> None:
-    """The main entry-point for MDIO.
+    """Welcome to MDIO!
 
-    Since MDIO supports importing or exporting various
-    data containers, we allow subcommands.
+    MDIO is an open source, cloud-native, and scalable storage engine
+    for various types of energy data.
 
-    Without subcommands MDIO will show the help and
-    available commands.
+    MDIO supports importing or exporting various data containers,
+    hence we allow plugins as subcommands.
+
+    From this main command, we can see the MDIO version.
     """
 
 

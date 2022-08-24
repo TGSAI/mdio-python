@@ -10,36 +10,83 @@ except SystemError:
     pass
 
 
-cli = click.Group(name="segy", help="Subcommand to import / export SEG-Y files.")
+SEGY_HELP = """
+MDIO and SEG-Y conversion utilities. Below is general information
+about the SEG-Y format and MDIO features. For import or export
+specific functionality check the import or export modules:
+
+\b
+mdio segy import --help
+mdio segy export --help
+
+MDIO can import SEG-Y files to a modern, chunked format.
+
+The SEG-Y format is defined by the Society of Exploration Geophysicists
+as a data transmission format and has its roots back to 1970s. There are
+currently multiple revisions of the SEG-Y format.
+
+MDIO can unravel and index any SEG-Y file that is on a regular grid.
+There is no limitation to dimensionality of the data, as long as it can
+be represented on a regular grid. Most seismic surveys are on a regular
+grid of unique shot/receiver IDs or  are imaged on regular CDP or
+INLINE/CROSSLINE grids.
+
+The SEG-Y headers are used as identifiers to take the flattened SEG-Y
+data and convert it to the multi-dimensional tensor representation. An
+example of ingesting a 3-D Post-Stack seismic data can be though as the
+following, per the SEG-Y Rev1 standard:
+
+\b
+--header-names inline,crossline
+--header-locations 189,193
+--header-lengths 4,4
+
+\b
+Our recommended chunk sizes are:
+(Based on GCS benchmarks)
+\b
+3D: 128 x 128 x 128
+2D: 1024 x 1024
+
+The 4D+ datasets chunking recommendation depends on the type of
+4D+ dataset (i.e. SHOT vs CDP data will have different chunking).
+
+MDIO also import or export big and little endian coded IBM or IEEE floating
+point formatted SEG-Y files. MDIO can also build a grid from arbitrary header
+locations for indexing. However, the headers are stored as the SEG-Y Rev 1
+after ingestion.
+"""
+
+cli = click.Group(name="segy", help=SEGY_HELP)
 
 
-@cli.command(name="import", help="Imports a SEG-Y file to mdio format.")
+@cli.command(name="import")
 @click.option(
     "-i",
     "--input-segy-path",
     required=True,
-    help="Input SEG-Y file",
+    help="Input SEG-Y file path.",
     type=click.Path(exists=True),
 )
 @click.option(
     "-o",
-    "--output-path",
+    "--output-mdio-file",
     required=True,
-    help="Output path to write the mdio file",
+    help="Output path or URL to write the mdio file.",
     type=click.STRING,
 )
 @click.option(
     "-loc",
     "--header-locations",
     required=True,
-    help="Byte locations of the index attributes in SEG-Y trace header",
+    help="Byte locations of the index attributes in SEG-Y trace header.",
     type=click_params.IntListParamType(),
 )
 @click.option(
     "-len",
     "--header-lengths",
     required=False,
-    help="Byte lengths of the index attributes in SEG-Y trace header",
+    help="Byte lengths of the index attributes in SEG-Y trace header.",
     type=click_params.IntListParamType(),
 )
 @click.option(
@@ -102,7 +149,7 @@ cli = click.Group(name="segy", help="Subcommand to import / export SEG-Y files."
 )
 def segy_import(
     input_segy_path,
-    output_path,
+    output_mdio_path,
     header_locations,
     header_lengths,
     header_names,
@@ -113,10 +160,105 @@ def segy_import(
     storage_options,
     overwrite,
 ):
-    """SEG-Y Import CLI entrypoint."""
+    """Ingest SEG-Y file to MDIO.
+
+    SEG-Y format is explained in the "segy" group of the command line
+    interface. To see additional information run:
+
+    mdio segy --help
+
+    MDIO allows ingesting flattened seismic surveys in SEG-Y format
+    into a multidimensional tensor that represents the correct
+    geometry of the seismic dataset.
+
+    The SEG-Y file must be on disk, MDIO currently does not support
+    reading SEG-Y directly from the cloud object store.
+
+    The output MDIO file can be local or on the cloud. For local
+    files, a UNIX or Windows path is sufficient. However, for cloud
+    stores, an appropriate protocol must be provided. Some examples:
+
+    File Path Patterns:
+
+        \b
+        If we are working locally:
+        --input_segy_path local_seismic.segy
+        --output-mdio-path local_seismic.mdio
+
+        \b
+        If we are working on the cloud on Amazon Web Services:
+        --input_segy_path local_seismic.segy
+        --output-mdio-path s3://bucket/local_seismic.mdio
+
+        \b
+        If we are working on the cloud on Google Cloud:
+        --input_segy_path local_seismic.segy
+        --output-mdio-path s3://bucket/local_seismic.mdio
+
+        \b
+        If we are working on the cloud on Microsoft Azure:
+        --input_segy_path local_seismic.segy
+        --output-mdio-path abfs://bucket/local_seismic.mdio
+
+    The SEG-Y headers for indexing must also be specified. The
+    index byte locations (starts from 1) are the minimum amount
+    of information needed to index the file. However, we suggest
+    giving names to the index dimensions, and if needed providing
+    the header lengths if they are not standard. By default, all header
+    entries are assumed to be 4-byte long.
+
+    The chunk size depends on the data type, however, it can be
+    chosen to accommodate any workflow's access patterns. See examples
+    below for some common use cases.
+
+    By default, the data is ingested with LOSSLESS compression. This
+    saves disk space in the range of 20% to 40%. MDIO also allows
+    data to be compressed using the ZFP compressor's fixed rate lossy
+    compression. If lossless parameter is set to False and MDIO was
+    installed using the lossy extra; then the data will be compressed
+    to approximately 30% of its original size and will be perceptually
+    lossless. The compression ratio can be adjusted using the option
+    compression_ratio (integer). Higher values will compress more, but
+    will introduce artifacts.
+
+    Usage:
+
+        Below are some examples of ingesting standard SEG-Y files per
+        the SEG-Y Revision 1 and 2 formats.
+
+        \b
+        3D Seismic Post-Stack:
+        Chunks: 128 inlines x 128 crosslines x 128 samples
+        --header_locations 189,193
+        --header_names inline,crossline
+
+
+        \b
+        3D Seismic Imaged Pre-Stack Gathers:
+        Chunks: 16 inlines x 16 crosslines x 16 offsets x 512 samples
+        --header_locations 189,193,37
+        --header_names inline,crossline,offset
+        --chunk_size 16,16,16,512
+
+        \b
+        2D Seismic Shot Data (Byte Locations Vary):
+        Chunks: 16 shots x 256 channels x 512 samples
+        --header_locations 9,13
+        --header_names shot,chan
+        --chunk_size 16,256,512
+
+        \b
+        3D Seismic Shot Data (Byte Locations Vary):
+        Let's assume streamer number is at byte 213 as 2-bytes
+        Chunks: 8 shots x 2 cables x 256 channels x 512 samples
+        --header_locations 9,13
+        --header_names shot,cable,chan
+        --header_lengths 4,4,2,4
+        --chunk_size 8,2,256,512
+    """
     mdio.segy_to_mdio(
         segy_path=input_segy_path,
-        mdio_path_or_buffer=output_path,
+        mdio_path_or_buffer=output_mdio_path,
         index_bytes=header_locations,
         index_lengths=header_lengths,
         index_names=header_names,
@@ -129,17 +271,17 @@ def segy_import(
     )
 
 
-@cli.command(name="export", help="Exports a SEG-Y file from a mdio file")
+@cli.command(name="export")
 @click.option(
     "-i",
-    "--input-file",
+    "--input-mdio-file",
     required=True,
     help="Input path of the mdio file",
     type=click.STRING,
 )
 @click.option(
     "-o",
-    "--output-path",
+    "--output-segy-path",
     required=True,
     help="Output SEG-Y file",
     type=click.Path(exists=False),
@@ -181,17 +323,36 @@ def segy_import(
     show_choices=True,
 )
 def segy_export(
-    input_file,
-    output_path,
+    input_mdio_file,
+    output_segy_path,
     access_pattern,
     segy_format,
     storage_options,
     endian,
 ):
-    """SEG-Y Export CLI entrypoint."""
+    """Export MDIO file to SEG-Y.
+
+    SEG-Y format is explained in the "segy" group of the command line
+    interface. To see additional information run:
+
+    mdio segy --help
+
+    MDIO allows exporting multidimensional seismic data back to the flattened
+    seismic format SEG-Y, to be used in data transmission.
+
+    The input headers are preserved as is, and will be transferred to the
+    output file.
+
+    The user has control over the endianness, and the floating point data
+    type. However, by default we export as Big-Endian IBM float, per the
+    SEG-Y format's default.
+
+    The input MDIO can be local or cloud based. However, the output SEG-Y
+    will be generated locally.
+    """
     mdio.mdio_to_segy(
-        mdio_path_or_buffer=input_file,
-        output_segy_path=output_path,
+        mdio_path_or_buffer=input_mdio_file,
+        output_segy_path=output_segy_path,
         access_pattern=access_pattern,
         out_sample_format=segy_format,
         storage_options=storage_options,
