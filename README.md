@@ -24,12 +24,12 @@ width=200"><br>
 [pre-commit]: https://github.com/pre-commit/pre-commit
 [black]: https://github.com/psf/black
 
-**_"MDIO"_** is a library to work with large multi-dimensional energy datasets.
-The primary motivation behind **MDIO** is to represent multi-dimensional
-time series data in a format that makes it easier to use in resource assesment,
+**_"MDIO"_** is a library to work with large multidimensional energy datasets.
+The primary motivation behind **MDIO** is to represent multidimensional
+time series data in a format that makes it easier to use in resource assessment,
 machine learning, and data processing workflows.
 
-## Features
+# Features
 
 **Shared Features**
 
@@ -43,18 +43,16 @@ machine learning, and data processing workflows.
 
 - Oil & Gas Data
   - Import and export 2D - 5D seismic data types stored in SEG-Y.
-  - Import seismic interpretation, horizon, data (experimental).
-  - Optimized chunking logic for various seismic types.
+  - Import seismic interpretation, horizon, data. **FUTURE**
+  - Optimized chunking logic for various seismic types. **FUTURE**
 - Wind Resource Assessment
-  - Numerical weather prediction models with arbitrary metadata.
-  - Optimized chunking logic for time-series analysis and mapping.
-  - [Xarray][xarray] interface.
+  - Numerical weather prediction models with arbitrary metadata. **FUTURE**
+  - Optimized chunking logic for time-series analysis and mappin. **FUTURE**
+  - [Xarray][xarray] interface. **FUTURE**
 
-## Requirements
+The features marked as **FUTURE** will be open-sourced at a later date.
 
-- TODO
-
-## Installation
+# Installation
 
 You can install _MDIO_ via [pip] from [PyPI]:
 
@@ -73,30 +71,52 @@ pip install multidimio[lossy]
 `distributed` installs [Dask][dask] for parallel, distributed processing.\
 `cloud` installs [fsspec][fsspec] backed I/O libraries for [AWS' S3][s3fs],
 [Google's GCS][gcsfs], and [Azure ABS][adlfs].\
-`lossy` will install the ZFPY library for lossy chunk compression.
+`lossy` will install the [ZFPY][zfp] library for lossy chunk compression.
 
-## Usage
+# Usage
 
 Please see the [Command-line Reference] for details.
 
-## Contributing
+For Python API please see the [API Reference] for details.
+
+# Requirements
+
+### Minimal
+
+Chunked storage and parallelization: `zarr`, `dask`, `numba`, and `psutil`.\
+SEG-Y Parsing: `segyio`\
+CLI and Progress Bars: `click`, `click-params`, and `tqdm`.
+
+### Optional
+
+Distributed computing `[distributed]`: `distributed` and `bokeh`.\
+Cloud Object Store I/O `[cloud]`: `s3fs`, `gcsfs`, and `adlfs`.\
+Lossy Compression `[lossy]`: `zfpy`
+
+# Contributing
 
 Contributions are very welcome.
 To learn more, see the [Contributor Guide].
 
-## License
+# License
 
 Distributed under the terms of the [Apache 2.0 license][license],
 _MDIO_ is free and open source software.
 
-## Issues
+# Issues
 
 If you encounter any problems,
 please [file an issue] along with a detailed description.
 
-## Credits
+# Credits
 
-This project was generated from [@cjolowicz]'s [Hypermodern Python Cookiecutter] template.
+This project was established at [TGS](https://www.tgs.com/). Original authors
+and current maintainers are [Altay Sansal](https://github.com/tasansal) and
+[Sri Kainkaryam](https://github.com/srib); with the support of many more great
+colleagues.
+
+This project template is based on [@cjolowicz]'s [Hypermodern Python Cookiecutter]
+template.
 
 [@cjolowicz]: https://github.com/cjolowicz
 [pypi]: https://pypi.org/
@@ -119,3 +139,4 @@ This project was generated from [@cjolowicz]'s [Hypermodern Python Cookiecutter]
 [license]: https://github.com/TGSAI/mdio-python/blob/main/LICENSE
 [contributor guide]: https://github.com/TGSAI/mdio-python/blob/main/CONTRIBUTING.md
 [command-line reference]: https://mdio-python.readthedocs.io/en/latest/usage.html
+[api reference]: https://mdio-python.readthedocs.io/en/latest/reference.html
