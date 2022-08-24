@@ -55,16 +55,16 @@ machine learning, and data processing workflows.
 
 You can install _MDIO_ via [pip] from [PyPI]:
 
-```console
-$ pip install multidimio
+```shell
+pip install multidimio
 ```
 
 You can also install some optional dependencies (extras) like this:
 
-```console
-$ pip install multidimio[distributed]
-$ pip install multidimio[cloud]
-$ pip install multidimio[lossy]
+```shell
+pip install multidimio[distributed]
+pip install multidimio[cloud]
+pip install multidimio[lossy]
 ```
 
 `distributed` installs [Dask][dask] for parallel, distributed processing.\
