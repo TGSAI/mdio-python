@@ -193,7 +193,7 @@ def segy_import(
         \b
         If we are working on the cloud on Google Cloud:
         --input_segy_path local_seismic.segy
-        --output-mdio-path s3://bucket/local_seismic.mdio
+        --output-mdio-path gs://bucket/local_seismic.mdio
 
         \b
         If we are working on the cloud on Microsoft Azure:
@@ -251,9 +251,9 @@ def segy_import(
         3D Seismic Shot Data (Byte Locations Vary):
         Let's assume streamer number is at byte 213 as 2-bytes
         Chunks: 8 shots x 2 cables x 256 channels x 512 samples
-        --header_locations 9,13
+        --header_locations 9,213,13
         --header_names shot,cable,chan
-        --header_lengths 4,4,2,4
+        --header_lengths 4,2,4,4
         --chunk_size 8,2,256,512
     """
     mdio.segy_to_mdio(

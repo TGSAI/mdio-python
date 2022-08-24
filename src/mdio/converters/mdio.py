@@ -38,8 +38,21 @@ def mdio_to_segy(
 ) -> None:
     """Convert MDIO file to SEG-Y format.
 
-    Algorithm inspired by this:
-    https://docs.dask.org/en/stable/generated/dask.array.to_npy_stack.html
+    MDIO allows exporting multidimensional seismic data back to the flattened
+    seismic format SEG-Y, to be used in data transmission.
+
+    The input headers are preserved as is, and will be transferred to the
+    output file.
+
+    The user has control over the endianness, and the floating point data
+    type. However, by default we export as Big-Endian IBM float, per the
+    SEG-Y format's default.
+
+    The input MDIO can be local or cloud based. However, the output SEG-Y
+    will be generated locally.
+
+    A `selection_mask` can be provided (in the shape of the spatial grid)
+    to export a subset of the seismic data.
 
     Args:
         mdio_path_or_buffer: Input path where the MDIO is located
@@ -49,7 +62,7 @@ def mdio_to_segy(
         access_pattern: This specificies the chunk access pattern. Underlying
             zarr.Array must exist. Examples: '012', '01'
         out_sample_format: Output sample format.
-            Currently support: {'ibm', 'ieee'}. Default is 'ibm'.
+            Currently support: {'ibm32', 'ieee32'}. Default is 'ibm32'.
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous access)
         new_chunks: Set manual chunksize. For development purposes only.
@@ -61,11 +74,33 @@ def mdio_to_segy(
     Raises:
         ImportError: if distributed package isn't installed but requested.
         ValueError: if cut mask is empty, i.e. no traces will be written.
+
+    Examples:
+        To export an existing local MDIO file to SEG-Y we use the code
+        snippet below. This will export the full MDIO (without padding) to
+        SEG-Y format using IBM floats and big-endian byte order.
+
+        >>> from mdio import mdio_to_segy
+        >>>
+        >>>
+        >>> mdio_to_segy(
+        ...     mdio_path_or_buffer="prefix2/file.mdio",
+        ...     output_segy_path="prefix/file.segy",
+        ... )
+
+        If we want to export this as an IEEE big-endian, using a selection
+        mask, we would run:
+
+        >>> mdio_to_segy(
+        ...     mdio_path_or_buffer="prefix2/file.mdio",
+        ...     output_segy_path="prefix/file.segy",
+        ...     selection_mask=boolean_mask,
+        ...     out_sample_format="ieee32",
+        ... )
+
     """
-    # Setup dask
     backend = "dask"
 
-    # Just to get ndim
     mdio = MDIOReader(
         mdio_path_or_buffer=mdio_path_or_buffer,
         access_pattern=access_pattern,
@@ -102,10 +137,8 @@ def mdio_to_segy(
     else:
         mdio, sample_format = mdio_spec_to_segy(*creation_args)
 
-    # Convenience variables
     num_samp = mdio.shape[-1]
 
-    # Read this once into memory, we will use parts of it.
     live_mask = mdio.live_mask.compute()
 
     if selection_mask is not None:
@@ -116,7 +149,7 @@ def mdio_to_segy(
         raise ValueError("No traces will be written out. Live mask is empty.")
 
     # Find rough dim limits, so we don't unnecessarily hit disk / cloud store.
-    # Typically gets triggered when there is a selection mask
+    # Typically, gets triggered when there is a selection mask
     dim_slices = ()
     live_nonzeros = live_mask.nonzero()
     for dim_nonzeros in live_nonzeros:
@@ -154,7 +187,6 @@ def mdio_to_segy(
     # we could potentially generate these from different machines
     task_name = "block-to-sgy-part-" + str(uuid.uuid1())
 
-    # Get trace dask keys
     trace_keys = flatten(traces_seq.__dask_keys__())
     header_keys = flatten(headers_seq.__dask_keys__())
     live_keys = flatten(live_seq.__dask_keys__())
@@ -171,7 +203,6 @@ def mdio_to_segy(
         block_file_path = path.join(out_dir, block_file_name)
         block_file_paths.append(block_file_path)
 
-        # Function arguments
         block_args = (
             block_file_path,
             trace_key,
@@ -182,7 +213,6 @@ def mdio_to_segy(
             endian,
         )
 
-        # Dask task into graph dict
         task_graph_dict[(task_name, idx)] = (write_block_to_segy,) + block_args
 
     # Make actual graph
@@ -192,7 +222,6 @@ def mdio_to_segy(
         dependencies=[traces_seq, headers_seq, live_seq],
     )
 
-    # `tqdm` for nice progress bars.
     # Note this doesn't work with distributed.
     tqdm_kw = dict(unit="block", dynamic_ncols=True)
     block_progress = TqdmCallback(desc="Step 1 / 2 Writing Blocks", **tqdm_kw)
