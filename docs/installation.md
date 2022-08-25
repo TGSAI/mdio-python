@@ -42,6 +42,14 @@ $ conda create -n mdio-env
 $ conda activate mdio-env
 ```
 
+Then we need to install with `pip`:
+
+```shell
+$ pip install -U multidimio
+```
+
+The above command will install MDIO into your `conda` environment.
+
 ## Checking Installation
 
 After installing MDIO, run the following:
