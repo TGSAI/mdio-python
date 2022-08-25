@@ -347,7 +347,7 @@ colorama = {version = "*", markers = "platform_system == \"Windows\""}
 
 [[package]]
 name = "click-params"
-version = "0.4.0"
+version = "0.3.0"
 description = "A bunch of useful click parameter types"
 category = "main"
 optional = false
@@ -2098,7 +2098,7 @@ lossy = ["zfpy"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "249a393bd00cd7c50212dbbd80da9339540847bb065b0139b3d2f36a53f36e94"
+content-hash = "a4f06d7fb5dc372a4da3ceff503c17078b7bf85db65f7358444552329081da1b"
 
 [metadata.files]
 adal = [
@@ -2306,10 +2306,7 @@ charset-normalizer = [
     {file = "charset_normalizer-2.1.1-py3-none-any.whl", hash = "sha256:83e9a75d1911279afd89352c68b45348559d1fc0506b054b346651b5e7fee29f"},
 ]
 click = []
-click-params = [
-    {file = "click-params-0.4.0.tar.gz", hash = "sha256:74b5c53e225c80037691aef5efa20b1a1fc9d342c85581e52c6cd3512dbcd987"},
-    {file = "click_params-0.4.0-py3-none-any.whl", hash = "sha256:29028855a7574d8457087d3a0852108314604737d1999b71d57b9654b31d751a"},
-]
+click-params = []
 cloudpickle = []
 colorama = []
 coverage = [
