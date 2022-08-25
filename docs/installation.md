@@ -10,13 +10,13 @@ We strongly recommend using a virtual environment `venv` or `conda`
 to avoid potential conflicts with other Python packages.
 ```
 
-## Using `pip` and `virtualenv`.
+## Using `pip` and `virtualenv`
 
 Install the 64-bit version of Python 3 from https://www.python.org.
 
 ```shell
 $ python -m venv mdio-venv
-$ mdio-venv\Scripts\activate
+$ mdio-venv/Scripts/activate
 $ pip install -U multidimio
 ```
 
@@ -55,7 +55,7 @@ The above command will install MDIO into your `conda` environment.
 After installing MDIO, run the following:
 
 ```shell
-python -c import mdio; print(mdio.__version__)"
+$ python -c "import mdio; print(mdio.__version__)"
 ```
 
 You should see the version of MDIO printed to the screen.
@@ -65,12 +65,19 @@ You should see the version of MDIO printed to the screen.
 You can also install some optional dependencies (extras) like this:
 
 ```shell
-pip install multidimio[distributed]
-pip install multidimio[cloud]
-pip install multidimio[lossy]
+$ pip install multidimio[distributed]
+$ pip install multidimio[cloud]
+$ pip install multidimio[lossy]
 ```
 
 `distributed` installs [Dask][dask] for parallel, distributed processing.\
 `cloud` installs [fsspec][fsspec] backed I/O libraries for [AWS' S3][s3fs],
 [Google's GCS][gcsfs], and [Azure ABS][adlfs].\
 `lossy` will install the [ZFPY][zfp] library for lossy chunk compression.
+
+[dask]: https://www.dask.org/
+[fsspec]: https://filesystem-spec.readthedocs.io/en/latest/
+[s3fs]: https://s3fs.readthedocs.io/
+[gcsfs]: https://gcsfs.readthedocs.io/
+[adlfs]: https://github.com/fsspec/adlfs
+[zfp]: https://computing.llnl.gov/projects/zfp

@@ -29,6 +29,7 @@ myst_enable_extensions = [
 
 # sphinx-copybutton configurations
 copybutton_prompt_text = r">>> |\.\.\. |\$ |In \[\d*\]: | {2,5}\.\.\.: | {5,8}: "
+copybutton_line_continuation_character = "\\"
 copybutton_prompt_is_regexp = True
 
 nb_execution_mode = "off"
