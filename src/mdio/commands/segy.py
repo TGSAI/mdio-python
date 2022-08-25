@@ -149,7 +149,7 @@ cli = click.Group(name="segy", help=SEGY_HELP)
 )
 def segy_import(
     input_segy_path,
-    output_mdio_path,
+    output_mdio_file,
     header_locations,
     header_lengths,
     header_names,
@@ -258,7 +258,7 @@ def segy_import(
     """
     mdio.segy_to_mdio(
         segy_path=input_segy_path,
-        mdio_path_or_buffer=output_mdio_path,
+        mdio_path_or_buffer=output_mdio_file,
         index_bytes=header_locations,
         index_lengths=header_lengths,
         index_names=header_names,
