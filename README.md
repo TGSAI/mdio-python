@@ -6,7 +6,7 @@ width=200"><br>
 [![PyPI](https://img.shields.io/pypi/v/multidimio.svg)][pypi_]
 [![Status](https://img.shields.io/pypi/status/multidimio.svg)][status]
 [![Python Version](https://img.shields.io/pypi/pyversions/multidimio)][python version]
-[![License](https://img.shields.io/pypi/l/multidimio)][license]
+[![License](https://img.shields.io/pypi/l/multidimio)][license-link]
 
 [![Read the documentation at https://mdio-python.readthedocs.io/](https://img.shields.io/readthedocs/mdio-python/latest.svg?label=Read%20the%20Docs)][read the docs]
 [![Tests](https://github.com/TGSAI/mdio-python/workflows/Tests/badge.svg)][tests]
@@ -28,6 +28,8 @@ width=200"><br>
 The primary motivation behind **MDIO** is to represent multidimensional
 time series data in a format that makes it easier to use in resource assessment,
 machine learning, and data processing workflows.
+
+See the [documentation][read the docs] for more information.
 
 # Features
 
@@ -52,30 +54,20 @@ machine learning, and data processing workflows.
 
 The features marked as **FUTURE** will be open-sourced at a later date.
 
-# Installation
+# Installing MDIO
 
-You can install _MDIO_ via [pip] from [PyPI]:
+Simplest way to install _MDIO_ via [pip] from [PyPI]:
 
 ```shell
 pip install multidimio
 ```
 
-You can also install some optional dependencies (extras) like this:
+For more instructions, please see the [installation instructions][read the docs]
+in the documentation.
 
-```shell
-pip install multidimio[distributed]
-pip install multidimio[cloud]
-pip install multidimio[lossy]
-```
+# Using MDIO
 
-`distributed` installs [Dask][dask] for parallel, distributed processing.\
-`cloud` installs [fsspec][fsspec] backed I/O libraries for [AWS' S3][s3fs],
-[Google's GCS][gcsfs], and [Azure ABS][adlfs].\
-`lossy` will install the [ZFPY][zfp] library for lossy chunk compression.
-
-# Usage
-
-Please see the [Command-line Reference] for details.
+Please see the [Command-line Reference][cli-ref-link] for details.
 
 For Python API please see the [API Reference] for details.
 
@@ -93,14 +85,14 @@ Distributed computing `[distributed]`: `distributed` and `bokeh`.\
 Cloud Object Store I/O `[cloud]`: `s3fs`, `gcsfs`, and `adlfs`.\
 Lossy Compression `[lossy]`: `zfpy`
 
-# Contributing
+# Contributing to MDIO
 
 Contributions are very welcome.
 To learn more, see the [Contributor Guide].
 
-# License
+# Licensing
 
-Distributed under the terms of the [Apache 2.0 license][license],
+Distributed under the terms of the [Apache 2.0 license][license-link],
 _MDIO_ is free and open source software.
 
 # Issues
@@ -136,7 +128,8 @@ template.
 
 <!-- github-only -->
 
-[license]: https://github.com/TGSAI/mdio-python/blob/main/LICENSE
+[license-link]: https://github.com/TGSAI/mdio-python/blob/main/LICENSE
 [contributor guide]: https://github.com/TGSAI/mdio-python/blob/main/CONTRIBUTING.md
-[command-line reference]: https://mdio-python.readthedocs.io/en/latest/usage.html
+[cli-ref-link]: https://mdio-python.readthedocs.io/en/latest/usage.html
 [api reference]: https://mdio-python.readthedocs.io/en/latest/reference.html
+[install-link]: https://mdio-python.readthedocs.io/en/latest/installation.html
