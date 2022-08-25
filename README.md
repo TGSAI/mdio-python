@@ -47,7 +47,7 @@ machine learning, and data processing workflows.
   - Optimized chunking logic for various seismic types. **FUTURE**
 - Wind Resource Assessment
   - Numerical weather prediction models with arbitrary metadata. **FUTURE**
-  - Optimized chunking logic for time-series analysis and mappin. **FUTURE**
+  - Optimized chunking logic for time-series analysis and mapping. **FUTURE**
   - [Xarray][xarray] interface. **FUTURE**
 
 The features marked as **FUTURE** will be open-sourced at a later date.
