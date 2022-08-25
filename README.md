@@ -62,14 +62,14 @@ Simplest way to install _MDIO_ via [pip] from [PyPI]:
 pip install multidimio
 ```
 
-For more instructions, please see the [installation instructions][read the docs]
+For more instructions, please see the [installation instructions][install]
 in the documentation.
 
 # Using MDIO
 
 Please see the [Command-line Reference][usage] for details.
 
-For Python API please see the [API Reference] for details.
+For Python API please see the [API Reference][reference] for details.
 
 # Requirements
 
@@ -131,5 +131,5 @@ template.
 [license]: https://github.com/TGSAI/mdio-python/blob/main/LICENSE
 [contributor guide]: https://github.com/TGSAI/mdio-python/blob/main/CONTRIBUTING.md
 [usage]: https://mdio-python.readthedocs.io/en/latest/usage.html
-[api reference]: https://mdio-python.readthedocs.io/en/latest/reference.html
+[reference]: https://mdio-python.readthedocs.io/en/latest/reference.html
 [install]: https://mdio-python.readthedocs.io/en/latest/installation.html
