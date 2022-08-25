@@ -94,6 +94,7 @@ def segy_to_mdio(
         GridTraceCountError: Raised if grid won't hold all traces in the
             SEG-Y file.
         ValueError: If length of chunk sizes don't match number of dimensions.
+        NotImplementedError: If can't determine chunking automatically for 4D+.
 
     Examples:
         If we are working locally and ingesting a 3D post-stack seismic file,
