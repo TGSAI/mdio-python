@@ -218,7 +218,7 @@ def docs_build(session: Session) -> None:
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
-        "myst-parser",
+        "myst-nb",
     )
 
     build_dir = Path("docs", "_build")
@@ -239,7 +239,7 @@ def docs(session: Session) -> None:
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
-        "myst-parser",
+        "myst-nb",
     )
 
     build_dir = Path("docs", "_build")
