@@ -219,6 +219,7 @@ def docs_build(session: Session) -> None:
         "sphinx-copybutton",
         "furo",
         "myst-nb",
+        "linkify-it-py",
     )
 
     build_dir = Path("docs", "_build")
@@ -240,6 +241,7 @@ def docs(session: Session) -> None:
         "sphinx-copybutton",
         "furo",
         "myst-nb",
+        "linkify-it-py",
     )
 
     build_dir = Path("docs", "_build")

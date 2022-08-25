@@ -13,6 +13,7 @@ end-before: <!-- github-only -->
 hidden:
 maxdepth: 1
 ---
+installation
 notebooks/quickstart
 usage
 reference
