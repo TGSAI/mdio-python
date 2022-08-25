@@ -6,7 +6,7 @@ width=200"><br>
 [![PyPI](https://img.shields.io/pypi/v/multidimio.svg)][pypi_]
 [![Status](https://img.shields.io/pypi/status/multidimio.svg)][status]
 [![Python Version](https://img.shields.io/pypi/pyversions/multidimio)][python version]
-[![License](https://img.shields.io/pypi/l/multidimio)][license-link]
+[![License](https://img.shields.io/pypi/l/multidimio)][license]
 
 [![Read the documentation at https://mdio-python.readthedocs.io/](https://img.shields.io/readthedocs/mdio-python/latest.svg?label=Read%20the%20Docs)][read the docs]
 [![Tests](https://github.com/TGSAI/mdio-python/workflows/Tests/badge.svg)][tests]
@@ -67,7 +67,7 @@ in the documentation.
 
 # Using MDIO
 
-Please see the [Command-line Reference][cli-ref-link] for details.
+Please see the [Command-line Reference][usage] for details.
 
 For Python API please see the [API Reference] for details.
 
@@ -92,7 +92,7 @@ To learn more, see the [Contributor Guide].
 
 # Licensing
 
-Distributed under the terms of the [Apache 2.0 license][license-link],
+Distributed under the terms of the [Apache 2.0 license][license],
 _MDIO_ is free and open source software.
 
 # Issues
@@ -128,8 +128,8 @@ template.
 
 <!-- github-only -->
 
-[license-link]: https://github.com/TGSAI/mdio-python/blob/main/LICENSE
+[license]: https://github.com/TGSAI/mdio-python/blob/main/LICENSE
 [contributor guide]: https://github.com/TGSAI/mdio-python/blob/main/CONTRIBUTING.md
-[cli-ref-link]: https://mdio-python.readthedocs.io/en/latest/usage.html
+[usage]: https://mdio-python.readthedocs.io/en/latest/usage.html
 [api reference]: https://mdio-python.readthedocs.io/en/latest/reference.html
-[install-link]: https://mdio-python.readthedocs.io/en/latest/installation.html
+[install]: https://mdio-python.readthedocs.io/en/latest/installation.html
