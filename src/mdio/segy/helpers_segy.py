@@ -1,14 +1,17 @@
 """Helper functions for tinkering with SEG-Y related Zarr."""
 
 
-from collections.abc import MutableMapping
 from math import prod
 
 from zarr import Group
 from zarr import open_group
+from zarr.errors import ContainsGroupError
+from zarr.storage import FSStore
+
+from mdio.core.exceptions import MDIOAlreadyExistsError
 
 
-def create_zarr_hierarchy(store: MutableMapping, overwrite: bool) -> Group:
+def create_zarr_hierarchy(store: FSStore, overwrite: bool) -> Group:
     """Create `zarr` hierarchy for SEG-Y files.
 
     Args:
@@ -17,11 +20,21 @@ def create_zarr_hierarchy(store: MutableMapping, overwrite: bool) -> Group:
 
     Returns:
         Zarr Group instance for root of the file.
+
+    Raises:
+        MDIOAlreadyExistsError: If a file with data already exists.
     """
     root_group = open_group(store=store)
 
-    root_group.create_group(name="data", overwrite=overwrite)
-    root_group.create_group(name="metadata", overwrite=overwrite)
+    try:
+        root_group.create_group(name="data", overwrite=overwrite)
+        root_group.create_group(name="metadata", overwrite=overwrite)
+    except ContainsGroupError as e:
+        msg = (
+            f"An MDIO file with data already exists at '{store.path}'. "
+            "If this is intentional, please specify 'overwrite=True'."
+        )
+        raise MDIOAlreadyExistsError(msg) from e
 
     return root_group
 

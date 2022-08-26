@@ -1,12 +1,17 @@
 """Extra configurations for unit tests."""
 
 
+from __future__ import annotations
+
 from datetime import datetime
 from importlib import metadata
 
 import numpy as np
 import pytest
-import zarr
+from numpy.typing import NDArray
+from zarr import Group
+from zarr import consolidate_metadata
+from zarr.storage import FSStore
 
 from mdio import MDIOReader
 from mdio.core import Dimension
@@ -28,7 +33,7 @@ TEST_DIMS = {
 def mock_store(tmp_path_factory):
     """Make a mocked MDIO store for writing."""
     tmp_dir = tmp_path_factory.mktemp("mdio")
-    return zarr.storage.FSStore(tmp_dir.name, dimension_separator="/")
+    return FSStore(tmp_dir.name, dimension_separator="/")
 
 
 @pytest.fixture
@@ -68,7 +73,14 @@ def mock_data(mock_coords):
 
 
 @pytest.fixture
-def mock_mdio(mock_store, mock_dimensions, mock_coords, mock_data, mock_text, mock_bin):
+def mock_mdio(
+    mock_store: FSStore,
+    mock_dimensions: list[Dimension],
+    mock_coords: tuple[NDArray],
+    mock_data: NDArray,
+    mock_text: list[str],
+    mock_bin: dict[str, int],
+):
     """This mocks most of mdio.converters.segy in memory."""
     zarr_root = create_zarr_hierarchy(
         store=mock_store,
@@ -121,12 +133,12 @@ def mock_mdio(mock_store, mock_dimensions, mock_coords, mock_data, mock_text, mo
         chunks=data_arr.chunks[:-1],  # Same spatial chunks as data
     )
 
-    zarr.consolidate_metadata(mock_store)
+    consolidate_metadata(mock_store)
 
     return zarr_root
 
 
 @pytest.fixture
-def mock_reader(mock_mdio, mock_store):
+def mock_reader(mock_mdio: Group) -> MDIOReader:
     """Reader that points to the mocked data to be used later."""
-    return MDIOReader(mock_store)
+    return MDIOReader(mock_mdio.store.path)

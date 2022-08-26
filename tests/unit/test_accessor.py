@@ -5,6 +5,11 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
+from mdio import MDIOReader
+from mdio.core.exceptions import MDIOAlreadyExistsError
+from mdio.core.exceptions import MDIONotFoundError
+from mdio.segy.helpers_segy import create_zarr_hierarchy
+
 
 class TestReader:
     """Tests for reader units."""
@@ -77,3 +82,18 @@ class TestReader:
 
         for act_idx, exp_idx in zip(z_indices, z_index):
             npt.assert_array_equal(mock_reader[..., act_idx], mock_data[..., exp_idx])
+
+
+class TestExceptions:
+    """Test custom exceptions and if they're raised properly."""
+
+    def test_mdio_not_found(self) -> None:
+        """MDIO doesn't exist or corrupt."""
+        with pytest.raises(MDIONotFoundError):
+            MDIOReader("prefix/file_that_doesnt_exist.mdio")
+
+    def test_mdio_exists(self, mock_reader: MDIOReader) -> None:
+        """MDIO doesn't exist or corrupt."""
+        mock_store = mock_reader.store
+        with pytest.raises(MDIOAlreadyExistsError):
+            create_zarr_hierarchy(mock_store, overwrite=False)

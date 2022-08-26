@@ -229,32 +229,32 @@ def segy_import(
         \b
         3D Seismic Post-Stack:
         Chunks: 128 inlines x 128 crosslines x 128 samples
-        --header_locations 189,193
-        --header_names inline,crossline
+        --header-locations 189,193
+        --header-names inline,crossline
 
 
         \b
         3D Seismic Imaged Pre-Stack Gathers:
         Chunks: 16 inlines x 16 crosslines x 16 offsets x 512 samples
-        --header_locations 189,193,37
-        --header_names inline,crossline,offset
-        --chunk_size 16,16,16,512
+        --header-locations 189,193,37
+        --header-names inline,crossline,offset
+        --chunk-size 16,16,16,512
 
         \b
         2D Seismic Shot Data (Byte Locations Vary):
         Chunks: 16 shots x 256 channels x 512 samples
-        --header_locations 9,13
-        --header_names shot,chan
-        --chunk_size 16,256,512
+        --header-locations 9,13
+        --header-names shot,chan
+        --chunk-size 16,256,512
 
         \b
         3D Seismic Shot Data (Byte Locations Vary):
         Let's assume streamer number is at byte 213 as 2-bytes
         Chunks: 8 shots x 2 cables x 256 channels x 512 samples
-        --header_locations 9,213,13
-        --header_names shot,cable,chan
-        --header_lengths 4,2,4,4
-        --chunk_size 8,2,256,512
+        --header-locations 9,213,13
+        --header-names shot,cable,chan
+        --header-lengths 4,2,4,4
+        --chunk-size 8,2,256,512
     """
     mdio.segy_to_mdio(
         segy_path=input_segy_path,
