@@ -20,6 +20,9 @@ def create_zarr_hierarchy(store: FSStore, overwrite: bool) -> Group:
 
     Returns:
         Zarr Group instance for root of the file.
+
+    Raises:
+        MDIOAlreadyExistsError: If a file with data already exists.
     """
     root_group = open_group(store=store)
 

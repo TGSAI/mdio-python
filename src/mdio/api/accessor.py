@@ -84,6 +84,9 @@ class MDIOAccessor:
             False, which turns off disk caching. See `simplecache` from
             `fsspec` documentation for more details.
 
+    Raises:
+        MDIONotFoundError: If the MDIO file can not be opened.
+
     Notes:
         The combination of the `Dask` backend and caching schemes are experimental.
         This configuration may cause unexpected memory usage and duplicate data
