@@ -124,7 +124,7 @@ cli = click.Group(name="segy", help=SEGY_HELP)
 )
 @click.option(
     "-ratio",
-    "--compression_ratio",
+    "--compression-ratio",
     required=False,
     default=4,
     help="Lossy compression ratio.",
