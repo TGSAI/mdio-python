@@ -3,11 +3,11 @@
 
 from __future__ import annotations
 
-from collections.abc import MutableMapping
 from typing import Any
 
 import dask.array as da
 import zarr
+from zarr.storage import FSStore
 
 
 def process_url(
@@ -16,7 +16,7 @@ def process_url(
     storage_options: dict[str, Any],
     memory_cache_size: int,
     disk_cache: bool,
-) -> MutableMapping:
+) -> FSStore:
     """Check read/write access to FSStore target and return FSStore with double caching.
 
     It uses a file cache (simplecache protocol from FSSpec) and an in-memory
@@ -51,6 +51,9 @@ def process_url(
         elif "az://" in url or "abfs://" in url:
             storage_options = {"abfs": storage_options}
 
+    # Strip whitespaces and slashes from end of string
+    url = url.rstrip("/ ")
+
     # Flag for checking write access
     check = True if mode == "w" else False
 
@@ -58,8 +61,7 @@ def process_url(
     #  Get rid of this once bug is fixed.
     check = False
 
-    # Let's open the FSStore and append LRU cache
-    store = zarr.storage.FSStore(
+    store = FSStore(
         url=url,
         check=check,
         create=check,
@@ -68,7 +70,6 @@ def process_url(
         **storage_options,
     )
 
-    # Attach LRU Cache to store if requested.
     if memory_cache_size != 0:
         store = zarr.storage.LRUStoreCache(store=store, max_size=memory_cache_size)
 

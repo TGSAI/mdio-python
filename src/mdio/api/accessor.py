@@ -3,9 +3,6 @@
 
 from __future__ import annotations
 
-from warnings import simplefilter
-from warnings import warn
-
 import dask.array as da
 import numpy as np
 import numpy.typing as npt
@@ -17,10 +14,8 @@ from mdio.api.io_utils import open_zarr_array
 from mdio.api.io_utils import open_zarr_array_dask
 from mdio.api.io_utils import process_url
 from mdio.core import Grid
+from mdio.core.exceptions import MDIONotFoundError
 from mdio.exceptions import ShapeError
-
-
-simplefilter("always", DeprecationWarning)
 
 
 class MDIOAccessor:
@@ -198,21 +193,13 @@ class MDIOAccessor:
                 mode=self.mode,
                 metadata_key="zmetadata",
             )
-        except KeyError:
-            # Backwards compatibility pre v0.1.0
-            # This will be irrelevant when we go zarr v3.
-            self.store.key_separator = "."
-            self.root = zarr.open_consolidated(
-                store=self.store,
-                mode=self.mode,
-            )
+        except KeyError as e:
             msg = (
-                "Encountered an older MDIO file (pre MDIO). The "
-                "support for these files will be removed at a future release. "
-                "Please consider re-ingesting your files with the latest "
-                "version of MDIO to avoid problems in the future."
+                f"MDIO file not found or corrupt at {self.store.path}. "
+                "Please check the URL or ensure it is not a deprecated "
+                "version of MDIO file."
             )
-            warn(msg, DeprecationWarning, stacklevel=2)
+            raise MDIONotFoundError(msg) from e
 
     def _deserialize_grid(self):
         """Deserialize grid from Zarr metadata."""
