@@ -194,7 +194,6 @@ class MDIOAccessor:
             self.root = zarr.open_consolidated(
                 store=self.store,
                 mode=self.mode,
-                metadata_key="zmetadata",
             )
         except KeyError as e:
             msg = (
