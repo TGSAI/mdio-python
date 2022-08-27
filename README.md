@@ -22,7 +22,7 @@
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)][pre-commit]
 [![Black](https://img.shields.io/badge/code%20style-black-000000.svg)][black]
 
-[![PyPI Downloads](https://img.shields.io/pypi/dm/multidimio?label=PyPI%20downloads)][pypi_]
+[![PyPI Downloads](https://static.pepy.tech/personalized-badge/multidimio?period=total&units=international_system&left_color=grey&right_color=blue&left_text=PyPI%20downloads)][pypi_]
 [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/multidimio?label=Conda%20downloads&style=flat)][conda-forge_]
 
 [pypi_]: https://pypi.org/project/multidimio/
