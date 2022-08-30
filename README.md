@@ -81,9 +81,7 @@ or install _MDIO_ via [conda] from [conda-forge]:
 $ conda install -c conda-forge multidimio
 ```
 
-```{note}
-Extras must be installed separately on `Conda` environments.
-```
+> Extras must be installed separately on `Conda` environments.
 
 For details, please see the [installation instructions][install]
 in the documentation.
