@@ -45,7 +45,7 @@ distributed = ["distributed", "bokeh"]
 cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "^22.6.0"
 coverage = {version = "^6.4.4", extras = ["toml"]}
 darglint = "^1.8.1"
