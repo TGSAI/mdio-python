@@ -11,7 +11,7 @@ repos:
         name: Check for added large files
         entry: check-added-large-files
         language: system
-        args: ["--maxkb=1000"]
+        args: ["--maxkb=1100"]
       - id: check-toml
         name: Check Toml
         entry: check-toml
