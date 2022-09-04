@@ -19,9 +19,12 @@ from mdio.segy._workers import trace_worker_map
 
 
 try:
-    from zarr import ZFPY
+    import zfpy  # Base library
+    from zarr import ZFPY  # Codec
+
 except ImportError:
     ZFPY = None
+    zfpy = None
 
 # Globals
 NUM_CORES = cpu_count(logical=False)
@@ -36,7 +39,7 @@ def to_zarr(
     name: str,
     chunks: tuple[int, ...],
     lossless: bool,
-    compression_ratio: int | float,
+    compression_tolerance: float = 0.01,
     **kwargs,
 ) -> dict:
     """Blocked I/O from SEG-Y to chunked `zarr.core.Array`.
@@ -50,8 +53,10 @@ def to_zarr(
         name: Name of the zarr.Array
         chunks: Chunk sizes for trace data
         lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
-        compression_ratio: Approximate compression ratio for ZFP compression.
-            Will be ignored for `lossless=True`
+        compression_tolerance: Tolerance ZFP compression, optional. The fixed
+            accuracy mode in ZFP guarantees there won't be any errors larger
+            than this value. The default is 0.01, which gives about 70%
+            reduction in size.
         **kwargs: Additional keyword arguments passed to zarr.core.Array  # noqa: RST210
 
     Returns:
@@ -63,13 +68,11 @@ def to_zarr(
     if lossless is True:
         trace_compressor = Blosc("zstd")
         header_compressor = trace_compressor
-    elif ZFPY is not None:
-        # Compression precision is 32 bit float divided by ratio.
-        # We round it to the nearest integer since ZFP expects an
-        # integer precision for `mode=3`. This will approximately
-        # give the user the ratio they asked for.
-        zfp_precision = np.round(32 / compression_ratio)
-        trace_compressor = ZFPY(mode=3, precision=zfp_precision)
+    elif ZFPY is not None or zfpy is not None:
+        trace_compressor = ZFPY(
+            mode=zfpy.mode_fixed_accuracy,
+            tolerance=compression_tolerance,
+        )
         header_compressor = Blosc("zstd")
     else:
         raise ImportError(

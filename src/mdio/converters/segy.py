@@ -36,7 +36,7 @@ def segy_to_mdio(
     chunksize: Sequence[int] | None = None,
     endian: str = "big",
     lossless: bool = True,
-    compression_ratio: int | float = 4,
+    compression_tolerance: float = 0.01,
     storage_options: dict[str, Any] | None = None,
     overwrite: bool = False,
 ) -> None:
@@ -84,8 +84,10 @@ def segy_to_mdio(
         endian: Endianness of the input SEG-Y. Rev.2 allows little endian.
             Default is 'big'. Must be in `{"big", "little"}`
         lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
-        compression_ratio: Approximate compression ratio for ZFP compression.
-            Will be ignored if `lossless=True`
+        compression_tolerance: Tolerance ZFP compression, optional. The fixed
+            accuracy mode in ZFP guarantees there won't be any errors larger
+            than this value. The default is 0.01, which gives about 70%
+            reduction in size. Will be ignored if `lossless=True`.
         storage_options: Storage options for the cloud storage backend.
             Default is `None` (will assume anonymous)
         overwrite: Toggle for overwriting existing store
@@ -253,7 +255,7 @@ def segy_to_mdio(
         dtype="float32",
         chunks=chunksize,
         lossless=lossless,
-        compression_ratio=compression_ratio,
+        compression_tolerance=compression_tolerance,
     )
 
     for key, value in stats.items():
