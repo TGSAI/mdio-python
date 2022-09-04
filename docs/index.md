@@ -15,6 +15,7 @@ maxdepth: 1
 ---
 installation
 notebooks/quickstart
+notebooks/compression
 usage
 reference
 contributing
