@@ -123,12 +123,12 @@ cli = click.Group(name="segy", help=SEGY_HELP)
     show_default=True,
 )
 @click.option(
-    "-ratio",
-    "--compression-ratio",
+    "-tolerance",
+    "--compression-tolerance",
     required=False,
-    default=4,
-    help="Lossy compression ratio.",
-    type=click.INT,
+    default=0.01,
+    help="Lossy compression tolerance in ZFP.",
+    type=click.FLOAT,
     show_default=True,
 )
 @click.option(
@@ -156,7 +156,7 @@ def segy_import(
     chunk_size,
     endian,
     lossless,
-    compression_ratio,
+    compression_tolerance,
     storage_options,
     overwrite,
 ):
@@ -213,13 +213,18 @@ def segy_import(
 
     By default, the data is ingested with LOSSLESS compression. This
     saves disk space in the range of 20% to 40%. MDIO also allows
-    data to be compressed using the ZFP compressor's fixed rate lossy
-    compression. If lossless parameter is set to False and MDIO was
-    installed using the lossy extra; then the data will be compressed
+    data to be compressed using the ZFP compressor's fixed accuracy
+    lossy compression. If lossless parameter is set to False and MDIO
+    was installed using the lossy extra; then the data will be compressed
     to approximately 30% of its original size and will be perceptually
-    lossless. The compression ratio can be adjusted using the option
-    compression_ratio (integer). Higher values will compress more, but
-    will introduce artifacts.
+    lossless. The compression amount can be adjusted using the option
+    compression_tolerance (float). Values less than 1 gives good results.
+    The higher the value, the more compression, but will introduce artifacts.
+    The default value is 0.01 tolerance, however we get good results
+    up to 0.5; where data is almost compressed to 10% of its original size.
+    NOTE: This assumes data has amplitudes normalized to have approximately
+    standard deviation of 1. If dataset has values smaller than this
+    tolerance, a lot of loss may occur.
 
     Usage:
 
@@ -265,7 +270,7 @@ def segy_import(
         chunksize=chunk_size,
         endian=endian,
         lossless=lossless,
-        compression_ratio=compression_ratio,
+        compression_tolerance=compression_tolerance,
         storage_options=storage_options,
         overwrite=overwrite,
     )
