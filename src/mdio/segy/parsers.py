@@ -63,7 +63,7 @@ def parse_text_header(segy_handle: segyio.SegyFile) -> list[str]:
     Returns:
         Parsed text header in list with lines as elements.
     """
-    text_header = segy_handle.text[0].decode(errors='ignore')
+    text_header = segy_handle.text[0].decode(errors="ignore")
     text_header = [
         text_header[char_idx : char_idx + 80]
         for char_idx in range(0, len(text_header), 80)
