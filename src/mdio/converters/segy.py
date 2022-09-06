@@ -213,6 +213,7 @@ def segy_to_mdio(
         name="live_mask",
         shape=grid.shape[:-1],
         chunks=-1,
+        dimension_separator="/",
     )
 
     write_attribute(

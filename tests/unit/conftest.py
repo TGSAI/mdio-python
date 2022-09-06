@@ -33,7 +33,7 @@ TEST_DIMS = {
 def mock_store(tmp_path_factory):
     """Make a mocked MDIO store for writing."""
     tmp_dir = tmp_path_factory.mktemp("mdio")
-    return FSStore(tmp_dir.name, dimension_separator="/")
+    return FSStore(tmp_dir.name)
 
 
 @pytest.fixture
@@ -106,6 +106,7 @@ def mock_mdio(
         name="live_mask",
         shape=grid.shape[:-1],
         chunks=-1,
+        dimension_separator="/",
     )
 
     write_attribute(name="created", zarr_group=zarr_root, attribute=str(datetime.now()))
@@ -124,13 +125,18 @@ def mock_mdio(
     for key, value in stats.items():
         write_attribute(name=key, zarr_group=zarr_root, attribute=value)
 
-    data_arr = data_grp.create_dataset("chunked_012", data=mock_data)
+    data_arr = data_grp.create_dataset(
+        "chunked_012",
+        data=mock_data,
+        dimension_separator="/",
+    )
 
     metadata_grp.create_dataset(
         data=il_grid * xl_grid,
         name="_".join(["chunked_012", "trace_headers"]),
         shape=grid.shape[:-1],  # Same spatial shape as data
         chunks=data_arr.chunks[:-1],  # Same spatial chunks as data
+        dimension_separator="/",
     )
 
     consolidate_metadata(mock_store)

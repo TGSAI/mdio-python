@@ -86,6 +86,7 @@ def to_zarr(
         shape=grid.shape,
         compressor=trace_compressor,
         chunks=chunks,
+        dimension_separator="/",
         **kwargs,
     )
 
@@ -116,6 +117,7 @@ def to_zarr(
         chunks=chunks[:-1],  # Same spatial chunks as data
         compressor=header_compressor,
         dtype=header_dtype,
+        dimension_separator="/",
     )
 
     # Initialize chunk iterator (returns next chunk slice indices each iteration)

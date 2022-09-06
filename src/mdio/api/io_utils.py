@@ -66,7 +66,6 @@ def process_url(
         check=check,
         create=check,
         mode=mode,
-        dimension_separator="/",
         **storage_options,
     )
 
