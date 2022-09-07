@@ -25,3 +25,10 @@ def test_main_succeeds(runner: CliRunner, segy_input: str, zarr_tmp: Path) -> No
 
     result = runner.invoke(__main__.main, args=cli_args)
     assert result.exit_code == 0
+
+
+def test_cli_version(runner: CliRunner) -> None:
+    """Check if version prints without error."""
+    cli_args = ["--version"]
+    result = runner.invoke(__main__.main, args=cli_args)
+    assert result.exit_code == 0

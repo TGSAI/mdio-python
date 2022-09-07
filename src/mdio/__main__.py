@@ -70,7 +70,7 @@ class MyCLI(click.MultiCommand):
 
 
 @click.command(cls=MyCLI)
-@click.version_option()
+@click.version_option(mdio.__version__)
 def main() -> None:
     """Welcome to MDIO!
 
