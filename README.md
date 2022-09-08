@@ -83,7 +83,7 @@ $ conda install -c conda-forge multidimio
 
 > Extras must be installed separately on `Conda` environments.
 
-For details, please see the [installation instructions][install]
+For details, please see the [installation instructions][install_rtfd]
 in the documentation.
 
 # Using MDIO
@@ -155,4 +155,4 @@ template.
 [contributor guide]: https://github.com/TGSAI/mdio-python/blob/main/CONTRIBUTING.md
 [usage]: https://mdio-python.readthedocs.io/en/latest/usage.html
 [reference]: https://mdio-python.readthedocs.io/en/latest/reference.html
-[install]: https://mdio-python.readthedocs.io/en/latest/installation.html
+[install_rtfd]: https://mdio-python.readthedocs.io/en/latest/installation.html
