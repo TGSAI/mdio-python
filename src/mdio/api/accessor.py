@@ -83,6 +83,10 @@ class MDIOAccessor:
         disk_cache: Disk cache implemented by `fsspec`, optional. Default is
             False, which turns off disk caching. See `simplecache` from
             `fsspec` documentation for more details.
+        local_cache_dir: local cache directory, optional. Default is None (i.e.
+            fsspec creates a new temp directory will be cleaned up after the
+            process ends). See `simplecache` from `fsspec` documentation for
+            more details.
 
     Raises:
         MDIONotFoundError: If the MDIO file can not be opened.
@@ -139,6 +143,7 @@ class MDIOAccessor:
         backend: str,
         memory_cache_size: int,
         disk_cache: bool,
+        local_cache_dir: str | None,
     ):
         """Accessor initialization function."""
         # Set public attributes
@@ -167,6 +172,7 @@ class MDIOAccessor:
         self._new_chunks = new_chunks
         self._memory_cache_size = memory_cache_size
         self._disk_cache = disk_cache
+        self._local_cache_dir = local_cache_dir
 
         # Call methods to finish initialization
         self._validate_store(storage_options)
@@ -186,6 +192,7 @@ class MDIOAccessor:
             storage_options=storage_options,
             memory_cache_size=self._memory_cache_size,
             disk_cache=self._disk_cache,
+            local_cache_dir=self._local_cache_dir,
         )
 
     def _connect(self):
@@ -566,6 +573,10 @@ class MDIOReader(MDIOAccessor):
         disk_cache: Disk cache implemented by `fsspec`, optional. Default is
             False, which turns off disk caching. See `simplecache` from
             `fsspec` documentation for more details.
+        local_cache_dir: local cache directory, optional. Default is None (i.e.
+            fsspec creates a new temp directory will be cleaned up after the
+            process ends). See `simplecache` from `fsspec` documentation for
+            more details.
     """
 
     def __init__(
@@ -578,6 +589,7 @@ class MDIOReader(MDIOAccessor):
         backend: str = "zarr",
         memory_cache_size=0,
         disk_cache=False,
+        local_cache_dir: str | None = None,
     ):  # TODO: Disabled all caching by default, sometimes causes performance issues
         """Initialize super class with `r` permission."""
         super().__init__(
@@ -590,6 +602,7 @@ class MDIOReader(MDIOAccessor):
             backend=backend,
             memory_cache_size=memory_cache_size,
             disk_cache=disk_cache,
+            local_cache_dir=local_cache_dir,
         )
 
 
@@ -622,6 +635,10 @@ class MDIOWriter(MDIOAccessor):
         disk_cache: Disk cache implemented by `fsspec`, optional. Default is
             False, which turns off disk caching. See `simplecache` from
             `fsspec` documentation for more details.
+        local_cache_dir: local cache directory, optional. Default is None (i.e.
+            fsspec creates a new temp directory will be cleaned up after the
+            process ends). See `simplecache` from `fsspec` documentation for
+            more details.
     """
 
     def __init__(
@@ -634,6 +651,7 @@ class MDIOWriter(MDIOAccessor):
         backend: str = "zarr",
         memory_cache_size=0,
         disk_cache=False,
+        local_cache_dir: str | None = None,
     ):  # TODO: Disabled all caching by default, sometimes causes performance issues
         """Initialize super class with `r+` permission."""
         super().__init__(
@@ -646,4 +664,5 @@ class MDIOWriter(MDIOAccessor):
             backend=backend,
             memory_cache_size=memory_cache_size,
             disk_cache=disk_cache,
+            local_cache_dir=local_cache_dir,
         )
