@@ -38,6 +38,10 @@ def process_url(
     Returns:
         Store with augmentations like cache, write verification etc.
 
+    Raises:
+        ValueError: if a local cache directory is specified, when local caching
+            is not enabled.
+
     """
     # Append simplecache (disk caching) protocol
     # We need to change the storage options when caching is enabled.
