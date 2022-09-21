@@ -16,7 +16,6 @@ def process_url(
     storage_options: dict[str, Any],
     memory_cache_size: int,
     disk_cache: bool,
-    local_cache_dir: str | None = None,
 ) -> FSStore:
     """Check read/write access to FSStore target and return FSStore with double caching.
 
@@ -32,15 +31,9 @@ def process_url(
         storage_options: Storage options for the storage backend.
         memory_cache_size: Maximum in memory LRU cache size in bytes.
         disk_cache: This enables FSSpec's `simplecache` if True.
-        local_cache_dir: The directory to be used for local caching, if
-            `disk_cache` is enabled, optional.
 
     Returns:
         Store with augmentations like cache, write verification etc.
-
-    Raises:
-        ValueError: if a local cache directory is specified, when local caching
-            is not enabled.
 
     """
     # Append simplecache (disk caching) protocol
@@ -51,19 +44,6 @@ def process_url(
     #                          'simplecache': {'cache_storage': '/my/cache/path'}}
     if disk_cache is True:
         url = "::".join(["simplecache", url])
-        if "s3://" in url:
-            storage_options = {"s3": storage_options}
-        elif "gcs://" in url or "gs://" in url:
-            storage_options = {"gcs": storage_options}
-        elif "az://" in url or "abfs://" in url:
-            storage_options = {"abfs": storage_options}
-
-    if local_cache_dir:
-        if not disk_cache:
-            raise ValueError(
-                "Disk caching must be enabled when specifying the local cache directory"
-            )
-        storage_options["simplecache"] = {"cache_storage": local_cache_dir}
 
     # Strip whitespaces and slashes from end of string
     url = url.rstrip("/ ")
