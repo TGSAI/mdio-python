@@ -36,12 +36,13 @@ def process_url(
         Store with augmentations like cache, write verification etc.
 
     """
-    # Append simplecache (disk caching) protocol
-    # We need to change the storage options when caching is enabled.
-    # Example below. This allows you to configure the cache protocol as well if needed.
-    # storage_options_before = {'key': 'my_key', 'secret': 'my_secret'}
-    # storage_options_after = {'s3:' {'key': 'my_key', 'secret': 'my_secret'},
-    #                          'simplecache': {'cache_storage': '/my/cache/path'}}
+    # Append simplecache (disk caching) protocol to the URL.
+    # This allows you to configure the cache protocol as well if needed (example below).
+    # Note that storage_options is passed to FSSpec unchanged, so if you have enabled
+    # disk caching, you need to separate simplecache's storage options from your
+    # target FS's storage options.
+    # storage_options = {'s3:' {'key': 'my_key', 'secret': 'my_secret'},
+    #                    'simplecache': {'cache_storage': '/my/cache/path'}}
     if disk_cache is True:
         url = "::".join(["simplecache", url])
 
