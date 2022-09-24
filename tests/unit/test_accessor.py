@@ -1,5 +1,7 @@
 """Test for MDIO accessors."""
 
+import os
+import shutil
 
 import numpy as np
 import numpy.testing as npt
@@ -82,6 +84,11 @@ class TestReader:
 
         for act_idx, exp_idx in zip(z_indices, z_index):
             npt.assert_array_equal(mock_reader[..., act_idx], mock_data[..., exp_idx])
+
+    def test_local_caching(self, mock_reader_cached):
+        """Test local caching."""
+        assert os.path.isdir("./mdio_test_cache")
+        shutil.rmtree("./mdio_test_cache")
 
 
 class TestExceptions:

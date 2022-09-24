@@ -26,7 +26,7 @@ def mdio_spec_to_segy(
 ):
     """Create SEG-Y file without any traces given MDIO specification.
 
-    This function opens a MDIO file, gets some relevant information for SEG-Y files,
+    This function opens an MDIO file, gets some relevant information for SEG-Y files,
     then creates a SEG-Y file with the specification it read from the MDIO file.
 
     It then returns the `MDIOReader` instance, and the parsed floating point format

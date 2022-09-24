@@ -19,11 +19,17 @@ def process_url(
 ) -> FSStore:
     """Check read/write access to FSStore target and return FSStore with double caching.
 
-    It uses a file cache (simplecache protocol from FSSpec) and an in-memory
-    Least Recently Used (LRU) cache implementation from zarr.
+    It can use an in-memory Least Recently Used (LRU) cache implementation from
+    Zarr, and optionally, a file cache (`simplecache` protocol from FSSpec) that
+    is useful for remote stores.
 
     File cache is only valid for remote stores. The LRU caching works
     on both remote and local.
+
+    The `storage_options` argument represents a set of parameters to be passed
+    to the FSSpec backend. Note that the format of `storage_options` is
+    different if `disk_cache` is enabled or disabled, since `disk_cache`
+    interanlly uses the simplecache protocol.
 
     Args:
         url: FSSpec compliant url
@@ -35,21 +41,49 @@ def process_url(
     Returns:
         Store with augmentations like cache, write verification etc.
 
+    Examples:
+        If we want to access an MDIO file from S3 without using disk caching,
+        the simplecache protocol is not used, and therefore we only need to
+        specify the s3 filesystem options:
+
+        >>> from mdio.api.convenience import process_url
+        >>>
+        >>>
+        >>> process_url(
+        ...     url="s3://bucket/key",
+        ...     mode="r",
+        ...     storage_options={"key": "my_key", "secret": "my_secret"},
+        ...     memory_cache_size=0,
+        ...     disk_cache=False,
+        ... )
+
+        On the other hand, if we want to use disk caching, we need to
+        explicitly state that the options we are passing are for the S3
+        filesystem:
+
+        >>> process_url(
+        ...     url="s3://bucket/key",
+        ...     mode="r",
+        ...     storage_options={"s3": {"key": "my_key", "secret": "my_secret"}},
+        ...     memory_cache_size=0,
+        ...     disk_cache=True,
+        ... )
+
+        This allows us to pass options to the simplecache filesystem as well:
+
+        >>> process_url(
+        ...     url="s3://bucket/key",
+        ...     mode="r",
+        ...     storage_options={
+        ...         "s3": {"key": "my_key", "secret": "my_secret"},
+        ...         "simplecache": {"cache_storage": "custom/local/cache/path"},
+        ...     },
+        ...     memory_cache_size=0,
+        ...     disk_cache=True,
+        ... )
     """
-    # Append simplecache (disk caching) protocol
-    # We need to change the storage options when caching is enabled.
-    # Example below. This allows you to configure the cache protocol as well if needed.
-    # storage_options_before = {'key': 'my_key', 'secret': 'my_secret'}
-    # storage_options_after = {'s3:' {'key': 'my_key', 'secret': 'my_secret'},
-    #                          'simplecache': {'cache_storage': '/my/cache/path'}}
     if disk_cache is True:
         url = "::".join(["simplecache", url])
-        if "s3://" in url:
-            storage_options = {"s3": storage_options}
-        elif "gcs://" in url or "gs://" in url:
-            storage_options = {"gcs": storage_options}
-        elif "az://" in url or "abfs://" in url:
-            storage_options = {"abfs": storage_options}
 
     # Strip whitespaces and slashes from end of string
     url = url.rstrip("/ ")

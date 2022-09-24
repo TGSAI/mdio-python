@@ -148,3 +148,13 @@ def mock_mdio(
 def mock_reader(mock_mdio: Group) -> MDIOReader:
     """Reader that points to the mocked data to be used later."""
     return MDIOReader(mock_mdio.store.path)
+
+
+@pytest.fixture
+def mock_reader_cached(mock_mdio: Group) -> MDIOReader:
+    """Reader that points to the mocked data to be used later. (with local caching)."""
+    return MDIOReader(
+        mock_mdio.store.path,
+        disk_cache=True,
+        storage_options={"simplecache": {"cache_storage": "./mdio_test_cache"}},
+    )
