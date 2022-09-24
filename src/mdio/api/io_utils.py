@@ -19,8 +19,9 @@ def process_url(
 ) -> FSStore:
     """Check read/write access to FSStore target and return FSStore with double caching.
 
-    It uses an in-memory Least Recently Used (LRU) cache implementation from
-    zarr, and optionally, a file cache (simplecache protocol from FSSpec).
+    It can use an in-memory Least Recently Used (LRU) cache implementation from
+    Zarr, and optionally, a file cache (`simplecache` protocol from FSSpec) that is useful
+    for remote stores.
 
     File cache is only valid for remote stores. The LRU caching works
     on both remote and local.
