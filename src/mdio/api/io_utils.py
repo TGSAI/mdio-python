@@ -20,8 +20,8 @@ def process_url(
     """Check read/write access to FSStore target and return FSStore with double caching.
 
     It can use an in-memory Least Recently Used (LRU) cache implementation from
-    Zarr, and optionally, a file cache (`simplecache` protocol from FSSpec) that is useful
-    for remote stores.
+    Zarr, and optionally, a file cache (`simplecache` protocol from FSSpec) that
+    is useful for remote stores.
 
     File cache is only valid for remote stores. The LRU caching works
     on both remote and local.
@@ -44,42 +44,44 @@ def process_url(
     Examples:
         If we want to access an MDIO file from S3 without using disk caching,
         the simplecache protocol is not used, and therefore we only need to
-        specify the s3 filesystem options::
+        specify the s3 filesystem options:
 
+        >>> from mdio.api.convenience import process_url
+        >>>
+        >>>
         >>> process_url(
-        ...    url="s3://bucket/key",
-        ...    mode="r",
-        ...    storage_options={"key": "my_key", "secret": "my_secret"},
-        ...    memory_cache_size=0,
-        ...    disk_cache=False,
+        ...     url="s3://bucket/key",
+        ...     mode="r",
+        ...     storage_options={"key": "my_key", "secret": "my_secret"},
+        ...     memory_cache_size=0,
+        ...     disk_cache=False,
         ... )
 
         On the other hand, if we want to use disk caching, we need to
         explicitly state that the options we are passing are for the S3
-        filesystem::
+        filesystem:
 
         >>> process_url(
-        ...    url="s3://bucket/key",
-        ...    mode="r",
-        ...    storage_options={"s3": {"key": "my_key", "secret": "my_secret"}},
-        ...    memory_cache_size=0,
-        ...    disk_cache=True,
+        ...     url="s3://bucket/key",
+        ...     mode="r",
+        ...     storage_options={"s3": {"key": "my_key", "secret": "my_secret"}},
+        ...     memory_cache_size=0,
+        ...     disk_cache=True,
         ... )
 
-        This allows us to pass options to the simplecache filesystem as well::
+        This allows us to pass options to the simplecache filesystem as well:
 
         >>> process_url(
-        ...    url="s3://bucket/key",
-        ...    mode="r",
-        ...    storage_options={
-        ...        "s3": {"key": "my_key", "secret": "my_secret"},
-        ...        "simplecache": {"cache_storage": "custom/local/cache/path"}
-        ...    },
-        ...    memory_cache_size=0,
-        ...    disk_cache=True,
+        ...     url="s3://bucket/key",
+        ...     mode="r",
+        ...     storage_options={
+        ...         "s3": {"key": "my_key", "secret": "my_secret"},
+        ...         "simplecache": {"cache_storage": "custom/local/cache/path"},
+        ...     },
+        ...     memory_cache_size=0,
+        ...     disk_cache=True,
         ... )
     """
-    # Append simplecache (disk caching) protocol to the URL.
     if disk_cache is True:
         url = "::".join(["simplecache", url])
 
