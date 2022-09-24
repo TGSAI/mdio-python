@@ -68,16 +68,16 @@ def process_url(
 
         This allows us to pass options to the simplecache filesystem as well::
 
-            process_url(
-                url="s3://bucket/key",
-                mode="r",
-                storage_options={
-                    "s3": {"key": "my_key", "secret": "my_secret"},
-                    "simplecache": {"cache_storage": "custom/local/cache/path"}
-                },
-                memory_cache_size=0,
-                disk_cache=True,
-            )
+        >>> process_url(
+        ...    url="s3://bucket/key",
+        ...    mode="r",
+        ...    storage_options={
+        ...        "s3": {"key": "my_key", "secret": "my_secret"},
+        ...        "simplecache": {"cache_storage": "custom/local/cache/path"}
+        ...    },
+        ...    memory_cache_size=0,
+        ...    disk_cache=True,
+        ... )
     """
     # Append simplecache (disk caching) protocol to the URL.
     if disk_cache is True:
