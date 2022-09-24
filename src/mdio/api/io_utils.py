@@ -46,13 +46,13 @@ def process_url(
         the simplecache protocol is not used, and therefore we only need to
         specify the s3 filesystem options::
 
-            process_url(
-                url="s3://bucket/key",
-                mode="r",
-                storage_options={"key": "my_key", "secret": "my_secret"},
-                memory_cache_size=0,
-                disk_cache=False,
-            )
+        >>> process_url(
+        ...    url="s3://bucket/key",
+        ...    mode="r",
+        ...    storage_options={"key": "my_key", "secret": "my_secret"},
+        ...    memory_cache_size=0,
+        ...    disk_cache=False,
+        ... )
 
         On the other hand, if we want to use disk caching, we need to
         explicitly state that the options we are passing are for the S3
