@@ -58,13 +58,13 @@ def process_url(
         explicitly state that the options we are passing are for the S3
         filesystem::
 
-            process_url(
-                url="s3://bucket/key",
-                mode="r",
-                storage_options={"s3": {"key": "my_key", "secret": "my_secret"}},
-                memory_cache_size=0,
-                disk_cache=True,
-            )
+        >>> process_url(
+        ...    url="s3://bucket/key",
+        ...    mode="r",
+        ...    storage_options={"s3": {"key": "my_key", "secret": "my_secret"}},
+        ...    memory_cache_size=0,
+        ...    disk_cache=True,
+        ... )
 
         This allows us to pass options to the simplecache filesystem as well::
 
