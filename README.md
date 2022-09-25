@@ -94,13 +94,13 @@ For Python API please see the [API Reference][reference] for details.
 
 # Requirements
 
-### Minimal
+## Minimal
 
 Chunked storage and parallelization: `zarr`, `dask`, `numba`, and `psutil`.\
 SEG-Y Parsing: `segyio`\
 CLI and Progress Bars: `click`, `click-params`, and `tqdm`.
 
-### Optional
+## Optional
 
 Distributed computing `[distributed]`: `distributed` and `bokeh`.\
 Cloud Object Store I/O `[cloud]`: `s3fs`, `gcsfs`, and `adlfs`.\
