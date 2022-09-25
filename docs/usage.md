@@ -2,8 +2,8 @@
 
 ## Ingestion and Export
 
-The following example shows how to ingest a 3D seismic stack into
-**_MDIO_** format. Only one lossless copy will be made.
+The following example shows how to minimally ingest a 3D seismic stack into
+a local **_MDIO_** file. Only one lossless copy will be made.
 
 There are many more options, please see the [CLI Reference](#cli-reference).
 
