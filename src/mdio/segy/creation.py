@@ -109,7 +109,7 @@ def mdio_spec_to_segy(
 
 # TODO: Abstract this to support various implementations by
 #  object stores and file systems. Probably fsspec solution.
-def concat_files(paths: list[str]) -> None:
+def concat_files(paths: list[str]) -> str:
     """Concatenate files on disk, sequentially in given order.
 
     This function takes files on disk, and it combines them by
@@ -121,6 +121,9 @@ def concat_files(paths: list[str]) -> None:
 
     Args:
         paths: Paths to the blocks of SEG-Y.
+
+    Returns:
+        Path to the returned file (first one from input).
     """
     first_file = paths.pop(0)
 
