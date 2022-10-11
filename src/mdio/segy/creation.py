@@ -7,7 +7,6 @@ from time import sleep
 
 import segyio
 from segyio.binfield import keys as bfkeys
-from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
 from mdio.segy._standards_common import SegyFloatFormat
@@ -108,38 +107,28 @@ def mdio_spec_to_segy(
     return mdio, out_sample_format
 
 
-def merge_partial_segy(output_segy_path, block_file_paths, block_exists):
-    """Merge SEG-Y parts into single, valid SEG-Y.
+# TODO: Abstract this to support various implementations by
+#  object stores and file systems. Probably fsspec solution.
+def concat_files(paths: list[str]) -> None:
+    """Concatenate files on disk, sequentially in given order.
 
-    When exporting MDIO to SEG-Y, flattening multi-dimensional
-    arrays must be done in parts to minimize the memory usage.
-
-    This function takes trace header and trace data that is already
-    serialized to SEG-Y (without text or binary headers) and it
-    combines them to the final output SEG-Y with all valid fields.
-
-    We delete files as we go, so disk usage doesn't get changed.
+    This function takes files on disk, and it combines them by
+    concatenation. Input files are deleted after merge, so disk
+    usage doesn't explode.
 
     This is only required for disk / on-prem; since object stores
     have their optimized file concatenation implementations.
 
     Args:
-        output_segy_path: Path to the final output file. The final
-            file must already be initialized with text and
-            binary headers.
-        block_file_paths: Paths to the blocks of SEG-Y.
-        block_exists: Flat to mark if block exists or not.
+        paths: Paths to the blocks of SEG-Y.
     """
-    tqdm_kw = dict(unit="block", dynamic_ncols=True)
-    block_iter = zip(block_file_paths, block_exists)
-    progress = tqdm(block_iter, desc="Step 2 / 2 Concat Blocks", **tqdm_kw)
+    first_file = paths.pop(0)
 
-    with open(output_segy_path, "ab+") as concat_fp:
-        for block_file_name, exists in progress:
-            if not exists:
-                continue
+    for next_file in paths:
+        with open(first_file, "ab+") as first_fp:
+            with open(next_file, "rb") as next_fp:
+                copyfileobj(next_fp, first_fp)
 
-            with open(block_file_name, "rb") as block_fp:
-                copyfileobj(block_fp, concat_fp)
+            os.remove(next_file)
 
-            os.remove(block_file_name)
+    return first_file
