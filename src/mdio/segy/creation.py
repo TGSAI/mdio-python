@@ -1,23 +1,15 @@
 """SEG-Y creation utilities."""
 
 
-from __future__ import annotations
-
 import os
 from shutil import copyfileobj
 from time import sleep
 
-import numpy as np
 import segyio
-from numpy.typing import NDArray
 from segyio.binfield import keys as bfkeys
 
 from mdio.api.accessor import MDIOReader
 from mdio.segy._standards_common import SegyFloatFormat
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.byte_utils import get_byteorder
-from mdio.segy.ibm_float import ieee2ibm
 
 
 def mdio_spec_to_segy(
@@ -115,71 +107,9 @@ def mdio_spec_to_segy(
     return mdio, out_sample_format
 
 
-def preprocess_samples(
-    samples: NDArray,
-    live: NDArray,
-    out_dtype: Dtype,
-    out_byteorder: ByteOrder,
-) -> NDArray:
-    """Pre-process samples before writing to SEG-Y.
-
-    Args:
-        samples: Array containing the trace samples.
-        live: live mask for the `samples` array.
-        out_dtype: Output format for SEG-Y.
-        out_byteorder: Output byte-order.
-
-    Returns:
-        Array with values modified according to configuration.
-    """
-    if np.count_nonzero(live) == 0:
-        return np.empty_like(samples)
-
-    if out_dtype == Dtype.IBM32:
-        out_samples = samples.astype("float32", copy=False)
-        out_samples = ieee2ibm(out_samples)
-    else:
-        out_samples = samples.astype(out_dtype, copy=False)
-
-    in_byteorder = get_byteorder(samples)
-
-    if in_byteorder != out_byteorder:
-        out_samples.byteswap(inplace=True)
-
-    return out_samples
-
-
-def preprocess_headers(
-    headers: NDArray,
-    live: NDArray,
-    out_byteorder: ByteOrder,
-) -> NDArray:
-    """Pre-process samples before writing to SEG-Y.
-
-    Args:
-        headers: Array containing the trace samples.
-        live: live mask for the `headers` array.
-        out_byteorder: Output byte-order.
-
-    Returns:
-        Array with values modified according to configuration.
-    """
-    out_headers = headers
-
-    if np.count_nonzero(live) == 0:
-        return out_headers
-
-    in_byteorder = get_byteorder(headers)
-
-    if in_byteorder != out_byteorder:
-        out_headers.byteswap(inplace=True)
-
-    return out_headers
-
-
 # TODO: Abstract this to support various implementations by
 #  object stores and file systems. Probably fsspec solution.
-def concat_files(paths: list[str]) -> str:
+def concat_files(paths: list[str]) -> None:
     """Concatenate files on disk, sequentially in given order.
 
     This function takes files on disk, and it combines them by
@@ -191,14 +121,11 @@ def concat_files(paths: list[str]) -> str:
 
     Args:
         paths: Paths to the blocks of SEG-Y.
-
-    Returns:
-        Path to the returned file (first one from input).
     """
     first_file = paths.pop(0)
 
-    with open(first_file, "ab+") as first_fp:
-        for next_file in paths:
+    for next_file in paths:
+        with open(first_file, "ab+") as first_fp:
             with open(next_file, "rb") as next_fp:
                 copyfileobj(next_fp, first_fp)
 
