@@ -3,20 +3,18 @@
 
 from __future__ import annotations
 
-from os import path
 from typing import Any
 from typing import Sequence
-from uuid import uuid1
 
 import numpy as np
+import numpy.typing as npt
 import segyio
-from numpy.typing import ArrayLike
-from numpy.typing import NDArray
 from zarr import Array
 
 from mdio.constants import UINT32_MAX
 from mdio.core import Grid
 from mdio.segy.byte_utils import ByteOrder
+from mdio.segy.ibm_float import ieee2ibm
 
 
 def header_scan_worker(
@@ -25,7 +23,7 @@ def header_scan_worker(
     byte_locs: Sequence[int],
     byte_lengths: Sequence[int],
     segy_endian: str,
-) -> ArrayLike:
+) -> npt.ArrayLike:
     """Header scan worker.
 
     Can accept file path or segyio.SegyFile.
@@ -199,77 +197,69 @@ def trace_worker(
     return count, chunk_sum, chunk_sum_squares, min_val, max_val
 
 
-def traces_to_file(
-    samples: NDArray,
-    headers: NDArray,
-    live: NDArray,
-    out_path: str,
-) -> None:
-    """Interlace headers and samples to form traces and write them out.
+def write_block_to_segy(
+    block_out_path: str,
+    traces: np.ndarray,
+    headers: np.ndarray,
+    live: np.ndarray,
+    num_samp: int,
+    sample_format: str,
+    endian: str,
+) -> int:
+    """Write a block of traces to a SEG-Y file without text and binary headers.
 
     Args:
-        samples: Sample data.
-        headers: Header data.
-        live: Live mask.
-        out_path: Path to the output file.
+        block_out_path: Path to write the block.
+        traces: Trace data.
+        headers: Headers for `traces`.
+        live: Live mask for `traces`.
+        num_samp: Number of samples in traces.
+        sample_format: Sample output format. Must be in {"ibm", "ieee"}.
+        endian: Endianness of the sample format. Must be in {"little", "big"}.
+
+    Returns:
+        Returns the integer "1" if successful. Returns "0" if all traces
+        in the block were zero.
+
+    Raises:
+        OSError: if unsupported SEG-Y sample format is found
     """
+    if np.count_nonzero(live) == 0:
+        return 0
+
+    # Drop dead traces, this also makes data sequential.
+    traces = traces[live]
+    headers = headers[live]
+    live = live[live]
+
+    # Handle float formats
+    if sample_format == 1:  # IBM
+        trace_dtype = num_samp * np.dtype("uint32")
+        traces = ieee2ibm(traces)
+    elif sample_format == 5:  # IEEE
+        trace_dtype = num_samp * traces.dtype
+    else:
+        raise OSError("Unknown SEG-Y sample format")
+
     full_dtype = {
         "names": ("header", "pad", "trace"),
-        "formats": [
-            headers.dtype,
-            np.dtype("int64"),
-            samples.shape[-1] * samples.dtype,
-        ],
+        "formats": [headers.dtype, np.dtype("int64"), trace_dtype],
     }
     full_dtype = np.dtype(full_dtype)
 
-    n_live = np.count_nonzero(live)
-    trace = np.empty(n_live, dtype=full_dtype)
+    full_trace = np.empty(len(live), dtype=full_dtype)
+    full_trace["header"] = headers
+    full_trace["pad"].fill(0)
+    full_trace["trace"] = traces
 
-    trace["header"] = headers[live]
-    trace["pad"] = 0
-    trace["trace"] = samples[live]
+    if endian == "big":
+        full_trace.byteswap(inplace=True)
 
-    with open(out_path, mode="wb") as fp:
-        trace.tofile(fp)
+    # This will write the SEG-Y file with the same order as MDIO.
+    with open(block_out_path, "wb") as out_file:
+        out_file.write(full_trace.tobytes())
 
-
-def chunk_to_sgy_stack(
-    samples: NDArray,
-    headers: NDArray,
-    live: NDArray,
-    out_root: str,
-    row: int,
-    col: int,
-) -> list[str]:
-    """Convert a partial chunk (block) to stack of SEG-Y traces.
-
-    Args:
-        samples: Sample data.
-        headers: Header data.
-        live: Live mask.
-        out_root: Root directory for output file.
-        row: Row index of chunk block within full array.
-        col: Col index of chunk block within full array.
-
-    Returns:
-        List of (path, exists) tuples created in this function.
-
-    """
-    block_files = []
-
-    for idx, (s, h, l) in enumerate(zip(samples, headers, live)):
-        f_name = f".{row:05d}_{idx:05d}_{col:05d}_{str(uuid1())}.sgyblock"
-        f_path = path.join(out_root, f_name)
-
-        if np.count_nonzero(l) == 0:
-            block_files.append((f_path, 0))
-            continue
-
-        block_files.append((f_path, 1))
-        traces_to_file(s, h, l, f_path)
-
-    return block_files
+    return 1
 
 
 # tqdm only works properly with pool.map

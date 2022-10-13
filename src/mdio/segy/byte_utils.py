@@ -1,12 +1,10 @@
 """Module for custom struct abstraction utilities."""
 
 
-import sys
 from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
-from numpy.typing import NDArray
 
 
 class Dtype(str, Enum):
@@ -67,23 +65,3 @@ class OrderedType:
         swapped_dtype = self.dtype.newbyteorder()
         swapped_order = swapped_dtype.byteorder
         self.endian = ByteOrder(swapped_order)
-
-
-SYS_BYTEORDER = ByteOrder[sys.byteorder.upper()]
-
-
-def get_byteorder(array: NDArray) -> str:
-    """Get byte order of numpy array.
-
-    Args:
-        array: Array like with `.dtype` attribute.
-
-    Returns:
-        String representing byte order in {"<", ">"}
-    """
-    byteorder = array.dtype.byteorder
-
-    if byteorder == ByteOrder.NATIVE:
-        return SYS_BYTEORDER
-
-    return byteorder
