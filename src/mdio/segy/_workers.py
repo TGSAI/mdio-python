@@ -13,7 +13,7 @@ from zarr import Array
 
 from mdio.constants import UINT32_MAX
 from mdio.core import Grid
-from mdio.segy.byte_utils import Endian
+from mdio.segy.byte_utils import ByteOrder
 from mdio.segy.ibm_float import ieee2ibm
 
 
@@ -76,7 +76,7 @@ def header_scan_worker(
     # First we create a struct to unpack the 240-byte trace headers.
     # The struct only knows about dimension keys, and their byte offsets.
     # Pads the rest of the data with voids.
-    endian = Endian[segy_endian.upper()]
+    endian = ByteOrder[segy_endian.upper()]
     struct_dtype = np.dtype(
         {
             "names": [f"dim_{idx}" for idx in range(len(byte_locs))],

@@ -11,9 +11,11 @@ class Dtype(str, Enum):
     """Dtype string to Numpy format enum."""
 
     STRING = "S"
+    UINT8 = "u1"
     UINT16 = "u2"
     UINT32 = "u4"
     UINT64 = "u8"
+    INT8 = "i1"
     INT16 = "i2"
     INT32 = "i4"
     INT64 = "i8"
@@ -23,12 +25,12 @@ class Dtype(str, Enum):
     IBM32 = "u4"
 
 
-class Endian(str, Enum):
+class ByteOrder(str, Enum):
     """Endianness string to Numpy format enum."""
 
     LITTLE = "<"
     BIG = ">"
-    NATIVE = "|"
+    NATIVE = "="
 
 
 @dataclass
@@ -47,7 +49,7 @@ class OrderedType:
     """
 
     type: Dtype
-    endian: Endian
+    endian: ByteOrder
 
     def __len__(self) -> int:
         """Size of struct in bytes."""
@@ -62,4 +64,4 @@ class OrderedType:
         """Swap endianness in place."""
         swapped_dtype = self.dtype.newbyteorder()
         swapped_order = swapped_dtype.byteorder
-        self.endian = Endian(swapped_order)
+        self.endian = ByteOrder(swapped_order)
