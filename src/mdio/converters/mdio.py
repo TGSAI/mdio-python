@@ -3,23 +3,20 @@
 
 from __future__ import annotations
 
+import uuid
 from os import path
 
-import dask.array as da
 import numpy as np
 from dask.array.core import Array
 from dask.base import compute_as_if_collection
+from dask.core import flatten
 from dask.highlevelgraph import HighLevelGraph
 from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader
-from mdio.segy._workers import chunk_to_sgy_stack
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
+from mdio.segy._workers import write_block_to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
-from mdio.segy.creation import preprocess_headers
-from mdio.segy.creation import preprocess_samples
 
 
 try:
@@ -65,7 +62,7 @@ def mdio_to_segy(  # noqa: C901
         access_pattern: This specificies the chunk access pattern. Underlying
             zarr.Array must exist. Examples: '012', '01'
         out_sample_format: Output sample format.
-            Currently support: {'ibm32', 'float32'}. Default is 'ibm32'.
+            Currently support: {'ibm32', 'ieee32'}. Default is 'ibm32'.
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous access)
         new_chunks: Set manual chunksize. For development purposes only.
@@ -98,7 +95,7 @@ def mdio_to_segy(  # noqa: C901
         ...     mdio_path_or_buffer="prefix2/file.mdio",
         ...     output_segy_path="prefix/file.segy",
         ...     selection_mask=boolean_mask,
-        ...     out_sample_format="float32",
+        ...     out_sample_format="ieee32",
         ... )
 
     """
@@ -140,6 +137,8 @@ def mdio_to_segy(  # noqa: C901
     else:
         mdio, sample_format = mdio_spec_to_segy(*creation_args)
 
+    num_samp = mdio.shape[-1]
+
     live_mask = mdio.live_mask.compute()
 
     if selection_mask is not None:
@@ -159,69 +158,68 @@ def mdio_to_segy(  # noqa: C901
         dim_slices += (slice(start, stop),)
 
     # Lazily pull the data with limits now, and limit mask so its the same shape.
-    live_mask, headers, samples = mdio[dim_slices]
-    live_mask = live_mask.rechunk(headers.chunksize)
+    live_mask, headers, traces = mdio[dim_slices]
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]
         live_mask = live_mask & selection_mask
 
+    # Now we flatten the data in the slowest changing axis (i.e. 0)
+    # TODO: Add support for flipping these, if user wants
+    axis = 0
+
+    # Get new chunksizes for sequential array
+    seq_trc_chunks = tuple(
+        (dim_chunks if idx == axis else (sum(dim_chunks),))
+        for idx, dim_chunks in enumerate(traces.chunks)
+    )
+
+    # We must unify chunks with "trc_chunks" here because
+    # headers and live mask may have different chunking.
+    # We don't take the time axis for headers / live
+    # Still lazy computation
+    traces_seq = traces.rechunk(seq_trc_chunks)
+    headers_seq = headers.rechunk(seq_trc_chunks[:-1])
+    live_seq = live_mask.rechunk(seq_trc_chunks[:-1])
+
     # Build a Dask graph to do the computation
     # Name of task. Using uuid1 is important because
     # we could potentially generate these from different machines
-    write_task_name = "write_sgy_block"
+    task_name = "block-to-sgy-part-" + str(uuid.uuid1())
 
-    out_dtype = Dtype[out_sample_format.upper()]
-    out_byteorder = ByteOrder[endian.upper()]
-    samples_proc = da.blockwise(
-        preprocess_samples,
-        "ijk",
-        samples,
-        "ijk",
-        live_mask,
-        "ij",
-        out_dtype=out_dtype,
-        out_byteorder=out_byteorder,
-    )
+    trace_keys = flatten(traces_seq.__dask_keys__())
+    header_keys = flatten(headers_seq.__dask_keys__())
+    live_keys = flatten(live_seq.__dask_keys__())
 
-    headers_proc = da.blockwise(
-        preprocess_headers,
-        "ij",
-        headers,
-        "ij",
-        live_mask,
-        "ij",
-        out_byteorder=out_byteorder,
-    )
-
-    sample_keys = samples_proc.__dask_keys__()
-    header_keys = headers_proc.__dask_keys__()
-    live_keys = live_mask.__dask_keys__()
+    all_keys = zip(trace_keys, header_keys, live_keys)
 
     # tmp file root
     out_dir = path.dirname(output_segy_path)
 
     task_graph_dict = {}
-    for row in range(live_mask.blocks.shape[0]):
-        for col in range(live_mask.blocks.shape[1]):
-            block_args = (
-                sample_keys[row][col][0],
-                header_keys[row][col],
-                live_keys[row][col],
-                out_dir,
-                row,
-                col,
-            )
+    block_file_paths = []
+    for idx, (trace_key, header_key, live_key) in enumerate(all_keys):
+        block_file_name = f".{idx}_{uuid.uuid1()}._segyblock"
+        block_file_path = path.join(out_dir, block_file_name)
+        block_file_paths.append(block_file_path)
 
-            task_graph_dict[(write_task_name, row, col)] = (
-                chunk_to_sgy_stack,
-            ) + block_args
+        block_args = (
+            block_file_path,
+            trace_key,
+            header_key,
+            live_key,
+            num_samp,
+            sample_format,
+            endian,
+        )
+
+        task_graph_dict[(task_name, idx)] = (write_block_to_segy,) + block_args
 
     # Make actual graph
     task_graph = HighLevelGraph.from_collections(
-        write_task_name,
+        task_name,
         task_graph_dict,
-        dependencies=[samples_proc, headers_proc, live_mask],
+        dependencies=[traces_seq, headers_seq, live_seq],
     )
 
     # Note this doesn't work with distributed.
@@ -229,7 +227,7 @@ def mdio_to_segy(  # noqa: C901
     block_progress = TqdmCallback(desc="Step 1 / 2 Writing Blocks", **tqdm_kw)
 
     with block_progress:
-        results = compute_as_if_collection(
+        block_exists = compute_as_if_collection(
             cls=Array,
             dsk=task_graph,
             keys=list(task_graph_dict),
@@ -238,15 +236,10 @@ def mdio_to_segy(  # noqa: C901
 
     concat_file_paths = [output_segy_path]
 
-    concat_list = []
-    for block in results:
-        for file, exists in block:
-            if exists:
-                concat_list.append(file)
-
-        concat_list.sort()
-
-    concat_file_paths += concat_list
+    for filename, is_full in zip(block_file_paths, block_exists):
+        if not is_full:
+            continue
+        concat_file_paths.append(filename)
 
     if client is not None:
         _ = client.submit(concat_files, concat_file_paths).result()
