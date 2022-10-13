@@ -15,8 +15,8 @@ from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader
 from mdio.segy._workers import write_block_to_segy
+from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
-from mdio.segy.creation import merge_partial_segy
 
 
 try:
@@ -25,7 +25,7 @@ except ImportError:
     distributed = None
 
 
-def mdio_to_segy(
+def mdio_to_segy(  # noqa: C901
     mdio_path_or_buffer: str,
     output_segy_path: str,
     endian: str = "big",
@@ -234,8 +234,14 @@ def mdio_to_segy(
             scheduler=client,
         )
 
-    merge_args = [output_segy_path, block_file_paths, block_exists]
+    concat_file_paths = [output_segy_path]
+
+    for filename, is_full in zip(block_file_paths, block_exists):
+        if not is_full:
+            continue
+        concat_file_paths.append(filename)
+
     if client is not None:
-        _ = client.submit(merge_partial_segy, *merge_args).result()
+        _ = client.submit(concat_files, concat_file_paths).result()
     else:
-        merge_partial_segy(*merge_args)
+        concat_files(concat_file_paths)
