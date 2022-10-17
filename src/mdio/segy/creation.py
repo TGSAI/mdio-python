@@ -5,11 +5,17 @@ import os
 from shutil import copyfileobj
 from time import sleep
 
+import numpy as np
 import segyio
+from numpy.typing import NDArray
 from segyio.binfield import keys as bfkeys
 
 from mdio.api.accessor import MDIOReader
 from mdio.segy._standards_common import SegyFloatFormat
+from mdio.segy.byte_utils import ByteOrder
+from mdio.segy.byte_utils import Dtype
+from mdio.segy.byte_utils import get_byteorder
+from mdio.segy.ibm_float import ieee2ibm
 
 
 def mdio_spec_to_segy(
@@ -105,6 +111,40 @@ def mdio_spec_to_segy(
         ]
 
     return mdio, out_sample_format
+
+
+def preprocess_samples(
+    samples: NDArray,
+    live: NDArray,
+    out_format: SegyFloatFormat,
+    out_byteorder: ByteOrder,
+) -> NDArray:
+    """Pre-process samples before writing to SEG-Y.
+
+    Args:
+        samples: Array containing the data samples.
+        live: live mask for the `samples` array.
+        out_format: Output format for SEG-Y.
+        out_byteorder: Output byte-order.
+
+    Returns:
+        Array with values modified according to configuration.
+    """
+    if np.count_nonzero(live) == 0:
+        return samples
+
+    if out_format == SegyFloatFormat.IBM32:
+        out_samples = ieee2ibm(samples)
+    else:
+        out_format = Dtype[out_format.name]
+        out_samples = samples.astype(out_format)
+
+    in_byteorder = get_byteorder(samples)
+
+    if in_byteorder != out_byteorder:
+        out_samples.byteswap(inplace=True)
+
+    return out_samples
 
 
 # TODO: Abstract this to support various implementations by
