@@ -269,7 +269,7 @@ class MDIOAccessor:
         )
 
         if self._backend == "dask":
-            trace_kwargs["chunks"] = self.chunks[:-1]
+            header_kwargs["chunks"] = self.chunks[:-1]
 
         self._headers = self._array_loader(**header_kwargs)
 
