@@ -107,7 +107,7 @@ class TestExport:
         mdio_to_segy(
             mdio_path_or_buffer=zarr_tmp.__str__(),
             output_segy_path=segy_export_ieee_tmp.__str__(),
-            out_sample_format="ieee32",
+            out_sample_format="float32",
         )
 
     def test_ibm_size_equal(self, segy_input, segy_export_ibm_tmp):
