@@ -1,6 +1,8 @@
 """SEG-Y creation utilities."""
 
 
+from __future__ import annotations
+
 import os
 from shutil import copyfileobj
 from time import sleep
