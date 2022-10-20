@@ -62,7 +62,7 @@ def mdio_to_segy(  # noqa: C901
         access_pattern: This specificies the chunk access pattern. Underlying
             zarr.Array must exist. Examples: '012', '01'
         out_sample_format: Output sample format.
-            Currently support: {'ibm32', 'ieee32'}. Default is 'ibm32'.
+            Currently support: {'ibm32', 'float32'}. Default is 'ibm32'.
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous access)
         new_chunks: Set manual chunksize. For development purposes only.
