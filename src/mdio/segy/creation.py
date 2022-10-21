@@ -133,10 +133,11 @@ def preprocess_samples(
         Array with values modified according to configuration.
     """
     if np.count_nonzero(live) == 0:
-        return samples
+        return np.empty_like(samples)
 
     if out_format == SegyFloatFormat.IBM32:
-        out_samples = ieee2ibm(samples)
+        out_samples = samples.astype("float32")
+        out_samples = ieee2ibm(out_samples)
     else:
         out_format = Dtype[out_format.name]
         out_samples = samples.astype(out_format)
