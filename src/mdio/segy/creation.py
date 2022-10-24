@@ -136,11 +136,11 @@ def preprocess_samples(
         return np.empty_like(samples)
 
     if out_format == SegyFloatFormat.IBM32:
-        out_samples = samples.astype("float32")
+        out_samples = samples.astype("float32", copy=False)
         out_samples = ieee2ibm(out_samples)
     else:
         out_format = Dtype[out_format.name]
-        out_samples = samples.astype(out_format)
+        out_samples = samples.astype(out_format, copy=False)
 
     in_byteorder = get_byteorder(samples)
 
