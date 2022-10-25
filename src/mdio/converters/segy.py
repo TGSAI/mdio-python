@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from datetime import timezone
 from importlib import metadata
 from typing import Any
 from typing import Sequence
@@ -197,7 +198,10 @@ def segy_to_mdio(
         overwrite=overwrite,
     )
 
-    write_attribute(name="created", zarr_group=zarr_root, attribute=str(datetime.now()))
+    # Get UTC time, then add local timezone information offset.
+    iso_datetime = datetime.now(timezone.utc).isoformat()
+
+    write_attribute(name="created", zarr_group=zarr_root, attribute=iso_datetime)
     write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
 
     dimensions_dict = [dim.to_dict() for dim in dimensions]
