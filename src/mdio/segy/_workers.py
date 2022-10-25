@@ -7,8 +7,8 @@ from typing import Any
 from typing import Sequence
 
 import numpy as np
-import numpy.typing as npt
 import segyio
+from numpy.typing import ArrayLike
 from zarr import Array
 
 from mdio.constants import UINT32_MAX
@@ -23,7 +23,7 @@ def header_scan_worker(
     byte_locs: Sequence[int],
     byte_lengths: Sequence[int],
     segy_endian: str,
-) -> npt.ArrayLike:
+) -> ArrayLike:
     """Header scan worker.
 
     Can accept file path or segyio.SegyFile.
