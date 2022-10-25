@@ -31,7 +31,7 @@ zarr = "^2.12.0"
 dask = "^2022.8.1"
 tqdm = "^4.64.0"
 segyio = "^1.9.3"
-numba = "^0.55.2"
+numba = ">=0.55.2,<1.0.0"
 psutil = "^5.9.1"
 distributed = {version = "^2022.8.1", optional = true}
 bokeh = {version = "^2.4.3", optional = true}
