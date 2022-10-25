@@ -199,7 +199,7 @@ def segy_to_mdio(
     )
 
     # Get UTC time, then add local timezone information offset.
-    iso_datetime = datetime.now(timezone.utc).astimezone().isoformat()
+    iso_datetime = datetime.now(timezone.utc).isoformat()
 
     write_attribute(name="created", zarr_group=zarr_root, attribute=iso_datetime)
     write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
