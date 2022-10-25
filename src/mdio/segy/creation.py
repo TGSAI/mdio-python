@@ -118,15 +118,15 @@ def mdio_spec_to_segy(
 def preprocess_samples(
     samples: NDArray,
     live: NDArray,
-    out_format: SegyFloatFormat,
+    out_dtype: Dtype,
     out_byteorder: ByteOrder,
 ) -> NDArray:
     """Pre-process samples before writing to SEG-Y.
 
     Args:
-        samples: Array containing the data samples.
+        samples: Array containing the trace samples.
         live: live mask for the `samples` array.
-        out_format: Output format for SEG-Y.
+        out_dtype: Output format for SEG-Y.
         out_byteorder: Output byte-order.
 
     Returns:
@@ -135,12 +135,11 @@ def preprocess_samples(
     if np.count_nonzero(live) == 0:
         return np.empty_like(samples)
 
-    if out_format == SegyFloatFormat.IBM32:
+    if out_dtype == Dtype.IBM32:
         out_samples = samples.astype("float32", copy=False)
         out_samples = ieee2ibm(out_samples)
     else:
-        out_format = Dtype[out_format.name]
-        out_samples = samples.astype(out_format, copy=False)
+        out_samples = samples.astype(out_dtype, copy=False)
 
     in_byteorder = get_byteorder(samples)
 
@@ -148,6 +147,34 @@ def preprocess_samples(
         out_samples.byteswap(inplace=True)
 
     return out_samples
+
+
+def preprocess_headers(
+    headers: NDArray,
+    live: NDArray,
+    out_byteorder: ByteOrder,
+) -> NDArray:
+    """Pre-process samples before writing to SEG-Y.
+
+    Args:
+        headers: Array containing the trace samples.
+        live: live mask for the `headers` array.
+        out_byteorder: Output byte-order.
+
+    Returns:
+        Array with values modified according to configuration.
+    """
+    out_headers = headers
+
+    if np.count_nonzero(live) == 0:
+        return out_headers
+
+    in_byteorder = get_byteorder(headers)
+
+    if in_byteorder != out_byteorder:
+        out_headers.byteswap(inplace=True)
+
+    return out_headers
 
 
 # TODO: Abstract this to support various implementations by
