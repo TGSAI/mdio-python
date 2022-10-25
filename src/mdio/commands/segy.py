@@ -254,11 +254,12 @@ def segy_import(
 
         \b
         3D Seismic Shot Data (Byte Locations Vary):
-        Let's assume streamer number is at byte 213 as 2-bytes
+        Let's assume streamer number is at byte 213 as
+        a 2-byte integer field.
         Chunks: 8 shots x 2 cables x 256 channels x 512 samples
         --header-locations 9,213,13
         --header-names shot,cable,chan
-        --header-lengths 4,2,4,4
+        --header-lengths 4,2,4
         --chunk-size 8,2,256,512
     """
     mdio.segy_to_mdio(
