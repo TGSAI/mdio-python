@@ -16,15 +16,19 @@ from mdio.segy.ibm_float import ieee2ibm
 @pytest.mark.parametrize(
     "ieee, ibm",
     [
-        ([0, -0.0], [0x00000000, 0x00000000]),
-        ([0.1, -0.1], [0x40199999, 0xC0199999]),
-        ([0.5, -0.5], [0x40800000, 0xC0800000]),
-        ([1, -1], [0x41100000, 0xC1100000]),
-        ([3.141593, -3.141593], [0x413243F7, 0xC13243F7]),
-        ([0.15625, -0.15625], [0x40280000, 0xC0280000]),
-        ([118.625, -118.625], [0x4276A000, 0xC276A000]),
-        ([8521603, -8521603], [0x46820783, 0xC6820783]),
-        ([3.4028235e38, -3.4028235e38], [0x60FFFFFF, 0xE0FFFFFF]),
+        (0.0, 0x00000000),
+        (-0.0, 0x00000000),
+        (0.1, 0x40199999),
+        (-1, 0xC1100000),
+        (3.141593, 0x413243F7),
+        (-0.15625, 0xC0280000),
+        (118.625, 0x4276A000),
+        (-8521603, 0xC6820783),
+        (3.4028235e38, 0x60FFFFFF),
+        (-3.4028235e38, 0xE0FFFFFF),
+        ([-0.0, 0.1], [0x00000000, 0x40199999]),
+        ([0.0, 0.1, 3.141593], [0x00000000, 0x40199999, 0x413243F7]),
+        ([[0.0], [0.1], [3.141593]], [[0x00000000], [0x40199999], [0x413243F7]]),
     ],
 )
 class TestIbmIeee:
@@ -32,15 +36,15 @@ class TestIbmIeee:
 
     def test_ieee_to_ibm(self, ieee, ibm):
         """IEEE to IBM conversion."""
-        ieee_fp32 = np.atleast_2d(np.float32(ieee))
-        actual_ibm = np.squeeze(ieee2ibm(ieee_fp32))
-        expected_ibm = np.squeeze(np.atleast_2d(np.uint32(ibm)))
+        ieee_fp32 = np.float32(ieee)
+        actual_ibm = ieee2ibm(ieee_fp32)
+        expected_ibm = np.uint32(ibm)
         np.testing.assert_array_equal(actual_ibm, expected_ibm)
 
     def test_ibm_to_ieee(self, ieee, ibm):
         """IBM to IEEE conversion."""
-        expected_ieee = np.asarray(ieee, dtype="float32")
-        actual_ibm = np.asarray(ibm, dtype="uint32")
+        expected_ieee = np.float32(ieee)
+        actual_ibm = np.uint32(ibm)
 
         # Assert up to 6 decimals (default)
         actual_ieee = ibm2ieee(actual_ibm)
@@ -51,9 +55,8 @@ class TestIbmIeee:
 def test_ieee_to_ibm_roundtrip(shape: tuple):
     """IEEE to IBM and then back to IEEE conversion."""
     expected_ieee = np.random.randn(*shape).astype("float32")
-    expected_ieee = np.atleast_2d(expected_ieee)
 
-    actual_ibm = ieee2ibm(expected_ieee.copy())
+    actual_ibm = ieee2ibm(expected_ieee)
     actual_ieee = ibm2ieee(actual_ibm)
 
     # Assert up to 6 decimals (default)
