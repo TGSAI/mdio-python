@@ -197,8 +197,8 @@ def concat_files(paths: list[str]) -> str:
     """
     first_file = paths.pop(0)
 
-    for next_file in paths:
-        with open(first_file, "ab+") as first_fp:
+    with open(first_file, "ab+") as first_fp:
+        for next_file in paths:
             with open(next_file, "rb") as next_fp:
                 copyfileobj(next_fp, first_fp)
 
