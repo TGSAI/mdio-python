@@ -79,7 +79,13 @@ docker exec mdio_dev_noroot nox -rs docs-build  # Build docs locally
 This should launch a Jupyter Lab server that points to source directory at port 8888.
 
 ```shell
-docker exec -it mdio_dev_noroot jupyter lab --no-browser
+docker exec -it mdio_dev_noroot jupyter lab --ip $HOST_IP --no-browser
 ```
 
-You can kill the server with `Control-C`
+You can kill the server with `Control-C`.
+
+The `$HOST_IP` can be omitted if docker is running locally. If you are
+logged into another server via SSH, `$HOST_IP` must be provided or the 
+port has to be forwarded explicitly.
+
+
