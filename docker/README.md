@@ -85,7 +85,5 @@ docker exec -it mdio_dev_noroot jupyter lab --ip $HOST_IP --no-browser
 You can kill the server with `Control-C`.
 
 The `$HOST_IP` can be omitted if docker is running locally. If you are
-logged into another server via SSH, `$HOST_IP` must be provided or the 
+logged into another server via SSH, `$HOST_IP` must be provided or the
 port has to be forwarded explicitly.
-
-
