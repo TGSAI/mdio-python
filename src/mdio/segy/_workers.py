@@ -200,53 +200,32 @@ def trace_worker(
 
 
 def traces_to_file(
-    samples: NDArray,
-    headers: NDArray,
+    traces: NDArray,
     live: NDArray,
     out_path: str,
 ) -> None:
-    """Interlace headers and samples to form traces and write them out.
+    """Write traces to binary file.
 
     Args:
-        samples: Sample data.
-        headers: Header data.
+        traces: Trace data with headers in structured array.
         live: Live mask.
         out_path: Path to the output file.
     """
-    full_dtype = {
-        "names": ("header", "pad", "trace"),
-        "formats": [
-            headers.dtype,
-            np.dtype("int64"),
-            samples.shape[-1] * samples.dtype,
-        ],
-    }
-    full_dtype = np.dtype(full_dtype)
-
-    n_live = np.count_nonzero(live)
-    trace = np.empty(n_live, dtype=full_dtype)
-
-    trace["header"] = headers[live]
-    trace["pad"] = 0
-    trace["trace"] = samples[live]
-
     with open(out_path, mode="wb") as fp:
-        trace.tofile(fp)
+        traces[live].tofile(fp)
 
 
 def chunk_to_sgy_stack(
-    samples: NDArray,
-    headers: NDArray,
+    traces: NDArray,
     live: NDArray,
     out_root: str,
     row: int,
     col: int,
-) -> list[str]:
+) -> list[tuple[str, int]]:
     """Convert a partial chunk (block) to stack of SEG-Y traces.
 
     Args:
-        samples: Sample data.
-        headers: Header data.
+        traces: Trace data.
         live: Live mask.
         out_root: Root directory for output file.
         row: Row index of chunk block within full array.
@@ -258,7 +237,7 @@ def chunk_to_sgy_stack(
     """
     block_files = []
 
-    for idx, (s, h, l) in enumerate(zip(samples, headers, live)):
+    for idx, (t, l) in enumerate(zip(traces, live)):
         f_name = f".{row:05d}_{idx:05d}_{col:05d}_{str(uuid1())}.sgyblock"
         f_path = path.join(out_root, f_name)
 
@@ -267,7 +246,7 @@ def chunk_to_sgy_stack(
             continue
 
         block_files.append((f_path, 1))
-        traces_to_file(s, h, l, f_path)
+        traces_to_file(t, l, f_path)
 
     return block_files
 

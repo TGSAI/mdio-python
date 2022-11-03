@@ -9,6 +9,7 @@ from time import sleep
 
 import numpy as np
 import segyio
+from numpy.typing import DTypeLike
 from numpy.typing import NDArray
 from segyio.binfield import keys as bfkeys
 
@@ -115,66 +116,75 @@ def mdio_spec_to_segy(
     return mdio, out_sample_format
 
 
-def preprocess_samples(
+def interleave_traces(
     samples: NDArray,
-    live: NDArray,
-    out_dtype: Dtype,
-    out_byteorder: ByteOrder,
+    headers: NDArray,
+    trace_dtype: DTypeLike,
 ) -> NDArray:
-    """Pre-process samples before writing to SEG-Y.
+    """Interleave separate headers and traces together.
 
     Args:
         samples: Array containing the trace samples.
-        live: live mask for the `samples` array.
-        out_dtype: Output format for SEG-Y.
-        out_byteorder: Output byte-order.
+        headers: Array containing the trace headers.
+        trace_dtype: Structured dtype of the interleaved output.
 
     Returns:
-        Array with values modified according to configuration.
+        Traces with headers and samples combined into structured array.
     """
-    if np.count_nonzero(live) == 0:
-        return np.empty_like(samples)
+    traces = np.empty(headers.shape, dtype=trace_dtype)
 
-    if out_dtype == Dtype.IBM32:
-        out_samples = samples.astype("float32", copy=False)
-        out_samples = ieee2ibm(out_samples)
-    else:
-        out_samples = samples.astype(out_dtype, copy=False)
+    traces["header"] = headers
+    traces["trace"] = samples
+    traces["pad"] = 0
 
-    in_byteorder = get_byteorder(samples)
-
-    if in_byteorder != out_byteorder:
-        out_samples.byteswap(inplace=True)
-
-    return out_samples
+    return traces
 
 
-def preprocess_headers(
+def prepare_traces(
+    samples: NDArray,
     headers: NDArray,
-    live: NDArray,
+    out_dtype: Dtype,
     out_byteorder: ByteOrder,
 ) -> NDArray:
-    """Pre-process samples before writing to SEG-Y.
+    """Prepare traces to be written to SEG-Y.
+
+    It will convert headers and samples, then do
+    data type conversion and/or swap byte order.
 
     Args:
-        headers: Array containing the trace samples.
-        live: live mask for the `headers` array.
-        out_byteorder: Output byte-order.
+        samples: Array containing the trace samples.
+        headers: Array containing the trace headers.
+        out_dtype: Desired output data type.
+        out_byteorder: Desired output data byte order.
 
     Returns:
-        Array with values modified according to configuration.
+        New structured array with pre-processing applied.
     """
-    out_headers = headers
+    if out_dtype == Dtype.IBM32:
+        samples = samples.astype("float32", copy=False)
+        samples = ieee2ibm(samples)
+    else:
+        samples = samples.astype(out_dtype, copy=False)
 
-    if np.count_nonzero(live) == 0:
-        return out_headers
+    trace_dtype = {
+        "names": ("header", "pad", "trace"),
+        "formats": [
+            headers.dtype,
+            np.dtype("int64"),
+            samples.shape[-1] * samples.dtype,
+        ],
+    }
+    trace_dtype = np.dtype(trace_dtype)
+
+    traces = interleave_traces(samples, headers, trace_dtype)
 
     in_byteorder = get_byteorder(headers)
 
     if in_byteorder != out_byteorder:
-        out_headers.byteswap(inplace=True)
+        traces.byteswap(inplace=True)
+        traces = traces.newbyteorder()
 
-    return out_headers
+    return traces
 
 
 # TODO: Abstract this to support various implementations by

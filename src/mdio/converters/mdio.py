@@ -18,8 +18,7 @@ from mdio.segy.byte_utils import ByteOrder
 from mdio.segy.byte_utils import Dtype
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
-from mdio.segy.creation import preprocess_headers
-from mdio.segy.creation import preprocess_samples
+from mdio.segy.creation import prepare_traces
 
 
 try:
@@ -173,40 +172,31 @@ def mdio_to_segy(  # noqa: C901
 
     out_dtype = Dtype[out_sample_format.upper()]
     out_byteorder = ByteOrder[endian.upper()]
-    samples_proc = da.blockwise(
-        preprocess_samples,
-        "ijk",
+
+    traces = da.blockwise(
+        prepare_traces,
+        "ij",
         samples,
         "ijk",
-        live_mask,
+        headers,
         "ij",
+        concatenate=True,
         out_dtype=out_dtype,
         out_byteorder=out_byteorder,
     )
 
-    headers_proc = da.blockwise(
-        preprocess_headers,
-        "ij",
-        headers,
-        "ij",
-        live_mask,
-        "ij",
-        out_byteorder=out_byteorder,
-    )
-
-    sample_keys = samples_proc.__dask_keys__()
-    header_keys = headers_proc.__dask_keys__()
+    trace_keys = traces.__dask_keys__()
     live_keys = live_mask.__dask_keys__()
 
     # tmp file root
     out_dir = path.dirname(output_segy_path)
 
     task_graph_dict = {}
+
     for row in range(live_mask.blocks.shape[0]):
         for col in range(live_mask.blocks.shape[1]):
             block_args = (
-                sample_keys[row][col][0],
-                header_keys[row][col],
+                trace_keys[row][col],
                 live_keys[row][col],
                 out_dir,
                 row,
@@ -221,7 +211,7 @@ def mdio_to_segy(  # noqa: C901
     task_graph = HighLevelGraph.from_collections(
         write_task_name,
         task_graph_dict,
-        dependencies=[samples_proc, headers_proc, live_mask],
+        dependencies=[traces, live_mask],
     )
 
     # Note this doesn't work with distributed.
