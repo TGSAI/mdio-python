@@ -80,8 +80,8 @@ def segy_to_mdio(
         index_names: Tuple of the index names for the index attributes
         index_lengths: Tuple of the byte lengths for the index attributes
             Default is 4-byte for each index key.
-        chunksize : Override default chunk size, which is (128, 128, 128) if
-            3D, and (1024, 1024) for 2D.
+        chunksize : Override default chunk size, which is (64, 64, 64) if
+            3D, and (512, 512) for 2D.
         endian: Endianness of the input SEG-Y. Rev.2 allows little endian.
             Default is 'big'. Must be in `{"big", "little"}`
         lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
@@ -144,10 +144,10 @@ def segy_to_mdio(
 
     if chunksize is None:
         if num_index == 1:
-            chunksize = (1024,) * 2
+            chunksize = (512,) * 2
 
         elif num_index == 2:
-            chunksize = (128,) * 3
+            chunksize = (64,) * 3
 
         else:
             msg = (

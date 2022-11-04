@@ -45,8 +45,8 @@ following, per the SEG-Y Rev1 standard:
 Our recommended chunk sizes are:
 (Based on GCS benchmarks)
 \b
-3D: 128 x 128 x 128
-2D: 1024 x 1024
+3D: 64 x 64 x 64
+2D: 512 x 512
 
 The 4D+ datasets chunking recommendation depends on the type of
 4D+ dataset (i.e. SHOT vs CDP data will have different chunking).
