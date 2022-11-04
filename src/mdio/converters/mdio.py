@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from os import path
+from tempfile import TemporaryDirectory
 
 import dask.array as da
 import numpy as np
@@ -190,15 +191,15 @@ def mdio_to_segy(  # noqa: C901
 
     # tmp file root
     out_dir = path.dirname(output_segy_path)
+    tmp_dir = TemporaryDirectory(dir=out_dir)
 
     task_graph_dict = {}
-
     for row in range(live_mask.blocks.shape[0]):
         for col in range(live_mask.blocks.shape[1]):
             block_args = (
                 trace_keys[row][col],
                 live_keys[row][col],
-                out_dir,
+                tmp_dir.name,
                 row,
                 col,
             )
@@ -218,27 +219,28 @@ def mdio_to_segy(  # noqa: C901
     tqdm_kw = dict(unit="block", dynamic_ncols=True)
     block_progress = TqdmCallback(desc="Step 1 / 2 Writing Blocks", **tqdm_kw)
 
-    with block_progress:
-        results = compute_as_if_collection(
-            cls=Array,
-            dsk=task_graph,
-            keys=list(task_graph_dict),
-            scheduler=client,
-        )
+    with tmp_dir:
+        with block_progress:
+            results = compute_as_if_collection(
+                cls=Array,
+                dsk=task_graph,
+                keys=list(task_graph_dict),
+                scheduler=client,
+            )
 
-    concat_file_paths = [output_segy_path]
+        concat_file_paths = [output_segy_path]
 
-    concat_list = []
-    for block in results:
-        for file, exists in block:
-            if exists:
-                concat_list.append(file)
+        concat_list = []
+        for block in results:
+            for file, exists in block:
+                if exists:
+                    concat_list.append(file)
 
-        concat_list.sort()
+            concat_list.sort()
 
-    concat_file_paths += concat_list
+        concat_file_paths += concat_list
 
-    if client is not None:
-        _ = client.submit(concat_files, concat_file_paths).result()
-    else:
-        concat_files(concat_file_paths)
+        if client is not None:
+            _ = client.submit(concat_files, concat_file_paths).result()
+        else:
+            concat_files(concat_file_paths)
