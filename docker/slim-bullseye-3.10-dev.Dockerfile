@@ -1,35 +1,51 @@
-FROM python:3.10-slim-bullseye
+# Make venv and install MDIO dependencies
+FROM python:3.10-slim-bullseye as venv_base
 
 # Build time args for dev tools etc
-ARG MDIO_SRC_DIR=/mdio-python
 ARG POETRY_VERSION=1.2.2
 ARG NOX_VERSION=2022.8.7
 ARG NOX_POETRY_VERSION=1.0.1
 
 ENV PYTHONFAULTHANDLER=1 \
-    PYTHONHASHSEED=random \
-    PYTHONUNBUFFERED=1 \
-    PIP_DEFAULT_TIMEOUT=100 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONUNBUFFERED=1
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_ROOT_USER_ACTION=ignore \
-    # Fake user home dir under source directory
-    HOME=$MDIO_SRC_DIR/.cache
+    PIP_ROOT_USER_ACTION=ignore
 
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
 
-COPY . $MDIO_SRC_DIR/
-WORKDIR $MDIO_SRC_DIR
+COPY pyproject.toml poetry.lock /
 
-RUN apt-get update \
-    && apt-get install -y git \
-    && rm -rf /var/lib/apt/lists/* \
-    && pip install \
+RUN pip install \
       "poetry==$POETRY_VERSION"  \
       "nox==$NOX_VERSION" \
       "nox-poetry==$NOX_POETRY_VERSION" \
     && poetry config virtualenvs.create false \
     && poetry install \
+      --no-root \
       --with dev \
       --with interactive \
       --all-extras \
       --no-ansi
+
+# Install Git
+FROM python:3.10-slim-bullseye as git_base
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Final Stage (git + venv)
+FROM git_base
+
+ENV PYTHONFAULTHANDLER=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PATH="/opt/venv/bin:$PATH" \
+    SHELL=/bin/bash
+
+COPY --from=venv_base --chmod=777 /opt/venv /opt/venv
+
+WORKDIR /mdio-python
