@@ -3,6 +3,7 @@
 
 from os.path import getsize
 
+import dask
 import numpy as np
 import numpy.testing as npt
 import pytest
@@ -12,6 +13,9 @@ from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.converters import segy_to_mdio
 from mdio.core import Dimension
+
+
+dask.config.set(scheduler="synchronous")
 
 
 @pytest.mark.parametrize("header_locations", [(17, 13)])
