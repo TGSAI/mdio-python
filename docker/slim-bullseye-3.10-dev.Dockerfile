@@ -31,14 +31,16 @@ RUN pip install \
       --no-ansi
 
 # Install Git
-FROM python:3.10-slim-bullseye as git_base
+FROM python:3.10-slim-bullseye as system_tools
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends git \
+    && apt-get install -y --no-install-recommends  \
+      git \
+      graphviz \
     && rm -rf /var/lib/apt/lists/*
 
 # Final Stage (git + venv)
-FROM git_base
+FROM system_tools
 
 ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
