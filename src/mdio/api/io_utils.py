@@ -138,4 +138,4 @@ def open_zarr_array_dask(group_handle: zarr.Group, name: str, **kwargs) -> da.Ar
         Zarr array opened with Dask engine.
     """
     zarr_array = open_zarr_array(group_handle=group_handle, name=name)
-    return da.from_array(zarr_array, **kwargs)
+    return da.from_array(zarr_array, **kwargs, inline_array=True)

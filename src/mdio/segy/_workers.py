@@ -3,15 +3,12 @@
 
 from __future__ import annotations
 
-from os import path
 from typing import Any
 from typing import Sequence
-from uuid import uuid1
 
 import numpy as np
 import segyio
 from numpy.typing import ArrayLike
-from numpy.typing import NDArray
 from zarr import Array
 
 from mdio.constants import UINT32_MAX
@@ -197,58 +194,6 @@ def trace_worker(
     max_val = tmp_data.max()
 
     return count, chunk_sum, chunk_sum_squares, min_val, max_val
-
-
-def traces_to_file(
-    traces: NDArray,
-    live: NDArray,
-    out_path: str,
-) -> None:
-    """Write traces to binary file.
-
-    Args:
-        traces: Trace data with headers in structured array.
-        live: Live mask.
-        out_path: Path to the output file.
-    """
-    with open(out_path, mode="wb") as fp:
-        traces[live].tofile(fp)
-
-
-def chunk_to_sgy_stack(
-    traces: NDArray,
-    live: NDArray,
-    out_root: str,
-    row: int,
-    col: int,
-) -> list[tuple[str, int]]:
-    """Convert a partial chunk (block) to stack of SEG-Y traces.
-
-    Args:
-        traces: Trace data.
-        live: Live mask.
-        out_root: Root directory for output file.
-        row: Row index of chunk block within full array.
-        col: Col index of chunk block within full array.
-
-    Returns:
-        List of (path, exists) tuples created in this function.
-
-    """
-    block_files = []
-
-    for idx, (t, l) in enumerate(zip(traces, live)):
-        f_name = f".{row:05d}_{idx:05d}_{col:05d}_{str(uuid1())}.sgyblock"
-        f_path = path.join(out_root, f_name)
-
-        if np.count_nonzero(l) == 0:
-            block_files.append((f_path, 0))
-            continue
-
-        block_files.append((f_path, 1))
-        traces_to_file(t, l, f_path)
-
-    return block_files
 
 
 # tqdm only works properly with pool.map

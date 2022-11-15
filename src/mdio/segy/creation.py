@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+from os import path
 from shutil import copyfileobj
 from time import sleep
 
@@ -116,33 +117,106 @@ def mdio_spec_to_segy(
     return mdio, out_sample_format
 
 
-def interleave_traces(
+def write_to_segy_stack(
     samples: NDArray,
     headers: NDArray,
+    live: NDArray,
     trace_dtype: DTypeLike,
+    file_root: str,
+    block_info=None,
 ) -> NDArray:
     """Interleave separate headers and traces together.
 
     Args:
         samples: Array containing the trace samples.
         headers: Array containing the trace headers.
+        live: Array containing the trace live mask.
         trace_dtype: Structured dtype of the interleaved output.
+        file_root: Root directory to write partial SEG-Y files.
+        block_info: Dask array specific metadata.
 
     Returns:
-        Traces with headers and samples combined into structured array.
+        Jagged array containing file names for partial data.
     """
-    traces = np.empty(headers.shape, dtype=trace_dtype)
+    headers = np.squeeze(headers)
+    live = np.squeeze(live)
 
-    traces["header"] = headers
-    traces["trace"] = samples
-    traces["pad"] = 0
+    if block_info is None:
+        return np.empty(live.shape, dtype="object")
 
-    return traces
+    # Get global position from sample data, ignore last sample axis.
+    array_loc = block_info[0]["array-location"][:-1]
+
+    # Iterate first axis (to be flattened) with headers and live mask.
+    valid_files = []
+    for idx, (line_samp, line_hdr, line_live) in enumerate(zip(samples, headers, live)):
+        n_live = np.count_nonzero(line_live)
+
+        if n_live == 0:
+            continue
+
+        # Generate first axis sequence number.
+        # Generate rest of the axes sequence start numbers.
+        first_dim_sequence = [f"{array_loc[0][0] + idx:09}"]
+        other_dim_sequence = [f"{loc[0]:09}" for loc in array_loc[1:]]
+
+        # Generate file name and append to return list.
+        line_idx = first_dim_sequence + other_dim_sequence
+        file_name = "_".join(line_idx)
+        file_path = path.join(file_root, file_name)
+        valid_files.append(file_name)
+
+        # Interleave traces
+        line_trc = np.empty(n_live, dtype=trace_dtype)
+
+        line_trc["header"] = line_hdr[line_live]
+        line_trc["trace"] = line_samp[line_live]
+        line_trc["pad"] = 0
+
+        # Write sequence.
+        with open(file_path, mode="wb") as fp:
+            line_trc.tofile(fp)
+
+    return np.asarray([valid_files], dtype="object")
 
 
-def prepare_traces(
+def check_byteswap(array: NDArray, out_byteorder: ByteOrder) -> NDArray:
+    """Check input byteorder and swap if user wants the other.
+
+    Args:
+        array: Array containing the data.
+        out_byteorder: Desired output data byte order.
+
+    Returns:
+        Original or byte-order swapped array.
+    """
+    in_byteorder = get_byteorder(array)
+
+    if in_byteorder != out_byteorder:
+        array.byteswap(inplace=True)
+        array = array.newbyteorder()
+
+    return array
+
+
+def prepare_headers(headers: NDArray, out_byteorder: ByteOrder) -> NDArray:
+    """Prepare headers to be written to SEG-Y.
+
+    They usually only need a byte-swap.
+
+    Args:
+        headers: Array containing the trace headers.
+        out_byteorder: Desired output data byte order.
+
+    Returns:
+        New header array with pre-processing applied.
+    """
+    headers = check_byteswap(headers, out_byteorder)
+    return headers
+
+
+def prepare_samples(
     samples: NDArray,
-    headers: NDArray,
     out_dtype: Dtype,
     out_byteorder: ByteOrder,
 ) -> NDArray:
@@ -153,7 +227,6 @@ def prepare_traces(
 
     Args:
         samples: Array containing the trace samples.
-        headers: Array containing the trace headers.
         out_dtype: Desired output data type.
         out_byteorder: Desired output data byte order.
 
@@ -166,25 +239,9 @@ def prepare_traces(
     else:
         samples = samples.astype(out_dtype, copy=False)
 
-    trace_dtype = {
-        "names": ("header", "pad", "trace"),
-        "formats": [
-            headers.dtype,
-            np.dtype("int64"),
-            samples.shape[-1] * samples.dtype,
-        ],
-    }
-    trace_dtype = np.dtype(trace_dtype)
+    samples = check_byteswap(samples, out_byteorder)
 
-    traces = interleave_traces(samples, headers, trace_dtype)
-
-    in_byteorder = get_byteorder(headers)
-
-    if in_byteorder != out_byteorder:
-        traces.byteswap(inplace=True)
-        traces = traces.newbyteorder()
-
-    return traces
+    return samples
 
 
 # TODO: Abstract this to support various implementations by

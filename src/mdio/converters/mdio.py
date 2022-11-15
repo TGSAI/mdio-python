@@ -8,18 +8,16 @@ from tempfile import TemporaryDirectory
 
 import dask.array as da
 import numpy as np
-from dask.array.core import Array
-from dask.base import compute_as_if_collection
-from dask.highlevelgraph import HighLevelGraph
-from tqdm.dask import TqdmCallback
+from tqdm.auto import tqdm
 
 from mdio import MDIOReader
-from mdio.segy._workers import chunk_to_sgy_stack
 from mdio.segy.byte_utils import ByteOrder
 from mdio.segy.byte_utils import Dtype
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
-from mdio.segy.creation import prepare_traces
+from mdio.segy.creation import prepare_headers
+from mdio.segy.creation import prepare_samples
+from mdio.segy.creation import write_to_segy_stack
 
 
 try:
@@ -114,7 +112,7 @@ def mdio_to_segy(  # noqa: C901
 
     # We flatten the z-axis (time or depth); so ieee2ibm, and byte-swaps etc
     # can run on big chunks of data.
-    auto_chunk = (None,) * (ndim - 2) + ("100M",) + (-1,)
+    auto_chunk = (None,) * (ndim - 1) + ("100M",)
     new_chunks = new_chunks if new_chunks is not None else auto_chunk
 
     creation_args = [
@@ -166,81 +164,64 @@ def mdio_to_segy(  # noqa: C901
         selection_mask = selection_mask[dim_slices]
         live_mask = live_mask & selection_mask
 
-    # Build a Dask graph to do the computation
-    # Name of task. Using uuid1 is important because
-    # we could potentially generate these from different machines
-    write_task_name = "write_sgy_block"
-
+    # Parse output type and byte order
     out_dtype = Dtype[out_sample_format.upper()]
     out_byteorder = ByteOrder[endian.upper()]
 
-    traces = da.blockwise(
-        prepare_traces,
-        "ij",
-        samples,
-        "ijk",
-        headers,
-        "ij",
-        concatenate=True,
+    samples_proc = samples.map_blocks(
+        prepare_samples,
         out_dtype=out_dtype,
         out_byteorder=out_byteorder,
     )
+    headers_proc = headers.map_blocks(
+        prepare_headers,
+        out_byteorder=out_byteorder,
+    )
 
-    trace_keys = traces.__dask_keys__()
-    live_keys = live_mask.__dask_keys__()
+    trace_dtype = {
+        "names": ("header", "pad", "trace"),
+        "formats": [
+            headers_proc.dtype,
+            np.dtype("int64"),
+            samples_proc.shape[-1] * samples_proc.dtype,
+        ],
+    }
+
+    trace_dtype = np.dtype(trace_dtype)
 
     # tmp file root
     out_dir = path.dirname(output_segy_path)
     tmp_dir = TemporaryDirectory(dir=out_dir)
 
-    task_graph_dict = {}
-    for row in range(live_mask.blocks.shape[0]):
-        for col in range(live_mask.blocks.shape[1]):
-            block_args = (
-                trace_keys[row][col],
-                live_keys[row][col],
-                tmp_dir.name,
-                row,
-                col,
-            )
-
-            task_graph_dict[(write_task_name, row, col)] = (
-                chunk_to_sgy_stack,
-            ) + block_args
-
-    # Make actual graph
-    task_graph = HighLevelGraph.from_collections(
-        write_task_name,
-        task_graph_dict,
-        dependencies=[traces, live_mask],
+    lazy_traces = da.map_blocks(
+        write_to_segy_stack,
+        samples_proc,
+        headers_proc[..., None],
+        live_mask[..., None],
+        file_root=tmp_dir.name,
+        trace_dtype=trace_dtype,
+        drop_axis=-1,
     )
 
-    # Note this doesn't work with distributed.
-    tqdm_kw = dict(unit="block", dynamic_ncols=True)
-    block_progress = TqdmCallback(desc="Step 1 / 2 Writing Blocks", **tqdm_kw)
-
+    tqdm_kw = dict(
+        desc="Writing Blocks",
+        total=lazy_traces.blocks.shape[0],
+        unit="block",
+        dynamic_ncols=True,
+    )
     with tmp_dir:
-        with block_progress:
-            results = compute_as_if_collection(
-                cls=Array,
-                dsk=task_graph,
-                keys=list(task_graph_dict),
-                scheduler=client,
-            )
+        for segy_block in tqdm(lazy_traces.blocks, **tqdm_kw):
+            partial_files = segy_block.compute()
 
-        concat_file_paths = [output_segy_path]
+            concat_file_paths = [output_segy_path]
 
-        concat_list = []
-        for block in results:
-            for file, exists in block:
-                if exists:
-                    concat_list.append(file)
+            partial_list = partial_files.ravel().tolist()
+            partial_list = [path.join(tmp_dir.name, file) for file in partial_list]
+            partial_list.sort()
 
-            concat_list.sort()
+            concat_file_paths += partial_list
 
-        concat_file_paths += concat_list
-
-        if client is not None:
-            _ = client.submit(concat_files, concat_file_paths).result()
-        else:
-            concat_files(concat_file_paths)
+            if client is not None:
+                _ = client.submit(concat_files, concat_file_paths).result()
+            else:
+                concat_files(concat_file_paths)

@@ -23,6 +23,7 @@ from mdio.segy.parsers import parse_binary_header
 from mdio.segy.parsers import parse_text_header
 from mdio.segy.utilities import get_grid_plan
 
+
 try:
     API_VERSION = metadata.version("multidimio")
 except metadata.PackageNotFoundError:
