@@ -7,6 +7,10 @@ import multiprocessing as mp
 from itertools import repeat
 
 import numpy as np
+from dask.array import Array
+from dask.array import blockwise
+from dask.array.reductions import _tree_reduce
+from numpy.typing import NDArray
 from psutil import cpu_count
 from segyio.tracefield import keys as segy_hdr_keys
 from tqdm.auto import tqdm
@@ -16,6 +20,10 @@ from zarr import Group
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker_map
+from mdio.segy.byte_utils import ByteOrder
+from mdio.segy.byte_utils import Dtype
+from mdio.segy.creation import concat_files
+from mdio.segy.creation import write_to_segy_stack
 
 
 try:
@@ -200,3 +208,91 @@ def to_zarr(
     }
 
     return stats
+
+
+def segy_block_aggregate(
+    block_files: NDArray,
+    axis: tuple[int] = None,
+    keepdims: bool = None,
+) -> NDArray:
+    """Aggregate partial SEG-Y blocks on disk, preserving order.
+
+    Args:
+        block_files: Array of block files paths to concatenate.
+        axis: Which axes to merge on.
+        keepdims: Keep the original dimensionality after merging.
+
+    Returns:
+        Reduced file name array. Dimensions depend on `keepdims`.
+    """
+    for idx, files in enumerate(block_files):
+        is_none = np.equal(files, None)
+
+        if is_none.all():
+            block_files[idx] = None
+            continue
+
+        valid_files = np.extract(~is_none, files).tolist()
+        aggr_file = concat_files(valid_files)
+        block_files[idx] = aggr_file
+
+    if keepdims:
+        return block_files[:, 0, 0][..., None, None]
+    else:
+        return block_files[:, 0, 0]
+
+
+def to_segy(
+    samples: Array,
+    headers: Array,
+    live_mask: Array,
+    out_dtype: Dtype,
+    out_byteorder: ByteOrder,
+    file_root: str,
+    axis: tuple[int] | None = None,
+) -> NDArray:
+    """Convert MDIO blocks to SEG-Y parts.
+
+    Args:
+        samples: Sample array.
+        headers: Header array.
+        live_mask: Live mask array.
+        out_dtype: Desired type of output samples.
+        out_dtype: Desired output data type.
+        out_byteorder: Desired output data byte order.
+        file_root: Root directory to write partial SEG-Y files.
+        axis: Which axes to merge on.
+
+    Returns:
+        Array containing final, flattened SEG-Y blocks.
+    """
+    # Map chunk across all blocks
+    samp_inds = tuple(range(samples.ndim))
+    meta_inds = tuple(range(headers.ndim))
+
+    args = (samples, samp_inds)
+    args += (headers, meta_inds)
+    args += (live_mask, meta_inds)
+
+    # Merge samples axis, append headers, and write block as stack of SEG-Ys.
+    # Note: output is N-1 dimensional (meta_inds) because we merged samples.
+    traces = blockwise(
+        write_to_segy_stack,
+        meta_inds,
+        *args,
+        file_root=file_root,
+        out_dtype=out_dtype,
+        out_byteorder=out_byteorder,
+        concatenate=True,
+        dtype="object",
+    )
+
+    result = _tree_reduce(
+        traces,
+        segy_block_aggregate,
+        axis,
+        keepdims=False,
+        dtype="object",
+    )
+
+    return result

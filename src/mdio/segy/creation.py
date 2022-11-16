@@ -7,12 +7,13 @@ import os
 from os import path
 from shutil import copyfileobj
 from time import sleep
+from uuid import uuid1
 
 import numpy as np
 import segyio
-from numpy.typing import DTypeLike
 from numpy.typing import NDArray
 from segyio.binfield import keys as bfkeys
+from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
 from mdio.segy._standards_common import SegyFloatFormat
@@ -121,50 +122,65 @@ def write_to_segy_stack(
     samples: NDArray,
     headers: NDArray,
     live: NDArray,
-    trace_dtype: DTypeLike,
+    out_dtype: Dtype,
+    out_byteorder: ByteOrder,
     file_root: str,
-    block_info=None,
 ) -> NDArray:
-    """Interleave separate headers and traces together.
+    """Pre-process seismic data for SEG-Y and write partial blocks.
+
+    This function will take numpy arrays for trace samples, headers, and live mask.
+    Then it will do the following:
+    1. Convert sample format to `out_dtype`.
+    2. Byte-swap samples and headers if needed based on `out_byteorder`.
+    3. Iterate inner dimensions and write blocks of traces.
+    3.1. Combine samples and headers to form a SEG-Y trace.
+    3.2. Drop non-live samples.
+    3.3. Write line block to disk.
+    3.4. Save file names for further merges
+    4. Written files will be saved, so further merge methods
+    can combine them to a single flat SEG-Y dataset.
 
     Args:
         samples: Array containing the trace samples.
         headers: Array containing the trace headers.
         live: Array containing the trace live mask.
-        trace_dtype: Structured dtype of the interleaved output.
+        out_dtype: Desired output data type.
+        out_byteorder: Desired output data byte order.
         file_root: Root directory to write partial SEG-Y files.
-        block_info: Dask array specific metadata.
 
     Returns:
-        Jagged array containing file names for partial data.
+        Array containing file names for partial data. None means
+        there were no live traces within the block / line.
     """
-    headers = np.squeeze(headers)
-    live = np.squeeze(live)
+    out_shape = (live.shape[0],) + (1,) * (samples.ndim - 1)
 
-    if block_info is None:
-        return np.empty(live.shape, dtype="object")
+    samples = cast_sample_format(samples, out_dtype)
+    samples = check_byteswap(samples, out_byteorder)
+    headers = check_byteswap(headers, out_byteorder)
 
-    # Get global position from sample data, ignore last sample axis.
-    array_loc = block_info[0]["array-location"][:-1]
+    trace_dtype = np.dtype(
+        {
+            "names": ("header", "pad", "trace"),
+            "formats": [
+                headers.dtype,
+                np.dtype("int64"),
+                samples.shape[-1] * samples.dtype,
+            ],
+        },
+    )
 
     # Iterate first axis (to be flattened) with headers and live mask.
-    valid_files = []
+    valid_paths = np.full(out_shape, None, dtype="object")
     for idx, (line_samp, line_hdr, line_live) in enumerate(zip(samples, headers, live)):
         n_live = np.count_nonzero(line_live)
 
         if n_live == 0:
             continue
 
-        # Generate first axis sequence number.
-        # Generate rest of the axes sequence start numbers.
-        first_dim_sequence = [f"{array_loc[0][0] + idx:09}"]
-        other_dim_sequence = [f"{loc[0]:09}" for loc in array_loc[1:]]
-
         # Generate file name and append to return list.
-        line_idx = first_dim_sequence + other_dim_sequence
-        file_name = "_".join(line_idx)
+        file_name = uuid1().hex
         file_path = path.join(file_root, file_name)
-        valid_files.append(file_name)
+        valid_paths[idx] = file_path
 
         # Interleave traces
         line_trc = np.empty(n_live, dtype=trace_dtype)
@@ -177,7 +193,7 @@ def write_to_segy_stack(
         with open(file_path, mode="wb") as fp:
             line_trc.tofile(fp)
 
-    return np.asarray([valid_files], dtype="object")
+    return valid_paths
 
 
 def check_byteswap(array: NDArray, out_byteorder: ByteOrder) -> NDArray:
@@ -199,36 +215,15 @@ def check_byteswap(array: NDArray, out_byteorder: ByteOrder) -> NDArray:
     return array
 
 
-def prepare_headers(headers: NDArray, out_byteorder: ByteOrder) -> NDArray:
-    """Prepare headers to be written to SEG-Y.
-
-    They usually only need a byte-swap.
-
-    Args:
-        headers: Array containing the trace headers.
-        out_byteorder: Desired output data byte order.
-
-    Returns:
-        New header array with pre-processing applied.
-    """
-    headers = check_byteswap(headers, out_byteorder)
-    return headers
-
-
-def prepare_samples(
+def cast_sample_format(
     samples: NDArray,
     out_dtype: Dtype,
-    out_byteorder: ByteOrder,
 ) -> NDArray:
-    """Prepare traces to be written to SEG-Y.
-
-    It will convert headers and samples, then do
-    data type conversion and/or swap byte order.
+    """Cast sample format (dtype).
 
     Args:
         samples: Array containing the trace samples.
         out_dtype: Desired output data type.
-        out_byteorder: Desired output data byte order.
 
     Returns:
         New structured array with pre-processing applied.
@@ -239,14 +234,12 @@ def prepare_samples(
     else:
         samples = samples.astype(out_dtype, copy=False)
 
-    samples = check_byteswap(samples, out_byteorder)
-
     return samples
 
 
 # TODO: Abstract this to support various implementations by
 #  object stores and file systems. Probably fsspec solution.
-def concat_files(paths: list[str]) -> str:
+def concat_files(paths: list[str], progress=False) -> str:
     """Concatenate files on disk, sequentially in given order.
 
     This function takes files on disk, and it combines them by
@@ -258,11 +251,15 @@ def concat_files(paths: list[str]) -> str:
 
     Args:
         paths: Paths to the blocks of SEG-Y.
+        progress: Enable tqdm progress bar. Default is False.
 
     Returns:
         Path to the returned file (first one from input).
     """
     first_file = paths.pop(0)
+
+    if progress is True:
+        paths = tqdm(paths, desc="Merging lines")
 
     with open(first_file, "ab+") as first_fp:
         for next_file in paths:
