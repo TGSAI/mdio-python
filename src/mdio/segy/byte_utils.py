@@ -11,6 +11,7 @@ from numpy.typing import NDArray
 
 class Dtype(str, Enum):
     """Dtype string to Numpy format enum."""
+
     STRING = "S"
     UINT8 = "u1"
     UINT16 = "u2"
@@ -28,6 +29,7 @@ class Dtype(str, Enum):
 
 class ByteOrder(str, Enum):
     """Endianness string to Numpy format enum."""
+
     LITTLE = "<"
     BIG = ">"
 
