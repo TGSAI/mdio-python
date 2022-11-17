@@ -7,7 +7,7 @@ import os
 from os import path
 from shutil import copyfileobj
 from time import sleep
-from uuid import uuid1
+from uuid import uuid4
 
 import numpy as np
 import segyio
@@ -178,7 +178,7 @@ def write_to_segy_stack(
             continue
 
         # Generate file name and append to return list.
-        file_name = uuid1().hex
+        file_name = uuid4().hex
         file_path = path.join(file_root, file_name)
         valid_paths[idx] = file_path
 
