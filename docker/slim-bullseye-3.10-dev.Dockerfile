@@ -46,7 +46,8 @@ ENV PYTHONFAULTHANDLER=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
     PATH="/opt/venv/bin:$PATH" \
-    SHELL=/bin/bash
+    SHELL=/bin/bash \
+    PYTHONPATH=/mdio-python/src
 
 COPY --from=venv_base --chmod=777 /opt/venv /opt/venv
 
