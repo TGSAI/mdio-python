@@ -152,8 +152,6 @@ def write_to_segy_stack(
         Array containing file names for partial data. None means
         there were no live traces within the block / line.
     """
-    out_shape = (live.shape[0],) + (1,) * (samples.ndim - 1)
-
     samples = cast_sample_format(samples, out_dtype)
     samples = check_byteswap(samples, out_byteorder)
     headers = check_byteswap(headers, out_byteorder)
@@ -169,10 +167,19 @@ def write_to_segy_stack(
         },
     )
 
-    # Iterate first axis (to be flattened) with headers and live mask.
-    valid_paths = np.full(out_shape, None, dtype="object")
-    for idx, (line_samp, line_hdr, line_live) in enumerate(zip(samples, headers, live)):
-        n_live = np.count_nonzero(line_live)
+    # Make output array with string type. We need to know
+    # the length of the string ahead of time.
+    mock_path = path.join(file_root, uuid4().hex)
+    paths_shape = (live.shape[0],) + (1,) * (samples.ndim - 1)
+    paths_dtype = f"U{len(mock_path)}"
+
+    part_segy_paths = np.full(paths_shape, fill_value="missing", dtype=paths_dtype)
+
+    # Iterate first axis, rows, with headers and live mask.
+    # We will flatten along first axis to write to SEG-Y.
+    trace_parts = zip(samples, headers, live)
+    for row_idx, (row_samp, row_head, row_live) in enumerate(trace_parts):
+        n_live = np.count_nonzero(row_live)
 
         if n_live == 0:
             continue
@@ -180,20 +187,20 @@ def write_to_segy_stack(
         # Generate file name and append to return list.
         file_name = uuid4().hex
         file_path = path.join(file_root, file_name)
-        valid_paths[idx] = file_path
+        part_segy_paths[row_idx] = file_path
 
         # Interleave traces
-        line_trc = np.empty(n_live, dtype=trace_dtype)
+        row_trace = np.empty(n_live, dtype=trace_dtype)
 
-        line_trc["header"] = line_hdr[line_live]
-        line_trc["trace"] = line_samp[line_live]
-        line_trc["pad"] = 0
+        row_trace["header"] = row_head[row_live]
+        row_trace["trace"] = row_samp[row_live]
+        row_trace["pad"] = 0
 
         # Write sequence.
         with open(file_path, mode="wb") as fp:
-            line_trc.tofile(fp)
+            row_trace.tofile(fp)
 
-    return valid_paths
+    return part_segy_paths
 
 
 def check_byteswap(array: NDArray, out_byteorder: ByteOrder) -> NDArray:
