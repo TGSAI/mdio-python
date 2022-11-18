@@ -178,7 +178,7 @@ def mdio_to_segy(  # noqa: C901
                 out_dtype=out_dtype,
                 out_byteorder=out_byteorder,
                 file_root=tmp_dir.name,
-                axis=(1, 2),
+                axis=tuple(range(1, samples.ndim)),
             ).compute()
 
         final_concat = [output_segy_path] + flat_files.tolist()

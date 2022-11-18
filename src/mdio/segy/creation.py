@@ -152,6 +152,18 @@ def write_to_segy_stack(
         Array containing file names for partial data. None means
         there were no live traces within the block / line.
     """
+    # Make output array with string type. We need to know
+    # the length of the string ahead of time.
+    mock_path = path.join(file_root, uuid4().hex)
+    paths_shape = (live.shape[0],) + (1,) * (samples.ndim - 1)
+    paths_dtype = f"U{len(mock_path)}"
+
+    part_segy_paths = np.full(paths_shape, fill_value="missing", dtype=paths_dtype)
+
+    # Fast path to return if no live traces.
+    if np.count_nonzero(live) == 0:
+        return part_segy_paths
+
     samples = cast_sample_format(samples, out_dtype)
     samples = check_byteswap(samples, out_byteorder)
     headers = check_byteswap(headers, out_byteorder)
@@ -167,30 +179,21 @@ def write_to_segy_stack(
         },
     )
 
-    # Make output array with string type. We need to know
-    # the length of the string ahead of time.
-    mock_path = path.join(file_root, uuid4().hex)
-    paths_shape = (live.shape[0],) + (1,) * (samples.ndim - 1)
-    paths_dtype = f"U{len(mock_path)}"
-
-    part_segy_paths = np.full(paths_shape, fill_value="missing", dtype=paths_dtype)
-
     # Iterate first axis, rows, with headers and live mask.
     # We will flatten along first axis to write to SEG-Y.
     trace_parts = zip(samples, headers, live)
     for row_idx, (row_samp, row_head, row_live) in enumerate(trace_parts):
-        n_live = np.count_nonzero(row_live)
+        row_n_live = np.count_nonzero(row_live)
 
-        if n_live == 0:
+        if row_n_live == 0:
             continue
 
         # Generate file name and append to return list.
-        file_name = uuid4().hex
-        file_path = path.join(file_root, file_name)
+        file_path = path.join(file_root, uuid4().hex)
         part_segy_paths[row_idx] = file_path
 
         # Interleave traces
-        row_trace = np.empty(n_live, dtype=trace_dtype)
+        row_trace = np.empty(row_n_live, dtype=trace_dtype)
 
         row_trace["header"] = row_head[row_live]
         row_trace["trace"] = row_samp[row_live]

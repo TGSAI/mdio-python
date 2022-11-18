@@ -210,36 +210,40 @@ def to_zarr(
     return stats
 
 
-def segy_block_aggregate(
-    block_files: NDArray,
+def segy_row_concat(
+    partial_rows: NDArray,
     axis: tuple[int] = None,
     keepdims: bool = None,
 ) -> NDArray:
     """Aggregate partial SEG-Y blocks on disk, preserving order.
 
     Args:
-        block_files: Array of block files paths to concatenate.
-        axis: Which axes to merge on.
+        partial_rows: Array containing paths to parts of a SEG-Y row.
+        axis: Which axes to concatenate on.
         keepdims: Keep the original dimensionality after merging.
 
     Returns:
-        Reduced file name array. Dimensions depend on `keepdims`.
+        Concatenated file name array. Dimensions depend on `keepdims`.
     """
-    for idx, files in enumerate(block_files):
-        is_none = np.equal(files, None)
+    n_rows = partial_rows.shape[0]
+    concat_rows = np.full_like(partial_rows, fill_value="missing", shape=n_rows)
 
-        if is_none.all():
-            block_files[idx] = None
+    # Fast path if all data in block is missing.
+    if np.all(partial_rows == "missing"):
+        return np.expand_dims(concat_rows, axis) if keepdims else concat_rows
+
+    # Concat rows and update concat_rows result.
+    for idx, row_parts in enumerate(partial_rows):
+        row_missing = row_parts == "missing"
+
+        if np.all(row_missing):
             continue
 
-        valid_files = np.extract(~is_none, files).tolist()
-        aggr_file = concat_files(valid_files)
-        block_files[idx] = aggr_file
+        row_valid_paths = np.extract(~row_missing, row_parts).tolist()
+        row_concat_file = concat_files(row_valid_paths)
+        concat_rows[idx] = row_concat_file
 
-    if keepdims:
-        return block_files[:, 0, 0][..., None, None]
-    else:
-        return block_files[:, 0, 0]
+    return np.expand_dims(concat_rows, axis) if keepdims else concat_rows
 
 
 def to_segy(
@@ -276,7 +280,7 @@ def to_segy(
 
     # Merge samples axis, append headers, and write block as stack of SEG-Ys.
     # Note: output is N-1 dimensional (meta_inds) because we merged samples.
-    traces = blockwise(
+    trace_files = blockwise(
         write_to_segy_stack,
         meta_inds,
         *args,
@@ -284,15 +288,14 @@ def to_segy(
         out_dtype=out_dtype,
         out_byteorder=out_byteorder,
         concatenate=True,
-        dtype="object",
     )
 
     result = _tree_reduce(
-        traces,
-        segy_block_aggregate,
+        trace_files,
+        segy_row_concat,
         axis,
         keepdims=False,
-        dtype="object",
+        dtype=trace_files.dtype,
     )
 
     return result
