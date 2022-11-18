@@ -1,10 +1,9 @@
 """More utilities for reading SEG-Ys."""
 
 
-from typing import List
+from __future__ import annotations
+
 from typing import Sequence
-from typing import Tuple
-from typing import Union
 
 import numpy as np
 import numpy.typing as npt
@@ -23,7 +22,7 @@ def get_grid_plan(
     index_lengths: Sequence[int],
     binary_header: dict,
     return_headers: bool = False,
-) -> Union[List[Dimension], Tuple[List[Dimension], npt.ArrayLike]]:
+) -> list[Dimension] | tuple[list[Dimension], npt.ArrayLike]:
     """Infer dimension ranges, and increments.
 
     Generates multiple dimensions with the following steps:
@@ -74,7 +73,10 @@ def get_grid_plan(
 
 
 def segy_export_rechunker(
-    chunks: tuple[int], shape: tuple[int], dtype: npt.DTypeLike, limit: str = "300M"
+    chunks: tuple[int],
+    shape: tuple[int],
+    dtype: npt.DTypeLike,
+    limit: str = "300M",
 ) -> tuple[int]:
     """Determine chunk sizes for writing out SEG-Y given limit.
 
