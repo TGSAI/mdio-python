@@ -254,7 +254,7 @@ def to_segy(
     out_byteorder: ByteOrder,
     file_root: str,
     axis: tuple[int] | None = None,
-) -> NDArray:
+) -> Array:
     """Convert MDIO blocks to SEG-Y parts.
 
     Args:
