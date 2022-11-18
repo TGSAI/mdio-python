@@ -15,6 +15,7 @@ from mdio.segy.byte_utils import ByteOrder
 from mdio.segy.byte_utils import Dtype
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
+from mdio.segy.utilities import segy_export_rechunker
 
 
 try:
@@ -105,12 +106,8 @@ def mdio_to_segy(  # noqa: C901
         storage_options=storage_options,
     )
 
-    ndim = mdio.n_dim
-
-    # We flatten the z-axis (time or depth); so ieee2ibm, and byte-swaps etc
-    # can run on big chunks of data.
-    auto_chunk = (None,) + ("300M",) * (ndim - 2) + (-1,)
-    new_chunks = new_chunks if new_chunks is not None else auto_chunk
+    if new_chunks is None:
+        new_chunks = segy_export_rechunker(mdio.chunks, mdio.shape, mdio._traces.dtype)
 
     creation_args = [
         mdio_path_or_buffer,
