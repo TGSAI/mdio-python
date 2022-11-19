@@ -270,7 +270,7 @@ def to_segy(
     tracked and merged on disk via the `segy_concat` function. The
     adjacent are hierarchically merged, and it preserves order.
 
-    Assume array with shape (4, 3, 2) with chunk sizes (1, 1, 1, 2).
+    Assume array with shape (4, 3, 2) with chunk sizes (1, 1, 2).
     The chunk indices for this array would be:
 
     (0, 0, 0) (0, 1, 0) (0, 2, 0)
