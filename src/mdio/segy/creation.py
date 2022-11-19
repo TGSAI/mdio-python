@@ -154,10 +154,10 @@ def write_to_segy_stack(
     """
     # Make output array with string type. We need to know
     # the length of the string ahead of time.
+    # Last axis can be written as sequential, so we collapse that to 1.
     mock_path = path.join(file_root, uuid4().hex)
-    paths_shape = (live.shape[0],) + (1,) * (samples.ndim - 1)
     paths_dtype = f"U{len(mock_path)}"
-
+    paths_shape = live.shape[:-1] + (1,)
     part_segy_paths = np.full(paths_shape, fill_value="missing", dtype=paths_dtype)
 
     # Fast path to return if no live traces.
@@ -179,29 +179,27 @@ def write_to_segy_stack(
         },
     )
 
-    # Iterate first axis, rows, with headers and live mask.
-    # We will flatten along first axis to write to SEG-Y.
-    trace_parts = zip(samples, headers, live)
-    for row_idx, (row_samp, row_head, row_live) in enumerate(trace_parts):
-        row_n_live = np.count_nonzero(row_live)
+    # Iterate on N-1 axes of live mask. Last axis can be written
+    # without worrying about order because it is sequential.
+    for index in np.ndindex(live.shape[:-1]):
+        part_live = live[index]
+        num_live = np.count_nonzero(part_live)
 
-        if row_n_live == 0:
+        if num_live == 0:
             continue
 
-        # Generate file name and append to return list.
+        # Generate unique file name and append to return list.
         file_path = path.join(file_root, uuid4().hex)
-        part_segy_paths[row_idx] = file_path
+        part_segy_paths[index] = file_path
 
-        # Interleave traces
-        row_trace = np.empty(row_n_live, dtype=trace_dtype)
+        # Interleave samples and headers
+        part_traces = np.empty(num_live, dtype=trace_dtype)
+        part_traces["header"] = headers[index][part_live]
+        part_traces["trace"] = samples[index][part_live]
+        part_traces["pad"] = 0
 
-        row_trace["header"] = row_head[row_live]
-        row_trace["trace"] = row_samp[row_live]
-        row_trace["pad"] = 0
-
-        # Write sequence.
         with open(file_path, mode="wb") as fp:
-            row_trace.tofile(fp)
+            part_traces.tofile(fp)
 
     return part_segy_paths
 
