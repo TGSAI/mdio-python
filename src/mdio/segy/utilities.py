@@ -105,12 +105,12 @@ def segy_export_rechunker(
     Raises:
         ValueError: If resulting chunks will split file on disk.
     """
-    ndim = len(shape)
+    ndim = len(shape) - 1  # minus the sample axis
 
     # set sample chunks to max
     prev_chunks = chunks[:-1] + (shape[-1],)
 
-    for idx in range(-2, -ndim, -1):
+    for idx in range(ndim, -1, -1):
         tmp_chunks = prev_chunks[:idx] + ("auto",) + prev_chunks[idx + 1 :]
 
         new_chunks = auto_chunks(
@@ -125,13 +125,13 @@ def segy_export_rechunker(
         new_chunks = tuple(map(int, new_chunks))
         prev_chunks = new_chunks
 
-    if new_chunks < chunks:
-        msg = (
-            f"One of chunk sizes in {new_chunks=} are smaller than the on "
-            f"disk {chunks=} with given {limit=}. This will cause very poor "
-            "performance due to redundant reads. Please increase limit to "
-            "get larger chunks. However, this may require more memory."
-        )
-        raise ValueError(msg)
+        if new_chunks < chunks:
+            msg = (
+                f"One of chunk sizes in {new_chunks=} are smaller than the on "
+                f"disk {chunks=} with given {limit=}. This will cause very poor "
+                "performance due to redundant reads. Please increase limit to "
+                "get larger chunks. However, this may require more memory."
+            )
+            raise ValueError(msg)
 
     return new_chunks
