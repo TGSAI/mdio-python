@@ -125,12 +125,17 @@ def segy_export_rechunker(
         new_chunks = tuple(map(int, new_chunks))
         prev_chunks = new_chunks
 
-        if new_chunks < chunks:
+    qc_iterator = zip(new_chunks, chunks, shape)
+
+    for idx, (dim_new_chunk, dim_chunk, dim_size) in enumerate(qc_iterator):
+        # Sometimes dim_chunk can be larger than dim_size. This catches when
+        # that is False and the new chunk will be smaller than original
+        if dim_new_chunk < dim_chunk < dim_size:
             msg = (
-                f"One of chunk sizes in {new_chunks=} are smaller than the on "
-                f"disk {chunks=} with given {limit=}. This will cause very poor "
-                "performance due to redundant reads. Please increase limit to "
-                "get larger chunks. However, this may require more memory."
+                f"Dimension {idx} chunk size in {new_chunks=} is smaller than "
+                f"the disk {chunks=} with given {limit=}. This will cause very "
+                f"poor performance due to redundant reads. Please increase limit "
+                f"to get larger chunks. However, this may require more memory."
             )
             raise ValueError(msg)
 
