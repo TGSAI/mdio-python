@@ -7,6 +7,10 @@ import multiprocessing as mp
 from itertools import repeat
 
 import numpy as np
+from dask.array import Array
+from dask.array import blockwise
+from dask.array.reductions import _tree_reduce
+from numpy.typing import NDArray
 from psutil import cpu_count
 from segyio.tracefield import keys as segy_hdr_keys
 from tqdm.auto import tqdm
@@ -16,6 +20,10 @@ from zarr import Group
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker_map
+from mdio.segy.byte_utils import ByteOrder
+from mdio.segy.byte_utils import Dtype
+from mdio.segy.creation import concat_files
+from mdio.segy.creation import write_to_segy_stack
 
 
 try:
@@ -200,3 +208,135 @@ def to_zarr(
     }
 
     return stats
+
+
+def segy_concat(
+    partial_files: NDArray,
+    axis: tuple[int] = None,
+    keepdims: bool = None,
+) -> NDArray:
+    """Aggregate partial SEG-Y blocks on disk, preserving order.
+
+    Used in conjunction with tree reduction. It will take an array
+    of file names, which preserved the adjacency of blocks, and then
+    combines adjacent blocks while flattening for SEG-Y.
+
+    For `axis` and `keepdims` parameters, please see `dask.array.reduce`
+    documentation.
+
+    Args:
+        partial_files: Array containing paths to parts of a SEG-Y row.
+        axis: Which axes to concatenate on.
+        keepdims: Keep the original dimensionality after merging.
+
+    Returns:
+        Concatenated file name array. Dimensions depend on `keepdims`.
+    """
+    concat_shape = partial_files.shape[0]
+    concat_paths = np.full_like(partial_files, fill_value="missing", shape=concat_shape)
+
+    # Fast path if all data in block is missing.
+    if np.all(partial_files == "missing"):
+        return np.expand_dims(concat_paths, axis) if keepdims else concat_paths
+
+    # Flatten and concat section files to a single root file at first axis.
+    for index, section_paths in enumerate(partial_files):
+        section_paths = section_paths.ravel()
+        section_missing = section_paths == "missing"
+
+        if np.all(section_missing):
+            continue
+
+        section_valid_paths = np.extract(~section_missing, section_paths).tolist()
+        section_concat_files = concat_files(section_valid_paths)
+        concat_paths[index] = section_concat_files
+
+    return np.expand_dims(concat_paths, axis) if keepdims else concat_paths
+
+
+def to_segy(
+    samples: Array,
+    headers: Array,
+    live_mask: Array,
+    out_dtype: Dtype,
+    out_byteorder: ByteOrder,
+    file_root: str,
+    axis: tuple[int] | None = None,
+) -> Array:
+    r"""Convert MDIO blocks to SEG-Y parts.
+
+    This uses as a tree reduction algorithm. Blocks are written out
+    in parallel via multiple workers, and then adjacent blocks are
+    tracked and merged on disk via the `segy_concat` function. The
+    adjacent are hierarchically merged, and it preserves order.
+
+    Assume array with shape (4, 3, 2) with chunk sizes (1, 1, 2).
+    The chunk indices for this array would be:
+
+    (0, 0, 0) (0, 1, 0) (0, 2, 0)
+    (1, 0, 0) (1, 1, 0) (1, 2, 0)
+    (2, 0, 0) (2, 1, 0) (2, 2, 0)
+    (3, 0, 0) (3, 1, 0) (3, 2, 0)
+
+    let's rename them to this for convenience:
+
+    a b c
+    d e f
+    g h i
+    j k l
+
+    The tree gets formed this way:
+    a b c d e f g h i
+    \/  | \/  | \/  |
+    ab  c de  f gh  i
+      \/    \/    \/
+     abc   def   ghi
+
+    The module will return file names associated with these
+    concatenated files. Then they can be combined to form the
+    sequence "abcdefghi" which is what we want.
+
+    The above algorithm extrapolates to higher dimensions.
+
+    Args:
+        samples: Sample array.
+        headers: Header array.
+        live_mask: Live mask array.
+        out_dtype: Desired type of output samples.
+        out_dtype: Desired output data type.
+        out_byteorder: Desired output data byte order.
+        file_root: Root directory to write partial SEG-Y files.
+        axis: Which axes to merge on. Excluding sample axis.
+
+    Returns:
+        Array containing final, flattened SEG-Y blocks.
+    """
+    # Map chunk across all blocks
+    samp_inds = tuple(range(samples.ndim))
+    meta_inds = tuple(range(headers.ndim))
+
+    args = (samples, samp_inds)
+    args += (headers, meta_inds)
+    args += (live_mask, meta_inds)
+
+    # Merge samples axis, append headers, and write block as stack of SEG-Ys.
+    # Note: output is N-1 dimensional (meta_inds) because we merged samples.
+    trace_files = blockwise(
+        write_to_segy_stack,
+        meta_inds,
+        *args,
+        file_root=file_root,
+        out_dtype=out_dtype,
+        out_byteorder=out_byteorder,
+        concatenate=True,
+    )
+
+    result = _tree_reduce(
+        trace_files,
+        segy_concat,
+        axis,
+        keepdims=False,
+        dtype=trace_files.dtype,
+    )
+
+    return result

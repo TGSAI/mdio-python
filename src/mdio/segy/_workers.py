@@ -7,14 +7,13 @@ from typing import Any
 from typing import Sequence
 
 import numpy as np
-import numpy.typing as npt
 import segyio
+from numpy.typing import ArrayLike
 from zarr import Array
 
 from mdio.constants import UINT32_MAX
 from mdio.core import Grid
-from mdio.segy.byte_utils import Endian
-from mdio.segy.ibm_float import ieee2ibm
+from mdio.segy.byte_utils import ByteOrder
 
 
 def header_scan_worker(
@@ -23,7 +22,7 @@ def header_scan_worker(
     byte_locs: Sequence[int],
     byte_lengths: Sequence[int],
     segy_endian: str,
-) -> npt.ArrayLike:
+) -> ArrayLike:
     """Header scan worker.
 
     Can accept file path or segyio.SegyFile.
@@ -76,7 +75,7 @@ def header_scan_worker(
     # First we create a struct to unpack the 240-byte trace headers.
     # The struct only knows about dimension keys, and their byte offsets.
     # Pads the rest of the data with voids.
-    endian = Endian[segy_endian.upper()]
+    endian = ByteOrder[segy_endian.upper()]
     struct_dtype = np.dtype(
         {
             "names": [f"dim_{idx}" for idx in range(len(byte_locs))],
@@ -195,71 +194,6 @@ def trace_worker(
     max_val = tmp_data.max()
 
     return count, chunk_sum, chunk_sum_squares, min_val, max_val
-
-
-def write_block_to_segy(
-    block_out_path: str,
-    traces: np.ndarray,
-    headers: np.ndarray,
-    live: np.ndarray,
-    num_samp: int,
-    sample_format: str,
-    endian: str,
-) -> int:
-    """Write a block of traces to a SEG-Y file without text and binary headers.
-
-    Args:
-        block_out_path: Path to write the block.
-        traces: Trace data.
-        headers: Headers for `traces`.
-        live: Live mask for `traces`.
-        num_samp: Number of samples in traces.
-        sample_format: Sample output format. Must be in {"ibm", "ieee"}.
-        endian: Endianness of the sample format. Must be in {"little", "big"}.
-
-    Returns:
-        Returns the integer "1" if successful. Returns "0" if all traces
-        in the block were zero.
-
-    Raises:
-        OSError: if unsupported SEG-Y sample format is found
-    """
-    if np.count_nonzero(live) == 0:
-        return 0
-
-    # Drop dead traces, this also makes data sequential.
-    traces = traces[live]
-    headers = headers[live]
-    live = live[live]
-
-    # Handle float formats
-    if sample_format == 1:  # IBM
-        trace_dtype = num_samp * np.dtype("uint32")
-        traces = ieee2ibm(traces)
-    elif sample_format == 5:  # IEEE
-        trace_dtype = num_samp * traces.dtype
-    else:
-        raise OSError("Unknown SEG-Y sample format")
-
-    full_dtype = {
-        "names": ("header", "pad", "trace"),
-        "formats": [headers.dtype, np.dtype("int64"), trace_dtype],
-    }
-    full_dtype = np.dtype(full_dtype)
-
-    full_trace = np.empty(len(live), dtype=full_dtype)
-    full_trace["header"] = headers
-    full_trace["pad"].fill(0)
-    full_trace["trace"] = traces
-
-    if endian == "big":
-        full_trace.byteswap(inplace=True)
-
-    # This will write the SEG-Y file with the same order as MDIO.
-    with open(block_out_path, "wb") as out_file:
-        out_file.write(full_trace.tobytes())
-
-    return 1
 
 
 # tqdm only works properly with pool.map

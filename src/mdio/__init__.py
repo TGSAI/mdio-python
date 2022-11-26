@@ -19,4 +19,7 @@ __all__ = [
 ]
 
 
-__version__ = metadata.version("multidimio")
+try:
+    __version__ = metadata.version("multidimio")
+except metadata.PackageNotFoundError:
+    __version__ = "unknown"

@@ -10,8 +10,8 @@ class SegyFloatFormat(IntEnum):
     IBM32 = 1
     INT32 = 2
     INT16 = 3
-    IEEE32 = 5
-    IEEE64 = 6
+    FLOAT32 = 5
+    FLOAT64 = 6
     INT8 = 8
     INT64 = 9
     UINT32 = 10

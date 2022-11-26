@@ -18,7 +18,7 @@ except KeyError:  # pragma: no cover
 
 OBJECT_MODE = True if NUMBA_DISABLE_JIT else False
 JIT_CACHE = False if NUMBA_DISABLE_JIT else True
-JIT_TARGET = "cpu" if NUMBA_DISABLE_JIT else "parallel"
+JIT_TARGET = "cpu"
 JIT_KWARGS = dict(cache=JIT_CACHE, forceobj=OBJECT_MODE)
 
 # IEEE to IBM MASKS ETC

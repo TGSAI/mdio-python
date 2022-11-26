@@ -1,19 +1,23 @@
 """Module for custom struct abstraction utilities."""
 
 
+import sys
 from dataclasses import dataclass
 from enum import Enum
 
 import numpy as np
+from numpy.typing import NDArray
 
 
 class Dtype(str, Enum):
     """Dtype string to Numpy format enum."""
 
     STRING = "S"
+    UINT8 = "u1"
     UINT16 = "u2"
     UINT32 = "u4"
     UINT64 = "u8"
+    INT8 = "i1"
     INT16 = "i2"
     INT32 = "i4"
     INT64 = "i8"
@@ -23,12 +27,11 @@ class Dtype(str, Enum):
     IBM32 = "u4"
 
 
-class Endian(str, Enum):
+class ByteOrder(str, Enum):
     """Endianness string to Numpy format enum."""
 
     LITTLE = "<"
     BIG = ">"
-    NATIVE = "|"
 
 
 @dataclass
@@ -47,7 +50,7 @@ class OrderedType:
     """
 
     type: Dtype
-    endian: Endian
+    endian: ByteOrder
 
     def __len__(self) -> int:
         """Size of struct in bytes."""
@@ -62,4 +65,24 @@ class OrderedType:
         """Swap endianness in place."""
         swapped_dtype = self.dtype.newbyteorder()
         swapped_order = swapped_dtype.byteorder
-        self.endian = Endian(swapped_order)
+        self.endian = ByteOrder(swapped_order)
+
+
+SYS_BYTEORDER = ByteOrder[sys.byteorder.upper()]
+
+
+def get_byteorder(array: NDArray) -> str:
+    """Get byte order of numpy array.
+
+    Args:
+        array: Array like with `.dtype` attribute.
+
+    Returns:
+        String representing byte order in {"<", ">"}
+    """
+    if array.dtype.isnative:
+        return SYS_BYTEORDER
+
+    byteorder = array.dtype.byteorder
+
+    return byteorder

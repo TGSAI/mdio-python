@@ -24,7 +24,11 @@ from mdio.segy.parsers import parse_text_header
 from mdio.segy.utilities import get_grid_plan
 
 
-API_VERSION = metadata.version("multidimio")
+try:
+    API_VERSION = metadata.version("multidimio")
+except metadata.PackageNotFoundError:
+    API_VERSION = "unknown"
+
 BACKENDS = ["s3", "gcs", "gs", "az", "abfs"]
 
 

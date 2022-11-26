@@ -46,6 +46,11 @@ Now you can:
 - Use the container as a remote interpreter.
 - Run MDIO developer tools like tests, build docs, etc.
 
+> **NOTE**:
+> MDIO doesn't have to be installed here. As long as `$SRC_DIR` from host is mounted to
+> `/mdio-python` in the container, the `PYTHONPATH` variable will let the development
+> environment interpreter know where to find MDIO.
+
 ### Running Developer Tools
 
 Since the container now has developer tools, they can be executed with this pattern:

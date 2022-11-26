@@ -1,16 +1,26 @@
 """SEG-Y creation utilities."""
 
 
+from __future__ import annotations
+
 import os
+from os import path
 from shutil import copyfileobj
 from time import sleep
+from uuid import uuid4
 
+import numpy as np
 import segyio
+from numpy.typing import NDArray
 from segyio.binfield import keys as bfkeys
 from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
 from mdio.segy._standards_common import SegyFloatFormat
+from mdio.segy.byte_utils import ByteOrder
+from mdio.segy.byte_utils import Dtype
+from mdio.segy.byte_utils import get_byteorder
+from mdio.segy.ibm_float import ieee2ibm
 
 
 def mdio_spec_to_segy(
@@ -108,38 +118,162 @@ def mdio_spec_to_segy(
     return mdio, out_sample_format
 
 
-def merge_partial_segy(output_segy_path, block_file_paths, block_exists):
-    """Merge SEG-Y parts into single, valid SEG-Y.
+def write_to_segy_stack(
+    samples: NDArray,
+    headers: NDArray,
+    live: NDArray,
+    out_dtype: Dtype,
+    out_byteorder: ByteOrder,
+    file_root: str,
+) -> NDArray:
+    """Pre-process seismic data for SEG-Y and write partial blocks.
 
-    When exporting MDIO to SEG-Y, flattening multi-dimensional
-    arrays must be done in parts to minimize the memory usage.
+    This function will take numpy arrays for trace samples, headers, and live mask.
+    Then it will do the following:
+    1. Convert sample format to `out_dtype`.
+    2. Byte-swap samples and headers if needed based on `out_byteorder`.
+    3. Iterate inner dimensions and write blocks of traces.
+    3.1. Combine samples and headers to form a SEG-Y trace.
+    3.2. Drop non-live samples.
+    3.3. Write line block to disk.
+    3.4. Save file names for further merges
+    4. Written files will be saved, so further merge methods
+    can combine them to a single flat SEG-Y dataset.
 
-    This function takes trace header and trace data that is already
-    serialized to SEG-Y (without text or binary headers) and it
-    combines them to the final output SEG-Y with all valid fields.
+    Args:
+        samples: Array containing the trace samples.
+        headers: Array containing the trace headers.
+        live: Array containing the trace live mask.
+        out_dtype: Desired output data type.
+        out_byteorder: Desired output data byte order.
+        file_root: Root directory to write partial SEG-Y files.
 
-    We delete files as we go, so disk usage doesn't get changed.
+    Returns:
+        Array containing file names for partial data. None means
+        there were no live traces within the block / line.
+    """
+    # Make output array with string type. We need to know
+    # the length of the string ahead of time.
+    # Last axis can be written as sequential, so we collapse that to 1.
+    mock_path = path.join(file_root, uuid4().hex)
+    paths_dtype = f"U{len(mock_path)}"
+    paths_shape = live.shape[:-1] + (1,)
+    part_segy_paths = np.full(paths_shape, fill_value="missing", dtype=paths_dtype)
+
+    # Fast path to return if no live traces.
+    if np.count_nonzero(live) == 0:
+        return part_segy_paths
+
+    samples = cast_sample_format(samples, out_dtype)
+    samples = check_byteswap(samples, out_byteorder)
+    headers = check_byteswap(headers, out_byteorder)
+
+    trace_dtype = np.dtype(
+        {
+            "names": ("header", "pad", "trace"),
+            "formats": [
+                headers.dtype,
+                np.dtype("int64"),
+                samples.shape[-1] * samples.dtype,
+            ],
+        },
+    )
+
+    # Iterate on N-1 axes of live mask. Last axis can be written
+    # without worrying about order because it is sequential.
+    for index in np.ndindex(live.shape[:-1]):
+        part_live = live[index]
+        num_live = np.count_nonzero(part_live)
+
+        if num_live == 0:
+            continue
+
+        # Generate unique file name and append to return list.
+        file_path = path.join(file_root, uuid4().hex)
+        part_segy_paths[index] = file_path
+
+        # Interleave samples and headers
+        part_traces = np.empty(num_live, dtype=trace_dtype)
+        part_traces["header"] = headers[index][part_live]
+        part_traces["trace"] = samples[index][part_live]
+        part_traces["pad"] = 0
+
+        with open(file_path, mode="wb") as fp:
+            part_traces.tofile(fp)
+
+    return part_segy_paths
+
+
+def check_byteswap(array: NDArray, out_byteorder: ByteOrder) -> NDArray:
+    """Check input byteorder and swap if user wants the other.
+
+    Args:
+        array: Array containing the data.
+        out_byteorder: Desired output data byte order.
+
+    Returns:
+        Original or byte-order swapped array.
+    """
+    in_byteorder = get_byteorder(array)
+
+    if in_byteorder != out_byteorder:
+        array.byteswap(inplace=True)
+        array = array.newbyteorder()
+
+    return array
+
+
+def cast_sample_format(
+    samples: NDArray,
+    out_dtype: Dtype,
+) -> NDArray:
+    """Cast sample format (dtype).
+
+    Args:
+        samples: Array containing the trace samples.
+        out_dtype: Desired output data type.
+
+    Returns:
+        New structured array with pre-processing applied.
+    """
+    if out_dtype == Dtype.IBM32:
+        samples = samples.astype("float32", copy=False)
+        samples = ieee2ibm(samples)
+    else:
+        samples = samples.astype(out_dtype, copy=False)
+
+    return samples
+
+
+# TODO: Abstract this to support various implementations by
+#  object stores and file systems. Probably fsspec solution.
+def concat_files(paths: list[str], progress=False) -> str:
+    """Concatenate files on disk, sequentially in given order.
+
+    This function takes files on disk, and it combines them by
+    concatenation. Input files are deleted after merge, so disk
+    usage doesn't explode.
 
     This is only required for disk / on-prem; since object stores
     have their optimized file concatenation implementations.
 
     Args:
-        output_segy_path: Path to the final output file. The final
-            file must already be initialized with text and
-            binary headers.
-        block_file_paths: Paths to the blocks of SEG-Y.
-        block_exists: Flat to mark if block exists or not.
+        paths: Paths to the blocks of SEG-Y.
+        progress: Enable tqdm progress bar. Default is False.
+
+    Returns:
+        Path to the returned file (first one from input).
     """
-    tqdm_kw = dict(unit="block", dynamic_ncols=True)
-    block_iter = zip(block_file_paths, block_exists)
-    progress = tqdm(block_iter, desc="Step 2 / 2 Concat Blocks", **tqdm_kw)
+    first_file = paths.pop(0)
 
-    with open(output_segy_path, "ab+") as concat_fp:
-        for block_file_name, exists in progress:
-            if not exists:
-                continue
+    if progress is True:
+        paths = tqdm(paths, desc="Merging lines")
 
-            with open(block_file_name, "rb") as block_fp:
-                copyfileobj(block_fp, concat_fp)
+    with open(first_file, "ab+") as first_fp:
+        for next_file in paths:
+            with open(next_file, "rb") as next_fp:
+                copyfileobj(next_fp, first_fp)
 
-            os.remove(block_file_name)
+            os.remove(next_file)
+
+    return first_file
