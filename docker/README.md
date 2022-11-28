@@ -1,8 +1,46 @@
 # Docker Images
 
-## User
+The Docker commands in this section will propagate user permissions under Unix systems.
+If you want to run with default Docker permissions (root), i.e. in a cloud environment,
+you can omit the `--user` option.
 
-## Developer
+## MDIO User
+
+### Build Docker Image from Scratch
+
+To run the developer container build first by (from source directory):
+
+```shell
+DOCKER_BUILDKIT=1 docker build -f docker/slim-bullseye-3.10.Dockerfile -t mdio .
+```
+
+The command above will build the **MDIO** image and tag is as `mdio:latest`.
+After this, the examples below can be executed.
+
+### Examples
+
+See [CLI documentation](https://mdio-python.readthedocs.io/en/stable/usage.html) for other options.
+
+#### SEG-Y Ingestion
+
+Host directory `$HOST_PATH` will be mounted to the container and file `seismic.segy` will
+be ingested as `seismic.mdio` with index byte locations `inline=189` and `crossline=193`
+using default chunks.
+
+```shell
+docker run --rm --user $(id -u):$(id -g) -v $HOST_PATH:$CONTAINER_PATH mdio segy import -i $CONTAINER_PATH/seismic.segy -o $CONTAINER_PATH/seismic.mdio -loc 181,185 -names inline,crossline
+```
+
+#### SEG-Y Export
+
+Host directory `$HOST_PATH` is mounted to the container and file `seismic.mdio` will be exported
+as `seismic.segy`.
+
+```shell
+docker run --rm --user $(id -u):$(id -g) -v $HOST_PATH:$CONTAINER_PATH mdio segy export -i $CONTAINER_PATH/seismic.mdio -o $CONTAINER_PATH/seismic.segy
+```
+
+## MDIO Developer
 
 ### Build Docker Image from Scratch
 
@@ -12,7 +50,7 @@ To run the developer container build first by (from source directory):
 DOCKER_BUILDKIT=1 docker build -f docker/slim-bullseye-3.10-dev.Dockerfile -t mdio-dev .
 ```
 
-The command above will build the dev environment and tag is as `mdio-dev`
+The command above will build the dev environment image and tag is as `mdio-dev:latest`.
 
 ### Start Container Instance
 
