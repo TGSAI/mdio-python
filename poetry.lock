@@ -534,7 +534,7 @@ python-versions = ">=3.6,<4.0"
 
 [[package]]
 name = "dask"
-version = "2022.10.2"
+version = "2022.11.1"
 description = "Parallel PyData with Task Scheduling"
 category = "main"
 optional = false
@@ -551,10 +551,10 @@ toolz = ">=0.8.2"
 
 [package.extras]
 array = ["numpy (>=1.18)"]
-complete = ["bokeh (>=2.4.2,<3)", "distributed (==2022.10.2)", "jinja2", "numpy (>=1.18)", "pandas (>=1.0)"]
+complete = ["bokeh (>=2.4.2,<3)", "distributed (==2022.11.1)", "jinja2", "numpy (>=1.18)", "pandas (>=1.0)"]
 dataframe = ["numpy (>=1.18)", "pandas (>=1.0)"]
 diagnostics = ["bokeh (>=2.4.2,<3)", "jinja2"]
-distributed = ["distributed (==2022.10.2)"]
+distributed = ["distributed (==2022.11.1)"]
 test = ["pandas[test]", "pre-commit", "pytest", "pytest-rerunfailures", "pytest-xdist"]
 
 [[package]]
@@ -605,16 +605,16 @@ python-versions = "*"
 
 [[package]]
 name = "distributed"
-version = "2022.10.2"
+version = "2022.11.1"
 description = "Distributed scheduler for Dask"
 category = "main"
 optional = false
 python-versions = ">=3.8"
 
 [package.dependencies]
-click = ">=6.6"
+click = ">=7.0"
 cloudpickle = ">=1.5.0"
-dask = "2022.10.2"
+dask = "2022.11.1"
 jinja2 = "*"
 locket = ">=1.0.0"
 msgpack = ">=0.6.0"
@@ -623,7 +623,7 @@ psutil = ">=5.0"
 pyyaml = "*"
 sortedcontainers = "<2.0.0 || >2.0.0,<2.0.1 || >2.0.1"
 tblib = ">=1.6.0"
-toolz = ">=0.8.2"
+toolz = ">=0.10.0"
 tornado = ">=6.0.3,<6.2"
 urllib3 = "*"
 zict = ">=0.1.3"
@@ -3069,7 +3069,7 @@ lossy = ["zfpy"]
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.8,<3.11"
-content-hash = "560179afb941e8e1a281b7183b248e79dd3f1fc8d0791481c12795e02ab4e1f2"
+content-hash = "63efa63f75d80905a7be0b0e697734c2e7e41834d4ebd7231f9f4b07c218cf37"
 
 [metadata.files]
 adal = [
@@ -3560,8 +3560,8 @@ darglint = [
     {file = "darglint-1.8.1.tar.gz", hash = "sha256:080d5106df149b199822e7ee7deb9c012b49891538f14a11be681044f0bb20da"},
 ]
 dask = [
-    {file = "dask-2022.10.2-py3-none-any.whl", hash = "sha256:928003a97b890a14c8a09a01f15320d261053bda530a8bf191d84f33db4a63b8"},
-    {file = "dask-2022.10.2.tar.gz", hash = "sha256:42cb43f601709575fa46ce09e74bea83fdd464187024f56954e09d9b428ceaab"},
+    {file = "dask-2022.11.1-py3-none-any.whl", hash = "sha256:89e3772c30072c7dacd83846164eca6bc0a8b347df7bc0ab2ce69f7effdc03bd"},
+    {file = "dask-2022.11.1.tar.gz", hash = "sha256:18e5c442778cdbb177041dadf9950546884c0f1ce1ac25c98aa2cade2a9d83f0"},
 ]
 dask-labextension = [
     {file = "dask_labextension-6.0.0-py3-none-any.whl", hash = "sha256:6b9e6a66fec891d6533314b03a57e121eb9822aaf98c94139c913e7c30212002"},
@@ -3600,8 +3600,8 @@ distlib = [
     {file = "distlib-0.3.6.tar.gz", hash = "sha256:14bad2d9b04d3a36127ac97f30b12a19268f211063d8f8ee4f47108896e11b46"},
 ]
 distributed = [
-    {file = "distributed-2022.10.2-py3-none-any.whl", hash = "sha256:ae4fffdb55c6cb510ba1cbdf2856563af80ebf93e5ceacb91c1ce79e7da108d8"},
-    {file = "distributed-2022.10.2.tar.gz", hash = "sha256:53f0a5bf6efab9a5ab3345cd913f6d3f3d4ea444ee2edbea331c7fef96fd67d0"},
+    {file = "distributed-2022.11.1-py3-none-any.whl", hash = "sha256:e167447cbd11eec2759cb19fd39ea8cd2d353373e099db51b107ab120b880f55"},
+    {file = "distributed-2022.11.1.tar.gz", hash = "sha256:ca89a7d56588b0a95b8fabe783541f514cbe22d5b62a2e4260849c75b4475cea"},
 ]
 docutils = [
     {file = "docutils-0.19-py3-none-any.whl", hash = "sha256:5e1de4d849fee02c63b040a4a3fd567f4ab104defd8a5511fbbc24a8a017efbc"},
