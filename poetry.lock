@@ -14,7 +14,7 @@ requests = ">=2.0.0,<3"
 
 [[package]]
 name = "adlfs"
-version = "2022.10.0"
+version = "2022.11.2"
 description = "Access Azure Datalake Gen1 with fsspec and dask"
 category = "main"
 optional = true
@@ -22,7 +22,7 @@ python-versions = ">=3.8"
 
 [package.dependencies]
 aiohttp = ">=3.7.0"
-azure-core = ">=1.7.0"
+azure-core = ">=1.23.1,<2.0.0"
 azure-datalake-store = ">=0.0.46,<0.1"
 azure-identity = "*"
 azure-storage-blob = ">=12.12.0"
@@ -3077,8 +3077,8 @@ adal = [
     {file = "adal-1.2.7.tar.gz", hash = "sha256:d74f45b81317454d96e982fd1c50e6fb5c99ac2223728aea8764433a39f566f1"},
 ]
 adlfs = [
-    {file = "adlfs-2022.10.0-py3-none-any.whl", hash = "sha256:dc63b248f109bca2000d306f7a51c33d6859e4692dda7c6198b6300f8e29faaf"},
-    {file = "adlfs-2022.10.0.tar.gz", hash = "sha256:8542f9e6799aeb77adb5cb9854f76b7dce874610dc0f2ff006cce960526ffad6"},
+    {file = "adlfs-2022.11.2-py3-none-any.whl", hash = "sha256:60da4a17260754ee6d8da43e3d756226ade4fd19ada8411e858f5acecd0833e2"},
+    {file = "adlfs-2022.11.2.tar.gz", hash = "sha256:920dba10468f186037ca394dcabcba113532d80f52b315211c8e771be40475ea"},
 ]
 aiobotocore = [
     {file = "aiobotocore-2.4.0-py3-none-any.whl", hash = "sha256:6c25381d31b712652bc2f6008683949351c240c56d24b1d8ae252c1034a50f63"},
@@ -4591,6 +4591,10 @@ psutil = [
     {file = "psutil-5.9.4-cp36-abi3-macosx_10_9_x86_64.whl", hash = "sha256:54d5b184728298f2ca8567bf83c422b706200bcbbfafdc06718264f9393cfeb7"},
     {file = "psutil-5.9.4-cp36-abi3-manylinux_2_12_i686.manylinux2010_i686.manylinux_2_17_i686.manylinux2014_i686.whl", hash = "sha256:16653106f3b59386ffe10e0bad3bb6299e169d5327d3f187614b1cb8f24cf2e1"},
     {file = "psutil-5.9.4-cp36-abi3-manylinux_2_12_x86_64.manylinux2010_x86_64.manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:54c0d3d8e0078b7666984e11b12b88af2db11d11249a8ac8920dd5ef68a66e08"},
+    {file = "psutil-5.9.4-cp36-abi3-win32.whl", hash = "sha256:149555f59a69b33f056ba1c4eb22bb7bf24332ce631c44a319cec09f876aaeff"},
+    {file = "psutil-5.9.4-cp36-abi3-win_amd64.whl", hash = "sha256:fd8522436a6ada7b4aad6638662966de0d61d241cb821239b2ae7013d41a43d4"},
+    {file = "psutil-5.9.4-cp38-abi3-macosx_11_0_arm64.whl", hash = "sha256:6001c809253a29599bc0dfd5179d9f8a5779f9dffea1da0f13c53ee568115e1e"},
+    {file = "psutil-5.9.4.tar.gz", hash = "sha256:3d7f9739eb435d4b1338944abe23f49584bde5395f27487d2ee25ad9a8774a62"},
 ]
 ptyprocess = [
     {file = "ptyprocess-0.7.0-py2.py3-none-any.whl", hash = "sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35"},
