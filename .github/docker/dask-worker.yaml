@@ -1,9 +1,8 @@
-name: Docker Image CI
+name: Dask Worker Docker
 
 on:
-  push:
-    branches: [ "feature/k8s-images" ]
-  pull_request:
+  - push
+  - pull_request
 
 jobs:
 
