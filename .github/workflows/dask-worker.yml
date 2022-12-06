@@ -19,7 +19,7 @@ jobs:
       matrix:
         python: ["3.8", "3.9", "3.10"]
         image:
-          - tag: "ghcr.io/TGSAI/mdio"
+          - tag: "ghcr.io/tgsai/mdio"
             context: "./docker"
 
     steps:
