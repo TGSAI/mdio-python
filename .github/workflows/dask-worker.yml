@@ -71,3 +71,6 @@ jobs:
           build-args: |
             python=${{ matrix.python }}
             dask=${{ env.release }}
+
+      - name: Report
+        run: echo Built ${{ steps.tags.outputs.tags }}
