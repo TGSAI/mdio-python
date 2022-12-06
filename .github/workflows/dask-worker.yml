@@ -67,7 +67,7 @@ jobs:
           context: ${{ matrix.image.context }}
           platforms: linux/amd64
           tags: ${{ steps.tags.outputs.tags }}
-          file: dask-worker-gcp.Dockerfile
+          file: docker/dask-worker-gcp.Dockerfile
           build-args: |
             python=${{ matrix.python }}
             dask=${{ env.release }}
