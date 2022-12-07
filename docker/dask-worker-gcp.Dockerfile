@@ -41,6 +41,11 @@ RUN pip cache purge \
 #    && find /usr/local/lib/python3.10/site-packages/bokeh/server/static -follow -type f -name '*.js' ! -name '*.min.js' -delete
 
 FROM $BASE_CONTAINER
+LABEL org.opencontainers.image.source=https://github.com/tgsai/mdio-python
+LABEL org.opencontainers.image.description="Minimal Dask image with zarr and gcsfs."
+LABEL org.opencontainers.image.documentation="https://mdio-python.readthedocs.io"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+
 COPY --from=builder /usr/local /usr/local
 
 COPY dask-prepare.sh /usr/bin/dask-prepare.sh

@@ -1,4 +1,4 @@
-name: Dask Worker Docker
+name: MDIO and Dask Worker Images
 
 on:
   - push
@@ -17,7 +17,7 @@ jobs:
       matrix:
         python: ["3.8", "3.9", "3.10"]
         image:
-          - tag: "ghcr.io/tgsai/mdio-python"
+          - tag: "ghcr.io/tgsai/mdio-dask-worker"
             context: "./docker"
 
     steps:
