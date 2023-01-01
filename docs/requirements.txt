@@ -1,6 +1,6 @@
 furo==2022.12.7
 sphinx==6.0.0
-sphinx-click==4.3.0
+sphinx-click==4.4.0
 sphinx-copybutton==0.5.1
 myst_nb==0.17.1
 linkify-it-py==2.0.0
