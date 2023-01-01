@@ -1,4 +1,4 @@
-furo==2022.9.29
+furo==2022.12.7
 sphinx==6.0.0
 sphinx-click==4.3.0
 sphinx-copybutton==0.5.1
