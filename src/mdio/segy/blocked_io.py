@@ -133,7 +133,7 @@ def to_zarr(
     num_chunks = len(chunker)
 
     # Setting all multiprocessing parameters.
-    parallel_inputs = zip(
+    parallel_inputs = zip(  # noqa: B905
         repeat(segy_path),
         repeat(trace_array),
         repeat(header_array),
@@ -182,7 +182,8 @@ def to_zarr(
     # REF: https://www.mathwords.com/r/root_mean_square.htm
     chunk_stats = [stat for stat in chunk_stats if stat is not None]
 
-    glob_count, glob_sum, glob_sum_square, glob_min, glob_max = zip(*chunk_stats)
+    chunk_stats = zip(*chunk_stats)  # noqa: B905
+    glob_count, glob_sum, glob_sum_square, glob_min, glob_max = chunk_stats
 
     glob_count = np.sum(glob_count)  # Comes in as `uint32`
     glob_sum = np.sum(glob_sum)  # `float64`

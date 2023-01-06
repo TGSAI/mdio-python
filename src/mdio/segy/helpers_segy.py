@@ -81,7 +81,8 @@ def infer_header_chunksize(orig_chunks, orig_shape, target_size=2**26, length=24
 
     # Set it to max if after scaling, it is larger than the max values.
     new_chunks = [
-        min(dim_new, dim_orig) for dim_new, dim_orig in zip(new_chunks, orig_shape)
+        min(dim_new, dim_orig)
+        for dim_new, dim_orig in zip(new_chunks, orig_shape)  # noqa: B905
     ]
 
     # Special case if the new_chunks are larger than 80% the original shape.

@@ -36,9 +36,10 @@ class ChunkIterator:
             self.len_chunks = self.len_chunks[:-1] + (self.arr_shape[-1],)
 
         # Compute number of chunks per dimension, and total number of chunks
+        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
         self.dim_chunks = [
             ceil(len_dim / chunk)
-            for len_dim, chunk in zip(self.arr_shape, self.len_chunks)
+            for len_dim, chunk in zip(self.arr_shape, self.len_chunks)  # noqa: B905
         ]
         self.num_chunks = np.prod(self.dim_chunks)
 
@@ -61,15 +62,23 @@ class ChunkIterator:
         if self._idx <= self.num_chunks:
             # We build slices here. It is dimension agnostic
             current_start = next(self._ranges)
+
+            # TODO: Add strict=True and remove noqa when minimum Python is 3.10
             start_indices = tuple(
-                dim * chunk for dim, chunk in zip(current_start, self.len_chunks)
-            )
-            stop_indices = tuple(
-                (dim + 1) * chunk for dim, chunk in zip(current_start, self.len_chunks)
+                dim * chunk
+                for dim, chunk in zip(current_start, self.len_chunks)  # noqa: B905
             )
 
+            # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+            stop_indices = tuple(
+                (dim + 1) * chunk
+                for dim, chunk in zip(current_start, self.len_chunks)  # noqa: B905
+            )
+
+            # TODO: Add strict=True and remove noqa when minimum Python is 3.10
             slices = tuple(
-                slice(start, stop) for start, stop in zip(start_indices, stop_indices)
+                slice(start, stop)
+                for start, stop in zip(start_indices, stop_indices)  # noqa: B905
             )
 
             self._idx += 1

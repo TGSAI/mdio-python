@@ -85,7 +85,9 @@ class HeaderGroup(abc.MutableSequence):
             formats.append(header.dtype)
             offsets.append(header.offset)
 
-        offsets, names, formats = zip(*sorted(zip(offsets, names, formats)))
+        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+        headers_sort = sorted(zip(offsets, names, formats))  # noqa: B905
+        offsets, names, formats = zip(*headers_sort)  # noqa: B905
 
         dtype_dict = dict(
             names=names,

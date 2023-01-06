@@ -125,7 +125,8 @@ def segy_export_rechunker(
         new_chunks = tuple(map(int, new_chunks))
         prev_chunks = new_chunks
 
-    qc_iterator = zip(new_chunks, chunks, shape)
+    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+    qc_iterator = zip(new_chunks, chunks, shape)  # noqa: B905
 
     for idx, (dim_new_chunk, dim_chunk, dim_size) in enumerate(qc_iterator):
         # Sometimes dim_chunk can be larger than dim_size. This catches when

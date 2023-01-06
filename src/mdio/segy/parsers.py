@@ -106,7 +106,7 @@ def parse_trace_headers(
 
     # Note: Make sure the order of this is exactly
     # the same as the function call.
-    parallel_inputs = zip(
+    parallel_inputs = zip(  # noqa: B905 or strict=False >= py3.10
         repeat(segy_path),
         trace_ranges,
         repeat(byte_locs),
