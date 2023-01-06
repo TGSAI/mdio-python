@@ -85,7 +85,9 @@ class Grid:
             index_headers: Headers to be normalized (indexed)
         """
         live_dim_indices = tuple()
-        for dim, dim_hdr in zip(self.dims, index_headers.T):
+
+        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+        for dim, dim_hdr in zip(self.dims, index_headers.T):  # noqa: B905
             live_dim_indices += (np.searchsorted(dim, dim_hdr),)
 
         # We set dead traces to uint32 max. Should be far away from actual trace counts.

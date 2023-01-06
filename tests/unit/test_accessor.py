@@ -76,13 +76,16 @@ class TestReader:
         npt.assert_array_equal(xl_indices, xl_index)
         npt.assert_array_equal(z_indices, z_index)
 
-        for act_idx, exp_idx in zip(il_indices, il_index):
+        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+        for act_idx, exp_idx in zip(il_indices, il_index):  # noqa: B905
             npt.assert_array_equal(mock_reader[act_idx], mock_data[exp_idx])
 
-        for act_idx, exp_idx in zip(xl_indices, xl_index):
+        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+        for act_idx, exp_idx in zip(xl_indices, xl_index):  # noqa: B905
             npt.assert_array_equal(mock_reader[:, act_idx], mock_data[:, exp_idx])
 
-        for act_idx, exp_idx in zip(z_indices, z_index):
+        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+        for act_idx, exp_idx in zip(z_indices, z_index):  # noqa: B905
             npt.assert_array_equal(mock_reader[..., act_idx], mock_data[..., exp_idx])
 
     def test_local_caching(self, mock_reader_cached):

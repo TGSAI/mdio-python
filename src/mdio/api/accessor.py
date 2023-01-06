@@ -485,7 +485,7 @@ class MDIOAccessor:
             dims = [self.grid.select_dim(dim_name) for dim_name in dimensions]
 
         dim_indices = tuple()
-        for mdio_dim, dim_query_coords in zip(dims, queries):
+        for mdio_dim, dim_query_coords in zip(dims, queries):  # noqa: B905
             # Make sure all coordinates exist.
             query_diff = np.setdiff1d(dim_query_coords, mdio_dim.coords)
             if len(query_diff) > 0:
