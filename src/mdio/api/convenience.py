@@ -62,9 +62,13 @@ def copy_mdio(
 
     if len(excludes) > 0:
         data_path = "/".join(["data", excludes])
+        source_array = source.root[data_path]
+        dimension_separator = source_array._dimension_separator
+
         zarr.empty_like(
-            source.root[data_path],
+            source_array,
             store=dest_store,
             path=data_path,
             overwrite=overwrite,
+            dimension_separator=dimension_separator,
         )
