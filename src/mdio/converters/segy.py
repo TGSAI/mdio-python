@@ -164,7 +164,10 @@ def segy_to_mdio(
         ...     index_lengths=(4, None, 4),
         ...     index_names=("shot", "cable", "channel"),
         ...     chunksize=(8, 2, 128, 1024),
-        ...     grid_overrides={"ChannelWrap": True, "ChannelsPerCable": 800, "CalculateCable": True},
+        ...     grid_overrides={
+        ...         "ChannelWrap": True, "ChannelsPerCable": 800,
+        ...         "CalculateCable": True
+        ...     },
         ... )
 
         If we do have cable numbers in the headers, but channels are still
