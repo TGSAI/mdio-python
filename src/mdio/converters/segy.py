@@ -44,6 +44,7 @@ def segy_to_mdio(
     compression_tolerance: float = 0.01,
     storage_options: dict[str, Any] | None = None,
     overwrite: bool = False,
+    grid_overrides: dict | None = None,
 ) -> None:
     """Convert SEG-Y file to MDIO format.
 
@@ -96,6 +97,7 @@ def segy_to_mdio(
         storage_options: Storage options for the cloud storage backend.
             Default is `None` (will assume anonymous)
         overwrite: Toggle for overwriting existing store
+        grid_overrides: Option to add grid overrides. See examples.
 
     Raises:
         GridTraceCountError: Raised if grid won't hold all traces in the
@@ -143,6 +145,43 @@ def segy_to_mdio(
         ...     index_names=("inline", "crossline", "offset"),
         ...     chunksize=(16, 16, 16, 512),
         ... )
+
+        We can override the dataset grid by the `grid_overrides` parameter.
+        This allows us to ingest files that don't conform to the true
+        geometry of the seismic acquisition.
+
+        For example if we are ingesting 3D seismic shots that don't have
+        a cable number and channel numbers are sequential (i.e. each cable
+        doesn't start with channel number 1; we can tell MDIO to ingest
+        this with the correct geometry by calculating cable numbers and
+        wrapped channel numbers. Note the missing byte location and word
+        length for the "cable" index.
+
+        >>> segy_to_mdio(
+        ...     segy_path="prefix/shot_file.segy",
+        ...     mdio_path_or_buffer="s3://bucket/shot_file.mdio",
+        ...     index_bytes=(17, None, 13),
+        ...     index_lengths=(4, None, 4),
+        ...     index_names=("shot", "cable", "channel"),
+        ...     chunksize=(8, 2, 128, 1024),
+        ...     grid_overrides={"ChannelWrap": True, "ChannelsPerCable": 800, "CalculateCable": True},
+        ... )
+
+        If we do have cable numbers in the headers, but channels are still
+        sequential (aka. unwrapped), we can still ingest it like this.
+
+        >>> segy_to_mdio(
+        ...     segy_path="prefix/shot_file.segy",
+        ...     mdio_path_or_buffer="s3://bucket/shot_file.mdio",
+        ...     index_bytes=(17, 137, 13),
+        ...     index_lengths=(4, 2, 4),
+        ...     index_names=("shot", "cable", "channel"),
+        ...     chunksize=(8, 2, 128, 1024),
+        ...     grid_overrides={"ChannelWrap": True, "ChannelsPerCable": 800},
+        ... )
+
+        For shot gathers with channel numbers and wrapped channels, no
+        grid overrides are necessary.
     """
     num_index = len(index_bytes)
 
@@ -187,6 +226,7 @@ def segy_to_mdio(
         index_lengths=index_lengths,
         binary_header=binary_header,
         return_headers=True,
+        grid_overrides=grid_overrides,
     )
 
     # Make grid and build global live trace mask

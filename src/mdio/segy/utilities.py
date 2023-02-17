@@ -22,6 +22,7 @@ def get_grid_plan(
     index_lengths: Sequence[int],
     binary_header: dict,
     return_headers: bool = False,
+    grid_overrides: dict | None = None,
 ) -> list[Dimension] | tuple[list[Dimension], npt.ArrayLike]:
     """Infer dimension ranges, and increments.
 
@@ -41,10 +42,14 @@ def get_grid_plan(
         binary_header: Dictionary containing binary header key, value pairs.
         return_headers: Option to return parsed headers with `Dimension` objects.
             Default is False.
+        grid_overrides: Option to add grid overrides. See main documentation.
 
     Returns:
         All index dimensions or dimensions together with header values.
     """
+    if grid_overrides is None:
+        grid_overrides = {}
+
     index_dim = len(index_bytes)
 
     # Default is 4-byte for each index.
@@ -61,6 +66,31 @@ def get_grid_plan(
         index_names = [f"index_{dim}" for dim in range(index_dim)]
 
     dims = []
+
+    if "CalculateCable" in grid_overrides:
+        cable_idx = index_names.index("cable")
+        chan_idx = index_names.index("channel")
+
+        if "ChannelsPerCable" in grid_overrides:
+            channels_per_cable = grid_overrides["ChannelsPerCable"]
+            index_headers[:, cable_idx] = (
+                index_headers[:, chan_idx] - 1
+            ) // channels_per_cable + 1
+        else:
+            raise ValueError("'ChannelsPerCable' must be specified to calculate cable.")
+
+    if "ChannelWrap" in grid_overrides:
+        chan_idx = index_names.index("channel")
+
+        if grid_overrides["ChannelWrap"] is True:
+            if "ChannelsPerCable" in grid_overrides:
+                channels_per_cable = grid_overrides["ChannelsPerCable"]
+                index_headers[:, chan_idx] = (
+                    index_headers[:, chan_idx] - 1
+                ) % channels_per_cable + 1
+        else:
+            raise ValueError("'ChannelsPerCable' must be specified to wrap channels.")
+
     for dim, dim_name in enumerate(index_names):
         dim_unique = np.unique(index_headers[:, dim])
         dims.append(Dimension(coords=dim_unique, name=dim_name))
