@@ -46,6 +46,9 @@ def get_grid_plan(
 
     Returns:
         All index dimensions or dimensions together with header values.
+
+    Raises:
+        ValueError: If appropriate grid override parameters are not provided.
     """
     if grid_overrides is None:
         grid_overrides = {}
