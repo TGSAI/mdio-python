@@ -65,11 +65,10 @@ def copy_mdio(
         source_array = source.root[data_path]
         dimension_separator = source_array._dimension_separator
 
-        zarr.empty_like(
+        zarr.zeros_like(
             source_array,
             store=dest_store,
             path=data_path,
             overwrite=overwrite,
             dimension_separator=dimension_separator,
-            fill_value=0,
         )
