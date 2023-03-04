@@ -76,11 +76,16 @@ def header_scan_worker(
     # The struct only knows about dimension keys, and their byte offsets.
     # Pads the rest of the data with voids.
     endian = ByteOrder[segy_endian.upper()]
+
+    # Handle byte locations and word lengths that are not specified for numpy struct
+    lengths = [4 if length is None else length for length in byte_lengths]
+    offsets = [0 if byte_loc is None else byte_loc - 1 for byte_loc in byte_locs]
+
     struct_dtype = np.dtype(
         {
             "names": [f"dim_{idx}" for idx in range(len(byte_locs))],
-            "formats": [endian + "i" + str(length) for length in byte_lengths],
-            "offsets": [byte_loc - 1 for byte_loc in byte_locs],
+            "formats": [endian + "i" + str(length) for length in lengths],
+            "offsets": offsets,
             "itemsize": 240,
         }
     )
@@ -91,7 +96,16 @@ def header_scan_worker(
     n_traces = stop - start
     block_headers = np.frombuffer(block_headers, struct_dtype, count=n_traces)
     block_headers = [block_headers[dim] for dim in block_headers.dtype.names]
-    return np.column_stack(block_headers)
+
+    block_headers = np.column_stack(block_headers)
+
+    if None in byte_locs:
+        # Zero out the junk we read for `None` byte locations.
+        # We could have multiple None values.
+        none_idx = tuple(i for i, val in enumerate(byte_locs) if val is None)
+        block_headers[:, none_idx] = 0
+
+    return block_headers
 
 
 def trace_worker(
