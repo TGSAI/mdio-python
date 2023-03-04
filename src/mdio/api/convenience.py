@@ -71,4 +71,5 @@ def copy_mdio(
             path=data_path,
             overwrite=overwrite,
             dimension_separator=dimension_separator,
+            fill_value=0,
         )
