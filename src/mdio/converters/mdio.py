@@ -178,6 +178,10 @@ def mdio_to_segy(  # noqa: C901
                 axis=tuple(range(1, samples.ndim)),
             ).compute()
 
+        # If whole blocks are missing, remove them from the list.
+        missing_mask = flat_files == "missing"
+        flat_files = flat_files[~missing_mask]
+
         final_concat = [output_segy_path] + flat_files.tolist()
 
         if client is not None:
