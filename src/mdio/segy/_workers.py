@@ -208,17 +208,3 @@ def trace_worker(
     max_val = tmp_data.max()
 
     return count, chunk_sum, chunk_sum_squares, min_val, max_val
-
-
-# tqdm only works properly with pool.map
-# However, we need pool.starmap because we have more than one
-# argument to make pool.map work with multiple arguments, we
-# wrap the function and consolidate arguments to one
-def trace_worker_map(args):
-    """Wrapper for trace worker to use with tqdm."""
-    return trace_worker(*args)
-
-
-def header_scan_worker_map(args):
-    """Wrapper for header scan worker to use with tqdm."""
-    return header_scan_worker(*args)

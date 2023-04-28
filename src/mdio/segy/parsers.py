@@ -3,9 +3,9 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from math import ceil
-from multiprocessing import Pool
 from typing import Any
 from typing import Sequence
 
@@ -15,7 +15,7 @@ from psutil import cpu_count
 from tqdm.auto import tqdm
 
 from mdio.core import Dimension
-from mdio.segy._workers import header_scan_worker_map
+from mdio.segy._workers import header_scan_worker
 
 
 NUM_CORES = cpu_count(logical=False)
@@ -104,24 +104,18 @@ def parse_trace_headers(
 
         trace_ranges.append((start, stop))
 
-    # Note: Make sure the order of this is exactly
-    # the same as the function call.
-    parallel_inputs = zip(  # noqa: B905 or strict=False >= py3.10
-        repeat(segy_path),
-        trace_ranges,
-        repeat(byte_locs),
-        repeat(byte_lengths),
-        repeat(segy_endian),
-    )
-
     num_workers = min(n_blocks, NUM_CORES)
 
     tqdm_kw = dict(unit="block", dynamic_ncols=True)
-    with Pool(num_workers) as pool:
+    with ProcessPoolExecutor(num_workers) as executor:
         # pool.imap is lazy
-        lazy_work = pool.imap(
-            func=header_scan_worker_map,
-            iterable=parallel_inputs,
+        lazy_work = executor.map(
+            header_scan_worker,  # fn
+            repeat(segy_path),
+            trace_ranges,
+            repeat(byte_locs),
+            repeat(byte_lengths),
+            repeat(segy_endian),
             chunksize=2,  # Not array chunks. This is for `multiprocessing`
         )
 

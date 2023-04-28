@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import multiprocessing as mp
+from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 
 import numpy as np
@@ -19,7 +20,7 @@ from zarr import Group
 
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
-from mdio.segy._workers import trace_worker_map
+from mdio.segy._workers import trace_worker
 from mdio.segy.byte_utils import ByteOrder
 from mdio.segy.byte_utils import Dtype
 from mdio.segy.creation import concat_files
@@ -132,35 +133,27 @@ def to_zarr(
     chunker = ChunkIterator(trace_array, chunk_samples=False)
     num_chunks = len(chunker)
 
-    # Setting all multiprocessing parameters.
-    parallel_inputs = zip(  # noqa: B905
-        repeat(segy_path),
-        repeat(trace_array),
-        repeat(header_array),
-        repeat(grid),
-        chunker,
-        repeat(segy_endian),
-    )
-
-    # This is for Unix async writes to s3fs/fsspec, when using
-    # multiprocessing. By default, Linux uses the 'fork' method.
-    # 'spawn' is a little slower to spool up processes, but 'fork'
-    # doesn't work. If you don't use this, processes get deadlocked
-    # on cloud stores. 'spawn' is default in Windows.
-    context = mp.get_context("spawn")
-
-    # This is the chunksize for multiprocessing. Not to be confused
-    # with Zarr chunksize.
+    # For Unix async writes with s3fs/fsspec & multiprocessing,
+    # use 'spawn' instead of default 'fork' to avoid deadlocks
+    # on cloud stores. Slower but necessary. Default on Windows.
     num_workers = min(num_chunks, NUM_CORES)
+    context = mp.get_context("spawn")
+    executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
+
+    # Chunksize here is for multiprocessing, not Zarr chunksize.
     pool_chunksize, extra = divmod(num_chunks, num_workers * 4)
     pool_chunksize += 1 if extra else pool_chunksize
 
     tqdm_kw = dict(unit="block", dynamic_ncols=True)
-    with context.Pool(num_workers) as pool:
-        # pool.imap is lazy
-        lazy_work = pool.imap(
-            func=trace_worker_map,
-            iterable=parallel_inputs,
+    with executor:
+        lazy_work = executor.map(
+            trace_worker,  # fn
+            repeat(segy_path),
+            repeat(trace_array),
+            repeat(header_array),
+            repeat(grid),
+            chunker,
+            repeat(segy_endian),
             chunksize=pool_chunksize,
         )
 
