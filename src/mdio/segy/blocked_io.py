@@ -20,7 +20,7 @@ from zarr import Group
 
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
-from mdio.segy._workers import trace_worker_wrapper
+from mdio.segy._workers import trace_worker
 from mdio.segy.byte_utils import ByteOrder
 from mdio.segy.byte_utils import Dtype
 from mdio.segy.creation import concat_files
@@ -133,16 +133,6 @@ def to_zarr(
     chunker = ChunkIterator(trace_array, chunk_samples=False)
     num_chunks = len(chunker)
 
-    # Setting all multiprocessing parameters.
-    parallel_inputs = zip(  # noqa: B905
-        repeat(segy_path),
-        repeat(trace_array),
-        repeat(header_array),
-        repeat(grid),
-        chunker,
-        repeat(segy_endian),
-    )
-
     # For Unix async writes with s3fs/fsspec & multiprocessing,
     # use 'spawn' instead of default 'fork' to avoid deadlocks
     # on cloud stores. Slower but necessary. Default on Windows.
@@ -157,8 +147,13 @@ def to_zarr(
     tqdm_kw = dict(unit="block", dynamic_ncols=True)
     with executor:
         lazy_work = executor.map(
-            trace_worker_wrapper,  # fn
-            parallel_inputs,  # iterables
+            trace_worker,  # fn
+            repeat(segy_path),
+            repeat(trace_array),
+            repeat(header_array),
+            repeat(grid),
+            chunker,
+            repeat(segy_endian),
             chunksize=pool_chunksize,
         )
 
