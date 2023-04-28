@@ -214,11 +214,11 @@ def trace_worker(
 # However, we need pool.starmap because we have more than one
 # argument to make pool.map work with multiple arguments, we
 # wrap the function and consolidate arguments to one
-def trace_worker_map(args):
-    """Wrapper for trace worker to use with tqdm."""
+def trace_worker_wrapper(args):
+    """Wrapper to make it work with map and multiple arguments."""
     return trace_worker(*args)
 
 
-def header_scan_worker_map(args):
-    """Wrapper for header scan worker to use with tqdm."""
+def header_scan_worker_wrapper(args):
+    """Wrapper to make it work with map and multiple arguments."""
     return header_scan_worker(*args)
