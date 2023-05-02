@@ -5679,6 +5679,47 @@ numpy = ">=1.20"
 jupyter = ["ipytree (>=0.2.2)", "ipywidgets (>=8.0.0)", "notebook"]
 
 [[package]]
+name = "zfpy"
+version = "0.5.5"
+description = "zfp compression in Python"
+category = "main"
+optional = true
+python-versions = "*"
+files = [
+    {file = "zfpy-0.5.5-1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:993b710516d72290a72a4e9c37922abc4851814713e834c0b9b73de174962cd9"},
+    {file = "zfpy-0.5.5-1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:49617e44a052bc48024c62b90d0d4c50c4e06813fd512565689625f6495b47bd"},
+    {file = "zfpy-0.5.5-cp27-cp27m-macosx_10_9_x86_64.whl", hash = "sha256:5d45b0807a9816055717fbb874550722b133a42c14c5f255319fe59e4998be0f"},
+    {file = "zfpy-0.5.5-cp27-cp27mu-manylinux1_x86_64.whl", hash = "sha256:61871289f7261e4bca205fe4fc85e75b6294336583cf38fa881fc61c26511a74"},
+    {file = "zfpy-0.5.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:b6a974caecacfbadf3aac0f8918503a061aad4dcb5e38fc445e1b273490d98fa"},
+    {file = "zfpy-0.5.5-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ffe1edc6a8914795d6f94a4ffb2b7909cdeda7365939ba3c3348c88d72a41356"},
+    {file = "zfpy-0.5.5-cp310-cp310-win32.whl", hash = "sha256:199213afee138b9108ffad46544dbc3b04ce5f97ff9ab3a1d451f3df3f2cbd25"},
+    {file = "zfpy-0.5.5-cp310-cp310-win_amd64.whl", hash = "sha256:e4a9097866a524f0c0ed27633850a55396527afe95043d1d47e03735f19e13f2"},
+    {file = "zfpy-0.5.5-cp35-cp35m-macosx_10_6_intel.whl", hash = "sha256:bb9359fc2df8dc156d5c339250f67950ea4ce6ad18ca9d46a32cbc8899e26ac8"},
+    {file = "zfpy-0.5.5-cp35-cp35m-manylinux1_x86_64.whl", hash = "sha256:023df4ac994582d6b1e34945e95a045cf88734e27b4556b04333106f2350d0b7"},
+    {file = "zfpy-0.5.5-cp35-cp35m-win32.whl", hash = "sha256:a24b26a3f982a51714882d2100a9a09cba90f85d5ba9d9544b098d27bf0638b9"},
+    {file = "zfpy-0.5.5-cp35-cp35m-win_amd64.whl", hash = "sha256:c1b823acd74bbc86e5e1fbc0a845a368297bd71c3937f390a81c7227a7635bfd"},
+    {file = "zfpy-0.5.5-cp36-cp36m-macosx_10_9_x86_64.whl", hash = "sha256:6cc6cc1602234379dfce3491b76cd6ab2776caa6528f6b7ba06d26a01879beb3"},
+    {file = "zfpy-0.5.5-cp36-cp36m-manylinux1_x86_64.whl", hash = "sha256:21970209a3e0aa186110250a98510c9ad50fa9cc70ed8d5babcf15ae840fca0d"},
+    {file = "zfpy-0.5.5-cp36-cp36m-win32.whl", hash = "sha256:87a35d87f7967f844011e7ffc47162a073e717098b71e92a5c301253dce3809f"},
+    {file = "zfpy-0.5.5-cp36-cp36m-win_amd64.whl", hash = "sha256:eec45e7b4045e93a76351ed98bf01b97940ccc16cc6f5616e8c776e001974e4d"},
+    {file = "zfpy-0.5.5-cp37-cp37m-macosx_10_9_x86_64.whl", hash = "sha256:af904aeb636b51eddcd9ec61636b2b98416b21f67ffd04437d20d02919e51f18"},
+    {file = "zfpy-0.5.5-cp37-cp37m-manylinux1_x86_64.whl", hash = "sha256:55c725b997d5c8876d4b902f1e9b53043b5ceaded2b16a0cb930534f94246c26"},
+    {file = "zfpy-0.5.5-cp37-cp37m-win32.whl", hash = "sha256:153b947c8e26c873336ff04350e87ccdcb58eb9f0ed106668be404c65598fce0"},
+    {file = "zfpy-0.5.5-cp37-cp37m-win_amd64.whl", hash = "sha256:a1f7da0bca7caf3f125da84f4d6622774eac2db27073406224e57d6833c77d4c"},
+    {file = "zfpy-0.5.5-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:a958c6d87c5decc0b95a400709405b57fde2d97cc6085b95f7113f34319a08f8"},
+    {file = "zfpy-0.5.5-cp38-cp38-manylinux2010_x86_64.whl", hash = "sha256:cb9fe36c43e011dc9aab3e182c29d334405ec40159c4f1eff7ccecf6abde7ae7"},
+    {file = "zfpy-0.5.5-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:831538fa502c0d244f43683298efe4fb69a04da2b57dc4e00b1856c1ca1b85c2"},
+    {file = "zfpy-0.5.5-cp38-cp38-win32.whl", hash = "sha256:f126fa518d3edd4ccc4492d7232fcd882081fbe94e713de311aaa69171f6bfdc"},
+    {file = "zfpy-0.5.5-cp38-cp38-win_amd64.whl", hash = "sha256:3bedfd2a29061c92825da3e7da3a4f0cec97907fa4bf6fa2ce8c881607bfa049"},
+    {file = "zfpy-0.5.5-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:b1acc92a44917658842c706446b12bcffa104f6a5388777315882f1997c50c45"},
+    {file = "zfpy-0.5.5-cp39-cp39-manylinux_2_12_x86_64.manylinux2010_x86_64.whl", hash = "sha256:472bff7b8d9dd8a61ff135d1d18d6f01c95f7febbac6d7228c12b983e18da6a9"},
+    {file = "zfpy-0.5.5-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:6188a3521b90229868027ae01c13d0ee08e616ad8ac1ccfcb5565f9b30621d62"},
+    {file = "zfpy-0.5.5-cp39-cp39-win32.whl", hash = "sha256:fc2e07aca93d236f22499e68e5d1117c4bc42b1974c5bb35d27800b9dde6a9d4"},
+    {file = "zfpy-0.5.5-cp39-cp39-win_amd64.whl", hash = "sha256:da99e6a7390da2c0d901abc30046a9f9bf47998c51bfd78fe1c2dfc2549b64d3"},
+    {file = "zfpy-0.5.5.tar.gz", hash = "sha256:3d01d09d8a47c509d3952ced7cdbcfb7c8c9d400f56cd5fddcf8c246c544482d"},
+]
+
+[[package]]
 name = "zict"
 version = "3.0.0"
 description = "Mutable mapping tools"
@@ -5709,9 +5750,9 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [extras]
 cloud = ["adlfs", "gcsfs", "s3fs"]
 distributed = ["bokeh", "distributed"]
-lossy = []
+lossy = ["zfpy"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.8,<3.12"
-content-hash = "c3041a7a6d993f85ef8602f6ef12743a013fd182854e88a4d1523088257e3165"
+content-hash = "05628b5fc3ef7b451659ec2ae7dc038e49842e4a9648397a5fa1ede4be944825"
