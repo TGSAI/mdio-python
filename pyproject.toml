@@ -24,7 +24,7 @@ keywords = ["mdio", "multidimio", "seismic", "wind", "data"]
 Changelog = "https://github.com/TGSAI/mdio-python/releases"
 
 [tool.poetry.dependencies]
-python = ">=3.8,<3.11"
+python = ">=3.8,<3.12"
 click = "^8.1.3"
 click-params = "^0.3.0"
 zarr = "^2.12.0"
@@ -38,7 +38,7 @@ bokeh = {version = "^2.4.3", optional = true}
 s3fs = {version = ">=2022.7.0", optional = true}
 gcsfs = {version = ">=2022.7.0", optional = true}
 adlfs = {version = ">=2022.7.0", optional = true}
-zfpy = {version = "^1.0.0", optional = true}
+#zfpy = {version = "^1.0.0", optional = true}
 
 [tool.poetry.extras]
 distributed = ["distributed", "bokeh"]
