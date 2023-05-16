@@ -206,6 +206,11 @@ def segy_to_mdio(
 
         For shot gathers with channel numbers and wrapped channels, no
         grid overrides are necessary.
+
+        In cases where the user does not know if the input has unwrapped
+        channels but desires to store with wrapped channel index use:
+        >>>    grid_overrides={"AutoChannelWrap": True,
+                               "AutoChannelTraceQC":  1000000}
     """
     num_index = len(index_bytes)
 

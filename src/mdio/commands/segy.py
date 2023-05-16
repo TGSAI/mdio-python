@@ -147,6 +147,13 @@ cli = click.Group(name="segy", help=SEGY_HELP)
     type=click.BOOL,
     show_default=True,
 )
+@click.option(
+    "-grid-overrides",
+    "--grid-overrides",
+    required=False,
+    help="Option to add grid overrides.",
+    type=click_params.JSON,
+)
 def segy_import(
     input_segy_path,
     output_mdio_file,
@@ -159,6 +166,7 @@ def segy_import(
     compression_tolerance,
     storage_options,
     overwrite,
+    grid_overrides,
 ):
     """Ingest SEG-Y file to MDIO.
 
@@ -261,6 +269,45 @@ def segy_import(
         --header-names shot,cable,chan
         --header-lengths 4,2,4
         --chunk-size 8,2,256,512
+
+    We can override the dataset grid by the `grid_overrides` parameter.
+    This allows us to ingest files that don't conform to the true
+    geometry of the seismic acquisition.
+
+    For example if we are ingesting 3D seismic shots that don't have
+    a cable number and channel numbers are sequential (i.e. each cable
+    doesn't start with channel number 1; we can tell MDIO to ingest
+    this with the correct geometry by calculating cable numbers and
+    wrapped channel numbers. Note the missing byte location and word
+    length for the "cable" index.
+
+
+    Usage:
+        3D Seismic Shot Data (Byte Locations Vary):
+        Let's assume streamer number does not exist but there are
+        800 channels per cable.
+        Chunks: 8 shots x 2 cables x 256 channels x 512 samples
+        --header-locations 9,None,13
+        --header-names shot,cable,chan
+        --header-lengths 4,None,4
+        --chunk-size 8,2,256,512
+        --grid-overrides '{"ChannelWrap": True, "ChannelsPerCable": 800, "CalculateCable": True}'
+
+        \b
+        If we do have cable numbers in the headers, but channels are still
+        sequential (aka. unwrapped), we can still ingest it like this.
+        --header-locations 9,213,13
+        --header-names shot,cable,chan
+        --header-lengths 4,2,4
+        --chunk-size 8,2,256,512
+        --grid-overrides '{"ChannelWrap":True, "ChannelsPerCable": 800}'
+        \b
+        For shot gathers with channel numbers and wrapped channels, no
+        grid overrides are necessary.
+
+        In cases where the user does not know if the input has unwrapped
+        channels but desires to store with wrapped channel index use:
+        --grid-overrides '{"AutoChannelWrap": True, "AutoChannelTraceQC":  1000000}'
     """
     mdio.segy_to_mdio(
         segy_path=input_segy_path,
@@ -274,6 +321,7 @@ def segy_import(
         compression_tolerance=compression_tolerance,
         storage_options=storage_options,
         overwrite=overwrite,
+        grid_overrides=grid_overrides,
     )
 
 

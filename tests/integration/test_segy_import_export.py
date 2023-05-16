@@ -1,6 +1,6 @@
 """End to end testing for SEG-Y to MDIO conversion and back."""
 
-
+import os
 from os.path import getsize
 
 import dask
@@ -16,6 +16,94 @@ from mdio.core import Dimension
 
 
 dask.config.set(scheduler="synchronous")
+
+
+def create_4d_segy(file_path, chan_header_type="a", **args):
+    import segyio
+
+    fldrs = [2, 3, 5]
+    cables = [0, 101, 201, 301]
+    num_traces = [1, 5, 7, 5]
+
+    spec = segyio.spec()
+    d = os.path.join(file_path, "data")
+    os.makedirs(d, exist_ok=True)
+    segy_file = os.path.join(d, f"4d_type_{chan_header_type}.sgy")
+    spec.format = 1
+    spec.samples = range(25)
+
+    trace_count = len(fldrs) * np.sum(num_traces)
+    spec.tracecount = trace_count
+    spec.endian = "big"
+
+    with segyio.create(segy_file, spec) as f:
+        trno = 0
+
+        tracf = 0
+        for fldr in fldrs:
+            if chan_header_type == "b":
+                tracf = 0
+            for cable, length in zip(cables, num_traces):
+                if chan_header_type == "a":
+                    tracf = 0
+                for i in range(length):
+                    # segyio names and byte locations  for headers can be found at:
+                    #   https://segyio.readthedocs.io/en/latest/segyio.html#module-segyio.su.words
+                    # fldr is byte location 9 - shot
+                    # ep is byte location 17 - shot
+                    # stae is byte location 137 - cable
+                    # tracf is byte location 13 - channel
+
+                    f.header[trno].update(
+                        offset=1,
+                        fldr=fldr,
+                        ep=fldr,
+                        stae=cable,
+                        tracf=tracf,
+                    )
+
+                    trace = np.linspace(
+                        start=fldr, stop=fldr + 1, num=len(spec.samples)
+                    )
+                    f.trace[trno] = trace
+                    trno += 1
+                    tracf += 1
+
+        f.bin.update()
+    return segy_file
+
+
+@pytest.mark.parametrize("header_locations", [(17, 137, 13)])
+@pytest.mark.parametrize("header_names", [("shot", "cable", "channel")])
+@pytest.mark.parametrize("endian", ["big"])
+@pytest.mark.parametrize(
+    "grid_overrides", [{"AutoChannelWrap": True, "AutoChannelTraceQC": 1000000}]
+)
+@pytest.mark.parametrize("chan_header_type", ["a", "b"])
+class TestImport4D:
+    def test_import_4d_segy(
+        self,
+        tmp_path,
+        zarr_tmp,
+        header_locations,
+        header_names,
+        endian,
+        grid_overrides,
+        chan_header_type,
+    ):
+        """Test importing a SEG-Y file to MDIO."""
+        segy_path = create_4d_segy(tmp_path, chan_header_type=chan_header_type)
+
+        segy_to_mdio(
+            segy_path=segy_path,
+            mdio_path_or_buffer=zarr_tmp.__str__(),
+            index_bytes=header_locations,
+            index_names=header_names,
+            chunksize=(8, 2, 128, 1024),
+            overwrite=True,
+            endian=endian,
+            grid_overrides=grid_overrides,
+        )
 
 
 @pytest.mark.parametrize("header_locations", [(17, 13)])

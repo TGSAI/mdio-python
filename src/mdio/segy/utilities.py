@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from enum import Enum
 from typing import Sequence
 
 import numpy as np
@@ -13,6 +14,36 @@ from mdio.core import Dimension
 from mdio.segy.byte_utils import Dtype
 from mdio.segy.parsers import parse_sample_axis
 from mdio.segy.parsers import parse_trace_headers
+
+
+class GeometryTemplateType(Enum):
+    STREAMER_A = 1
+    STREAMER_B = 2
+
+
+"""
+STREAMER_A
+==========
+Cable 1 ->        / 1------------------20
+Cable 2 ->       / 1-----------------20
+.               / 1-----------------20
+.          ⛴ ☆  1-----------------20
+.               \ 1-----------------20
+Cable 6 ->       \ 1-----------------20
+Cable 7 ->        \ 1-----------------20
+
+
+STREAMER_B
+==========
+Cable 1 ->        / 1------------------20
+Cable 2 ->       / 21-----------------40
+.               / 41-----------------60
+.          ⛴ ☆ - 61-----------------80
+.               \ 81----------------100
+Cable 6 ->       \ 101---------------120
+Cable 7 ->        \ 121---------------140
+
+"""
 
 
 def get_grid_plan(
@@ -68,6 +99,26 @@ def get_grid_plan(
 
     dims = []
 
+    if "AutoChannelWrap" in grid_overrides:
+        trace_qc_count = None
+        cable_idx = index_names.index("cable")
+        chan_idx = index_names.index("channel")
+        if "AutoChannelTraceQC" in grid_overrides:
+            trace_qc_count = int(grid_overrides["AutoChannelTraceQC"])
+        unique_cables, cable_chan_min, cable_chan_max, geom_type = qc_index_headers(
+            index_headers, index_names, trace_qc_count
+        )
+
+        # This might be slow and potentially could be improved with a rewrite
+        # to prevent so many lookups
+        if geom_type == GeometryTemplateType.STREAMER_B:
+            for idx, cable in enumerate(unique_cables):
+                cable_idxs = np.where(index_headers[:, cable_idx] == cable)
+                cc_min = cable_chan_min[idx]
+                index_headers[cable_idxs, chan_idx] = (
+                    index_headers[cable_idxs, chan_idx] - cc_min + 1
+                )
+
     if "CalculateCable" in grid_overrides:
         if "ChannelsPerCable" in grid_overrides:
             channels_per_cable = grid_overrides["ChannelsPerCable"]
@@ -96,6 +147,65 @@ def get_grid_plan(
     dims.append(sample_dim)
 
     return dims, index_headers if return_headers else dims
+
+
+def qc_index_headers(
+    index_headers: npt.ArrayLike,
+    index_names: Sequence[str],
+    trace_qc_count: int | None = None,
+) -> tuple(npt.ArrayLike, npt.ArrayLike, npt.ArrayLike, GeometryTemplateType) | None:
+    """Check input headers for segy input to help determin geometry.
+
+    This function reads in trace_qc_count headers and finds the unique cable values.
+    The function then checks to make sure channel numbers for different cables do
+    not overlap.
+
+    Args:
+        index_headers: numpy array with index headers
+        index_names: Tuple of the names for the index attributes
+        trace_qc_count: Number of traces to use in QC (default all)
+    returns:
+
+    """
+
+    if trace_qc_count is None:
+        trace_qc_count = index_headers.shape[0]
+    if trace_qc_count > index_headers.shape[0]:
+        trace_qc_count = index_headers.shape[0]
+
+    if "cable" in index_names and "channel" in index_names and "shot" in index_names:
+        cable_idx = index_names.index("cable")
+        channel_idx = index_names.index("channel")
+        # Find unique cable ids
+        unique_cables = np.sort(np.unique(index_headers[0:trace_qc_count, cable_idx]))
+
+        # Find channel min and max values for each cable
+        cable_chan_min = np.empty(unique_cables.shape)
+        cable_chan_max = np.empty(unique_cables.shape)
+
+        for idx, cable in enumerate(unique_cables):
+            my_chan = np.take(
+                index_headers[0:trace_qc_count, cable_idx],
+                np.where(index_headers[0:trace_qc_count, cable_idx] == cable),
+            )
+            cable_chan_min[idx] = np.min(my_chan)
+            cable_chan_max[idx] = np.max(my_chan)
+
+        # Check channel numbers do not overlap for case B
+        geom_type = GeometryTemplateType.STREAMER_B
+        for idx, cable in enumerate(unique_cables):
+            min_val = cable_chan_min[idx]
+            max_val = cable_chan_max[cable_idx]
+            for idx2, cable2 in enumerate(unique_cables):
+                if cable2 == cable:
+                    # Don't compare with itself
+                    pass
+
+                if cable_chan_min[idx2] < max_val and cable_chan_max[idx2] > min_val:
+                    geom_type = GeometryTemplateType.STREAMER_A
+
+        # Return cable_chan_min values
+        return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
 
 def segy_export_rechunker(
