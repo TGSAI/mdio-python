@@ -94,8 +94,14 @@ def mock_mdio(
     grid = Grid(mock_dimensions)
 
     il_grid, xl_grid = mock_coords
-    mock_headers = il_grid.ravel(), xl_grid.ravel()
-    grid.build_map(np.column_stack(mock_headers))
+    mock_inline, mock_crossline = il_grid.ravel(), xl_grid.ravel()
+
+    mock_dtype = np.dtype([("inline", "i4"), ("crossline", "i4")])
+    mock_headers = np.empty(il_grid.size, dtype=mock_dtype)
+    mock_headers["inline"] = mock_inline
+    mock_headers["crossline"] = mock_crossline
+
+    grid.build_map(mock_headers)
 
     trace_count = np.count_nonzero(grid.live_mask)
     write_attribute(name="dimension", zarr_group=zarr_root, attribute=dimensions_dict)

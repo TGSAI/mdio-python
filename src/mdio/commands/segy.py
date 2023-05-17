@@ -83,11 +83,11 @@ cli = click.Group(name="segy", help=SEGY_HELP)
     type=click_params.IntListParamType(),
 )
 @click.option(
-    "-len",
-    "--header-lengths",
+    "-types",
+    "--header-types",
     required=False,
-    help="Byte lengths of the index attributes in SEG-Y trace header.",
-    type=click_params.IntListParamType(),
+    help="Data types of the index attributes in SEG-Y trace header.",
+    type=click_params.StringListParamType(),
 )
 @click.option(
     "-names",
@@ -151,7 +151,7 @@ def segy_import(
     input_segy_path,
     output_mdio_file,
     header_locations,
-    header_lengths,
+    header_types,
     header_names,
     chunk_size,
     endian,
@@ -266,7 +266,7 @@ def segy_import(
         segy_path=input_segy_path,
         mdio_path_or_buffer=output_mdio_file,
         index_bytes=header_locations,
-        index_lengths=header_lengths,
+        index_types=header_types,
         index_names=header_names,
         chunksize=chunk_size,
         endian=endian,

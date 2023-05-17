@@ -297,7 +297,6 @@ def to_segy(
         headers: Header array.
         live_mask: Live mask array.
         out_dtype: Desired type of output samples.
-        out_dtype: Desired output data type.
         out_byteorder: Desired output data byte order.
         file_root: Root directory to write partial SEG-Y files.
         axis: Which axes to merge on. Excluding sample axis.

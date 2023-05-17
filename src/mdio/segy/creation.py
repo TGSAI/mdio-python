@@ -240,7 +240,7 @@ def cast_sample_format(
         samples = samples.astype("float32", copy=False)
         samples = ieee2ibm(samples)
     else:
-        samples = samples.astype(out_dtype, copy=False)
+        samples = samples.astype(out_dtype.numpy_dtype, copy=False)
 
     return samples
 
