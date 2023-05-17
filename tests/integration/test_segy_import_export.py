@@ -19,6 +19,7 @@ dask.config.set(scheduler="synchronous")
 
 
 def create_4d_segy(file_path, chan_header_type="a", **args):
+    """Dummy 4D segy file for use in tests."""
     import segyio
 
     fldrs = [2, 3, 5]
@@ -43,12 +44,13 @@ def create_4d_segy(file_path, chan_header_type="a", **args):
         for fldr in fldrs:
             if chan_header_type == "b":
                 tracf = 0
-            for cable, length in zip(cables, num_traces):
+            # TODO: Add strict=True and remove noqa when min supported Python is 3.10
+            for cable, length in zip(cables, num_traces):  # noqa: B905
                 if chan_header_type == "a":
                     tracf = 0
-                for i in range(length):
+                for _i in range(length):
                     # segyio names and byte locations  for headers can be found at:
-                    #   https://segyio.readthedocs.io/en/latest/segyio.html#module-segyio.su.words
+                    #   https://segyio.readthedocs.io/en/latest/segyio.html
                     # fldr is byte location 9 - shot
                     # ep is byte location 17 - shot
                     # stae is byte location 137 - cable
@@ -81,6 +83,8 @@ def create_4d_segy(file_path, chan_header_type="a", **args):
 )
 @pytest.mark.parametrize("chan_header_type", ["a", "b"])
 class TestImport4D:
+    """Test for 4D segy import with grid overrides."""
+
     def test_import_4d_segy(
         self,
         tmp_path,

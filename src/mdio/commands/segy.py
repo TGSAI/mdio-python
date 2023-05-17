@@ -291,7 +291,8 @@ def segy_import(
         --header-names shot,cable,chan
         --header-lengths 4,None,4
         --chunk-size 8,2,256,512
-        --grid-overrides '{"ChannelWrap": True, "ChannelsPerCable": 800, "CalculateCable": True}'
+        --grid-overrides '{"ChannelWrap": True, "ChannelsPerCable": 800,
+                           "CalculateCable": True}'
 
         \b
         If we do have cable numbers in the headers, but channels are still
@@ -307,7 +308,8 @@ def segy_import(
 
         In cases where the user does not know if the input has unwrapped
         channels but desires to store with wrapped channel index use:
-        --grid-overrides '{"AutoChannelWrap": True, "AutoChannelTraceQC":  1000000}'
+        --grid-overrides '{"AutoChannelWrap": True,
+                           "AutoChannelTraceQC":  1000000}'
     """
     mdio.segy_to_mdio(
         segy_path=input_segy_path,

@@ -17,36 +17,38 @@ from mdio.segy.parsers import parse_trace_headers
 
 
 class GeometryTemplateType(Enum):
+    """Geometry template types as enum."""
+
     STREAMER_A = 1
     STREAMER_B = 2
 
 
-"""
+r"""
 STREAMER_A
 ==========
-Cable 1 ->        / 1------------------20
-Cable 2 ->       / 1-----------------20
-.               / 1-----------------20
+Cable 1 ->          1------------------20
+Cable 2 ->         1-----------------20
+.                 1-----------------20
 .          ⛴ ☆  1-----------------20
-.               \ 1-----------------20
-Cable 6 ->       \ 1-----------------20
-Cable 7 ->        \ 1-----------------20
+.                 1-----------------20
+Cable 6 ->         1-----------------20
+Cable 7 ->          1-----------------20
 
 
 STREAMER_B
 ==========
-Cable 1 ->        / 1------------------20
-Cable 2 ->       / 21-----------------40
-.               / 41-----------------60
-.          ⛴ ☆ - 61-----------------80
-.               \ 81----------------100
-Cable 6 ->       \ 101---------------120
-Cable 7 ->        \ 121---------------140
+Cable 1 ->          1------------------20
+Cable 2 ->         21-----------------40
+.                 41-----------------60
+.          ⛴ ☆  61-----------------80
+.                 81----------------100
+Cable 6 ->         101---------------120
+Cable 7 ->          121---------------140
 
 """
 
 
-def get_grid_plan(
+def get_grid_plan(  # noqa:  C901
     segy_path: str,
     segy_endian: str,
     index_bytes: Sequence[int],
@@ -164,10 +166,15 @@ def qc_index_headers(
         index_headers: numpy array with index headers
         index_names: Tuple of the names for the index attributes
         trace_qc_count: Number of traces to use in QC (default all)
-    returns:
 
+    Returns:
+        None: if not shot, cable, channel
+        if shot, cable, channels:
+            unique_cables: Array with the unique cable ids
+            cable_chan_min: Array containing the min channel number for each cable,
+            cable_chan_max: Array containing the max channel number for each cable,
+            geom_type:  Whether type a or b (wrapped or unwrapped chans)
     """
-
     if trace_qc_count is None:
         trace_qc_count = index_headers.shape[0]
     if trace_qc_count > index_headers.shape[0]:
@@ -185,7 +192,7 @@ def qc_index_headers(
 
         for idx, cable in enumerate(unique_cables):
             my_chan = np.take(
-                index_headers[0:trace_qc_count, cable_idx],
+                index_headers[0:trace_qc_count, channel_idx],
                 np.where(index_headers[0:trace_qc_count, cable_idx] == cable),
             )
             cable_chan_min[idx] = np.min(my_chan)
