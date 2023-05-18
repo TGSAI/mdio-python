@@ -1,8 +1,7 @@
 """More utilities for reading SEG-Ys."""
-
-
 from __future__ import annotations
 
+import logging
 from enum import Enum
 from typing import Sequence
 
@@ -14,6 +13,9 @@ from mdio.core import Dimension
 from mdio.segy.byte_utils import Dtype
 from mdio.segy.parsers import parse_sample_axis
 from mdio.segy.parsers import parse_trace_headers
+
+
+logger = logging.getLogger(__name__)
 
 
 class GeometryTemplateType(Enum):
@@ -107,9 +109,18 @@ def get_grid_plan(  # noqa:  C901
         chan_idx = index_names.index("channel")
         if "AutoChannelTraceQC" in grid_overrides:
             trace_qc_count = int(grid_overrides["AutoChannelTraceQC"])
-        unique_cables, cable_chan_min, cable_chan_max, geom_type = qc_index_headers(
+        unique_cables, cable_chan_min, _cable_chan_max, geom_type = qc_index_headers(
             index_headers, index_names, trace_qc_count
         )
+
+        logger.info(f"Ingesting dataset as {geom_type.name}")
+        # TODO: Add strict=True and remove noqa when min Python is 3.10
+        for cable, chan_min, chan_max in zip(  # noqa: B905
+            unique_cables, cable_chan_min, _cable_chan_max
+        ):
+            logger.info(
+                f"Cable: {cable} has min chan: {chan_min} and max chan: {chan_max}"
+            )
 
         # This might be slow and potentially could be improved with a rewrite
         # to prevent so many lookups
@@ -117,6 +128,7 @@ def get_grid_plan(  # noqa:  C901
             for idx, cable in enumerate(unique_cables):
                 cable_idxs = np.where(index_headers[:, cable_idx] == cable)
                 cc_min = cable_chan_min[idx]
+                # print(f"idx = {idx}  cable = {cable} cc_min={cc_min}")
                 index_headers[cable_idxs, chan_idx] = (
                     index_headers[cable_idxs, chan_idx] - cc_min + 1
                 )
@@ -202,13 +214,13 @@ def qc_index_headers(
         geom_type = GeometryTemplateType.STREAMER_B
         for idx, cable in enumerate(unique_cables):
             min_val = cable_chan_min[idx]
-            max_val = cable_chan_max[cable_idx]
+            max_val = cable_chan_max[idx]
             for idx2, cable2 in enumerate(unique_cables):
-                if cable2 == cable:
-                    # Don't compare with itself
-                    pass
-
-                if cable_chan_min[idx2] < max_val and cable_chan_max[idx2] > min_val:
+                if (
+                    cable_chan_min[idx2] < max_val
+                    and cable_chan_max[idx2] > min_val
+                    and (cable2 != cable)
+                ):
                     geom_type = GeometryTemplateType.STREAMER_A
 
         # Return cable_chan_min values
