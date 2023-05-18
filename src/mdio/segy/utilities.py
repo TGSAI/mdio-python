@@ -99,11 +99,11 @@ def get_grid_plan(
 
 
 def segy_export_rechunker(
-    chunks: tuple[int],
-    shape: tuple[int],
+    chunks: tuple[int, ...],
+    shape: tuple[int, ...],
     dtype: npt.DTypeLike,
     limit: str = "300M",
-) -> tuple[int]:
+) -> tuple[int, ...]:
     """Determine chunk sizes for writing out SEG-Y given limit.
 
     This module finds the desired chunk sizes for given chunk size
