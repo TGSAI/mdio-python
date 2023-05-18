@@ -1,8 +1,6 @@
 """Helper functions for tinkering with SEG-Y related Zarr."""
 
 
-from math import prod
-
 from zarr import Group
 from zarr import open_group
 from zarr.errors import ContainsGroupError
