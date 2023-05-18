@@ -14,15 +14,18 @@ from zarr import Array
 from mdio.constants import UINT32_MAX
 from mdio.core import Grid
 from mdio.segy.byte_utils import ByteOrder
+from mdio.segy.byte_utils import Dtype
+from mdio.segy.ibm_float import ibm2ieee
 
 
 def header_scan_worker(
     segy_path_or_handle: str | segyio.SegyFile,
     trace_range: Sequence[int],
     byte_locs: Sequence[int],
-    byte_lengths: Sequence[int],
+    byte_types: Sequence[Dtype],
+    index_names: Sequence[str],
     segy_endian: str,
-) -> ArrayLike:
+) -> dict[str, ArrayLike]:
     """Header scan worker.
 
     Can accept file path or segyio.SegyFile.
@@ -36,9 +39,9 @@ def header_scan_worker(
     Args:
         segy_path_or_handle: Path or handle to the input SEG-Y file
         byte_locs: Byte locations to return. It will be a subset of the headers.
-        byte_lengths: Tuple consisting of the byte lengths for the index
-            attributes. None sets it to 4 per index
+        byte_types: Tuple consisting of the data types for the index attributes.
         trace_range: Tuple consisting of the trace ranges to read
+        index_names: Tuple of the names for the index attributes
         segy_endian: Endianness of the input SEG-Y. Rev.2 allows little endian
 
     Returns:
@@ -77,14 +80,14 @@ def header_scan_worker(
     # Pads the rest of the data with voids.
     endian = ByteOrder[segy_endian.upper()]
 
-    # Handle byte locations and word lengths that are not specified for numpy struct
-    lengths = [4 if length is None else length for length in byte_lengths]
+    # Handle byte offsets
     offsets = [0 if byte_loc is None else byte_loc - 1 for byte_loc in byte_locs]
+    formats = [type_.numpy_dtype.newbyteorder(endian) for type_ in byte_types]
 
     struct_dtype = np.dtype(
         {
-            "names": [f"dim_{idx}" for idx in range(len(byte_locs))],
-            "formats": [endian + "i" + str(length) for length in lengths],
+            "names": index_names,
+            "formats": formats,
             "offsets": offsets,
             "itemsize": 240,
         }
@@ -95,17 +98,37 @@ def header_scan_worker(
     block_headers = b"".join([trace_headers.buf for trace_headers in block_headers])
     n_traces = stop - start
     block_headers = np.frombuffer(block_headers, struct_dtype, count=n_traces)
-    block_headers = [block_headers[dim] for dim in block_headers.dtype.names]
+    block_headers = {name: block_headers[name] for name in index_names}
 
-    block_headers = np.column_stack(block_headers)
+    out_dtype = []
+    for name, type_ in zip(index_names, byte_types):  # noqa: B905
+        if type_ == Dtype.IBM32:
+            native_dtype = Dtype.FLOAT32.numpy_dtype
+        else:
+            native_dtype = type_.numpy_dtype
 
-    if None in byte_locs:
-        # Zero out the junk we read for `None` byte locations.
-        # We could have multiple None values.
-        none_idx = tuple(i for i, val in enumerate(byte_locs) if val is None)
-        block_headers[:, none_idx] = 0
+        out_dtype.append((name, native_dtype))
 
-    return block_headers
+    out_array = np.empty(n_traces, out_dtype)
+
+    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+    for name, loc, type_ in zip(index_names, byte_locs, byte_types):  # noqa: B905
+        # Handle exception when a byte_loc is None
+        if loc is None:
+            out_array[name] = 0
+            del block_headers[name]
+            continue
+
+        header = block_headers[name]
+
+        if type_ == Dtype.IBM32:
+            header = ibm2ieee(header)
+
+        out_array[name] = header
+
+        del block_headers[name]
+
+    return out_array
 
 
 def trace_worker(

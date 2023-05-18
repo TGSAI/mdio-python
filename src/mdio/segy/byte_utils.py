@@ -9,22 +9,27 @@ import numpy as np
 from numpy.typing import NDArray
 
 
-class Dtype(str, Enum):
+class Dtype(Enum):
     """Dtype string to Numpy format enum."""
 
-    STRING = "S"
-    UINT8 = "u1"
-    UINT16 = "u2"
-    UINT32 = "u4"
-    UINT64 = "u8"
-    INT8 = "i1"
-    INT16 = "i2"
-    INT32 = "i4"
-    INT64 = "i8"
-    FLOAT16 = "f2"
-    FLOAT32 = "f4"
-    FLOAT64 = "f8"
-    IBM32 = "u4"
+    STRING = ("STRING", "S")
+    UINT8 = ("UINT8", "u1")
+    UINT16 = ("UINT16", "u2")
+    UINT32 = ("UINT32", "u4")
+    UINT64 = ("UINT64", "u8")
+    INT8 = ("INT8", "i1")
+    INT16 = ("INT16", "i2")
+    INT32 = ("INT32", "i4")
+    INT64 = ("INT64", "i8")
+    FLOAT16 = ("FLOAT16", "f2")
+    FLOAT32 = ("FLOAT32", "f4")
+    FLOAT64 = ("FLOAT64", "f8")
+    IBM32 = ("IBM32", "u4")
+
+    @property
+    def numpy_dtype(self):
+        """Return a numpy dtype of the Enum."""
+        return np.dtype(self.value[1])
 
 
 class ByteOrder(str, Enum):
@@ -59,7 +64,7 @@ class OrderedType:
     @property
     def dtype(self):
         """Return Numpy dtype of the struct."""
-        return np.dtype(self.endian + self.type)
+        return np.dtype(self.endian + self.type.numpy_dtype)
 
     def byteswap(self):
         """Swap endianness in place."""

@@ -10,6 +10,7 @@ import pytest
 from mdio import MDIOReader
 from mdio.core.exceptions import MDIOAlreadyExistsError
 from mdio.core.exceptions import MDIONotFoundError
+from mdio.exceptions import ShapeError
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 
 
@@ -20,6 +21,13 @@ class TestReader:
         """Compare ingested basic attrs to original."""
         assert mock_reader.n_dim == mock_data.ndim
         assert mock_reader.trace_count == np.prod(mock_data.shape[:-1])
+
+    def test_basic_stats(self, mock_reader, mock_data):
+        """Ensure access to stats work properly."""
+        assert mock_reader.stats["mean"] == mock_data.mean()
+        assert mock_reader.stats["std"] == mock_data.std()
+        assert mock_reader.stats["min"] == mock_data.min()
+        assert mock_reader.stats["max"] == mock_data.max()
 
     def test_text_hdr(self, mock_reader, mock_text):
         """Compare ingested text header to original."""
@@ -65,6 +73,16 @@ class TestReader:
         xl_indices = mock_reader.coord_to_index(xl_coord, dimensions="crossline")
         z_indices = mock_reader.coord_to_index(z_coord, dimensions="sample")
 
+        # 2-D should work too
+        _ = mock_reader.coord_to_index(
+            il_coord,
+            xl_coord,
+            dimensions=["inline", "crossline"],
+        )
+
+        # All dims should also work without specifying
+        _ = mock_reader.coord_to_index(il_coord, xl_coord, z_coord)
+
         il_indices = np.atleast_1d(il_indices)
         il_index = np.atleast_1d(il_index)
         xl_indices = np.atleast_1d(xl_indices)
@@ -101,6 +119,16 @@ class TestExceptions:
         """MDIO doesn't exist or corrupt."""
         with pytest.raises(MDIONotFoundError):
             MDIOReader("prefix/file_that_doesnt_exist.mdio")
+
+    def test_wrong_size_index(self, mock_reader: MDIOReader) -> None:
+        """If user asks for N dimensions but didn't specify all."""
+        with pytest.raises(ShapeError):
+            mock_reader.coord_to_index(0, 0, dimensions="inline")
+
+    def test_wrong_index(self, mock_reader: MDIOReader) -> None:
+        """If user asks for an index that doesn't exist."""
+        with pytest.raises(ValueError):
+            mock_reader.coord_to_index(0, dimensions="non_existent")
 
     def test_mdio_exists(self, mock_reader: MDIOReader) -> None:
         """MDIO doesn't exist or corrupt."""

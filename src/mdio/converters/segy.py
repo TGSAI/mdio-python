@@ -18,6 +18,7 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
 from mdio.segy import blocked_io
+from mdio.segy.byte_utils import Dtype
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 from mdio.segy.parsers import parse_binary_header
 from mdio.segy.parsers import parse_text_header
@@ -32,12 +33,31 @@ except metadata.PackageNotFoundError:
 BACKENDS = ["s3", "gcs", "gs", "az", "abfs"]
 
 
+def parse_index_types(
+    str_types: Sequence[str] | None, num_index: int
+) -> Sequence[Dtype]:
+    """Convert string type keys to Dtype enums."""
+    if str_types is None:
+        parsed_types = [Dtype.INT32] * num_index
+    else:
+        try:
+            parsed_types = [Dtype[_type.upper()] for _type in str_types]
+        except KeyError as exc:
+            msg = (
+                "Unsupported header data-type. 'index_types' must be in "
+                f"{list(Dtype.__members__.keys())}"
+            )
+            raise KeyError(msg) from exc
+
+    return parsed_types
+
+
 def segy_to_mdio(
     segy_path: str,
     mdio_path_or_buffer: str,
     index_bytes: Sequence[int],
     index_names: Sequence[str] | None = None,
-    index_lengths: Sequence[int] | None = None,
+    index_types: Sequence[str] | None = None,
     chunksize: Sequence[int] | None = None,
     endian: str = "big",
     lossless: bool = True,
@@ -83,8 +103,9 @@ def segy_to_mdio(
         mdio_path_or_buffer: Output path for MDIO file
         index_bytes: Tuple of the byte location for the index attributes
         index_names: Tuple of the index names for the index attributes
-        index_lengths: Tuple of the byte lengths for the index attributes
-            Default is 4-byte for each index key.
+        index_types: Tuple of the data-types for the index attributes.
+            Must be in {"int16, int32, float16, float32, ibm32"}
+            Default is 4-byte integers for each index key.
         chunksize : Override default chunk size, which is (64, 64, 64) if
             3D, and (512, 512) for 2D.
         endian: Endianness of the input SEG-Y. Rev.2 allows little endian.
@@ -221,12 +242,14 @@ def segy_to_mdio(
         binary_header = parse_binary_header(segy_handle)
         num_traces = segy_handle.tracecount
 
+    index_types = parse_index_types(index_types, num_index)
+
     dimensions, index_headers = get_grid_plan(
         segy_path=segy_path,
         segy_endian=endian,
         index_bytes=index_bytes,
         index_names=index_names,
-        index_lengths=index_lengths,
+        index_types=index_types,
         binary_header=binary_header,
         return_headers=True,
         grid_overrides=grid_overrides,

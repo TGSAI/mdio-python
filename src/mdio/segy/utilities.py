@@ -10,6 +10,7 @@ import numpy.typing as npt
 from dask.array.core import auto_chunks
 
 from mdio.core import Dimension
+from mdio.segy.byte_utils import Dtype
 from mdio.segy.parsers import parse_sample_axis
 from mdio.segy.parsers import parse_trace_headers
 
@@ -19,7 +20,7 @@ def get_grid_plan(
     segy_endian: str,
     index_bytes: Sequence[int],
     index_names: Sequence[str],
-    index_lengths: Sequence[int],
+    index_types: Sequence[Dtype],
     binary_header: dict,
     return_headers: bool = False,
     grid_overrides: dict | None = None,
@@ -37,8 +38,7 @@ def get_grid_plan(
         segy_endian: Endianness of the input SEG-Y.
         index_bytes: Tuple of the byte location for the index attributes
         index_names: Tuple of the names for the index attributes
-        index_lengths: Tuple of the byte lengths for the index attributes.
-            Default will be 4-byte for all indices.
+        index_types: Tuple of the data types for the index attributes.
         binary_header: Dictionary containing binary header key, value pairs.
         return_headers: Option to return parsed headers with `Dimension` objects.
             Default is False.
@@ -55,48 +55,41 @@ def get_grid_plan(
 
     index_dim = len(index_bytes)
 
-    # Default is 4-byte for each index.
-    index_lengths = [4] * index_dim if index_lengths is None else index_lengths
+    if index_names is None:
+        index_names = [f"index_{dim}" for dim in range(index_dim)]
 
     index_headers = parse_trace_headers(
         segy_path=segy_path,
         segy_endian=segy_endian,
         byte_locs=index_bytes,
-        byte_lengths=index_lengths,
+        byte_types=index_types,
+        index_names=index_names,
     )
-
-    if index_names is None:
-        index_names = [f"index_{dim}" for dim in range(index_dim)]
 
     dims = []
 
     if "CalculateCable" in grid_overrides:
-        cable_idx = index_names.index("cable")
-        chan_idx = index_names.index("channel")
-
         if "ChannelsPerCable" in grid_overrides:
             channels_per_cable = grid_overrides["ChannelsPerCable"]
-            index_headers[:, cable_idx] = (
-                index_headers[:, chan_idx] - 1
+            index_headers["cable"] = (
+                index_headers["channel"] - 1
             ) // channels_per_cable + 1
         else:
             raise ValueError("'ChannelsPerCable' must be specified to calculate cable.")
 
     if "ChannelWrap" in grid_overrides:
-        chan_idx = index_names.index("channel")
-
         if grid_overrides["ChannelWrap"] is True:
             if "ChannelsPerCable" in grid_overrides:
                 channels_per_cable = grid_overrides["ChannelsPerCable"]
-                index_headers[:, chan_idx] = (
-                    index_headers[:, chan_idx] - 1
+                index_headers["channel"] = (
+                    index_headers["channel"] - 1
                 ) % channels_per_cable + 1
         else:
             raise ValueError("'ChannelsPerCable' must be specified to wrap channels.")
 
-    for dim, dim_name in enumerate(index_names):
-        dim_unique = np.unique(index_headers[:, dim])
-        dims.append(Dimension(coords=dim_unique, name=dim_name))
+    for index_name in index_names:
+        dim_unique = np.unique(index_headers[index_name])
+        dims.append(Dimension(coords=dim_unique, name=index_name))
 
     sample_dim = parse_sample_axis(binary_header=binary_header)
 
@@ -106,11 +99,11 @@ def get_grid_plan(
 
 
 def segy_export_rechunker(
-    chunks: tuple[int],
-    shape: tuple[int],
+    chunks: tuple[int, ...],
+    shape: tuple[int, ...],
     dtype: npt.DTypeLike,
     limit: str = "300M",
-) -> tuple[int]:
+) -> tuple[int, ...]:
     """Determine chunk sizes for writing out SEG-Y given limit.
 
     This module finds the desired chunk sizes for given chunk size

@@ -16,6 +16,7 @@ from tqdm.auto import tqdm
 
 from mdio.core import Dimension
 from mdio.segy._workers import header_scan_worker
+from mdio.segy.byte_utils import Dtype
 
 
 NUM_CORES = cpu_count(logical=False)
@@ -75,7 +76,8 @@ def parse_trace_headers(
     segy_path: str,
     segy_endian: str,
     byte_locs: Sequence[int],
-    byte_lengths: Sequence[int],
+    byte_types: Sequence[Dtype],
+    index_names: Sequence[str],
     block_size: int = 50000,
     progress_bar: bool = True,
 ) -> np.ndarray:
@@ -85,8 +87,9 @@ def parse_trace_headers(
         segy_path: Path to the input SEG-Y file.
         segy_endian: Endianness of the input SEG-Y in {'big', 'little'}.
         byte_locs: Byte locations to return. It will be a subset of headers.
-        byte_lengths: Byte lengths of each header key to index. Must be the
+        byte_types: Data types of each header key to index. Must be the
             same count as `byte_lengths`.
+        index_names: Tuple of the names for the index attributes
         block_size: Number of traces to read for each block.
         progress_bar: Enable or disable progress bar. Default is True.
 
@@ -114,7 +117,8 @@ def parse_trace_headers(
             repeat(segy_path),
             trace_ranges,
             repeat(byte_locs),
-            repeat(byte_lengths),
+            repeat(byte_types),
+            repeat(index_names),
             repeat(segy_endian),
             chunksize=2,  # Not array chunks. This is for `multiprocessing`
         )
@@ -131,7 +135,7 @@ def parse_trace_headers(
         headers = list(lazy_work)
 
     # Merge blocks before return
-    return np.vstack(headers)
+    return np.concatenate(headers)
 
 
 def parse_sample_axis(binary_header: dict) -> Dimension:
