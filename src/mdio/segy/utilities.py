@@ -105,8 +105,6 @@ def get_grid_plan(  # noqa:  C901
 
     if "AutoChannelWrap" in grid_overrides:
         trace_qc_count = None
-        cable_idx = index_names.index("cable")
-        chan_idx = index_names.index("channel")
         if "AutoChannelTraceQC" in grid_overrides:
             trace_qc_count = int(grid_overrides["AutoChannelTraceQC"])
         unique_cables, cable_chan_min, _cable_chan_max, geom_type = qc_index_headers(
