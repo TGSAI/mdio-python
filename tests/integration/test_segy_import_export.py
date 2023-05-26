@@ -82,7 +82,7 @@ def create_4d_segy(
 
 @pytest.mark.parametrize("header_locations", [(17, 137, 13)])
 @pytest.mark.parametrize("header_names", [("shot", "cable", "channel")])
-@pytest.mark.parametrize("header_lengths", [(4, 2, 4)])
+@pytest.mark.parametrize("header_types", [("int32", "int16", "int32")])
 @pytest.mark.parametrize("endian", ["big"])
 @pytest.mark.parametrize(
     "grid_overrides", [{"AutoChannelWrap": True, "AutoChannelTraceQC": 100000}, None]
@@ -97,7 +97,7 @@ class TestImport4D:
         zarr_tmp,
         header_locations,
         header_names,
-        header_lengths,
+        header_types,
         endian,
         grid_overrides,
         chan_header_type,
@@ -121,7 +121,7 @@ class TestImport4D:
             mdio_path_or_buffer=zarr_tmp.__str__(),
             index_bytes=header_locations,
             index_names=header_names,
-            index_lengths=header_lengths,
+            index_types=header_types,
             chunksize=(8, 2, 128, 1024),
             overwrite=True,
             endian=endian,

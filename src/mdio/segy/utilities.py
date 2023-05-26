@@ -126,11 +126,11 @@ def get_grid_plan(  # noqa:  C901
         # to prevent so many lookups
         if geom_type == GeometryTemplateType.STREAMER_B:
             for idx, cable in enumerate(unique_cables):
-                cable_idxs = np.where(index_headers[:, cable_idx] == cable)
+                cable_idxs = np.where(index_headers["cable"][:] == cable)
                 cc_min = cable_chan_min[idx]
                 # print(f"idx = {idx}  cable = {cable} cc_min={cc_min}")
-                index_headers[cable_idxs, chan_idx] = (
-                    index_headers[cable_idxs, chan_idx] - cc_min + 1
+                index_headers["channel"][cable_idxs] = (
+                    index_headers["channel"][cable_idxs] - cc_min + 1
                 )
 
     if "CalculateCable" in grid_overrides:
@@ -187,16 +187,14 @@ def qc_index_headers(
             cable_chan_max: Array containing the max channel number for each cable,
             geom_type:  Whether type a or b (wrapped or unwrapped chans)
     """
-    if trace_qc_count is None:
-        trace_qc_count = index_headers.shape[0]
-    if trace_qc_count > index_headers.shape[0]:
-        trace_qc_count = index_headers.shape[0]
-
     if "cable" in index_names and "channel" in index_names and "shot" in index_names:
-        cable_idx = index_names.index("cable")
-        channel_idx = index_names.index("channel")
+        if trace_qc_count is None:
+            trace_qc_count = index_headers["cable"].shape[0]
+        if trace_qc_count > index_headers["cable"].shape[0]:
+            trace_qc_count = index_headers["cable"].shape[0]
+
         # Find unique cable ids
-        unique_cables = np.sort(np.unique(index_headers[0:trace_qc_count, cable_idx]))
+        unique_cables = np.sort(np.unique(index_headers["cable"][0:trace_qc_count]))
 
         # Find channel min and max values for each cable
         cable_chan_min = np.empty(unique_cables.shape)
@@ -204,8 +202,8 @@ def qc_index_headers(
 
         for idx, cable in enumerate(unique_cables):
             my_chan = np.take(
-                index_headers[0:trace_qc_count, channel_idx],
-                np.where(index_headers[0:trace_qc_count, cable_idx] == cable),
+                index_headers["channel"][0:trace_qc_count],
+                np.where(index_headers["cable"][0:trace_qc_count] == cable),
             )
             cable_chan_min[idx] = np.min(my_chan)
             cable_chan_max[idx] = np.max(my_chan)
