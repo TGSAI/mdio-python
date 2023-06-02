@@ -26,7 +26,6 @@ def create_4d_segy(
     cables: List,
     num_traces: List,
     chan_header_type: str = "a",
-    **args,
 ):
     """Dummy 4D segy file for use in tests."""
     import segyio
