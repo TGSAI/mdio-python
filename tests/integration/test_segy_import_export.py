@@ -1,8 +1,6 @@
 """End to end testing for SEG-Y to MDIO conversion and back."""
 
-import os
 from os.path import getsize
-from typing import List
 
 import dask
 import numpy as np
@@ -19,66 +17,6 @@ from mdio.core import Dimension
 dask.config.set(scheduler="synchronous")
 
 
-def create_4d_segy(
-    file_path: str,
-    num_samples: int,
-    fldrs: List,
-    cables: List,
-    num_traces: List,
-    chan_header_type: str = "a",
-):
-    """Dummy 4D segy file for use in tests."""
-    import segyio
-
-    spec = segyio.spec()
-    d = os.path.join(file_path, "data")
-    os.makedirs(d, exist_ok=True)
-    segy_file = os.path.join(d, f"4d_type_{chan_header_type}.sgy")
-    spec.format = 1
-    spec.samples = range(num_samples)
-
-    trace_count = len(fldrs) * np.sum(num_traces)
-    spec.tracecount = trace_count
-    spec.endian = "big"
-
-    with segyio.create(segy_file, spec) as f:
-        trno = 0
-
-        tracf = 0
-        for fldr in fldrs:
-            if chan_header_type == "b":
-                tracf = 1
-            # TODO: Add strict=True and remove noqa when min supported Python is 3.10
-            for cable, length in zip(cables, num_traces):  # noqa: B905
-                if chan_header_type == "a":
-                    tracf = 1
-                for _i in range(length):
-                    # segyio names and byte locations  for headers can be found at:
-                    # https://segyio.readthedocs.io/en/latest/segyio.html
-                    # fldr is byte location 9 - shot 4 byte
-                    # ep is byte location 17 - shot 4 byte
-                    # stae is byte location 137 - cable 2 byte
-                    # tracf is byte location 13 - channel 4 byte
-
-                    f.header[trno].update(
-                        offset=1,
-                        fldr=fldr,
-                        ep=fldr,
-                        stae=cable,
-                        tracf=tracf,
-                    )
-
-                    trace = np.linspace(
-                        start=fldr, stop=fldr + 1, num=len(spec.samples)
-                    )
-                    f.trace[trno] = trace
-                    trno += 1
-                    tracf += 1
-
-        f.bin.update()
-    return segy_file
-
-
 @pytest.mark.parametrize("header_locations", [(17, 137, 13)])
 @pytest.mark.parametrize("header_names", [("shot", "cable", "channel")])
 @pytest.mark.parametrize("header_types", [("int32", "int16", "int32")])
@@ -92,7 +30,7 @@ class TestImport4D:
 
     def test_import_4d_segy(
         self,
-        tmp_path,
+        segy_mock_4d_shots,
         zarr_tmp,
         header_locations,
         header_names,
@@ -102,18 +40,7 @@ class TestImport4D:
         chan_header_type,
     ):
         """Test importing a SEG-Y file to MDIO."""
-        num_samples = 25
-        fldrs = [2, 3, 5]
-        cables = [0, 101, 201, 301]
-        num_traces = [1, 5, 7, 5]
-        segy_path = create_4d_segy(
-            tmp_path,
-            num_samples=num_samples,
-            fldrs=fldrs,
-            cables=cables,
-            num_traces=num_traces,
-            chan_header_type=chan_header_type,
-        )
+        segy_path = segy_mock_4d_shots[chan_header_type]
 
         segy_to_mdio(
             segy_path=segy_path,
@@ -127,25 +54,33 @@ class TestImport4D:
             grid_overrides=grid_overrides,
         )
 
+        # Expected values
+        num_samples = 25
+        shots = [2, 3, 5]
+        cables = [0, 101, 201, 301]
+        receivers_per_cable = [1, 5, 7, 5]
+
         # QC mdio output
         mdio = MDIOReader(zarr_tmp.__str__(), access_pattern="0123")
         assert mdio.binary_header["Samples"] == num_samples
         grid = mdio.grid
 
-        assert grid.select_dim(header_names[0]) == Dimension(fldrs, header_names[0])
+        assert grid.select_dim(header_names[0]) == Dimension(shots, header_names[0])
         assert grid.select_dim(header_names[1]) == Dimension(cables, header_names[1])
 
         if "b" in chan_header_type and grid_overrides is None:
+            print()
+            print(grid.select_dim(header_names[2]))
             assert grid.select_dim(header_names[2]) == Dimension(
-                range(1, np.sum(num_traces) + 1), header_names[2]
+                range(1, np.sum(receivers_per_cable) + 1), header_names[2]
             )
         else:
             assert grid.select_dim(header_names[2]) == Dimension(
-                range(1, np.amax(num_traces) + 1), header_names[2]
+                range(1, np.amax(receivers_per_cable) + 1), header_names[2]
             )
-        assert grid.select_dim("sample") == Dimension(
-            range(0, num_samples, 1), "sample"
-        )
+
+        samples_exp = Dimension(range(0, num_samples, 1), "sample")
+        assert grid.select_dim("sample") == samples_exp
 
 
 @pytest.mark.parametrize("header_locations", [(17, 13)])
