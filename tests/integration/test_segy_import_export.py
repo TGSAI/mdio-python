@@ -133,11 +133,6 @@ class TestImport4D:
         assert mdio.binary_header["Samples"] == num_samples
         grid = mdio.grid
 
-        print(f"chan_header_type = {chan_header_type}")
-        print(f"grid_overrides = {grid_overrides}")
-        print(f"grid.select_dim(header_names[0]) = {grid.select_dim(header_names[0])}")
-        print(f"grid.select_dim(header_names[1]) = {grid.select_dim(header_names[1])}")
-        print(f"grid.select_dim(header_names[2]) = {grid.select_dim(header_names[2])}")
         assert grid.select_dim(header_names[0]) == Dimension(fldrs, header_names[0])
         assert grid.select_dim(header_names[1]) == Dimension(cables, header_names[1])
 
