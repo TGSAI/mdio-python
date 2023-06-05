@@ -21,9 +21,7 @@ dask.config.set(scheduler="synchronous")
 @pytest.mark.parametrize("header_names", [("shot", "cable", "channel")])
 @pytest.mark.parametrize("header_types", [("int32", "int16", "int32")])
 @pytest.mark.parametrize("endian", ["big"])
-@pytest.mark.parametrize(
-    "grid_overrides", [{"AutoChannelWrap": True, "AutoChannelTraceQC": 100000}, None]
-)
+@pytest.mark.parametrize("grid_overrides", [{"AutoChannelWrap": True}, None])
 @pytest.mark.parametrize("chan_header_type", ["a", "b"])
 class TestImport4D:
     """Test for 4D segy import with grid overrides."""
