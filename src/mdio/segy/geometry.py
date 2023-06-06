@@ -110,12 +110,21 @@ class GridOverrideCommand(ABC):
     def required_keys(self) -> set:
         """Get the set of required keys for the grid override command."""
 
+    @property
     @abstractmethod
-    def validate(self, index_headers: npt.NDArray, **kwargs) -> None:
+    def required_parameters(self) -> set:
+        """Get the set of required parameters for the grid override command."""
+
+    @abstractmethod
+    def validate(
+        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+    ) -> None:
         """Validate if this transform should run on the type of data."""
 
     @abstractmethod
-    def transform(self, index_headers: npt.NDArray, **kwargs) -> npt.NDArray:
+    def transform(
+        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+    ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
 
     @property
@@ -129,25 +138,42 @@ class GridOverrideCommand(ABC):
         if not self.required_keys.issubset(index_names):
             raise GridOverrideKeysError(self.name, self.required_keys)
 
+    def check_required_params(self, grid_overrides: dict[str, str | int]) -> None:
+        """Check if all required keys are present in the index headers."""
+        if self.required_parameters is None:
+            return
+
+        passed_parameters = set(grid_overrides.keys())
+
+        if not self.required_parameters.issubset(passed_parameters):
+            missing_params = self.required_parameters - passed_parameters
+            raise GridOverrideMissingParameterError(self.name, missing_params)
+
 
 class AutoChannelWrap(GridOverrideCommand):
     """Automatically determine Streamer acquisition type."""
 
     required_keys = {"shot", "cable", "channel"}
+    required_parameters = None
 
-    def validate(self, index_headers: npt.NDArray, **kwargs) -> None:
+    def validate(
+        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+    ) -> None:
         """Validate if this transform should run on the type of data."""
-        self.check_required_keys(index_headers)
-
-        if "ChannelWrap" in kwargs:
+        if "ChannelWrap" in grid_overrides:
             raise GridOverrideIncompatibleError(self.name, "ChannelWrap")
 
-        if "CalculateCable" in kwargs:
+        if "CalculateCable" in grid_overrides:
             raise GridOverrideIncompatibleError(self.name, "CalculateCable")
 
-    def transform(self, index_headers: npt.NDArray, **kwargs):
+        self.check_required_keys(index_headers)
+        self.check_required_params(grid_overrides)
+
+    def transform(
+        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+    ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
-        self.validate(index_headers, **kwargs)
+        self.validate(index_headers, grid_overrides)
 
         result = analyze_streamer_headers(index_headers)
         unique_cables, cable_chan_min, cable_chan_max, geom_type = result
@@ -179,22 +205,25 @@ class ChannelWrap(GridOverrideCommand):
     """Wrap channels to start from one at cable boundaries."""
 
     required_keys = {"shot", "cable", "channel"}
+    required_parameters = {"ChannelsPerCable"}
 
-    def validate(self, index_headers: npt.NDArray, **kwargs) -> None:
+    def validate(
+        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+    ) -> None:
         """Validate if this transform should run on the type of data."""
-        self.check_required_keys(index_headers)
-
-        if "ChannelsPerCable" not in kwargs:
-            raise GridOverrideMissingParameterError(self.name, "ChannelsPerCable")
-
-        if "AutoCableChannel" in kwargs:
+        if "AutoChannelWrap" in grid_overrides:
             raise GridOverrideIncompatibleError(self.name, "AutoCableChannel")
 
-    def transform(self, index_headers: npt.NDArray, **kwargs) -> npt.NDArray:
-        """Perform the grid transform."""
-        self.validate(index_headers, **kwargs)
+        self.check_required_keys(index_headers)
+        self.check_required_params(grid_overrides)
 
-        channels_per_cable = kwargs["ChannelsPerCable"]
+    def transform(
+        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+    ) -> dict[str, npt.NDArray]:
+        """Perform the grid transform."""
+        self.validate(index_headers, grid_overrides)
+
+        channels_per_cable = grid_overrides["ChannelsPerCable"]
         index_headers["channel"] = (
             index_headers["channel"] - 1
         ) % channels_per_cable + 1
@@ -206,20 +235,25 @@ class CalculateCable(GridOverrideCommand):
     """Calculate cable numbers from unwrapped channels."""
 
     required_keys = {"shot", "cable", "channel"}
+    required_parameters = {"ChannelsPerCable"}
 
-    def validate(self, index_headers: npt.NDArray, **kwargs) -> None:
+    def validate(
+        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+    ) -> None:
         """Validate if this transform should run on the type of data."""
-        self.check_required_keys(index_headers)
-
-        if "ChannelsPerCable" not in kwargs:
-            raise GridOverrideMissingParameterError(self.name, "ChannelsPerCable")
-
-        if "AutoCableChannel" in kwargs:
+        if "AutoChannelWrap" in grid_overrides:
             raise GridOverrideIncompatibleError(self.name, "AutoCableChannel")
 
-    def transform(self, index_headers, **kwargs):
+        self.check_required_keys(index_headers)
+        self.check_required_params(grid_overrides)
+
+    def transform(
+        self, index_headers, grid_overrides: dict[str, bool | int]
+    ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
-        channels_per_cable = kwargs["ChannelsPerCable"]
+        self.validate(index_headers, grid_overrides)
+
+        channels_per_cable = grid_overrides["ChannelsPerCable"]
         index_headers["cable"] = (
             index_headers["channel"] - 1
         ) // channels_per_cable + 1
@@ -237,12 +271,25 @@ class GridOverrider:
     """
 
     def __init__(self):
-        """Define allowed overrides here."""
+        """Define allowed overrides and parameters here."""
         self.commands = {
             "AutoChannelWrap": AutoChannelWrap(),
             "CalculateCable": CalculateCable(),
             "ChannelWrap": ChannelWrap(),
         }
+
+        self.parameters = self.get_allowed_parameters()
+
+    def get_allowed_parameters(self) -> set:
+        """Get list of allowed parameters from the allowed commands."""
+        parameters = set()
+        for command in self.commands.values():
+            if command.required_parameters is None:
+                continue
+
+            parameters.update(command.required_parameters)
+
+        return parameters
 
     def run(
         self,
@@ -251,10 +298,13 @@ class GridOverrider:
     ) -> npt.NDArray:
         """Run grid overrides and return result."""
         for override in grid_overrides:
-            if override in self.commands:
-                function = self.commands[override].transform
-                index_headers = function(index_headers, grid_overrides=grid_overrides)
-            else:
+            if override in self.parameters:
+                continue
+
+            if override not in self.commands:
                 raise GridOverrideUnknownError(override)
+
+            function = self.commands[override].transform
+            index_headers = function(index_headers, grid_overrides=grid_overrides)
 
         return index_headers
