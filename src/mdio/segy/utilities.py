@@ -11,11 +11,12 @@ from dask.array.core import auto_chunks
 
 from mdio.core import Dimension
 from mdio.segy.byte_utils import Dtype
+from mdio.segy.geometry import GridOverrider
 from mdio.segy.parsers import parse_sample_axis
 from mdio.segy.parsers import parse_trace_headers
 
 
-def get_grid_plan(
+def get_grid_plan(  # noqa:  C901
     segy_path: str,
     segy_endian: str,
     index_bytes: Sequence[int],
@@ -46,9 +47,6 @@ def get_grid_plan(
 
     Returns:
         All index dimensions or dimensions together with header values.
-
-    Raises:
-        ValueError: If appropriate grid override parameters are not provided.
     """
     if grid_overrides is None:
         grid_overrides = {}
@@ -68,24 +66,9 @@ def get_grid_plan(
 
     dims = []
 
-    if "CalculateCable" in grid_overrides:
-        if "ChannelsPerCable" in grid_overrides:
-            channels_per_cable = grid_overrides["ChannelsPerCable"]
-            index_headers["cable"] = (
-                index_headers["channel"] - 1
-            ) // channels_per_cable + 1
-        else:
-            raise ValueError("'ChannelsPerCable' must be specified to calculate cable.")
-
-    if "ChannelWrap" in grid_overrides:
-        if grid_overrides["ChannelWrap"] is True:
-            if "ChannelsPerCable" in grid_overrides:
-                channels_per_cable = grid_overrides["ChannelsPerCable"]
-                index_headers["channel"] = (
-                    index_headers["channel"] - 1
-                ) % channels_per_cable + 1
-        else:
-            raise ValueError("'ChannelsPerCable' must be specified to wrap channels.")
+    # Handle grid overrides.
+    override_handler = GridOverrider()
+    index_headers = override_handler.run(index_headers, grid_overrides)
 
     for index_name in index_names:
         dim_unique = np.unique(index_headers[index_name])

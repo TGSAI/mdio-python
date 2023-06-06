@@ -45,7 +45,9 @@ def header_scan_worker(
         segy_endian: Endianness of the input SEG-Y. Rev.2 allows little endian
 
     Returns:
-        Numpy array of parsed headers for the current block.
+        dictionary with headers:  keys are the index names, values are numpy
+            arrays of parsed headers for the current block. Array is of type
+            byte_type with the exception of IBM32 which is mapped to FLOAT32.
 
     Raises:
         TypeError: if segy_path_or_handle is incorrect / unsupported.
@@ -59,7 +61,6 @@ def header_scan_worker(
             ignore_geometry=True,
             endian=segy_endian,
         ) as segy_handle:
-
             block_headers = [
                 segy_handle.header[trc_idx] for trc_idx in range(start, stop)
             ]
@@ -109,7 +110,8 @@ def header_scan_worker(
 
         out_dtype.append((name, native_dtype))
 
-    out_array = np.empty(n_traces, out_dtype)
+    # out_array = np.empty(n_traces, out_dtype)
+    out_array = {}
 
     # TODO: Add strict=True and remove noqa when minimum Python is 3.10
     for name, loc, type_ in zip(index_names, byte_locs, byte_types):  # noqa: B905

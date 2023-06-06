@@ -8,6 +8,13 @@ import pytest
 
 
 @pytest.fixture(scope="session")
+def fake_segy_tmp(tmp_path_factory):
+    """Make a temp file for the fake SEG-Y files we are going to create."""
+    tmp_dir = tmp_path_factory.mktemp(r"fake_segy")
+    return tmp_dir
+
+
+@pytest.fixture(scope="session")
 def segy_input(tmp_path_factory):
     """Download teapot dome dataset for testing."""
     url = "http://s3.amazonaws.com/teapot/filt_mig.sgy"

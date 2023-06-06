@@ -94,7 +94,10 @@ def parse_trace_headers(
         progress_bar: Enable or disable progress bar. Default is True.
 
     Returns:
-        Numpy array of parsed trace headers.
+        dictionary with headers:  keys are the index names, values are numpy
+            arrays of parsed headers for the current block. Array is of type
+            byte_type with the exception of IBM32 which is mapped to FLOAT32.
+
     """
     trace_count = get_trace_count(segy_path, segy_endian)
     n_blocks = int(ceil(trace_count / block_size))
@@ -133,9 +136,13 @@ def parse_trace_headers(
 
         # This executes the lazy work.
         headers = list(lazy_work)
-
+    final_headers = {}
+    for header_name in index_names:
+        final_headers[header_name] = np.concatenate(
+            [header[header_name] for header in headers]
+        )
     # Merge blocks before return
-    return np.concatenate(headers)
+    return final_headers
 
 
 def parse_sample_axis(binary_header: dict) -> Dimension:
