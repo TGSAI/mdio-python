@@ -40,14 +40,19 @@ def cli():
     "-exc",
     "--excludes",
     required=False,
-    help="Data to exclude during copy. i.e. chunked_012. The raw data won’t be copied, but it will create an empty array to be filled. If left blank, it will copy everything.",
+    help="""Data to exclude during copy. i.e. chunked_012. The raw data won’t be
+    copied, but it will create an empty array to be filled. If left blank, it will
+    copy everything.""",
     type=click.STRING,
 )
 @click.option(
     "-inc",
     "--includes",
     required=False,
-    help="Data to include during copy. i.e. trace_headers. If this is not specified, and certain data is excluded, it will not copy headers. If you want to preserve headers, specify trace_headers. If left blank, it will copy everything except specified in excludes parameter.",
+    help="""Data to include during copy. i.e. trace_headers. If this is not 
+    specified, and certain data is excluded, it will not copy headers. If you want
+    to preserve headers, specify trace_headers. If left blank, it will copy
+    everything except specified in excludes parameter.""",
     type=click.STRING,
 )
 @click.option(
@@ -118,7 +123,8 @@ def copy(
     "--output-format",
     required=False,
     default="plain",
-    help="Output format, plain is human readable.  JSON will output in json format for easier passing. ",
+    help="""Output format, plain is human readable.  JSON will output in json 
+    format for easier passing. """,
     type=click.Choice(["plain", "json"]),
     show_default=True,
     show_choices=True,
@@ -129,9 +135,9 @@ def info(
 ):
     """Provide information on MDIO dataset.
 
-    By default this returns human readable information about the grid and stats for the dataset. If output-format is set to json then a json is returned to facilitate parsing
-
-
+    By default this returns human readable information about the grid and stats for
+    the dataset. If output-format is set to json then a json is returned to
+    facilitate parsing.
     """
     reader = mdio.MDIOReader(input_mdio_file, return_metadata=True)
     mdio_dict = {}
