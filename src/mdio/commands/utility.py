@@ -6,19 +6,19 @@ try:
     import click_params
 
     import mdio
-    import json
 except SystemError:
     pass
 
 
 DEFAULT_HELP = """
-MDIO CLI utilities. 
+MDIO CLI utilities.
 """
 
 
 @click.group(help=DEFAULT_HELP)
 def cli():
-    click.echo(f"MDIO CLI utilities")
+    """Setup click group."""
+    click.echo("MDIO CLI utilities")
 
 
 @cli.command(name="copy")
@@ -49,7 +49,7 @@ def cli():
     "-inc",
     "--includes",
     required=False,
-    help="""Data to include during copy. i.e. trace_headers. If this is not 
+    help="""Data to include during copy. i.e. trace_headers. If this is not
     specified, and certain data is excluded, it will not copy headers. If you want
     to preserve headers, specify trace_headers. If left blank, it will copy
     everything except specified in excludes parameter.""",
@@ -80,6 +80,7 @@ def copy(
     overwrite: bool = False,
 ):
     """Copy MDIO to MDIO.
+
     Can also copy with empty data to be filled later. See `excludes`
     and `includes` parameters.
 
@@ -87,8 +88,8 @@ def copy(
     in Zarr's documentation in `zarr.convenience.copy_store`.
 
     Args:
-        source: MDIO reader or accessor instance. Data will be copied from here
-        dest_path_or_buffer: Destination path. Could be any FSSpec mapping.
+        input_mdio_path: MDIO reader or accessor instance. Data will be copied from here
+        output_mdio_path: Destination path. Could be any FSSpec mapping.
         excludes: Data to exclude during copy. i.e. `chunked_012`. The raw data
             won't be copied, but it will create an empty array to be filled.
             If left blank, it will copy everything.
@@ -123,7 +124,7 @@ def copy(
     "--output-format",
     required=False,
     default="plain",
-    help="""Output format, plain is human readable.  JSON will output in json 
+    help="""Output format, plain is human readable.  JSON will output in json
     format for easier passing. """,
     type=click.Choice(["plain", "json"]),
     show_default=True,
@@ -167,7 +168,7 @@ def info(
         click.echo("\n\n{:<10} {:<10}".format("STAT", "VALUE"))
         click.echo("=" * 20)
         for name, stat in reader.stats.items():
-            click.echo("{:<10} {:<10}".format(name, stat))
+            click.echo(f"{name:<10} {stat:<10}")
     if output_format == "json":
         mdio_dict["stats"] = reader.stats
         click.echo(mdio_dict)
