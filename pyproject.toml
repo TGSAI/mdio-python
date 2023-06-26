@@ -1,11 +1,10 @@
 [tool.poetry]
 name = "multidimio"
-version = "0.3.1"
+version = "0.4.0"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = ["TGS <sys-opensource@tgs.com>"]
 maintainers = [
     "Altay Sansal <altay.sansal@tgs.com>",
-    "Sri Kainkaryam <sribharath.kainkaryam@tgs.com>",
 ]
 license = "Apache-2.0"
 readme = "README.md"
