@@ -153,7 +153,7 @@ class GridOverrideCommand(ABC):
 class AutoChannelWrap(GridOverrideCommand):
     """Automatically determine Streamer acquisition type."""
 
-    required_keys = {"shot", "cable", "channel"}
+    required_keys = {"shot_point", "cable", "channel"}
     required_parameters = None
 
     def validate(
@@ -204,7 +204,7 @@ class AutoChannelWrap(GridOverrideCommand):
 class ChannelWrap(GridOverrideCommand):
     """Wrap channels to start from one at cable boundaries."""
 
-    required_keys = {"shot", "cable", "channel"}
+    required_keys = {"shot_point", "cable", "channel"}
     required_parameters = {"ChannelsPerCable"}
 
     def validate(
@@ -234,7 +234,7 @@ class ChannelWrap(GridOverrideCommand):
 class CalculateCable(GridOverrideCommand):
     """Calculate cable numbers from unwrapped channels."""
 
-    required_keys = {"shot", "cable", "channel"}
+    required_keys = {"shot_point", "cable", "channel"}
     required_parameters = {"ChannelsPerCable"}
 
     def validate(

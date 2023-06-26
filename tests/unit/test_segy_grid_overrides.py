@@ -35,7 +35,7 @@ def mock_streamer_headers() -> dict[str, npt.NDArray]:
         permutations[shot_mask, -1] = arange(1, len(CABLES) * len(RECEIVERS) + 1)
 
     result = dict(
-        shot=permutations[:, 0],
+        shot_point=permutations[:, 0],
         cable=permutations[:, 1],
         channel=permutations[:, 2],
     )

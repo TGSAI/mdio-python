@@ -18,7 +18,7 @@ dask.config.set(scheduler="synchronous")
 
 
 @pytest.mark.parametrize("header_locations", [(17, 137, 13)])
-@pytest.mark.parametrize("header_names", [("shot", "cable", "channel")])
+@pytest.mark.parametrize("header_names", [("shot_point", "cable", "channel")])
 @pytest.mark.parametrize("header_types", [("int32", "int16", "int32")])
 @pytest.mark.parametrize("endian", ["big"])
 @pytest.mark.parametrize("grid_overrides", [{"AutoChannelWrap": True}, None])
