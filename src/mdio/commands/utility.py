@@ -120,6 +120,15 @@ def copy(
     type=click.STRING,
 )
 @click.option(
+    "-access",
+    "--access-pattern",
+    required=False,
+    default="012",
+    help="Access pattern of the file",
+    type=click.STRING,
+    show_default=True,
+)
+@click.option(
     "-format",
     "--output-format",
     required=False,
@@ -133,6 +142,7 @@ def copy(
 def info(
     input_mdio_file,
     output_format,
+    access_pattern,
 ):
     """Provide information on MDIO dataset.
 
@@ -140,7 +150,9 @@ def info(
     the dataset. If output-format is set to json then a json is returned to
     facilitate parsing.
     """
-    reader = mdio.MDIOReader(input_mdio_file, return_metadata=True)
+    reader = mdio.MDIOReader(
+        input_mdio_file, access_pattern=access_pattern, return_metadata=True
+    )
     mdio_dict = {}
     mdio_dict["grid"] = {}
     for axis in reader.grid.dim_names:
