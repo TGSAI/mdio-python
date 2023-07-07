@@ -47,7 +47,7 @@ class TestImport4D:
                 chan_header_type = "c"
                 for _name in header_names:
                     if _name == "channel":
-                        _header_names.append("index")
+                        _header_names.append("trace")
                     else:
                         _header_names.append(_name)
 
@@ -85,7 +85,7 @@ class TestImport4D:
             assert grid.select_dim(header_names[2]) == Dimension(
                 range(1, np.sum(receivers_per_cable) + 1), header_names[2]
             )
-        else:
+        elif "c" not in chan_header_type:
             assert grid.select_dim(header_names[2]) == Dimension(
                 range(1, np.amax(receivers_per_cable) + 1), header_names[2]
             )
