@@ -123,7 +123,7 @@ def analyze_unindexed_headers(
     total_depth = 0
     header_names = []
     for header_key in index_headers.keys():
-        if header_key is not "index":
+        if header_key is not "trace":
             unique_headers[header_key] = np.sort(np.unique(index_headers[header_key]))
             header_names.append(header_key)
             total_depth += 1
@@ -135,7 +135,7 @@ def analyze_unindexed_headers(
         counter = {}
 
         for header_key in index_headers.keys():
-            if header_key is not "index":
+            if header_key is not "trace":
                 if depth == 0:
                     for header0 in unique_headers[header_key]:
                         if total_depth > (depth + 1):
@@ -171,13 +171,13 @@ def analyze_unindexed_headers(
         counter = 0
 
     # Add index header
-    index_headers["index"] = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
+    index_headers["trace"] = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
 
     if depth == 1:
         idx = 0
         for idx1 in index_headers[header_names[0]]:
             counter[idx1] += 1
-            index_headers["index"][idx] = counter[idx1]
+            index_headers["trace"][idx] = counter[idx1]
             idx += 1
     elif depth == 2:
         idx = 0
@@ -185,7 +185,7 @@ def analyze_unindexed_headers(
             index_headers[header_names[0]], index_headers[header_names[1]]
         ):
             counter[idx1][idx2] += 1
-            index_headers["index"][idx] = counter[idx1][idx2]
+            index_headers["trace"][idx] = counter[idx1][idx2]
             idx += 1
     elif depth == 3:
         idx = 0
@@ -195,7 +195,7 @@ def analyze_unindexed_headers(
             index_headers[header_names[2]],
         ):
             counter[idx1][idx2][idx3] += 1
-            index_headers["index"][idx] = counter[idx1][idx2][idx3]
+            index_headers["trace"][idx] = counter[idx1][idx2][idx3]
             idx += 1
     elif depth == 4:
         idx = 0
@@ -206,7 +206,7 @@ def analyze_unindexed_headers(
             index_headers[header_names[3]],
         ):
             counter[idx1][idx2][idx3][idx4] += 1
-            index_headers["index"][idx] = counter[idx1][idx2][idx3][idx4]
+            index_headers["trace"][idx] = counter[idx1][idx2][idx3][idx4]
             idx += 1
 
     return index_headers
@@ -263,7 +263,7 @@ class GridOverrideCommand(ABC):
 
 
 class AutoIndex(GridOverrideCommand):
-    required_keys = None  # {"index"}
+    required_keys = None  # {"trace"}
     required_parameters = None
 
     def validate(

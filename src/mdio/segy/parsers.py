@@ -46,7 +46,7 @@ def clean_indices(
     _byte_types = []
     _index_names = []
     for _loc, _type, _name in zip(byte_locs, byte_types, index_names):
-        if _name != "index":
+        if _name != "trace":
             _byte_locs.append(_loc)
             _byte_types.append(_type)
             _index_names.append(_name)
