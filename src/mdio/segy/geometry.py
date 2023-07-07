@@ -278,7 +278,8 @@ class AutoIndex(GridOverrideCommand):
         if "CalculateCable" in grid_overrides:
             raise GridOverrideIncompatibleError(self.name, "CalculateCable")
 
-        self.check_required_keys(index_headers)
+        if self.required_keys is not None:
+            self.check_required_keys(index_headers)
         self.check_required_params(grid_overrides)
 
     def transform(
