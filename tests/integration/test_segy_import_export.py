@@ -21,7 +21,9 @@ dask.config.set(scheduler="synchronous")
 @pytest.mark.parametrize("header_names", [("shot_point", "cable", "channel")])
 @pytest.mark.parametrize("header_types", [("int32", "int16", "int32")])
 @pytest.mark.parametrize("endian", ["big"])
-@pytest.mark.parametrize("grid_overrides", [{"AutoChannelWrap": True}, None])
+@pytest.mark.parametrize(
+    "grid_overrides", [{"AutoChannelWrap": True}, {"AutoIndex": True}, None]
+)
 @pytest.mark.parametrize("chan_header_type", ["a", "b"])
 class TestImport4D:
     """Test for 4D segy import with grid overrides."""
@@ -38,13 +40,24 @@ class TestImport4D:
         chan_header_type,
     ):
         """Test importing a SEG-Y file to MDIO."""
+        _header_names = header_names
+        if grid_overrides is not None:
+            if "AutoIndex" in grid_overrides.keys():
+                _header_names = []
+                chan_header_type = "c"
+                for _name in header_names:
+                    if _name == "channel":
+                        _header_names.append("index")
+                    else:
+                        _header_names.append(_name)
+
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         segy_to_mdio(
             segy_path=segy_path,
             mdio_path_or_buffer=zarr_tmp.__str__(),
             index_bytes=header_locations,
-            index_names=header_names,
+            index_names=_header_names,
             index_types=header_types,
             chunksize=(8, 2, 128, 1024),
             overwrite=True,

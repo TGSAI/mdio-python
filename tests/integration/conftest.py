@@ -17,6 +17,7 @@ def create_segy_mock_4d(
     cables: list,
     receivers_per_cable: list,
     chan_header_type: str = "a",
+    index_receivers: bool = True,
 ) -> str:
     """Dummy 4D SEG-Y file for use in tests."""
     spec = segyio.spec()
@@ -47,6 +48,10 @@ def create_segy_mock_4d(
     if chan_header_type == "b":
         channel_headers = np.arange(total_chan) + 1
 
+    index_receivers = True
+    if chan_header_type == "c":
+        index_receivers = False
+
     shot_headers = np.hstack([np.repeat(shot, total_chan) for shot in shots])
     cable_headers = np.tile(cable_headers, shot_count)
     channel_headers = np.tile(channel_headers, shot_count)
@@ -63,13 +68,21 @@ def create_segy_mock_4d(
             # stae is byte location 137 - cable 2 byte
             # tracf is byte location 13 - channel 4 byte
 
-            f.header[trc_idx].update(
-                offset=0,
-                fldr=shot,
-                ep=shot,
-                stae=cable,
-                tracf=channel,
-            )
+            if index_receivers:
+                f.header[trc_idx].update(
+                    offset=0,
+                    fldr=shot,
+                    ep=shot,
+                    stae=cable,
+                    tracf=channel,
+                )
+            else:
+                f.header[trc_idx].update(
+                    offset=0,
+                    fldr=shot,
+                    ep=shot,
+                    stae=cable,
+                )
 
             samples = np.linspace(start=shot, stop=shot + 1, num=num_samples)
             f.trace[trc_idx] = samples.astype("float32")
@@ -89,7 +102,7 @@ def segy_mock_4d_shots(fake_segy_tmp: str) -> dict[str, str]:
 
     segy_paths = {}
 
-    for type_ in ["a", "b"]:
+    for type_ in ["a", "b", "c"]:
         segy_paths[type_] = create_segy_mock_4d(
             fake_segy_tmp,
             num_samples=num_samples,
