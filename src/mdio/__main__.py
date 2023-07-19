@@ -10,8 +10,9 @@ import click
 import click_params
 
 import mdio
+from mdio.commands.utility import copy
+from mdio.commands.utility import info
 
-from mdio.commands.utility import copy, info
 
 plugin_folder = os.path.join(os.path.dirname(__file__), "commands")
 
