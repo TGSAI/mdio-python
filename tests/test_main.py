@@ -31,7 +31,7 @@ def test_main_succeeds(runner: CliRunner, segy_input: str, zarr_tmp: Path) -> No
 @pytest.mark.dependency(depends=["test_main_succeeds"])
 def test_main_info_succeeds(runner: CliRunner, zarr_tmp: Path) -> None:
     """It exits with a status code of zero."""
-    cli_args = ["utility", "info"]
+    cli_args = ["info"]
     cli_args.extend(["-i", str(zarr_tmp)])
 
     result = runner.invoke(__main__.main, args=cli_args)
@@ -41,7 +41,7 @@ def test_main_info_succeeds(runner: CliRunner, zarr_tmp: Path) -> None:
 @pytest.mark.dependency(depends=["test_main_succeeds"])
 def test_main_copy_succeeds(runner: CliRunner, zarr_tmp: Path, zarr_tmp2: Path) -> None:
     """It exits with a status code of zero."""
-    cli_args = ["utility", "copy"]
+    cli_args = ["copy"]
     cli_args.extend(["-i", str(zarr_tmp)])
     cli_args.extend(["-o", str(zarr_tmp2)])
 

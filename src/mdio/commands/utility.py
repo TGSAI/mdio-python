@@ -1,11 +1,12 @@
 """Dataset CLI Plugin."""
 
 try:
+    from typing import Optional
+
     import click
     import click_params
 
     import mdio
-    from typing import Optional
 except SystemError:
     pass
 
