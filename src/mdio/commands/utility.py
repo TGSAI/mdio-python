@@ -1,11 +1,11 @@
 """Dataset CLI Plugin."""
 
-
 try:
     import click
     import click_params
 
     import mdio
+    from typing import Optional
 except SystemError:
     pass
 
@@ -21,7 +21,7 @@ def cli():
     click.echo("MDIO CLI utilities")
 
 
-@cli.command(name="copy")
+@click.command(name="copy")
 @click.option(
     "-i",
     "--input-mdio-path",
@@ -76,7 +76,7 @@ def copy(
     output_mdio_path: str,
     includes: str = "",
     excludes: str = "",
-    storage_options: dict | None = None,
+    storage_options: Optional[dict] = None,
     overwrite: bool = False,
 ):
     """Copy MDIO to MDIO.
@@ -111,7 +111,7 @@ def copy(
     )
 
 
-@cli.command(name="info")
+@click.command(name="info")
 @click.option(
     "-i",
     "--input-mdio-file",
