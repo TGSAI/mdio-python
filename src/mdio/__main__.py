@@ -11,6 +11,7 @@ import click_params
 
 import mdio
 
+from mdio.commands.utility import copy, info
 
 plugin_folder = os.path.join(os.path.dirname(__file__), "commands")
 
@@ -40,11 +41,18 @@ class MyCLI(click.MultiCommand):
         http://lybniz2.sourceforge.net/safeeval.html
     """
 
+    _command_mapping = {
+        "copy": copy,
+        "info": info,
+    }
+
+    protected_files = ["__init__.py", "utility.py"]
+
     def list_commands(self, ctx: click.Context) -> list[str]:
         """List commands available under `commands` module."""
-        rv = []
+        rv = list(self._command_mapping.keys())
         for filename in os.listdir(plugin_folder):
-            if filename.endswith(".py") and filename != "__init__.py":
+            if filename.endswith(".py") and filename not in self.protected_files:
                 rv.append(filename[:-3])
         rv.sort()
 
@@ -61,6 +69,8 @@ class MyCLI(click.MultiCommand):
         }
         local_ns = {}
 
+        if name in self._command_mapping.keys():
+            return self._command_mapping[name]
         fn = os.path.join(plugin_folder, name + ".py")
         with open(fn) as f:
             code = compile(f.read(), fn, "exec")
