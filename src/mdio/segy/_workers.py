@@ -207,7 +207,10 @@ def trace_worker(
         value=tmp_metadata,
     )
 
-    nonzero_z = tmp_data.sum(axis=tuple(range(n_dim - 1))).nonzero()
+    # Find first non-zero index in sample (last) dimension
+    non_sample_axes = tuple(range(n_dim - 1))
+    nonzero_z = np.where(np.any(tmp_data != 0, axis=non_sample_axes))
+
     if len(nonzero_z[0]) == 0:
         return
 
