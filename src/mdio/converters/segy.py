@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from datetime import timezone
 from importlib import metadata
@@ -24,6 +25,8 @@ from mdio.segy.parsers import parse_binary_header
 from mdio.segy.parsers import parse_text_header
 from mdio.segy.utilities import get_grid_plan
 
+
+logger = logging.getLogger(__name__)
 
 try:
     API_VERSION = metadata.version("multidimio")
@@ -50,6 +53,38 @@ def parse_index_types(
             raise KeyError(msg) from exc
 
     return parsed_types
+
+
+def grid_density_qc(grid: Grid, num_traces: int):
+    """QC for grid density.
+
+    grid_qc performs a very basic qc of the grid to check density and provide
+    warning/exception when indexing is problematic to provide user with insights
+    to the use.  If trace density on the specified grid is less than 50% a
+    warning is logged.  If denisty is less than 1% an exception is raised.
+    """
+    dim_prod = np.prod(grid.shape, dtype=np.uint64)
+    logger.debug(f"grid.shape = {grid.shape}")
+    logger.debug(f"grid.dim_names = {grid.dim_names}")
+    logger.debug(f"num_traces = {num_traces}")
+    if dim_prod > 2 * num_traces * grid.shape[-1]:
+        logger.warning("LARGE DIMENSIONS WARNING: Proposed ingestion grid is sparse.")
+        logger.warning(f"LARGE DIMENSIONS WARNING:  Ingestion grid {grid.shape}.")
+        logger.warning(
+            f"LARGE DIMENSIONS WARNING:  Ingestion grid names: {grid.dim_names}."
+        )
+        logger.warning(
+            f"LARGE DIMENSIONS WARNING:  num_traces {num_traces} dim_prod {dim_prod}"
+        )
+    if dim_prod > (100 * num_traces * grid.shape[-1]):
+        for dim_name in grid.dim_names:
+            logger.warning(
+                f"{dim_name} min: {grid.get_min(dim_name)} max: {grid.get_max(dim_name)}"
+            )
+        raise Exception(
+            f"grid.shape = {grid.shape} but num_traces = {num_traces}."
+            "This grid is very sparse and most likely user error with indexing."
+        )
 
 
 def segy_to_mdio(
@@ -262,6 +297,9 @@ def segy_to_mdio(
 
     # Make grid and build global live trace mask
     grid = Grid(dims=dimensions)
+
+    grid_density_qc(grid, num_traces)
+
     grid.build_map(index_headers)
 
     # Check grid validity by comparing trace numbers
