@@ -130,7 +130,7 @@ def analyze_unindexed_headers(
     # Create counter
     counter = 0
     depth = 0
-    if total_depth > (depth + 1):
+    if total_depth > depth:
         counter = {}
 
         for header_key in index_headers.keys():
