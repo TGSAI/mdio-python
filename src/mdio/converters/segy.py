@@ -258,6 +258,26 @@ def segy_to_mdio(
         channels but desires to store with wrapped channel index use:
         >>>    grid_overrides={"AutoChannelWrap": True,
                                "AutoChannelTraceQC":  1000000}
+
+        For cases with no well defined trace header for indexing an AutoIndex
+        grid override is provided.This creates the index and attributes an
+        incrementing integer to the trace for the index based on first in first
+        out.  For example a CDP/offset file might have a header for offset as
+        real world offset which would result in a very sparse populated index.
+        Instead the following override will create a new index from 1 to n.
+        The index to be autocreated needs to be called "trace".  The index bytes
+        and types for this index are ignored:
+
+        >>> segy_to_mdio(
+        ...     segy_path="prefix/cdp_offset_file.segy",
+        ...     mdio_path_or_buffer="s3://bucket/cdp_offset_file.mdio",
+        ...     index_bytes=(21, 37),
+        ...     index_types=('int32', 'int32'),
+        ...     index_names=("cdp", "trace"),
+        ...     chunksize=(4, 16, 1024),
+        ...     grid_overrides={"AutoIndex": True},
+        ... )
+
     """
     num_index = len(index_bytes)
 

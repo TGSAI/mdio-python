@@ -41,11 +41,10 @@ def clean_indices(
     index_names: Sequence[str],
 ) -> tuple(Sequence[int], Sequence[Dtype], Sequence[str]):
     """Clean indicies before parsing.  This is currently to handle the autoindex case."""
-
     _byte_locs = []
     _byte_types = []
     _index_names = []
-    for _loc, _type, _name in zip(byte_locs, byte_types, index_names):
+    for _loc, _type, _name in zip(byte_locs, byte_types, index_names):  # noqa: B905
         if _name != "trace":
             _byte_locs.append(_loc)
             _byte_types.append(_type)

@@ -8,7 +8,6 @@ from abc import ABC
 from abc import abstractmethod
 from enum import Enum
 from enum import auto
-from typing import Dict
 
 import numpy as np
 import numpy.typing as npt
@@ -123,7 +122,7 @@ def analyze_unindexed_headers(
     total_depth = 0
     header_names = []
     for header_key in index_headers.keys():
-        if header_key is not "trace":
+        if header_key != "trace":
             unique_headers[header_key] = np.sort(np.unique(index_headers[header_key]))
             header_names.append(header_key)
             total_depth += 1
@@ -135,7 +134,7 @@ def analyze_unindexed_headers(
         counter = {}
 
         for header_key in index_headers.keys():
-            if header_key is not "trace":
+            if header_key != "trace":
                 if depth == 0:
                     for header0 in unique_headers[header_key]:
                         if total_depth > (depth + 1):
@@ -181,7 +180,9 @@ def analyze_unindexed_headers(
             idx += 1
     elif depth == 2:
         idx = 0
-        for idx1, idx2 in zip(
+
+        # TODO: Add strict=True and remove noqa when min Python is 3.10
+        for idx1, idx2 in zip(  # noqa: B905
             index_headers[header_names[0]], index_headers[header_names[1]]
         ):
             counter[idx1][idx2] += 1
@@ -189,7 +190,9 @@ def analyze_unindexed_headers(
             idx += 1
     elif depth == 3:
         idx = 0
-        for idx1, idx2, idx3 in zip(
+
+        # TODO: Add strict=True and remove noqa when min Python is 3.10
+        for idx1, idx2, idx3 in zip(  # noqa: B905
             index_headers[header_names[0]],
             index_headers[header_names[1]],
             index_headers[header_names[2]],
@@ -199,7 +202,9 @@ def analyze_unindexed_headers(
             idx += 1
     elif depth == 4:
         idx = 0
-        for idx1, idx2, idx3, idx4 in zip(
+
+        # TODO: Add strict=True and remove noqa when min Python is 3.10
+        for idx1, idx2, idx3, idx4 in zip(  # noqa: B905
             index_headers[header_names[0]],
             index_headers[header_names[1]],
             index_headers[header_names[2]],
@@ -250,7 +255,7 @@ class GridOverrideCommand(ABC):
         if not self.required_keys.issubset(index_names):
             raise GridOverrideKeysError(self.name, self.required_keys)
 
-    def check_required_params(self, grid_overrides: Dict[str, str | int]) -> None:
+    def check_required_params(self, grid_overrides: dict[str, str | int]) -> None:
         """Check if all required keys are present in the index headers."""
         if self.required_parameters is None:
             return
@@ -263,6 +268,8 @@ class GridOverrideCommand(ABC):
 
 
 class AutoIndex(GridOverrideCommand):
+    """Automatically index traces in a single specified axis - trace."""
+
     required_keys = None  # {"trace"}
     required_parameters = None
 
@@ -318,7 +325,7 @@ class AutoChannelWrap(GridOverrideCommand):
         self,
         index_headers: dict[str, npt.NDArray],
         grid_overrides: dict[str, bool | int],
-    ) -> Dict[str, npt.NDArray]:
+    ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
@@ -355,7 +362,7 @@ class ChannelWrap(GridOverrideCommand):
     required_parameters = {"ChannelsPerCable"}
 
     def validate(
-        self, index_headers: Dict, grid_overrides: dict[str, bool | int]
+        self, index_headers: dict, grid_overrides: dict[str, bool | int]
     ) -> None:
         """Validate if this transform should run on the type of data."""
         if "AutoChannelWrap" in grid_overrides:
@@ -368,7 +375,7 @@ class ChannelWrap(GridOverrideCommand):
         self,
         index_headers: dict[str, npt.NDArray],
         grid_overrides: dict[str, bool | int],
-    ) -> Dict[str, npt.NDArray]:
+    ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
@@ -401,7 +408,7 @@ class CalculateCable(GridOverrideCommand):
     def transform(
         self,
         index_headers: dict[str, npt.NDArray],
-        grid_overrides: Dict[str, bool | int],
+        grid_overrides: dict[str, bool | int],
     ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)

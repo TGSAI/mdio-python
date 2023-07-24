@@ -309,6 +309,22 @@ def segy_import(
         In cases where the user does not know if the input has unwrapped
         channels but desires to store with wrapped channel index use:
         --grid-overrides '{"AutoChannelWrap": True}'
+
+        \b
+        For cases with no well defined trace header for indexing an AutoIndex
+        grid override is provided.This creates the index and attributes an
+        incrementing integer to the trace for the index based on first in first
+        out.  For example a CDP/offset file might have a header for offset as
+        real world offset which would result in a very sparse populated index.
+        Instead the following override will create a new index from 1 to n.
+        The index to be autocreated needs to be called "trace".  The index bytes
+        and types for this index are ignored:
+        \b
+        --header-locations 21,37
+        --header-names cdp,trace
+        --header-types 'int32','int32'
+        --chunk-size 4,16,1024
+        --grid-overrides '{"AutoIndex":True}'
     """
     mdio.segy_to_mdio(
         segy_path=input_segy_path,
