@@ -103,7 +103,12 @@ def analyze_streamer_headers(
     return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
 
-def create_counter(depth, total_depth, unique_headers, header_names):
+def create_counter(
+    depth: int,
+    total_depth: int,
+    unique_headers: dict[str, npt.NDArray],
+    header_names: list[str],
+):
     """Helper funtion to create dictionary tree for counting trace key for auto index."""
     if depth == total_depth:
         return 0
@@ -119,7 +124,13 @@ def create_counter(depth, total_depth, unique_headers, header_names):
     return counter
 
 
-def create_trace_index(depth, counter, index_headers, header_names, dtype=np.int16):
+def create_trace_index(
+    depth: int,
+    counter: dict,
+    index_headers: dict[str, npt.NDArray],
+    header_names: list,
+    dtype=np.int16,
+):
     """Update dictionary counter tree for counting trace key for auto index."""
     # Add index header
     index_headers["trace"] = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
