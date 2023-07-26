@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from datetime import timezone
 from importlib import metadata
@@ -24,6 +25,8 @@ from mdio.segy.parsers import parse_binary_header
 from mdio.segy.parsers import parse_text_header
 from mdio.segy.utilities import get_grid_plan
 
+
+logger = logging.getLogger(__name__)
 
 try:
     API_VERSION = metadata.version("multidimio")
@@ -286,6 +289,11 @@ def segy_to_mdio(
 
     # Check grid validity by comparing trace numbers
     if np.sum(grid.live_mask) != num_traces:
+        for dim_name in grid.dim_names:
+            logger.warning(
+                f"{dim_name} min: {grid.get_min(dim_name)} max: {grid.get_max(dim_name)}"
+            )
+        logger.warning(f"Ingestion grid shape: {grid.shape}.")
         raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
 
     zarr_root = create_zarr_hierarchy(

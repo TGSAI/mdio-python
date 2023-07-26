@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from abc import ABC
 from abc import abstractmethod
 from enum import Enum
@@ -102,9 +103,50 @@ def analyze_streamer_headers(
     return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
 
+def create_counter(depth, total_depth, unique_headers, header_names):
+    """Helper funtion to create dictionary tree for counting trace key for auto index."""
+    if depth == total_depth:
+        return 0
+
+    counter = {}
+
+    header_key = header_names[depth]
+    for header in unique_headers[header_key]:
+        counter[header] = create_counter(
+            depth + 1, total_depth, unique_headers, header_names
+        )
+
+    return counter
+
+
+def create_trace_index(depth, counter, index_headers, header_names, dtype=np.int16):
+    """Update dictionary counter tree for counting trace key for auto index."""
+    # Add index header
+    index_headers["trace"] = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
+
+    idx = 0
+    if depth == 0:
+        return
+
+    for idx_values in zip(  # noqa: B905
+        *(index_headers[header_names[i]] for i in range(depth))
+    ):
+        if depth == 1:
+            counter[idx_values[0]] += 1
+            index_headers["trace"][idx] = counter[idx_values[0]]
+        else:
+            sub_counter = counter
+            for idx_value in idx_values[:-1]:
+                sub_counter = sub_counter[idx_value]
+            sub_counter[idx_values[-1]] += 1
+            index_headers["trace"][idx] = sub_counter[idx_values[-1]]
+
+        idx += 1
+
+
 def analyze_unindexed_headers(
     index_headers: dict[str, npt.NDArray], dtype=np.int16
-) -> npt.NDArray:
+) -> dict[str, npt.NDArray]:
     """Check input headers for SEG-Y input to help determine geometry.
 
     This function reads in trace_qc_count headers and finds the unique cable values.
@@ -113,11 +155,13 @@ def analyze_unindexed_headers(
 
     Args:
         index_headers: numpy array with index headers
+        dtype: numpy type for value of created trace header.
 
     Returns:
-        tuple of unique_cables, cable_chan_min, cable_chan_max, geom_type
+        Dict container header name as key and numpy array of values as value
     """
     # Find unique cable ids
+    t1 = time.time()
     unique_headers = {}
     total_depth = 0
     header_names = []
@@ -128,92 +172,13 @@ def analyze_unindexed_headers(
             total_depth += 1
 
     # Create counter
-    counter = 0
-    depth = 0
-    if total_depth > depth:
-        counter = {}
+    counter = create_counter(0, total_depth, unique_headers, header_names)
 
-        for header_key in index_headers.keys():
-            if header_key != "trace":
-                if depth == 0:
-                    for header0 in unique_headers[header_key]:
-                        if total_depth > (depth + 1):
-                            counter[header0] = {}
-                        else:
-                            counter[header0] = 0
-                if depth == 1:
-                    for header0 in unique_headers[header_names[0]]:
-                        for header1 in unique_headers[header_key]:
-                            if total_depth > (depth + 1):
-                                counter[header0][header1] = {}
-                            else:
-                                counter[header0][header1] = 0
-                if depth == 2:
-                    for header0 in unique_headers[header_names[0]]:
-                        for header1 in unique_headers[header_names[1]]:
-                            for header2 in unique_headers[header_key]:
-                                if total_depth > (depth + 1):
-                                    counter[header0][header1][header2] = {}
-                                else:
-                                    counter[header0][header1][header2] = 0
-                if depth == 3:
-                    for header0 in unique_headers[header_names[0]]:
-                        for header1 in unique_headers[header_names[1]]:
-                            for header2 in unique_headers[header_names[2]]:
-                                for header3 in unique_headers[header_key]:
-                                    if total_depth > (depth + 1):
-                                        counter[header0][header1][header2][header3] = {}
-                                    else:
-                                        counter[header0][header1][header2][header3] = 0
-                depth += 1
-    else:
-        counter = 0
+    # Update counter and create trace index
+    create_trace_index(total_depth, counter, index_headers, header_names, dtype=dtype)
 
-    # Add index header
-    index_headers["trace"] = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
-
-    if depth == 1:
-        idx = 0
-        for idx1 in index_headers[header_names[0]]:
-            counter[idx1] += 1
-            index_headers["trace"][idx] = counter[idx1]
-            idx += 1
-    elif depth == 2:
-        idx = 0
-
-        # TODO: Add strict=True and remove noqa when min Python is 3.10
-        for idx1, idx2 in zip(  # noqa: B905
-            index_headers[header_names[0]], index_headers[header_names[1]]
-        ):
-            counter[idx1][idx2] += 1
-            index_headers["trace"][idx] = counter[idx1][idx2]
-            idx += 1
-    elif depth == 3:
-        idx = 0
-
-        # TODO: Add strict=True and remove noqa when min Python is 3.10
-        for idx1, idx2, idx3 in zip(  # noqa: B905
-            index_headers[header_names[0]],
-            index_headers[header_names[1]],
-            index_headers[header_names[2]],
-        ):
-            counter[idx1][idx2][idx3] += 1
-            index_headers["trace"][idx] = counter[idx1][idx2][idx3]
-            idx += 1
-    elif depth == 4:
-        idx = 0
-
-        # TODO: Add strict=True and remove noqa when min Python is 3.10
-        for idx1, idx2, idx3, idx4 in zip(  # noqa: B905
-            index_headers[header_names[0]],
-            index_headers[header_names[1]],
-            index_headers[header_names[2]],
-            index_headers[header_names[3]],
-        ):
-            counter[idx1][idx2][idx3][idx4] += 1
-            index_headers["trace"][idx] = counter[idx1][idx2][idx3][idx4]
-            idx += 1
-
+    t2 = time.time()
+    logger.warning("Total time spent generating trace index: %.6f" % (t2 - t1))
     return index_headers
 
 
