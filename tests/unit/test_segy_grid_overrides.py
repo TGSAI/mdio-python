@@ -43,6 +43,31 @@ def mock_streamer_headers() -> dict[str, npt.NDArray]:
     return result
 
 
+class TestAutoGridOverrides:
+    """Check grid overrides works with auto indexing."""
+
+    def test_auto_chan(self, mock_streamer_headers: npt.NDArray) -> None:
+        """Test the ChannelWrap command."""
+        grid_overrides = {"AutoIndex": True}
+
+        # mock_streamer_headers["trace"] = mock_streamer_headers["channel"]
+        # Remove channel header
+        del mock_streamer_headers["channel"]
+        # Create dummy header
+        mock_streamer_headers["trace"] = mock_streamer_headers["shot_point"]
+        overrider = GridOverrider()
+        results = overrider.run(mock_streamer_headers, grid_overrides)
+
+        dims = []
+        for index_name, index_coords in results.items():
+            dim_unique = unique(index_coords)
+            dims.append(Dimension(coords=dim_unique, name=index_name))
+
+        assert_array_equal(dims[0], SHOTS)
+        assert_array_equal(dims[1], CABLES)
+        assert_array_equal(dims[2], RECEIVERS)
+
+
 class TestStreamerGridOverrides:
     """Check grid overrides for shot data with streamer acquisition."""
 

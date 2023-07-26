@@ -336,6 +336,11 @@ def segy_to_mdio(
 
     # Check grid validity by comparing trace numbers
     if np.sum(grid.live_mask) != num_traces:
+        for dim_name in grid.dim_names:
+            logger.warning(
+                f"{dim_name} min: {grid.get_min(dim_name)} max: {grid.get_max(dim_name)}"
+            )
+        logger.warning(f"Ingestion grid shape: {grid.shape}.")
         raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
 
     zarr_root = create_zarr_hierarchy(
