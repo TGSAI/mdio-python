@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from datetime import timezone
 from importlib import metadata
@@ -24,6 +25,8 @@ from mdio.segy.parsers import parse_binary_header
 from mdio.segy.parsers import parse_text_header
 from mdio.segy.utilities import get_grid_plan
 
+
+logger = logging.getLogger(__name__)
 
 try:
     API_VERSION = metadata.version("multidimio")
@@ -50,6 +53,50 @@ def parse_index_types(
             raise KeyError(msg) from exc
 
     return parsed_types
+
+
+def grid_density_qc(grid: Grid, num_traces: int) -> None:
+    """QC for sensible Grid density.
+
+    Basic qc of the grid to check density and provide warning/exception
+    when indexing is problematic to provide user with insights to the use.
+    If trace density on the specified grid is less than 50% a warning is
+    logged.  If denisty is less than 1% an exception is raised.
+
+    Args:
+        grid: The grid instance to check.
+        num_traces: Expected number of traces.
+
+    Raises:
+        GridTraceCountError: When the grid is too sparse.
+    """
+    grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)  # Exclude sample
+    dims = {k: v for k, v in zip(grid.dim_names, grid.shape)}  # noqa: B905
+
+    logger.debug(f"Dimensions: {dims}")
+    logger.debug(f"num_traces = {num_traces}")
+
+    # Extreme case where the grid is very sparse (usually user error)
+    if grid_traces > 10 * num_traces:
+        for dim_name in grid.dim_names:
+            dim_min = grid.get_min(dim_name)
+            dim_max = grid.get_max(dim_name)
+            logger.warning(f"{dim_name} min: {dim_min} max: {dim_max}")
+
+        msg = (
+            f"Grid shape: {grid.shape} but SEG-Y tracecount: {num_traces}. "
+            "This grid is very sparse and most likely user error with indexing."
+        )
+        raise GridTraceCountError(msg)
+
+    # Warning if we have above 50% sparsity.
+    if grid_traces > 2 * num_traces:
+        msg = (
+            f"Proposed ingestion grid is sparse. Ingestion grid: {dims}. "
+            f"SEG-Y trace count:{num_traces}, grid trace count: {grid_traces}."
+        )
+
+        logger.warning(msg)
 
 
 def segy_to_mdio(
@@ -262,6 +309,9 @@ def segy_to_mdio(
 
     # Make grid and build global live trace mask
     grid = Grid(dims=dimensions)
+
+    grid_density_qc(grid, num_traces)
+
     grid.build_map(index_headers)
 
     # Check grid validity by comparing trace numbers
