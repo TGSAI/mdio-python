@@ -55,36 +55,45 @@ def parse_index_types(
     return parsed_types
 
 
-def grid_density_qc(grid: Grid, num_traces: int):
-    """QC for grid density.
+def grid_density_qc(grid: Grid, num_traces: int) -> None:
+    """QC for sensible Grid density.
 
-    grid_qc performs a very basic qc of the grid to check density and provide
-    warning/exception when indexing is problematic to provide user with insights
-    to the use.  If trace density on the specified grid is less than 50% a
-    warning is logged.  If denisty is less than 1% an exception is raised.
+    Basic qc of the grid to check density and provide warning/exception 
+    when indexing is problematic to provide user with insights to the use.
+    If trace density on the specified grid is less than 50% a warning is
+    logged.  If denisty is less than 1% an exception is raised.
+
+    Args:
+        grid: The grid instance to check.
+        num_traces: Expected number of traces.
     """
-    dim_prod = np.prod(grid.shape, dtype=np.uint64)
+    grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)  # Exclude sample
     logger.debug(f"grid.shape = {grid.shape}")
     logger.debug(f"grid.dim_names = {grid.dim_names}")
     logger.debug(f"num_traces = {num_traces}")
-    if dim_prod > 2 * num_traces * grid.shape[-1]:
-        logger.warning("LARGE DIMENSIONS WARNING: Proposed ingestion grid is sparse.")
-        logger.warning(f"LARGE DIMENSIONS WARNING:  Ingestion grid {grid.shape}.")
-        logger.warning(
-            f"LARGE DIMENSIONS WARNING:  Ingestion grid names: {grid.dim_names}."
-        )
-        logger.warning(
-            f"LARGE DIMENSIONS WARNING:  num_traces {num_traces} dim_prod {dim_prod}"
-        )
-    if dim_prod > (100 * num_traces * grid.shape[-1]):
+
+    # Extreme case where the grid is very sparse (usually user error)
+    if grid_traces > 100 * num_traces:
         for dim_name in grid.dim_names:
-            logger.warning(
-                f"{dim_name} min: {grid.get_min(dim_name)} max: {grid.get_max(dim_name)}"
-            )
-        raise Exception(
-            f"grid.shape = {grid.shape} but num_traces = {num_traces}."
+            dim_min = grid.get_min(dim_name)
+            dim_max = grid.get_max(dim_name)
+            logger.warning(f"{dim_name} min: {dim_min} max: {dim_max}")
+
+        msg = (
+            f"Grid shape: {grid.shape} but SEG-Y tracecount: {num_traces}. "
             "This grid is very sparse and most likely user error with indexing."
         )
+        raise ValueError(msg)
+
+    # Warning if we have above 50% sparsity.
+    if grid_traces > 2 * num_traces:
+        dims = {name: shape for name, shape in zip(grid.dim_names, grid.shape)}
+        msg = (
+            f"Proposed ingestion grid is sparse. Ingestion grid: {dims}. "
+            f"SEG-Y trace count:{num_traces}, grid trace count: {grid_traces}."
+        )
+
+        logger.warning(msg)
 
 
 def segy_to_mdio(
