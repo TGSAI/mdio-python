@@ -497,7 +497,7 @@ class MDIOAccessor:
 
             sorter = mdio_dim.coords.argsort()
             dim_idx = np.searchsorted(mdio_dim, dim_query_coords, sorter=sorter)
-            dim_idx = dim_idx.astype("uint16")  # cast to minimize memory. max: 65,535
+            dim_idx = dim_idx.astype("uint32")  # cast to minimize memory. max: 2,147,483,647
             dim_indices += (dim_idx,)
 
         return dim_indices if len(dim_indices) > 1 else dim_indices[0]
