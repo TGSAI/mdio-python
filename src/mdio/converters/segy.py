@@ -66,9 +66,12 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     Args:
         grid: The grid instance to check.
         num_traces: Expected number of traces.
+
+    Raises:
+        GridTraceCountError: When the grid is too sparse.
     """
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)  # Exclude sample
-    dims = {name: shape for name, shape in zip(grid.dim_names, grid.shape)}
+    dims = {k: v for k, v in zip(grid.dim_names, grid.shape)}  # noqa: B905
 
     logger.debug(f"Dimensions: {dims}")
     logger.debug(f"num_traces = {num_traces}")
@@ -84,7 +87,7 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
             f"Grid shape: {grid.shape} but SEG-Y tracecount: {num_traces}. "
             "This grid is very sparse and most likely user error with indexing."
         )
-        raise ValueError(msg)
+        raise GridTraceCountError(msg)
 
     # Warning if we have above 50% sparsity.
     if grid_traces > 2 * num_traces:
