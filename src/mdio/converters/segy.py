@@ -58,7 +58,7 @@ def parse_index_types(
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
     """QC for sensible Grid density.
 
-    Basic qc of the grid to check density and provide warning/exception 
+    Basic qc of the grid to check density and provide warning/exception
     when indexing is problematic to provide user with insights to the use.
     If trace density on the specified grid is less than 50% a warning is
     logged.  If denisty is less than 1% an exception is raised.
@@ -69,7 +69,7 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     """
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)  # Exclude sample
     dims = {name: shape for name, shape in zip(grid.dim_names, grid.shape)}
-    
+
     logger.debug(f"Dimensions: {dims}")
     logger.debug(f"num_traces = {num_traces}")
 
