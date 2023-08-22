@@ -46,15 +46,33 @@ def mock_streamer_headers() -> dict[str, npt.NDArray]:
 class TestAutoGridOverrides:
     """Check grid overrides works with auto indexing."""
 
-    def test_auto_chan(self, mock_streamer_headers: npt.NDArray) -> None:
-        """Test the ChannelWrap command."""
-        grid_overrides = {"AutoIndex": True}
+    def test_duplicates(self, mock_streamer_headers: npt.NDArray) -> None:
+        """Test the HasDuplicates Grid Override command."""
+        grid_overrides = {"HasDuplicates": True}
 
         # mock_streamer_headers["trace"] = mock_streamer_headers["channel"]
         # Remove channel header
         del mock_streamer_headers["channel"]
-        # Create dummy header
-        mock_streamer_headers["trace"] = mock_streamer_headers["shot_point"]
+
+        overrider = GridOverrider()
+        results = overrider.run(mock_streamer_headers, grid_overrides)
+
+        dims = []
+        for index_name, index_coords in results.items():
+            dim_unique = unique(index_coords)
+            dims.append(Dimension(coords=dim_unique, name=index_name))
+
+        assert_array_equal(dims[0], SHOTS)
+        assert_array_equal(dims[1], CABLES)
+        assert_array_equal(dims[2], RECEIVERS)
+
+    def test_non_binned(self, mock_streamer_headers: npt.NDArray) -> None:
+        """Test the NonBinned Grid Override command."""
+        grid_overrides = {"NonBinned": True, "chunksize": 4}
+
+        # Remove channel header
+        del mock_streamer_headers["channel"]
+
         overrider = GridOverrider()
         results = overrider.run(mock_streamer_headers, grid_overrides)
 

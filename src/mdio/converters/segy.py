@@ -237,19 +237,13 @@ def segy_to_mdio(
     """
     num_index = len(index_bytes)
 
-    if chunksize is None:
-        if num_index == 1:
-            chunksize = (512,) * 2
-
-        elif num_index == 2:
-            chunksize = (64,) * 3
-
-        else:
-            msg = (
-                f"Default chunking for {num_index + 1}-D seismic data is "
-                "not implemented yet. Please explicity define chunk sizes."
+    if chunksize is not None:
+        if len(chunksize) != len(index_bytes) + 1:
+            message = (
+                f"Length of chunks={len(chunksize)} must be ",
+                f"equal to array dimensions={len(index_bytes) + 1}",
             )
-            raise NotImplementedError(msg)
+            raise ValueError(message)
 
     if storage_options is None:
         storage_options = {}
@@ -272,7 +266,8 @@ def segy_to_mdio(
 
     index_types = parse_index_types(index_types, num_index)
 
-    dimensions, index_headers = get_grid_plan(
+    # dimensions, chunksize, index_headers = get_grid_plan(
+    _res = get_grid_plan(
         segy_path=segy_path,
         segy_endian=endian,
         index_bytes=index_bytes,
@@ -280,9 +275,10 @@ def segy_to_mdio(
         index_types=index_types,
         binary_header=binary_header,
         return_headers=True,
+        chunksize=chunksize,
         grid_overrides=grid_overrides,
     )
-
+    dimensions, chunksize, index_headers = _res
     # Make grid and build global live trace mask
     grid = Grid(dims=dimensions)
     grid.build_map(index_headers)
@@ -336,17 +332,23 @@ def segy_to_mdio(
     )
 
     if chunksize is None:
-        suffix = [str(x) for x in range(len(index_bytes) + 1)]
+        if num_index == 1:
+            chunksize = (512,) * 2
+
+        elif num_index == 2:
+            chunksize = (64,) * 3
+
+        else:
+            msg = (
+                f"Default chunking for {num_index + 1}-D seismic data is "
+                "not implemented yet. Please explicity define chunk sizes."
+            )
+            raise NotImplementedError(msg)
+
+        suffix = [str(x) for x in range(len(dimensions) + 1)]
         suffix = "".join(suffix)
 
     else:
-        if len(chunksize) != len(index_bytes) + 1:
-            message = (
-                f"Length of chunks={len(chunksize)} must be ",
-                f"equal to array dimensions={len(index_bytes) + 1}",
-            )
-            raise ValueError(message)
-
         suffix = [
             dim_chunksize if dim_chunksize > 0 else None for dim_chunksize in chunksize
         ]

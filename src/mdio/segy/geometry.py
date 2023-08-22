@@ -9,6 +9,7 @@ from abc import ABC
 from abc import abstractmethod
 from enum import Enum
 from enum import auto
+from typing import Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -189,7 +190,7 @@ def analyze_unindexed_headers(
     create_trace_index(total_depth, counter, index_headers, header_names, dtype=dtype)
 
     t2 = time.time()
-    logger.warning("Total time spent generating trace index: %.6f" % (t2 - t1))
+    logger.warning("Total time spent generating trace index: %.4g s" % (t2 - t1))
     return index_headers
 
 
@@ -220,6 +221,21 @@ class GridOverrideCommand(ABC):
     ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
 
+    def transform_index_names(
+        self,
+        index_names: Sequence[str],
+    ) -> Sequence[str]:
+        """Perform the transform of index names."""
+        return index_names
+
+    def transform_chunksize(
+        self,
+        chunksize: Sequence[int],
+        grid_overrides: dict[str, bool | int],
+    ) -> Sequence[int]:
+        """Perform the transform of chunksize."""
+        return chunksize
+
     @property
     def name(self) -> str:
         """Convenience property to get the name of the command."""
@@ -243,10 +259,10 @@ class GridOverrideCommand(ABC):
             raise GridOverrideMissingParameterError(self.name, missing_params)
 
 
-class AutoIndex(GridOverrideCommand):
-    """Automatically index traces in a single specified axis - trace."""
+class DuplicateIndex(GridOverrideCommand):
+    """Automatically handle duplicate traces in a new axis - trace with chunksize 1."""
 
-    required_keys = None  # {"trace"}
+    required_keys = None
     required_parameters = None
 
     def validate(
@@ -274,6 +290,50 @@ class AutoIndex(GridOverrideCommand):
         self.validate(index_headers, grid_overrides)
 
         return analyze_unindexed_headers(index_headers)
+
+    def transform_index_names(
+        self,
+        index_names: Sequence[str],
+    ) -> Sequence[str]:
+        """Perform the transform of index names."""
+        new_names = []
+        for name in index_names:
+            new_names.append(name)
+        new_names.append("trace")
+        return tuple(new_names)
+
+    def transform_chunksize(
+        self,
+        chunksize: Sequence[int],
+        grid_overrides: dict[str, bool | int],
+    ) -> Sequence[int]:
+        """Perform the transform of chunksize."""
+        new_chunks = []
+        for chunk in chunksize[:-1]:
+            new_chunks.append(chunk)
+        new_chunks.append(1)
+        new_chunks.append(chunksize[-1])
+        return tuple(new_chunks)
+
+
+class AutoIndex(DuplicateIndex):
+    """Automatically index traces in a single specified axis - trace."""
+
+    required_keys = None
+    required_parameters = {"chunksize"}
+
+    def transform_chunksize(
+        self,
+        chunksize: Sequence[int],
+        grid_overrides: dict[str, bool | int],
+    ) -> Sequence[int]:
+        """Perform the transform of chunksize."""
+        new_chunks = []
+        for chunk in chunksize[:-1]:
+            new_chunks.append(chunk)
+        new_chunks.append(grid_overrides["chunksize"])
+        new_chunks.append(chunksize[-1])
+        return tuple(new_chunks)
 
 
 class AutoChannelWrap(GridOverrideCommand):
@@ -412,7 +472,8 @@ class GridOverrider:
             "AutoChannelWrap": AutoChannelWrap(),
             "CalculateCable": CalculateCable(),
             "ChannelWrap": ChannelWrap(),
-            "AutoIndex": AutoIndex(),
+            "NonBinned": AutoIndex(),
+            "HasDuplicates": DuplicateIndex(),
         }
 
         self.parameters = self.get_allowed_parameters()
@@ -431,8 +492,10 @@ class GridOverrider:
     def run(
         self,
         index_headers: dict[str, npt.NDArray],
+        index_names: Sequence[str],
         grid_overrides: dict[str, bool],
-    ) -> dict[str, npt.NDArray]:
+        chunksize: Sequence[int] | None = None,
+    ) -> tuple[dict[str, npt.NDArray], tuple[str], tuple[int]]:
         """Run grid overrides and return result."""
         for override in grid_overrides:
             if override in self.parameters:
@@ -444,4 +507,10 @@ class GridOverrider:
             function = self.commands[override].transform
             index_headers = function(index_headers, grid_overrides=grid_overrides)
 
-        return index_headers
+            function = self.commands[override].transform_index_names
+            index_names = function(index_names)
+
+            function = self.commands[override].transform_chunksize
+            chunksize = function(chunksize, grid_overrides=grid_overrides)
+
+        return index_headers, index_names, chunksize

@@ -27,12 +27,31 @@ class Dimension:
     Args:
         coords: Vector of coordinates.
         name: Name of the dimension.
+        non_binned: Whether the dimension is binned or not.
     """
 
-    __slots__ = ("coords", "name")
+    __slots__ = ("coords", "name", "non_binned")
 
     coords: list | tuple | NDArray | range
     name: str
+    non_binned: bool
+
+    def __init__(
+        self,
+        coords: list | tuple | NDArray | range,
+        name: str,
+        non_binned: bool = False,
+    ):
+        """Constructor."""
+        self.coords = np.asarray(coords)
+        if self.coords.ndim != 1:
+            raise ShapeError(
+                "Dimensions can only have vector coordinates",
+                ("# Dim", "Expected"),
+                (self.coords.ndim, 1),
+            )
+        self.name = name
+        self.non_binned = non_binned
 
     def __post_init__(self):
         """Post process and validation."""
@@ -51,7 +70,9 @@ class Dimension:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert dimension to dictionary."""
-        return dict(name=self.name, coords=self.coords.tolist())
+        return dict(
+            name=self.name, coords=self.coords.tolist(), non_binned=self.non_binned
+        )
 
     @classmethod
     def from_dict(cls, other: dict[str, Any]) -> Dimension:
@@ -72,7 +93,7 @@ class Dimension:
 
     def __hash__(self) -> int:
         """Hashing magic."""
-        return hash(tuple(self.coords) + (self.name,))
+        return hash(tuple(self.coords) + (self.name,) + (self.non_binned,))
 
     def __eq__(self, other: Dimension) -> bool:
         """Compares if the dimension has same properties."""
@@ -111,6 +132,7 @@ class DimensionSerializer(Serializer):
             name=dimension.name,
             length=len(dimension),
             coords=dimension.coords.tolist(),
+            non_binned=dimension.non_binned,
         )
         return self.serialize_func(payload)
 

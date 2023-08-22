@@ -24,8 +24,12 @@ def get_grid_plan(  # noqa:  C901
     index_types: Sequence[Dtype],
     binary_header: dict,
     return_headers: bool = False,
+    chunksize: Sequence[int] | None = None,
     grid_overrides: dict | None = None,
-) -> list[Dimension] | tuple[list[Dimension], npt.ArrayLike]:
+) -> (
+    tuple[list[Dimension], tuple[int]]
+    | tuple[list[Dimension], tuple[int], npt.ArrayLike]
+):
     """Infer dimension ranges, and increments.
 
     Generates multiple dimensions with the following steps:
@@ -68,17 +72,19 @@ def get_grid_plan(  # noqa:  C901
 
     # Handle grid overrides.
     override_handler = GridOverrider()
-    index_headers = override_handler.run(index_headers, grid_overrides)
+    index_headers, index_names, chunksize = override_handler.run(
+        index_headers, index_names, chunksize=chunksize, grid_overrides=grid_overrides
+    )
 
     for index_name in index_names:
         dim_unique = np.unique(index_headers[index_name])
-        dims.append(Dimension(coords=dim_unique, name=index_name))
+        dims.append(Dimension(coords=dim_unique, name=index_name, non_binned=False))
 
     sample_dim = parse_sample_axis(binary_header=binary_header)
 
     dims.append(sample_dim)
 
-    return dims, index_headers if return_headers else dims
+    return (dims, chunksize, index_headers) if return_headers else (dims, chunksize)
 
 
 def segy_export_rechunker(
