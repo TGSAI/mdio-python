@@ -47,10 +47,13 @@ def get_grid_plan(  # noqa:  C901
         binary_header: Dictionary containing binary header key, value pairs.
         return_headers: Option to return parsed headers with `Dimension` objects.
             Default is False.
+        chunksize:  Override default chunk size, which is (64, 64, 64) if
+            3D, and (512, 512) for 2D.
         grid_overrides: Option to add grid overrides. See main documentation.
 
     Returns:
-        All index dimensions or dimensions together with header values.
+        All index dimensions and chunksize or dimensions and chunksize together
+            with header values.
     """
     if grid_overrides is None:
         grid_overrides = {}
@@ -78,7 +81,7 @@ def get_grid_plan(  # noqa:  C901
 
     for index_name in index_names:
         dim_unique = np.unique(index_headers[index_name])
-        dims.append(Dimension(coords=dim_unique, name=index_name, non_binned=False))
+        dims.append(Dimension(coords=dim_unique, name=index_name))
 
     sample_dim = parse_sample_axis(binary_header=binary_header)
 
