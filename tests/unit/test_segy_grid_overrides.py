@@ -53,9 +53,16 @@ class TestAutoGridOverrides:
         # mock_streamer_headers["trace"] = mock_streamer_headers["channel"]
         # Remove channel header
         del mock_streamer_headers["channel"]
+        index_names = ("shot", "cable")
+        chunksize = (4, 4, 8)
 
         overrider = GridOverrider()
-        results = overrider.run(mock_streamer_headers, grid_overrides)
+        results, new_names, new_chunks = overrider.run(
+            mock_streamer_headers, index_names, grid_overrides, chunksize
+        )
+
+        assert new_names == ("shot", "cable", "trace")
+        assert new_chunks == (4, 4, 1, 8)
 
         dims = []
         for index_name, index_coords in results.items():
@@ -72,9 +79,19 @@ class TestAutoGridOverrides:
 
         # Remove channel header
         del mock_streamer_headers["channel"]
+        index_names = (
+            "shot",
+            "cable",
+        )
+        chunksize = (4, 4, 8)
 
         overrider = GridOverrider()
-        results = overrider.run(mock_streamer_headers, grid_overrides)
+        results, new_names, new_chunks = overrider.run(
+            mock_streamer_headers, index_names, grid_overrides, chunksize
+        )
+
+        assert new_names == ("shot", "cable", "trace")
+        assert new_chunks == (4, 4, 4, 8)
 
         dims = []
         for index_name, index_coords in results.items():
@@ -100,7 +117,7 @@ class TestStreamerGridOverrides:
         )
 
         assert new_names == index_names
-        assert new_chunks == None
+        assert new_chunks is None
         dims = []
         for index_name, index_coords in results.items():
             dim_unique = unique(index_coords)
@@ -124,7 +141,7 @@ class TestStreamerGridOverrides:
         )
 
         assert new_names == index_names
-        assert new_chunks == None
+        assert new_chunks is None
 
         dims = []
         for index_name, index_coords in results.items():
@@ -157,7 +174,7 @@ class TestStreamerGridOverrides:
         )
 
         assert new_names == index_names
-        assert new_chunks == None
+        assert new_chunks is None
 
         dims = []
         for index_name, index_coords in results.items():
