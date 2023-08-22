@@ -92,10 +92,15 @@ class TestStreamerGridOverrides:
     def test_channel_wrap(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test the ChannelWrap command."""
         grid_overrides = {"ChannelWrap": True, "ChannelsPerCable": len(RECEIVERS)}
-
+        index_names = ("shot", "cable", "channel")
+        chunksize = None
         overrider = GridOverrider()
-        results = overrider.run(mock_streamer_headers, grid_overrides)
+        results, new_names, new_chunks = overrider.run(
+            mock_streamer_headers, index_names, grid_overrides, chunksize
+        )
 
+        assert new_names == index_names
+        assert new_chunks == None
         dims = []
         for index_name, index_coords in results.items():
             dim_unique = unique(index_coords)
@@ -111,9 +116,15 @@ class TestStreamerGridOverrides:
             "CalculateCable": True,
             "ChannelsPerCable": len(RECEIVERS),
         }
-
+        index_names = ("shot", "cable", "channel")
+        chunksize = None
         overrider = GridOverrider()
-        results = overrider.run(mock_streamer_headers, grid_overrides)
+        results, new_names, new_chunks = overrider.run(
+            mock_streamer_headers, index_names, grid_overrides, chunksize
+        )
+
+        assert new_names == index_names
+        assert new_chunks == None
 
         dims = []
         for index_name, index_coords in results.items():
@@ -138,8 +149,15 @@ class TestStreamerGridOverrides:
             "ChannelsPerCable": len(RECEIVERS),
         }
 
+        index_names = ("shot", "cable", "channel")
+        chunksize = None
         overrider = GridOverrider()
-        results = overrider.run(mock_streamer_headers, grid_overrides)
+        results, new_names, new_chunks = overrider.run(
+            mock_streamer_headers, index_names, grid_overrides, chunksize
+        )
+
+        assert new_names == index_names
+        assert new_chunks == None
 
         dims = []
         for index_name, index_coords in results.items():
@@ -155,26 +173,39 @@ class TestStreamerGridOverrides:
 
     def test_missing_param(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test missing parameters for the commands."""
+        index_names = ("shot", "cable", "channel")
+        chunksize = None
         overrider = GridOverrider()
-        with pytest.raises(GridOverrideMissingParameterError):
-            overrider.run(mock_streamer_headers, {"ChannelWrap": True})
 
         with pytest.raises(GridOverrideMissingParameterError):
-            overrider.run(mock_streamer_headers, {"CalculateCable": True})
+            overrider.run(
+                mock_streamer_headers, index_names, {"ChannelWrap": True}, chunksize
+            )
+
+        with pytest.raises(GridOverrideMissingParameterError):
+            overrider.run(
+                mock_streamer_headers, index_names, {"CalculateCable": True}, chunksize
+            )
 
     def test_incompatible_overrides(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test commands that can't be run together."""
+        index_names = ("shot", "cable", "channel")
+        chunksize = None
         overrider = GridOverrider()
         with pytest.raises(GridOverrideIncompatibleError):
             grid_overrides = {"ChannelWrap": True, "AutoChannelWrap": True}
-            overrider.run(mock_streamer_headers, grid_overrides)
+            overrider.run(mock_streamer_headers, index_names, grid_overrides, chunksize)
 
         with pytest.raises(GridOverrideIncompatibleError):
             grid_overrides = {"CalculateCable": True, "AutoChannelWrap": True}
-            overrider.run(mock_streamer_headers, grid_overrides)
+            overrider.run(mock_streamer_headers, index_names, grid_overrides, chunksize)
 
     def test_unknown_override(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test exception if user provides a command that's not allowed."""
+        index_names = ("shot", "cable", "channel")
+        chunksize = None
         overrider = GridOverrider()
         with pytest.raises(GridOverrideUnknownError):
-            overrider.run(mock_streamer_headers, {"WrongCommand": True})
+            overrider.run(
+                mock_streamer_headers, index_names, {"WrongCommand": True}, chunksize
+            )
