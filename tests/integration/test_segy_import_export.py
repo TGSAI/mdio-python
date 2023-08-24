@@ -18,37 +18,12 @@ from mdio.segy.geometry import StreamerShotGeometryType
 dask.config.set(scheduler="synchronous")
 
 
-@pytest.mark.parametrize(
-    "header_locations",
-    [
-        (
-            17,
-            137,
-        )
-    ],
-)
-@pytest.mark.parametrize(
-    "header_names",
-    [
-        (
-            "shot_point",
-            "cable",
-        )
-    ],
-)
-@pytest.mark.parametrize(
-    "header_types",
-    [
-        (
-            "int32",
-            "int16",
-        )
-    ],
-)
+@pytest.mark.parametrize("header_locations", [(17, 137)])
+@pytest.mark.parametrize("header_names", [("shot_point", "cable")])
+@pytest.mark.parametrize("header_types", [("int32", "int16")])
 @pytest.mark.parametrize("endian", ["big"])
 @pytest.mark.parametrize(
-    "grid_overrides",
-    [{"NonBinned": True, "chunksize": 2}, {"HasDuplicates": True}],
+    "grid_overrides", [{"NonBinned": True, "chunksize": 2}, {"HasDuplicates": True}]
 )
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:
