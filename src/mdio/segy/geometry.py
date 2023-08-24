@@ -156,7 +156,7 @@ def create_trace_index(
         idx += 1
 
 
-def analyze_unindexed_headers(
+def analyze_non_indexed_headers(
     index_headers: dict[str, npt.NDArray], dtype=np.int16
 ) -> dict[str, npt.NDArray]:
     """Check input headers for SEG-Y input to help determine geometry.
@@ -287,7 +287,7 @@ class DuplicateIndex(GridOverrideCommand):
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
-        return analyze_unindexed_headers(index_headers)
+        return analyze_non_indexed_headers(index_headers)
 
     def transform_index_names(
         self,
