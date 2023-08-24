@@ -12,6 +12,7 @@ from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.converters import segy_to_mdio
 from mdio.core import Dimension
+from mdio.segy.geometry import StreamerShotGeometryType
 
 
 dask.config.set(scheduler="synchronous")
@@ -49,7 +50,7 @@ dask.config.set(scheduler="synchronous")
     "grid_overrides",
     [{"NonBinned": True, "chunksize": 2}, {"HasDuplicates": True}],
 )
-@pytest.mark.parametrize("chan_header_type", ["c"])
+@pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
 
@@ -106,7 +107,9 @@ class TestImport4DNonReg:
 @pytest.mark.parametrize("header_types", [("int32", "int16", "int32")])
 @pytest.mark.parametrize("endian", ["big"])
 @pytest.mark.parametrize("grid_overrides", [{"AutoChannelWrap": True}, None])
-@pytest.mark.parametrize("chan_header_type", ["a", "b"])
+@pytest.mark.parametrize(
+    "chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B]
+)
 class TestImport4D:
     """Test for 4D segy import with grid overrides."""
 
@@ -151,7 +154,7 @@ class TestImport4D:
         assert grid.select_dim(header_names[0]) == Dimension(shots, header_names[0])
         assert grid.select_dim(header_names[1]) == Dimension(cables, header_names[1])
 
-        if "b" in chan_header_type and grid_overrides is None:
+        if chan_header_type == StreamerShotGeometryType.B and grid_overrides is None:
             print()
             print(grid.select_dim(header_names[2]))
             assert grid.select_dim(header_names[2]) == Dimension(
