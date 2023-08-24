@@ -29,10 +29,7 @@ class Dimension:
         name: Name of the dimension.
     """
 
-    __slots__ = (
-        "coords",
-        "name",
-    )
+    __slots__ = ("coords", "name")
 
     coords: list | tuple | NDArray | range
     name: str
