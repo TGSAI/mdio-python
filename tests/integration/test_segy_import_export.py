@@ -127,8 +127,6 @@ class TestImport4D:
         assert grid.select_dim(header_names[1]) == Dimension(cables, header_names[1])
 
         if chan_header_type == StreamerShotGeometryType.B and grid_overrides is None:
-            print()
-            print(grid.select_dim(header_names[2]))
             assert grid.select_dim(header_names[2]) == Dimension(
                 range(1, np.sum(receivers_per_cable) + 1), header_names[2]
             )
