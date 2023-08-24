@@ -69,9 +69,9 @@ class TestAutoGridOverrides:
             dim_unique = unique(index_coords)
             dims.append(Dimension(coords=dim_unique, name=index_name))
 
-        assert_array_equal(dims[0], SHOTS)
-        assert_array_equal(dims[1], CABLES)
-        assert_array_equal(dims[2], RECEIVERS)
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, CABLES)
+        assert_array_equal(dims[2].coords, RECEIVERS)
 
     def test_non_binned(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test the NonBinned Grid Override command."""
@@ -98,9 +98,9 @@ class TestAutoGridOverrides:
             dim_unique = unique(index_coords)
             dims.append(Dimension(coords=dim_unique, name=index_name))
 
-        assert_array_equal(dims[0], SHOTS)
-        assert_array_equal(dims[1], CABLES)
-        assert_array_equal(dims[2], RECEIVERS)
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, CABLES)
+        assert_array_equal(dims[2].coords, RECEIVERS)
 
 
 class TestStreamerGridOverrides:
@@ -126,6 +126,9 @@ class TestStreamerGridOverrides:
         assert_array_equal(dims[0], SHOTS)
         assert_array_equal(dims[1], CABLES)
         assert_array_equal(dims[2], RECEIVERS)
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, CABLES)
+        assert_array_equal(dims[2].coords, RECEIVERS)
 
     def test_calculate_cable(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test the CalculateCable command."""
@@ -151,9 +154,9 @@ class TestStreamerGridOverrides:
         # We reset the cables to start from 1.
         cables = arange(1, len(CABLES) + 1, dtype="uint32")
 
-        assert_array_equal(dims[0], SHOTS)
-        assert_array_equal(dims[1], cables)
-        assert_array_equal(dims[2], channels)
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, cables)
+        assert_array_equal(dims[2].coords, channels)
 
     def test_wrap_and_calc_cable(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test the combined ChannelWrap and CalculateCable commands."""
@@ -181,9 +184,9 @@ class TestStreamerGridOverrides:
         # We reset the cables to start from 1.
         cables = arange(1, len(CABLES) + 1, dtype="uint32")
 
-        assert_array_equal(dims[0], SHOTS)
-        assert_array_equal(dims[1], cables)
-        assert_array_equal(dims[2], RECEIVERS)
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, cables)
+        assert_array_equal(dims[2].coords, RECEIVERS)
 
     def test_missing_param(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test missing parameters for the commands."""
