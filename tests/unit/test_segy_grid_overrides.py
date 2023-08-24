@@ -129,10 +129,7 @@ class TestStreamerGridOverrides:
 
     def test_calculate_cable(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test the CalculateCable command."""
-        grid_overrides = {
-            "CalculateCable": True,
-            "ChannelsPerCable": len(RECEIVERS),
-        }
+        grid_overrides = {"CalculateCable": True, "ChannelsPerCable": len(RECEIVERS)}
         index_names = ("shot", "cable", "channel")
         chunksize = None
         overrider = GridOverrider()
