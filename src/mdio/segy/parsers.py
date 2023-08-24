@@ -35,24 +35,6 @@ def get_trace_count(segy_path, segy_endian):
     return trace_count
 
 
-def clean_indices(
-    byte_locs: Sequence[int],
-    byte_types: Sequence[Dtype],
-    index_names: Sequence[str],
-) -> tuple[Sequence[int], Sequence[Dtype], Sequence[str]]:
-    """Clean indicies before parsing.  This is currently to handle the nonregular case."""
-    _byte_locs = []
-    _byte_types = []
-    _index_names = []
-    for _loc, _type, _name in zip(byte_locs, byte_types, index_names):  # noqa: B905
-        if _name != "trace":
-            _byte_locs.append(_loc)
-            _byte_types.append(_type)
-            _index_names.append(_name)
-
-    return _byte_locs, _byte_types, _index_names
-
-
 def parse_binary_header(segy_handle: segyio.SegyFile) -> dict[str, Any]:
     """Parse `segyio.BinField` as python `dict`.
 
@@ -128,9 +110,6 @@ def parse_trace_headers(
 
         trace_ranges.append((start, stop))
 
-    _byte_locs, _byte_types, _index_names = clean_indices(
-        byte_locs, byte_types, index_names
-    )
     num_workers = min(n_blocks, NUM_CORES)
 
     tqdm_kw = dict(unit="block", dynamic_ncols=True)
@@ -140,9 +119,9 @@ def parse_trace_headers(
             header_scan_worker,  # fn
             repeat(segy_path),
             trace_ranges,
-            repeat(_byte_locs),
-            repeat(_byte_types),
-            repeat(_index_names),
+            repeat(byte_locs),
+            repeat(byte_types),
+            repeat(index_names),
             repeat(segy_endian),
             chunksize=2,  # Not array chunks. This is for `multiprocessing`
         )
@@ -158,7 +137,7 @@ def parse_trace_headers(
         # This executes the lazy work.
         headers = list(lazy_work)
     final_headers = {}
-    for header_name in _index_names:
+    for header_name in index_names:
         final_headers[header_name] = np.concatenate(
             [header[header_name] for header in headers]
         )
