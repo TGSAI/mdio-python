@@ -326,7 +326,7 @@ class DuplicateIndex(GridOverrideCommand):
         return tuple(new_chunks)
 
 
-class AutoIndex(DuplicateIndex):
+class NonBinned(DuplicateIndex):
     """Automatically index traces in a single specified axis - trace."""
 
     required_keys = None
@@ -479,7 +479,7 @@ class GridOverrider:
             "AutoChannelWrap": AutoChannelWrap(),
             "CalculateCable": CalculateCable(),
             "ChannelWrap": ChannelWrap(),
-            "NonBinned": AutoIndex(),
+            "NonBinned": NonBinned(),
             "HasDuplicates": DuplicateIndex(),
         }
 
