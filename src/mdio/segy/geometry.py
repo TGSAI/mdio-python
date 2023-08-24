@@ -231,6 +231,9 @@ class GridOverrideCommand(ABC):
 
         Args:
             index_names: List of index names to be modified.
+
+        Returns:
+            New tuple of index names after the transform.
         """
         return index_names
 
@@ -248,6 +251,9 @@ class GridOverrideCommand(ABC):
         Args:
             chunksize: List of chunk sizes to be modified.
             grid_overrides: Full grid override parameterization.
+
+        Returns:
+            New tuple of chunk sizes after the transform.
         """
         return chunksize
 
