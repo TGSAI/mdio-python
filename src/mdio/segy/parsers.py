@@ -39,8 +39,8 @@ def clean_indices(
     byte_locs: Sequence[int],
     byte_types: Sequence[Dtype],
     index_names: Sequence[str],
-) -> tuple(Sequence[int], Sequence[Dtype], Sequence[str]):
-    """Clean indicies before parsing.  This is currently to handle the autoindex case."""
+) -> tuple[Sequence[int], Sequence[Dtype], Sequence[str]]:
+    """Clean indicies before parsing.  This is currently to handle the nonregular case."""
     _byte_locs = []
     _byte_types = []
     _index_names = []
