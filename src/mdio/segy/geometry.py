@@ -190,7 +190,7 @@ def analyze_unindexed_headers(
     create_trace_index(total_depth, counter, index_headers, header_names, dtype=dtype)
 
     t2 = time.time()
-    logger.warning("Total time spent generating trace index: %.4g s" % (t2 - t1))
+    logger.debug("Total time spent generating trace index: %.4g s" % (t2 - t1))
     return index_headers
 
 
