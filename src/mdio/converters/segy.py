@@ -412,26 +412,24 @@ def segy_to_mdio(
     )
 
     if chunksize is None:
-        num_names = len(index_headers)
-        if num_names == 1:
+        dim_count = len(index_headers) + 1
+        if dim_count == 2:
             chunksize = (512,) * 2
 
-        elif num_names == 2:
+        elif dim_count == 3:
             chunksize = (64,) * 3
 
         else:
             msg = (
-                f"Default chunking for {num_names + 1}-D seismic data is "
+                f"Default chunking for {dim_count}-D seismic data is "
                 "not implemented yet. Please explicity define chunk sizes."
             )
             raise NotImplementedError(msg)
 
-        suffix = [str(x) for x in range(num_names + 1)]
+        suffix = [str(x) for x in range(dim_count)]
         suffix = "".join(suffix)
     else:
-        suffix = [
-            dim_chunksize if dim_chunksize > 0 else None for dim_chunksize in chunksize
-        ]
+        suffix = [dim_chunks if dim_chunks > 0 else None for dim_chunks in chunksize]
         suffix = [str(idx) for idx, value in enumerate(suffix) if value is not None]
         suffix = "".join(suffix)
 
