@@ -223,7 +223,15 @@ class GridOverrideCommand(ABC):
         self,
         index_names: Sequence[str],
     ) -> Sequence[str]:
-        """Perform the transform of index names."""
+        """Perform the transform of index names.
+
+        Optional method: Subclasses may override this method to provide
+        custom behavior. If not overridden, this default implementation
+        will be used, which is a no-op.
+
+        Args:
+            index_names: List of index names to be modified.
+        """
         return index_names
 
     def transform_chunksize(
@@ -231,7 +239,16 @@ class GridOverrideCommand(ABC):
         chunksize: Sequence[int],
         grid_overrides: dict[str, bool | int],
     ) -> Sequence[int]:
-        """Perform the transform of chunksize."""
+        """Perform the transform of chunksize.
+
+        Optional method: Subclasses may override this method to provide
+        custom behavior. If not overridden, this default implementation
+        will be used, which is a no-op.
+
+        Args:
+            chunksize: List of chunk sizes to be modified.
+            grid_overrides: Full grid override parameterization.
+        """
         return chunksize
 
     @property
