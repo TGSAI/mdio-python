@@ -310,8 +310,7 @@ def segy_to_mdio(
 
     index_types = parse_index_types(index_types, num_index)
 
-    # dimensions, chunksize, index_headers = get_grid_plan(
-    _res = get_grid_plan(
+    dimensions, chunksize, index_headers = get_grid_plan(
         segy_path=segy_path,
         segy_endian=endian,
         index_bytes=index_bytes,
@@ -322,7 +321,7 @@ def segy_to_mdio(
         chunksize=chunksize,
         grid_overrides=grid_overrides,
     )
-    dimensions, chunksize, index_headers = _res
+
     # Make grid and build global live trace mask
     grid = Grid(dims=dimensions)
 
