@@ -11,6 +11,7 @@ from typing import Sequence
 
 import numpy as np
 import segyio
+from numpy.typing import NDArray
 from psutil import cpu_count
 from tqdm.auto import tqdm
 
@@ -80,7 +81,7 @@ def parse_trace_headers(
     index_names: Sequence[str],
     block_size: int = 50000,
     progress_bar: bool = True,
-) -> np.ndarray:
+) -> dict[str, NDArray]:
     """Read and parse given `byte_locations` from SEG-Y file.
 
     Args:
@@ -136,6 +137,7 @@ def parse_trace_headers(
 
         # This executes the lazy work.
         headers = list(lazy_work)
+
     final_headers = {}
     for header_name in index_names:
         final_headers[header_name] = np.concatenate(
