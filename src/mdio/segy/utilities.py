@@ -6,8 +6,9 @@ from __future__ import annotations
 from typing import Sequence
 
 import numpy as np
-import numpy.typing as npt
 from dask.array.core import auto_chunks
+from numpy.typing import DTypeLike
+from numpy.typing import NDArray
 
 from mdio.core import Dimension
 from mdio.segy.byte_utils import Dtype
@@ -28,7 +29,7 @@ def get_grid_plan(  # noqa:  C901
     grid_overrides: dict | None = None,
 ) -> (
     tuple[list[Dimension], tuple[int]]
-    | tuple[list[Dimension], tuple[int], npt.ArrayLike]
+    | tuple[list[Dimension], tuple[int], dict[str, NDArray]]
 ):
     """Infer dimension ranges, and increments.
 
@@ -89,13 +90,16 @@ def get_grid_plan(  # noqa:  C901
 
     dims.append(sample_dim)
 
-    return (dims, chunksize, index_headers) if return_headers else (dims, chunksize)
+    if return_headers:
+        return dims, chunksize, index_headers
+
+    return dims, chunksize
 
 
 def segy_export_rechunker(
     chunks: tuple[int, ...],
     shape: tuple[int, ...],
-    dtype: npt.DTypeLike,
+    dtype: DTypeLike,
     limit: str = "300M",
 ) -> tuple[int, ...]:
     """Determine chunk sizes for writing out SEG-Y given limit.
