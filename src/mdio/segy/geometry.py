@@ -310,10 +310,8 @@ class DuplicateIndex(GridOverrideCommand):
         self,
         index_names: Sequence[str],
     ) -> Sequence[str]:
-        """Perform the transform of index names."""
-        new_names = []
-        for name in index_names:
-            new_names.append(name)
+        """Insert dimension "trace" to the sample-1 dimension."""
+        new_names = list(index_names)
         new_names.append("trace")
         return tuple(new_names)
 
@@ -322,12 +320,9 @@ class DuplicateIndex(GridOverrideCommand):
         chunksize: Sequence[int],
         grid_overrides: dict[str, bool | int],
     ) -> Sequence[int]:
-        """Perform the transform of chunksize."""
-        new_chunks = []
-        for chunk in chunksize[:-1]:
-            new_chunks.append(chunk)
-        new_chunks.append(1)
-        new_chunks.append(chunksize[-1])
+        """Insert chunksize of 1 to the sample-1 dimension."""
+        new_chunks = list(chunksize)
+        new_chunks.insert(-1, 1)
         return tuple(new_chunks)
 
 
@@ -343,11 +338,8 @@ class AutoIndex(DuplicateIndex):
         grid_overrides: dict[str, bool | int],
     ) -> Sequence[int]:
         """Perform the transform of chunksize."""
-        new_chunks = []
-        for chunk in chunksize[:-1]:
-            new_chunks.append(chunk)
-        new_chunks.append(grid_overrides["chunksize"])
-        new_chunks.append(chunksize[-1])
+        new_chunks = list(chunksize)
+        new_chunks.insert(-1, grid_overrides["chunksize"])
         return tuple(new_chunks)
 
 
