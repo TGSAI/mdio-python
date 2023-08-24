@@ -173,7 +173,7 @@ def analyze_unindexed_headers(
         Dict container header name as key and numpy array of values as value
     """
     # Find unique cable ids
-    t1 = time.time()
+    t_start = time.perf_counter()
     unique_headers = {}
     total_depth = 0
     header_names = []
@@ -183,14 +183,12 @@ def analyze_unindexed_headers(
             header_names.append(header_key)
             total_depth += 1
 
-    # Create counter
     counter = create_counter(0, total_depth, unique_headers, header_names)
 
-    # Update counter and create trace index
     create_trace_index(total_depth, counter, index_headers, header_names, dtype=dtype)
 
-    t2 = time.time()
-    logger.debug("Total time spent generating trace index: %.4g s" % (t2 - t1))
+    t_stop = time.perf_counter()
+    logger.debug(f"Time spent generating trace index: {t_start - t_stop:.4f} s")
     return index_headers
 
 
