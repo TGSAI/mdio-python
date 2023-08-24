@@ -66,15 +66,13 @@ class TestImport4DNonReg:
         chan_header_type,
     ):
         """Test importing a SEG-Y file to MDIO."""
-        _header_names = header_names
-
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         segy_to_mdio(
             segy_path=segy_path,
             mdio_path_or_buffer=zarr_tmp.__str__(),
             index_bytes=header_locations,
-            index_names=_header_names,
+            index_names=header_names,
             index_types=header_types,
             chunksize=(8, 2, 10),
             overwrite=True,
@@ -125,14 +123,13 @@ class TestImport4D:
         chan_header_type,
     ):
         """Test importing a SEG-Y file to MDIO."""
-        _header_names = header_names
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         segy_to_mdio(
             segy_path=segy_path,
             mdio_path_or_buffer=zarr_tmp.__str__(),
             index_bytes=header_locations,
-            index_names=_header_names,
+            index_names=header_names,
             index_types=header_types,
             chunksize=(8, 2, 128, 1024),
             overwrite=True,
