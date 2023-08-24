@@ -42,14 +42,8 @@ class TestDimension:
     @pytest.mark.parametrize(
         "stream_format, stream",
         [
-            (
-                "json",
-                '{"name": "dim_0", "length": 4, "coords": [10, 12, 14, 16]}',
-            ),
-            (
-                "yaml",
-                "name: dim_0\nlength: 4\ncoords:\n- 10\n- 12\n- 14\n- 16\n",
-            ),
+            ("json", '{"name": "dim_0", "length": 4, "coords": [10, 12, 14, 16]}'),
+            ("yaml", "name: dim_0\nlength: 4\ncoords:\n- 10\n- 12\n- 14\n- 16\n"),
         ],
     )
     def test_serialization(self, my_dimension, stream_format, stream):
