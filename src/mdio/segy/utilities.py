@@ -22,9 +22,9 @@ def get_grid_plan(  # noqa:  C901
     index_bytes: Sequence[int],
     index_names: Sequence[str],
     index_types: Sequence[Dtype],
+    chunksize: Sequence[int],
     binary_header: dict,
     return_headers: bool = False,
-    chunksize: Sequence[int] | None = None,
     grid_overrides: dict | None = None,
 ) -> (
     tuple[list[Dimension], tuple[int]]
@@ -44,11 +44,10 @@ def get_grid_plan(  # noqa:  C901
         index_bytes: Tuple of the byte location for the index attributes
         index_names: Tuple of the names for the index attributes
         index_types: Tuple of the data types for the index attributes.
+        chunksize:  Chunk sizes to be used in grid plan.
         binary_header: Dictionary containing binary header key, value pairs.
         return_headers: Option to return parsed headers with `Dimension` objects.
             Default is False.
-        chunksize:  Override default chunk size, which is (64, 64, 64) if
-            3D, and (512, 512) for 2D.
         grid_overrides: Option to add grid overrides. See main documentation.
 
     Returns:
@@ -76,7 +75,10 @@ def get_grid_plan(  # noqa:  C901
     # Handle grid overrides.
     override_handler = GridOverrider()
     index_headers, index_names, chunksize = override_handler.run(
-        index_headers, index_names, chunksize=chunksize, grid_overrides=grid_overrides
+        index_headers,
+        index_names,
+        chunksize=chunksize,
+        grid_overrides=grid_overrides,
     )
 
     for index_name in index_names:
