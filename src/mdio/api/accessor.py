@@ -377,7 +377,7 @@ class MDIOAccessor:
     def __getitem__(self, item: int | tuple) -> npt.ArrayLike | da.Array | tuple:
         """Data getter."""
         if self._return_metadata is True:
-            if type(item) == int or type(item) == slice:
+            if isinstance(item, int) or isinstance(item, slice):
                 meta_index = item
             elif len(item) == len(self.shape):
                 meta_index = tuple(dim for dim in item[:-1])
