@@ -9,6 +9,8 @@ import numpy as np
 import pytest
 import segyio
 
+from mdio.segy.geometry import StreamerShotGeometryType
+
 
 def create_segy_mock_4d(
     fake_segy_tmp: str,
@@ -16,7 +18,8 @@ def create_segy_mock_4d(
     shots: list,
     cables: list,
     receivers_per_cable: list,
-    chan_header_type: str = "a",
+    chan_header_type: StreamerShotGeometryType = StreamerShotGeometryType.A,
+    index_receivers: bool = True,
 ) -> str:
     """Dummy 4D SEG-Y file for use in tests."""
     spec = segyio.spec()
@@ -44,8 +47,12 @@ def create_segy_mock_4d(
     cable_headers = np.hstack(cable_headers)
     channel_headers = np.hstack(channel_headers)
 
-    if chan_header_type == "b":
+    if chan_header_type == StreamerShotGeometryType.B:
         channel_headers = np.arange(total_chan) + 1
+
+    index_receivers = True
+    if chan_header_type == StreamerShotGeometryType.C:
+        index_receivers = False
 
     shot_headers = np.hstack([np.repeat(shot, total_chan) for shot in shots])
     cable_headers = np.tile(cable_headers, shot_count)
@@ -63,13 +70,21 @@ def create_segy_mock_4d(
             # stae is byte location 137 - cable 2 byte
             # tracf is byte location 13 - channel 4 byte
 
-            f.header[trc_idx].update(
-                offset=0,
-                fldr=shot,
-                ep=shot,
-                stae=cable,
-                tracf=channel,
-            )
+            if index_receivers:
+                f.header[trc_idx].update(
+                    offset=0,
+                    fldr=shot,
+                    ep=shot,
+                    stae=cable,
+                    tracf=channel,
+                )
+            else:
+                f.header[trc_idx].update(
+                    offset=0,
+                    fldr=shot,
+                    ep=shot,
+                    stae=cable,
+                )
 
             samples = np.linspace(start=shot, stop=shot + 1, num=num_samples)
             f.trace[trc_idx] = samples.astype("float32")
@@ -80,7 +95,7 @@ def create_segy_mock_4d(
 
 
 @pytest.fixture(scope="module")
-def segy_mock_4d_shots(fake_segy_tmp: str) -> dict[str, str]:
+def segy_mock_4d_shots(fake_segy_tmp: str) -> dict[StreamerShotGeometryType, str]:
     """Generate mock 4D shot SEG-Y files."""
     num_samples = 25
     shots = [2, 3, 5]
@@ -89,14 +104,14 @@ def segy_mock_4d_shots(fake_segy_tmp: str) -> dict[str, str]:
 
     segy_paths = {}
 
-    for type_ in ["a", "b"]:
-        segy_paths[type_] = create_segy_mock_4d(
+    for chan_header_type in StreamerShotGeometryType:
+        segy_paths[chan_header_type] = create_segy_mock_4d(
             fake_segy_tmp,
             num_samples=num_samples,
             shots=shots,
             cables=cables,
             receivers_per_cable=receivers_per_cable,
-            chan_header_type=type_,
+            chan_header_type=chan_header_type,
         )
 
     return segy_paths

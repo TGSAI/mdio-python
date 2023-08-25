@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy.typing as npt
 import pytest
 from numpy import arange
@@ -21,6 +23,27 @@ from mdio.segy.geometry import GridOverrider
 SHOTS = arange(100, 104, dtype="int32")
 CABLES = arange(11, 15, dtype="int32")
 RECEIVERS = arange(1, 6, dtype="int32")
+
+
+def run_override(
+    grid_overrides: dict[str, Any],
+    index_names: tuple[str, ...],
+    headers: dict[str, npt.NDArray],
+    chunksize: tuple[int, ...] | None = None,
+) -> tuple[dict[str, Any], tuple[str], tuple[int]]:
+    """Initialize and run overrider."""
+    overrider = GridOverrider()
+    return overrider.run(headers, index_names, grid_overrides, chunksize)
+
+
+def get_dims(headers: dict[str, npt.NDArray]) -> list[Dimension]:
+    """Get list of Dimensions from headers."""
+    dims = []
+    for index_name, index_coords in headers.items():
+        dim_unique = unique(index_coords)
+        dims.append(Dimension(coords=dim_unique, name=index_name))
+
+    return dims
 
 
 @pytest.fixture
@@ -43,39 +66,94 @@ def mock_streamer_headers() -> dict[str, npt.NDArray]:
     return result
 
 
+class TestAutoGridOverrides:
+    """Check grid overrides works with auto indexing."""
+
+    def test_duplicates(self, mock_streamer_headers: npt.NDArray) -> None:
+        """Test the HasDuplicates Grid Override command."""
+        index_names = ("shot", "cable")
+        grid_overrides = {"HasDuplicates": True}
+
+        # Remove channel header
+        del mock_streamer_headers["channel"]
+        chunksize = (4, 4, 8)
+
+        new_headers, new_names, new_chunks = run_override(
+            grid_overrides,
+            index_names,
+            mock_streamer_headers,
+            chunksize,
+        )
+
+        assert new_names == ("shot", "cable", "trace")
+        assert new_chunks == (4, 4, 1, 8)
+
+        dims = get_dims(new_headers)
+
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, CABLES)
+        assert_array_equal(dims[2].coords, RECEIVERS)
+
+    def test_non_binned(self, mock_streamer_headers: npt.NDArray) -> None:
+        """Test the NonBinned Grid Override command."""
+        index_names = ("shot", "cable")
+        grid_overrides = {"NonBinned": True, "chunksize": 4}
+
+        # Remove channel header
+        del mock_streamer_headers["channel"]
+        chunksize = (4, 4, 8)
+
+        new_headers, new_names, new_chunks = run_override(
+            grid_overrides,
+            index_names,
+            mock_streamer_headers,
+            chunksize,
+        )
+
+        assert new_names == ("shot", "cable", "trace")
+        assert new_chunks == (4, 4, 4, 8)
+
+        dims = get_dims(new_headers)
+
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, CABLES)
+        assert_array_equal(dims[2].coords, RECEIVERS)
+
+
 class TestStreamerGridOverrides:
     """Check grid overrides for shot data with streamer acquisition."""
 
     def test_channel_wrap(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test the ChannelWrap command."""
+        index_names = ("shot", "cable", "channel")
         grid_overrides = {"ChannelWrap": True, "ChannelsPerCable": len(RECEIVERS)}
 
-        overrider = GridOverrider()
-        results = overrider.run(mock_streamer_headers, grid_overrides)
+        new_headers, new_names, new_chunks = run_override(
+            grid_overrides, index_names, mock_streamer_headers
+        )
 
-        dims = []
-        for index_name, index_coords in results.items():
-            dim_unique = unique(index_coords)
-            dims.append(Dimension(coords=dim_unique, name=index_name))
+        assert new_names == index_names
+        assert new_chunks is None
 
-        assert_array_equal(dims[0], SHOTS)
-        assert_array_equal(dims[1], CABLES)
-        assert_array_equal(dims[2], RECEIVERS)
+        dims = get_dims(new_headers)
+
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, CABLES)
+        assert_array_equal(dims[2].coords, RECEIVERS)
 
     def test_calculate_cable(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test the CalculateCable command."""
-        grid_overrides = {
-            "CalculateCable": True,
-            "ChannelsPerCable": len(RECEIVERS),
-        }
+        index_names = ("shot", "cable", "channel")
+        grid_overrides = {"CalculateCable": True, "ChannelsPerCable": len(RECEIVERS)}
 
-        overrider = GridOverrider()
-        results = overrider.run(mock_streamer_headers, grid_overrides)
+        new_headers, new_names, new_chunks = run_override(
+            grid_overrides, index_names, mock_streamer_headers
+        )
 
-        dims = []
-        for index_name, index_coords in results.items():
-            dim_unique = unique(index_coords)
-            dims.append(Dimension(coords=dim_unique, name=index_name))
+        assert new_names == index_names
+        assert new_chunks is None
+
+        dims = get_dims(new_headers)
 
         # We need channels because unwrap isn't done here
         channels = unique(mock_streamer_headers["channel"])
@@ -83,55 +161,69 @@ class TestStreamerGridOverrides:
         # We reset the cables to start from 1.
         cables = arange(1, len(CABLES) + 1, dtype="uint32")
 
-        assert_array_equal(dims[0], SHOTS)
-        assert_array_equal(dims[1], cables)
-        assert_array_equal(dims[2], channels)
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, cables)
+        assert_array_equal(dims[2].coords, channels)
 
     def test_wrap_and_calc_cable(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test the combined ChannelWrap and CalculateCable commands."""
+        index_names = ("shot", "cable", "channel")
         grid_overrides = {
             "CalculateCable": True,
             "ChannelWrap": True,
             "ChannelsPerCable": len(RECEIVERS),
         }
 
-        overrider = GridOverrider()
-        results = overrider.run(mock_streamer_headers, grid_overrides)
+        new_headers, new_names, new_chunks = run_override(
+            grid_overrides, index_names, mock_streamer_headers
+        )
 
-        dims = []
-        for index_name, index_coords in results.items():
-            dim_unique = unique(index_coords)
-            dims.append(Dimension(coords=dim_unique, name=index_name))
+        assert new_names == index_names
+        assert new_chunks is None
 
+        dims = get_dims(new_headers)
         # We reset the cables to start from 1.
         cables = arange(1, len(CABLES) + 1, dtype="uint32")
 
-        assert_array_equal(dims[0], SHOTS)
-        assert_array_equal(dims[1], cables)
-        assert_array_equal(dims[2], RECEIVERS)
+        assert_array_equal(dims[0].coords, SHOTS)
+        assert_array_equal(dims[1].coords, cables)
+        assert_array_equal(dims[2].coords, RECEIVERS)
 
     def test_missing_param(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test missing parameters for the commands."""
+        index_names = ("shot", "cable", "channel")
+        chunksize = None
         overrider = GridOverrider()
-        with pytest.raises(GridOverrideMissingParameterError):
-            overrider.run(mock_streamer_headers, {"ChannelWrap": True})
 
         with pytest.raises(GridOverrideMissingParameterError):
-            overrider.run(mock_streamer_headers, {"CalculateCable": True})
+            overrider.run(
+                mock_streamer_headers, index_names, {"ChannelWrap": True}, chunksize
+            )
+
+        with pytest.raises(GridOverrideMissingParameterError):
+            overrider.run(
+                mock_streamer_headers, index_names, {"CalculateCable": True}, chunksize
+            )
 
     def test_incompatible_overrides(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test commands that can't be run together."""
+        index_names = ("shot", "cable", "channel")
+        chunksize = None
         overrider = GridOverrider()
         with pytest.raises(GridOverrideIncompatibleError):
             grid_overrides = {"ChannelWrap": True, "AutoChannelWrap": True}
-            overrider.run(mock_streamer_headers, grid_overrides)
+            overrider.run(mock_streamer_headers, index_names, grid_overrides, chunksize)
 
         with pytest.raises(GridOverrideIncompatibleError):
             grid_overrides = {"CalculateCable": True, "AutoChannelWrap": True}
-            overrider.run(mock_streamer_headers, grid_overrides)
+            overrider.run(mock_streamer_headers, index_names, grid_overrides, chunksize)
 
     def test_unknown_override(self, mock_streamer_headers: npt.NDArray) -> None:
         """Test exception if user provides a command that's not allowed."""
+        index_names = ("shot", "cable", "channel")
+        chunksize = None
         overrider = GridOverrider()
         with pytest.raises(GridOverrideUnknownError):
-            overrider.run(mock_streamer_headers, {"WrongCommand": True})
+            overrider.run(
+                mock_streamer_headers, index_names, {"WrongCommand": True}, chunksize
+            )

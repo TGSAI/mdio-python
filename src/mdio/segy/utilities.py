@@ -6,8 +6,9 @@ from __future__ import annotations
 from typing import Sequence
 
 import numpy as np
-import numpy.typing as npt
 from dask.array.core import auto_chunks
+from numpy.typing import DTypeLike
+from numpy.typing import NDArray
 
 from mdio.core import Dimension
 from mdio.segy.byte_utils import Dtype
@@ -22,10 +23,14 @@ def get_grid_plan(  # noqa:  C901
     index_bytes: Sequence[int],
     index_names: Sequence[str],
     index_types: Sequence[Dtype],
+    chunksize: Sequence[int],
     binary_header: dict,
     return_headers: bool = False,
     grid_overrides: dict | None = None,
-) -> list[Dimension] | tuple[list[Dimension], npt.ArrayLike]:
+) -> (
+    tuple[list[Dimension], tuple[int]]
+    | tuple[list[Dimension], tuple[int], dict[str, NDArray]]
+):
     """Infer dimension ranges, and increments.
 
     Generates multiple dimensions with the following steps:
@@ -40,13 +45,15 @@ def get_grid_plan(  # noqa:  C901
         index_bytes: Tuple of the byte location for the index attributes
         index_names: Tuple of the names for the index attributes
         index_types: Tuple of the data types for the index attributes.
+        chunksize:  Chunk sizes to be used in grid plan.
         binary_header: Dictionary containing binary header key, value pairs.
         return_headers: Option to return parsed headers with `Dimension` objects.
             Default is False.
         grid_overrides: Option to add grid overrides. See main documentation.
 
     Returns:
-        All index dimensions or dimensions together with header values.
+        All index dimensions and chunksize or dimensions and chunksize together
+            with header values.
     """
     if grid_overrides is None:
         grid_overrides = {}
@@ -68,7 +75,12 @@ def get_grid_plan(  # noqa:  C901
 
     # Handle grid overrides.
     override_handler = GridOverrider()
-    index_headers = override_handler.run(index_headers, grid_overrides)
+    index_headers, index_names, chunksize = override_handler.run(
+        index_headers,
+        index_names,
+        chunksize=chunksize,
+        grid_overrides=grid_overrides,
+    )
 
     for index_name in index_names:
         dim_unique = np.unique(index_headers[index_name])
@@ -78,13 +90,16 @@ def get_grid_plan(  # noqa:  C901
 
     dims.append(sample_dim)
 
-    return dims, index_headers if return_headers else dims
+    if return_headers:
+        return dims, chunksize, index_headers
+
+    return dims, chunksize
 
 
 def segy_export_rechunker(
     chunks: tuple[int, ...],
     shape: tuple[int, ...],
-    dtype: npt.DTypeLike,
+    dtype: DTypeLike,
     limit: str = "300M",
 ) -> tuple[int, ...]:
     """Determine chunk sizes for writing out SEG-Y given limit.

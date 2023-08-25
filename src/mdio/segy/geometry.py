@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import logging
+import time
 from abc import ABC
 from abc import abstractmethod
 from enum import Enum
 from enum import auto
+from typing import Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -59,7 +61,7 @@ class StreamerShotGeometryType(Enum):
 
 
 def analyze_streamer_headers(
-    index_headers: npt.NDArray,
+    index_headers: dict[str, npt.NDArray],
 ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, StreamerShotGeometryType]:
     """Check input headers for SEG-Y input to help determine geometry.
 
@@ -102,6 +104,94 @@ def analyze_streamer_headers(
     return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
 
+def create_counter(
+    depth: int,
+    total_depth: int,
+    unique_headers: dict[str, npt.NDArray],
+    header_names: list[str],
+):
+    """Helper funtion to create dictionary tree for counting trace key for auto index."""
+    if depth == total_depth:
+        return 0
+
+    counter = {}
+
+    header_key = header_names[depth]
+    for header in unique_headers[header_key]:
+        counter[header] = create_counter(
+            depth + 1, total_depth, unique_headers, header_names
+        )
+
+    return counter
+
+
+def create_trace_index(
+    depth: int,
+    counter: dict,
+    index_headers: dict[str, npt.NDArray],
+    header_names: list,
+    dtype=np.int16,
+):
+    """Update dictionary counter tree for counting trace key for auto index."""
+    # Add index header
+    index_headers["trace"] = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
+
+    idx = 0
+    if depth == 0:
+        return
+
+    for idx_values in zip(  # noqa: B905
+        *(index_headers[header_names[i]] for i in range(depth))
+    ):
+        if depth == 1:
+            counter[idx_values[0]] += 1
+            index_headers["trace"][idx] = counter[idx_values[0]]
+        else:
+            sub_counter = counter
+            for idx_value in idx_values[:-1]:
+                sub_counter = sub_counter[idx_value]
+            sub_counter[idx_values[-1]] += 1
+            index_headers["trace"][idx] = sub_counter[idx_values[-1]]
+
+        idx += 1
+
+
+def analyze_non_indexed_headers(
+    index_headers: dict[str, npt.NDArray], dtype=np.int16
+) -> dict[str, npt.NDArray]:
+    """Check input headers for SEG-Y input to help determine geometry.
+
+    This function reads in trace_qc_count headers and finds the unique cable values.
+    The function then checks to make sure channel numbers for different cables do
+    not overlap.
+
+    Args:
+        index_headers: numpy array with index headers
+        dtype: numpy type for value of created trace header.
+
+    Returns:
+        Dict container header name as key and numpy array of values as value
+    """
+    # Find unique cable ids
+    t_start = time.perf_counter()
+    unique_headers = {}
+    total_depth = 0
+    header_names = []
+    for header_key in index_headers.keys():
+        if header_key != "trace":
+            unique_headers[header_key] = np.sort(np.unique(index_headers[header_key]))
+            header_names.append(header_key)
+            total_depth += 1
+
+    counter = create_counter(0, total_depth, unique_headers, header_names)
+
+    create_trace_index(total_depth, counter, index_headers, header_names, dtype=dtype)
+
+    t_stop = time.perf_counter()
+    logger.debug(f"Time spent generating trace index: {t_start - t_stop:.4f} s")
+    return index_headers
+
+
 class GridOverrideCommand(ABC):
     """Abstract base class for grid override commands."""
 
@@ -123,16 +213,56 @@ class GridOverrideCommand(ABC):
 
     @abstractmethod
     def transform(
-        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+        self,
+        index_headers: dict[str, npt.NDArray],
+        grid_overrides: dict[str, bool | int],
     ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
+
+    def transform_index_names(
+        self,
+        index_names: Sequence[str],
+    ) -> Sequence[str]:
+        """Perform the transform of index names.
+
+        Optional method: Subclasses may override this method to provide
+        custom behavior. If not overridden, this default implementation
+        will be used, which is a no-op.
+
+        Args:
+            index_names: List of index names to be modified.
+
+        Returns:
+            New tuple of index names after the transform.
+        """
+        return index_names
+
+    def transform_chunksize(
+        self,
+        chunksize: Sequence[int],
+        grid_overrides: dict[str, bool | int],
+    ) -> Sequence[int]:
+        """Perform the transform of chunksize.
+
+        Optional method: Subclasses may override this method to provide
+        custom behavior. If not overridden, this default implementation
+        will be used, which is a no-op.
+
+        Args:
+            chunksize: List of chunk sizes to be modified.
+            grid_overrides: Full grid override parameterization.
+
+        Returns:
+            New tuple of chunk sizes after the transform.
+        """
+        return chunksize
 
     @property
     def name(self) -> str:
         """Convenience property to get the name of the command."""
         return self.__class__.__name__
 
-    def check_required_keys(self, index_headers: npt.NDArray) -> None:
+    def check_required_keys(self, index_headers: dict[str, npt.NDArray]) -> None:
         """Check if all required keys are present in the index headers."""
         index_names = index_headers.keys()
         if not self.required_keys.issubset(index_names):
@@ -150,6 +280,75 @@ class GridOverrideCommand(ABC):
             raise GridOverrideMissingParameterError(self.name, missing_params)
 
 
+class DuplicateIndex(GridOverrideCommand):
+    """Automatically handle duplicate traces in a new axis - trace with chunksize 1."""
+
+    required_keys = None
+    required_parameters = None
+
+    def validate(
+        self,
+        index_headers: dict[str, npt.NDArray],
+        grid_overrides: dict[str, bool | int],
+    ) -> None:
+        """Validate if this transform should run on the type of data."""
+        if "ChannelWrap" in grid_overrides:
+            raise GridOverrideIncompatibleError(self.name, "ChannelWrap")
+
+        if "CalculateCable" in grid_overrides:
+            raise GridOverrideIncompatibleError(self.name, "CalculateCable")
+
+        if self.required_keys is not None:
+            self.check_required_keys(index_headers)
+        self.check_required_params(grid_overrides)
+
+    def transform(
+        self,
+        index_headers: dict[str, npt.NDArray],
+        grid_overrides: dict[str, bool | int],
+    ) -> dict[str, npt.NDArray]:
+        """Perform the grid transform."""
+        self.validate(index_headers, grid_overrides)
+
+        return analyze_non_indexed_headers(index_headers)
+
+    def transform_index_names(
+        self,
+        index_names: Sequence[str],
+    ) -> Sequence[str]:
+        """Insert dimension "trace" to the sample-1 dimension."""
+        new_names = list(index_names)
+        new_names.append("trace")
+        return tuple(new_names)
+
+    def transform_chunksize(
+        self,
+        chunksize: Sequence[int],
+        grid_overrides: dict[str, bool | int],
+    ) -> Sequence[int]:
+        """Insert chunksize of 1 to the sample-1 dimension."""
+        new_chunks = list(chunksize)
+        new_chunks.insert(-1, 1)
+        return tuple(new_chunks)
+
+
+class NonBinned(DuplicateIndex):
+    """Automatically index traces in a single specified axis - trace."""
+
+    required_keys = None
+    required_parameters = {"chunksize"}
+
+    def transform_chunksize(
+        self,
+        chunksize: Sequence[int],
+        grid_overrides: dict[str, bool | int],
+    ) -> Sequence[int]:
+        """Perform the transform of chunksize."""
+        new_chunks = list(chunksize)
+        new_chunks.insert(-1, grid_overrides["chunksize"])
+        return tuple(new_chunks)
+
+
 class AutoChannelWrap(GridOverrideCommand):
     """Automatically determine Streamer acquisition type."""
 
@@ -157,7 +356,9 @@ class AutoChannelWrap(GridOverrideCommand):
     required_parameters = None
 
     def validate(
-        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+        self,
+        index_headers: dict[str, npt.NDArray],
+        grid_overrides: dict[str, bool | int],
     ) -> None:
         """Validate if this transform should run on the type of data."""
         if "ChannelWrap" in grid_overrides:
@@ -170,7 +371,9 @@ class AutoChannelWrap(GridOverrideCommand):
         self.check_required_params(grid_overrides)
 
     def transform(
-        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+        self,
+        index_headers: dict[str, npt.NDArray],
+        grid_overrides: dict[str, bool | int],
     ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
@@ -208,7 +411,7 @@ class ChannelWrap(GridOverrideCommand):
     required_parameters = {"ChannelsPerCable"}
 
     def validate(
-        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+        self, index_headers: dict, grid_overrides: dict[str, bool | int]
     ) -> None:
         """Validate if this transform should run on the type of data."""
         if "AutoChannelWrap" in grid_overrides:
@@ -218,7 +421,9 @@ class ChannelWrap(GridOverrideCommand):
         self.check_required_params(grid_overrides)
 
     def transform(
-        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+        self,
+        index_headers: dict[str, npt.NDArray],
+        grid_overrides: dict[str, bool | int],
     ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
@@ -238,7 +443,9 @@ class CalculateCable(GridOverrideCommand):
     required_parameters = {"ChannelsPerCable"}
 
     def validate(
-        self, index_headers: npt.NDArray, grid_overrides: dict[str, bool | int]
+        self,
+        index_headers: dict[str, npt.NDArray],
+        grid_overrides: dict[str, bool | int],
     ) -> None:
         """Validate if this transform should run on the type of data."""
         if "AutoChannelWrap" in grid_overrides:
@@ -248,7 +455,9 @@ class CalculateCable(GridOverrideCommand):
         self.check_required_params(grid_overrides)
 
     def transform(
-        self, index_headers, grid_overrides: dict[str, bool | int]
+        self,
+        index_headers: dict[str, npt.NDArray],
+        grid_overrides: dict[str, bool | int],
     ) -> dict[str, npt.NDArray]:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
@@ -276,6 +485,8 @@ class GridOverrider:
             "AutoChannelWrap": AutoChannelWrap(),
             "CalculateCable": CalculateCable(),
             "ChannelWrap": ChannelWrap(),
+            "NonBinned": NonBinned(),
+            "HasDuplicates": DuplicateIndex(),
         }
 
         self.parameters = self.get_allowed_parameters()
@@ -293,9 +504,11 @@ class GridOverrider:
 
     def run(
         self,
-        index_headers: npt.NDArray,
+        index_headers: dict[str, npt.NDArray],
+        index_names: Sequence[str],
         grid_overrides: dict[str, bool],
-    ) -> npt.NDArray:
+        chunksize: Sequence[int] | None = None,
+    ) -> tuple[dict[str, npt.NDArray], tuple[str], tuple[int]]:
         """Run grid overrides and return result."""
         for override in grid_overrides:
             if override in self.parameters:
@@ -307,4 +520,10 @@ class GridOverrider:
             function = self.commands[override].transform
             index_headers = function(index_headers, grid_overrides=grid_overrides)
 
-        return index_headers
+            function = self.commands[override].transform_index_names
+            index_names = function(index_names)
+
+            function = self.commands[override].transform_chunksize
+            chunksize = function(chunksize, grid_overrides=grid_overrides)
+
+        return index_headers, index_names, chunksize

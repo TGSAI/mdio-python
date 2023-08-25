@@ -258,22 +258,71 @@ def segy_to_mdio(
         channels but desires to store with wrapped channel index use:
         >>>    grid_overrides={"AutoChannelWrap": True,
                                "AutoChannelTraceQC":  1000000}
+
+        For cases with no well-defined trace header for indexing a NonBinned
+        grid override is provided.This creates the index and attributes an
+        incrementing integer to the trace for the index based on first in first
+        out. For example a CDP and Offset keyed file might have a header for offset
+        as real world offset which would result in a very sparse populated index.
+        Instead, the following override will create a new index from 1 to N, where
+        N is the number of offsets within a CDP ensemble. The index to be auto
+        generated is called "trace". Note the required "chunksize" parameter in
+        the grid override. This is due to the non-binned ensemble chunksize is
+        irrelevant to the index dimension chunksizes and has to be specified
+        in the grid override itself. Note the lack of offset, only indexing CDP,
+        providing CDP header type, and chunksize for only CDP and Sample
+        dimension. The chunksize for non-binned dimension is in the grid overrides
+        as described above. The below configuration will yield 1MB chunks:
+
+        >>> segy_to_mdio(
+        ...     segy_path="prefix/cdp_offset_file.segy",
+        ...     mdio_path_or_buffer="s3://bucket/cdp_offset_file.mdio",
+        ...     index_bytes=(21,),
+        ...     index_types=("int32",),
+        ...     index_names=("cdp",),
+        ...     chunksize=(4, 1024),
+        ...     grid_overrides={"NonBinned": True, "chunksize": 64},
+        ... )
+
+        A more complicated case where you may have a 5D dataset that is not
+        binned in Offset and Azimuth directions can be ingested like below.
+        However, the Offset and Azimuth dimensions will be combined to "trace"
+        dimension. The below configuration will yield 1MB chunks.
+
+        >>> segy_to_mdio(
+        ...     segy_path="prefix/cdp_offset_file.segy",
+        ...     mdio_path_or_buffer="s3://bucket/cdp_offset_file.mdio",
+        ...     index_bytes=(189, 193),
+        ...     index_types=("int32", "int32"),
+        ...     index_names=("inline", "crossline"),
+        ...     chunksize=(4, 4, 1024),
+        ...     grid_overrides={"NonBinned": True, "chunksize": 64},
+        ... )
+
+        For dataset with expected duplicate traces we have the following
+        parameterization. This will use the same logic as NonBinned with
+        a fixed chunksize of 1. The other keys are still important. The
+        below example allows multiple traces per receiver (i.e. reshoot).
+
+        >>> segy_to_mdio(
+        ...     segy_path="prefix/cdp_offset_file.segy",
+        ...     mdio_path_or_buffer="s3://bucket/cdp_offset_file.mdio",
+        ...     index_bytes=(9, 213, 13),
+        ...     index_types=("int32", "int16", "int32"),
+        ...     index_names=("shot", "cable", "chan"),
+        ...     chunksize=(8, 2, 256, 512),
+        ...     grid_overrides={"HasDuplicates": True},
+        ... )
     """
     num_index = len(index_bytes)
 
-    if chunksize is None:
-        if num_index == 1:
-            chunksize = (512,) * 2
-
-        elif num_index == 2:
-            chunksize = (64,) * 3
-
-        else:
-            msg = (
-                f"Default chunking for {num_index + 1}-D seismic data is "
-                "not implemented yet. Please explicity define chunk sizes."
+    if chunksize is not None:
+        if len(chunksize) != len(index_bytes) + 1:
+            message = (
+                f"Length of chunks={len(chunksize)} must be ",
+                f"equal to array dimensions={len(index_bytes) + 1}",
             )
-            raise NotImplementedError(msg)
+            raise ValueError(message)
 
     if storage_options is None:
         storage_options = {}
@@ -296,7 +345,7 @@ def segy_to_mdio(
 
     index_types = parse_index_types(index_types, num_index)
 
-    dimensions, index_headers = get_grid_plan(
+    dimensions, chunksize, index_headers = get_grid_plan(
         segy_path=segy_path,
         segy_endian=endian,
         index_bytes=index_bytes,
@@ -304,6 +353,7 @@ def segy_to_mdio(
         index_types=index_types,
         binary_header=binary_header,
         return_headers=True,
+        chunksize=chunksize,
         grid_overrides=grid_overrides,
     )
 
@@ -316,6 +366,10 @@ def segy_to_mdio(
 
     # Check grid validity by comparing trace numbers
     if np.sum(grid.live_mask) != num_traces:
+        for dim_name in grid.dim_names:
+            dim_min, dim_max = grid.get_min(dim_name), grid.get_max(dim_name)
+            logger.warning(f"{dim_name} min: {dim_min} max: {dim_max}")
+        logger.warning(f"Ingestion grid shape: {grid.shape}.")
         raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
 
     zarr_root = create_zarr_hierarchy(
@@ -358,20 +412,24 @@ def segy_to_mdio(
     )
 
     if chunksize is None:
-        suffix = [str(x) for x in range(len(index_bytes) + 1)]
-        suffix = "".join(suffix)
+        dim_count = len(index_headers) + 1
+        if dim_count == 2:
+            chunksize = (512,) * 2
 
-    else:
-        if len(chunksize) != len(index_bytes) + 1:
-            message = (
-                f"Length of chunks={len(chunksize)} must be ",
-                f"equal to array dimensions={len(index_bytes) + 1}",
+        elif dim_count == 3:
+            chunksize = (64,) * 3
+
+        else:
+            msg = (
+                f"Default chunking for {dim_count}-D seismic data is "
+                "not implemented yet. Please explicity define chunk sizes."
             )
-            raise ValueError(message)
+            raise NotImplementedError(msg)
 
-        suffix = [
-            dim_chunksize if dim_chunksize > 0 else None for dim_chunksize in chunksize
-        ]
+        suffix = [str(x) for x in range(dim_count)]
+        suffix = "".join(suffix)
+    else:
+        suffix = [dim_chunks if dim_chunks > 0 else None for dim_chunks in chunksize]
         suffix = [str(idx) for idx, value in enumerate(suffix) if value is not None]
         suffix = "".join(suffix)
 
