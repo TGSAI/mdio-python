@@ -29,7 +29,7 @@ def create_zarr_hierarchy(store: FSStore, overwrite: bool) -> Group:
         root_group.create_group(name="metadata", overwrite=overwrite)
     except ContainsGroupError as e:
         msg = (
-            f"An MDIO file with data already exists at '{store.path}'. "
+            f"An MDIO file with data already exists at {store.path}. "
             "If this is intentional, please specify 'overwrite=True'."
         )
         raise MDIOAlreadyExistsError(msg) from e
