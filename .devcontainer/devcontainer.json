@@ -3,7 +3,12 @@
 {
     "build": {
         "dockerfile": "Dockerfile",
-        "context": ".."
+        "context": "..",
+        "args": {
+            "USERNAME": "${localEnv:USER}",
+            "USER_ID": "${localEnv:UID}",
+            "USER_GID": "${localEnv:GID}"
+        }
     },
     //"name": "Python 3",
     // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
@@ -24,16 +29,7 @@
     // },
     // Use 'postCreateCommand' to run commands after the container is created.
     "postCreateCommand": {
-        // "pip_install": [
-        //     "pip",
-        //     "install",
-        //     "msgpack",
-        //     "nox",
-        //     "nox-poetry",
-        //     "'poetry>=1.6.1'"
-        // ],
-        "poetry_config": "poetry config virtualenvs.create false",
-        "poetry install": "poetry install --no-root --with dev   --no-ansi"
+        "post_create_script": "bash ./.devcontainer/post-install.sh"
     },
     // Configure tool-specific properties.
     "customizations": {
@@ -46,6 +42,11 @@
         }
     },
     // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-    // "remoteUser": "root"
-    "updateRemoteUserUID": true
+    "remoteUser": "root",
+    // "updateRemoteUserUID": true,
+    "mounts": [
+        // Re-use local Git configuration
+        "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.gitconfig,target=/home/root/.gitconfig,type=bind,consistency=cached"
+    ]
 }
