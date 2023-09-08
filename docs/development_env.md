@@ -1,8 +1,8 @@
 # Development Environment
 
-To facilitate development on different systems a [dev container](https://containers.dev/) has been added.  This should seamlessly enable development for users of [VSCode](https://code.visualstudio.com/docs/devcontainers/containers) on systems with docker installed. 
+To facilitate development on different systems a [dev container](https://containers.dev/) has been added.  This should seamlessly enable development for users of [VSCode](https://code.visualstudio.com/docs/devcontainers/containers) on systems with docker installed.
 
-For contributing guidelines please look here [link](../CONTRIBUTING.md) 
+For contributing guidelines please look here [link](../CONTRIBUTING.md)
 
 ### known issues:
 
