@@ -46,7 +46,7 @@
     // "updateRemoteUserUID": true,
     "mounts": [
         // Re-use local Git configuration
-        "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig,type=bind,consistency=cached",
-        "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached"
+        "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig_tmp,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig_tmp,type=bind,consistency=cached"
     ]
 }
