@@ -46,6 +46,7 @@ You need Python 3.9+ and the following tools:
 A [dev container](./docs/development_env.md) has been setup to provide a clean environment with the required dependencies.
 
 ## How to install and run MDIO
+
 Install the package with development requirements:
 
 ```console
