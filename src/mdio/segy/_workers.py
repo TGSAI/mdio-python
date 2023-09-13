@@ -79,7 +79,9 @@ def header_scan_worker(
     # First we create a struct to unpack the 240-byte trace headers.
     # The struct only knows about dimension keys, and their byte offsets.
     # Pads the rest of the data with voids.
-    endian = ByteOrder[segy_endian.upper()]
+    # NOTE: segyio buffer is always big endian. This is why we force it here.
+    # This used to be the same as `segy_endian` but we hard code it to big.
+    endian = ByteOrder.BIG
 
     # Handle byte offsets
     offsets = [0 if byte_loc is None else byte_loc - 1 for byte_loc in byte_locs]
