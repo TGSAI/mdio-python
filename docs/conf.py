@@ -1,7 +1,7 @@
 """Sphinx configuration."""
 project = "MDIO"
 author = "TGS"
-copyright = "2022, TGS"
+copyright = "2023, TGS"
 extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
