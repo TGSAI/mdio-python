@@ -1,33 +1,50 @@
 // For format details, see https://aka.ms/devcontainer.json. For config options, see the
 // README at: https://github.com/devcontainers/templates/tree/main/src/python
 {
-  "build": {
-    "dockerfile": "Dockerfile",
-    "context": "..",
-    "args": {
-      "USERNAME": "${localEnv:USER}",
-      "USER_ID": "${localEnv:UID}",
-      "USER_GID": "${localEnv:GID}"
-    }
-  },
-  // Use 'postCreateCommand' to run commands after the container is created.
-  "postCreateCommand": {
-    "post_create_script": "bash ./.devcontainer/post-install.sh"
-  },
-  // Configure tool-specific properties.
-  "customizations": {
-    // Configure properties specific to VS Code.
-    "vscode": {
-      "settings": {},
-      "extensions": ["streetsidesoftware.code-spell-checker"]
-    }
-  },
-  // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
-  "remoteUser": "root",
-  // "updateRemoteUserUID": true,
-  "mounts": [
-    // Re-use local Git configuration
-    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig_tmp,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig_tmp,type=bind,consistency=cached"
-  ]
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": "..",
+        "args": {
+            "USERNAME": "${localEnv:USER}",
+            "USER_ID": "${localEnv:UID}",
+            "USER_GID": "${localEnv:GID}"
+        }
+    },
+    // Use 'postCreateCommand' to run commands after the container is created.
+    "postCreateCommand": {
+        "post_create_script": "bash ./.devcontainer/post-install.sh"
+    },
+    // Forward 8787 to enable us to view dask dashboard
+    "forwardPorts": [
+        8787
+    ],
+    // Configure tool-specific properties.
+    "customizations": {
+        // Configure properties specific to VS Code.
+        "vscode": {
+            "settings": {
+                "python.terminal.activateEnvInCurrentTerminal": true,
+                "python.defaultInterpreterPath": "/opt/venv/bin/python",
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-toolsai.jupyter",
+                "ms-toolsai.jupyter-keymap",
+                "ms-toolsai.jupyter-renderers",
+                "vscode-icons-team.vscode-icons",
+                "wayou.vscode-todo-highlight",
+                "streetsidesoftware.code-spell-checker"
+            ]
+        }
+    },
+    // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+    // "remoteUser": "root",
+    "updateRemoteUserUID": true,
+    "mounts": [
+        // Re-use local Git configuration
+        "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig_tmp,type=bind,consistency=cached",
+        "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig_tmp,type=bind,consistency=cached",
+        "source=${localEnv:SCRATCH_DIR}/${localEnv:USER},target=/scratch/,type=bind,consistency=cached"
+    ]
 }

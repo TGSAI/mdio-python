@@ -70,6 +70,7 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+docs/jupyter_execute/
 
 # PyBuilder
 .pybuilder/
@@ -112,6 +113,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+venv*/
 
 # Spyder project settings
 .spyderproject
@@ -143,3 +145,9 @@ cython_debug/
 # IDE settings
 .vscode/
 .idea/
+
+# tests
+mdio1/*
+*/mdio1/*
+pytest-of-*
+tmp/

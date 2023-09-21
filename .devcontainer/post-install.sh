@@ -4,5 +4,9 @@ chmod 777 /home/vscode/.gitconfig
 git config --global --add safe.directory `pwd`
 # Enable ssh with github for git push
 ssh-keygen -f "/root/.ssh/known_hosts" -R "github.com"
+# Setup venv
+source /opt/venv/bin/activate
+# Poetry cmds
+poetry config virtualenvs.create false
 # poetry install --with dev --no-ansi
 # poetry shell

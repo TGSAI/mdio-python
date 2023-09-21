@@ -27,3 +27,17 @@ RUN if [ "${NOX_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install 
 ARG NOX_POETRY_VERSION="1.0.3"
 # RUN if [ "${NOX_POETRY_VERSION}" != "none" ]; then su vscode -c "umask 0002 && pip3 install nox-poetry nox-poetry==${NOX_POETRY_VERSION}"; fi
 RUN if [ "${NOX_POETRY_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install nox-poetry nox-poetry==${NOX_POETRY_VERSION}"; fi
+
+# Extra python packages for dev
+RUN bash -c "umask 0002 &&  pip3 install msgpack ipykernel"
+
+# Create venv
+RUN python -m venv /opt/venv
+RUN poetry config virtualenvs.create false
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Extra python packages for dev
+RUN bash -c "umask 0002 &&  pip3 install msgpack ipykernel"
+
+# Allow users to update venv
+RUN chmod -R 777 /opt/venv
