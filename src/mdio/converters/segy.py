@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
 from datetime import timezone
 from importlib import metadata
@@ -16,6 +17,7 @@ import zarr
 
 from mdio.api.io_utils import process_url
 from mdio.converters.exceptions import GridTraceCountError
+from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
 from mdio.segy import blocked_io
@@ -80,16 +82,16 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
     # Extreme case where the grid is very sparse (usually user error)
     if grid_traces > 10 * num_traces:
+        logger.warning("WARNING: Sparse mdio grid detected!")
         for dim_name in grid.dim_names:
             dim_min = grid.get_min(dim_name)
             dim_max = grid.get_max(dim_name)
             logger.warning(f"{dim_name} min: {dim_min} max: {dim_max}")
-
-        msg = (
-            f"Grid shape: {grid.shape} but SEG-Y tracecount: {num_traces}. "
-            "This grid is very sparse and most likely user error with indexing."
-        )
-        raise GridTraceCountError(msg)
+        if os.getenv("MDIO_IGNORE_CHECKS", False):
+            # Do not raise an exception if MDIO_IGNORE_CHECK is False
+            pass
+        else:
+            raise GridTraceSparsityError(grid.shape, num_traces)
 
     # Warning if we have above 50% sparsity.
     if grid_traces > 2 * num_traces:
