@@ -3,12 +3,7 @@
 {
     "build": {
         "dockerfile": "Dockerfile",
-        "context": "..",
-        "args": {
-            "USERNAME": "${localEnv:USER}",
-            "USER_ID": "${localEnv:UID}",
-            "USER_GID": "${localEnv:GID}"
-        }
+        "context": ".."
     },
     // Use 'postCreateCommand' to run commands after the container is created.
     "postCreateCommand": {
@@ -24,7 +19,7 @@
         "vscode": {
             "settings": {
                 "python.terminal.activateEnvInCurrentTerminal": true,
-                "python.defaultInterpreterPath": "/opt/venv/bin/python",
+                "python.defaultInterpreterPath": "/opt/venv/bin/python"
             },
             "extensions": [
                 "ms-python.python",

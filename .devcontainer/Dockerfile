@@ -1,6 +1,3 @@
-
-
-
 ARG PYTHON_VERSION=3.11
 ARG LINUX_DISTRO=bookworm
 
