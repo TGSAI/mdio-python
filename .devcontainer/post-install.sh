@@ -8,5 +8,5 @@ ssh-keygen -f "/root/.ssh/known_hosts" -R "github.com"
 source /opt/venv/bin/activate
 # Poetry cmds
 poetry config virtualenvs.create false
-# poetry install --with dev --no-ansi
+# poetry install --with dev --no-ansi --all-extras
 # poetry shell
