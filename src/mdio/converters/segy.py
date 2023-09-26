@@ -61,14 +61,16 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     Basic qc of the grid to check density and provide warning/exception
     when indexing is problematic to provide user with insights to the use.
     If trace density on the specified grid is less than 50% a warning is
-    logged.  If denisty is less than 1% an exception is raised.
+    logged.  If density is less than 10% an exception is raised. To ignore
+    trace sparsity check set environment variable:
+        MDIO_IGNORE_CHECKS = True
 
     Args:
         grid: The grid instance to check.
         num_traces: Expected number of traces.
 
     Raises:
-        GridTraceCountError: When the grid is too sparse.
+        GridTraceSparsityError: When the grid is too sparse.
     """
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)  # Exclude sample
     dims = {k: v for k, v in zip(grid.dim_names, grid.shape)}  # noqa: B905
