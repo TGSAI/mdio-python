@@ -13,7 +13,7 @@
 [![Conda](https://img.shields.io/conda/vn/conda-forge/multidimio)][install_conda]
 [![Python Version](https://img.shields.io/pypi/pyversions/multidimio)][python version]
 [![Status](https://img.shields.io/pypi/status/multidimio.svg)][status]
-[![License](https://img.shields.io/pypi/l/multidimio)][license]
+[![License](https://img.shields.io/pypi/l/multidimio)][apache 2.0 license]
 
 [![Tests](https://github.com/TGSAI/mdio-python/workflows/Tests/badge.svg)][tests]
 [![Codecov](https://codecov.io/gh/TGSAI/mdio-python/branch/main/graph/badge.svg)][codecov]
@@ -83,14 +83,14 @@ $ conda install -c conda-forge multidimio
 
 > Extras must be installed separately on `Conda` environments.
 
-For details, please see the [installation instructions][install]
+For details, please see the [installation instructions]
 in the documentation.
 
 # Using MDIO
 
-Please see the [Command-line Reference][usage] for details.
+Please see the [Command-line Usage] for details.
 
-For Python API please see the [API Reference][reference] for details.
+For Python API please see the [API Reference] for details.
 
 # Requirements
 
@@ -113,7 +113,7 @@ To learn more, see the [Contributor Guide].
 
 # Licensing
 
-Distributed under the terms of the [Apache 2.0 license][license],
+Distributed under the terms of the [Apache 2.0 license],
 _MDIO_ is free and open source software.
 
 # Issues
@@ -151,8 +151,8 @@ template.
 
 <!-- github-only -->
 
-[license]: https://github.com/TGSAI/mdio-python/blob/main/LICENSE
+[apache 2.0 license]: https://github.com/TGSAI/mdio-python/blob/main/LICENSE
 [contributor guide]: https://github.com/TGSAI/mdio-python/blob/main/CONTRIBUTING.md
-[usage]: https://mdio-python.readthedocs.io/en/latest/usage.html
-[reference]: https://mdio-python.readthedocs.io/en/latest/reference.html
-[install]: https://mdio-python.readthedocs.io/en/latest/installation.html
+[command-line usage]: https://mdio-python.readthedocs.io/en/latest/usage.html
+[api reference]: https://mdio-python.readthedocs.io/en/latest/reference.html
+[installation instructions]: https://mdio-python.readthedocs.io/en/latest/installation.html
