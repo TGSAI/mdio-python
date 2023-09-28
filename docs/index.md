@@ -4,9 +4,11 @@ end-before: <!-- github-only -->
 ---
 ```
 
-[license]: license
+[apache 2.0 license]: license
 [contributor guide]: contributing
-[command-line reference]: usage
+[command-line usage]: usage
+[api reference]: reference
+[installation instructions]: installation
 
 ```{toctree}
 ---
