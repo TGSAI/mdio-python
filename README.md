@@ -123,10 +123,9 @@ please [file an issue] along with a detailed description.
 
 # Credits
 
-This project was established at [TGS](https://www.tgs.com/). Original authors
-and current maintainers are [Altay Sansal](https://github.com/tasansal) and
-[Sri Kainkaryam](https://github.com/srib); with the support of many more great
-colleagues.
+This project was established at [TGS](https://www.tgs.com/). Current maintainer is
+[Altay Sansal](https://github.com/tasansal) with the support of
+many more great colleagues.
 
 This project template is based on [@cjolowicz]'s [Hypermodern Python Cookiecutter]
 template.
