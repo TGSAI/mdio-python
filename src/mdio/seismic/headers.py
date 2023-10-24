@@ -7,7 +7,7 @@ from dataclasses import field
 
 import numpy as np
 
-from mdio.segy.byte_utils import OrderedType
+from mdio.seismic.byte_utils import OrderedType
 
 
 @dataclass

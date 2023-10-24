@@ -8,9 +8,9 @@ https://www.crewes.org/Documents/ResearchReports/2017/CRR201725.pdf
 import numpy as np
 import pytest
 
-from mdio.segy.ibm_float import byteswap_uint32
-from mdio.segy.ibm_float import ibm2ieee
-from mdio.segy.ibm_float import ieee2ibm
+from mdio.seismic.ibm_float import byteswap_uint32
+from mdio.seismic.ibm_float import ibm2ieee
+from mdio.seismic.ibm_float import ieee2ibm
 
 
 @pytest.mark.parametrize(

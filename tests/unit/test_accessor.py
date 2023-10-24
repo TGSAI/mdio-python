@@ -11,7 +11,7 @@ from mdio import MDIOReader
 from mdio.core.exceptions import MDIOAlreadyExistsError
 from mdio.core.exceptions import MDIONotFoundError
 from mdio.exceptions import ShapeError
-from mdio.segy.helpers_segy import create_zarr_hierarchy
+from mdio.seismic.helpers_segy import create_zarr_hierarchy
 
 
 class TestReader:

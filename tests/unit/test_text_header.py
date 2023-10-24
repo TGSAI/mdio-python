@@ -8,10 +8,10 @@ from binascii import unhexlify
 
 import pytest
 
-from mdio.segy.headers_text import ascii_to_ebcdic
-from mdio.segy.headers_text import ebcdic_to_ascii
-from mdio.segy.headers_text import unwrap_string
-from mdio.segy.headers_text import wrap_strings
+from mdio.seismic.headers_text import ascii_to_ebcdic
+from mdio.seismic.headers_text import ebcdic_to_ascii
+from mdio.seismic.headers_text import unwrap_string
+from mdio.seismic.headers_text import wrap_strings
 
 
 # fmt: off

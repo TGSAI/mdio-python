@@ -12,7 +12,7 @@ from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.converters import segy_to_mdio
 from mdio.core import Dimension
-from mdio.segy.geometry import StreamerShotGeometryType
+from mdio.seismic.geometry import StreamerShotGeometryType
 
 
 dask.config.set(scheduler="synchronous")

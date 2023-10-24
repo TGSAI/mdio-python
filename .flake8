@@ -9,6 +9,6 @@ rst-directives = deprecated
 
 per-file-ignores =
     tests/*:S101
-    src/mdio/segy/_standards_rev0.py:B950
-    src/mdio/segy/ebcdic.py:B950
-    src/mdio/commands/segy.py:D301
+    src/mdio/seismic/_standards_rev0.py: B950
+    src/mdio/seismic/ebcdic.py: B950
+    src/mdio/commands/segy.py: D301

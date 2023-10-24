@@ -1,11 +1,11 @@
 """SEG-Y Rev 0 standard and its definitions."""
 
 
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.byte_utils import OrderedType
-from mdio.segy.headers import Header
-from mdio.segy.headers import HeaderGroup
+from mdio.seismic.byte_utils import ByteOrder
+from mdio.seismic.byte_utils import Dtype
+from mdio.seismic.byte_utils import OrderedType
+from mdio.seismic.headers import Header
+from mdio.seismic.headers import HeaderGroup
 
 
 SEGY_REV0_TEXT = {"rows": 40, "cols": 80, "word_length": 4}

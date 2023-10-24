@@ -10,12 +10,12 @@ import numpy as np
 from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader
-from mdio.segy.blocked_io import to_segy
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.creation import concat_files
-from mdio.segy.creation import mdio_spec_to_segy
-from mdio.segy.utilities import segy_export_rechunker
+from mdio.seismic.blocked_io import to_segy
+from mdio.seismic.byte_utils import ByteOrder
+from mdio.seismic.byte_utils import Dtype
+from mdio.seismic.creation import concat_files
+from mdio.seismic.creation import mdio_spec_to_segy
+from mdio.seismic.utilities import segy_export_rechunker
 
 
 try:

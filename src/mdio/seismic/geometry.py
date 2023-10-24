@@ -14,10 +14,10 @@ from typing import Sequence
 import numpy as np
 import numpy.typing as npt
 
-from mdio.segy.exceptions import GridOverrideIncompatibleError
-from mdio.segy.exceptions import GridOverrideKeysError
-from mdio.segy.exceptions import GridOverrideMissingParameterError
-from mdio.segy.exceptions import GridOverrideUnknownError
+from mdio.seismic.exceptions import GridOverrideIncompatibleError
+from mdio.seismic.exceptions import GridOverrideKeysError
+from mdio.seismic.exceptions import GridOverrideMissingParameterError
+from mdio.seismic.exceptions import GridOverrideUnknownError
 
 
 logger = logging.getLogger(__name__)

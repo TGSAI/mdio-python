@@ -7,8 +7,8 @@ from typing import Sequence
 
 import numpy as np
 
-from mdio.segy.ebcdic import ASCII_TO_EBCDIC
-from mdio.segy.ebcdic import EBCDIC_TO_ASCII
+from mdio.seismic.ebcdic import ASCII_TO_EBCDIC
+from mdio.seismic.ebcdic import EBCDIC_TO_ASCII
 
 
 def wrap_strings(text_header: Sequence[str]) -> str:
