@@ -11,10 +11,10 @@ from numpy.typing import DTypeLike
 from numpy.typing import NDArray
 
 from mdio.core import Dimension
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.geometry import GridOverrider
-from mdio.segy.parsers import parse_sample_axis
-from mdio.segy.parsers import parse_trace_headers
+from mdio.seismic.byte_utils import Dtype
+from mdio.seismic.geometry import GridOverrider
+from mdio.seismic.parsers import parse_sample_axis
+from mdio.seismic.parsers import parse_trace_headers
 
 
 def get_grid_plan(  # noqa:  C901

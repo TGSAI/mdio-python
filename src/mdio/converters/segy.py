@@ -21,12 +21,12 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
-from mdio.segy import blocked_io
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.helpers_segy import create_zarr_hierarchy
-from mdio.segy.parsers import parse_binary_header
-from mdio.segy.parsers import parse_text_header
-from mdio.segy.utilities import get_grid_plan
+from mdio.seismic import blocked_io
+from mdio.seismic.byte_utils import Dtype
+from mdio.seismic.helpers_segy import create_zarr_hierarchy
+from mdio.seismic.parsers import parse_binary_header
+from mdio.seismic.parsers import parse_text_header
+from mdio.seismic.utilities import get_grid_plan
 
 
 logger = logging.getLogger(__name__)

@@ -13,9 +13,9 @@ from zarr import Array
 
 from mdio.constants import UINT32_MAX
 from mdio.core import Grid
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.ibm_float import ibm2ieee
+from mdio.seismic.byte_utils import ByteOrder
+from mdio.seismic.byte_utils import Dtype
+from mdio.seismic.ibm_float import ibm2ieee
 
 
 def header_scan_worker(

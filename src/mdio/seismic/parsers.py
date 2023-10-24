@@ -16,8 +16,8 @@ from psutil import cpu_count
 from tqdm.auto import tqdm
 
 from mdio.core import Dimension
-from mdio.segy._workers import header_scan_worker
-from mdio.segy.byte_utils import Dtype
+from mdio.seismic._workers import header_scan_worker
+from mdio.seismic.byte_utils import Dtype
 
 
 NUM_CORES = cpu_count(logical=False)

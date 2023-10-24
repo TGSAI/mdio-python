@@ -9,7 +9,7 @@ import numpy as np
 import pytest
 import segyio
 
-from mdio.segy.geometry import StreamerShotGeometryType
+from mdio.seismic.geometry import StreamerShotGeometryType
 
 
 def create_segy_mock_4d(

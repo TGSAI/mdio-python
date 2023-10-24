@@ -16,11 +16,11 @@ from segyio.binfield import keys as bfkeys
 from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
-from mdio.segy._standards_common import SegyFloatFormat
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.byte_utils import get_byteorder
-from mdio.segy.ibm_float import ieee2ibm
+from mdio.seismic._standards_common import SegyFloatFormat
+from mdio.seismic.byte_utils import ByteOrder
+from mdio.seismic.byte_utils import Dtype
+from mdio.seismic.byte_utils import get_byteorder
+from mdio.seismic.ibm_float import ieee2ibm
 
 
 def mdio_spec_to_segy(

@@ -20,11 +20,11 @@ from zarr import Group
 
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
-from mdio.segy._workers import trace_worker
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.creation import concat_files
-from mdio.segy.creation import write_to_segy_stack
+from mdio.seismic._workers import trace_worker
+from mdio.seismic.byte_utils import ByteOrder
+from mdio.seismic.byte_utils import Dtype
+from mdio.seismic.creation import concat_files
+from mdio.seismic.creation import write_to_segy_stack
 
 
 try:
