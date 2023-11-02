@@ -4,7 +4,6 @@ To facilitate development on different systems a [dev container](https://contain
 
 For contributing guidelines please look here [link](../CONTRIBUTING.md)
 
-### known issues:
+### Known issues:
 
-- Some effort was take to run without using root inside the container. However nox always seemed to have permissions issues which I've been unable to fix.
-- `git config --global --add safe.directory \`pwd\` ` Might be needed inside the container.
+- `git config --global --add safe.directory \`pwd\` ` might be needed inside the container.
