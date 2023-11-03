@@ -6,4 +6,4 @@ For contributing guidelines please look here [link](../CONTRIBUTING.md)
 
 ### Known Issues:
 
-- `git config --global --add safe.directory \`pwd\` ` might be needed inside the container.
+- `git config --global --add safe.directory $(pwd)` might be needed inside the container.
