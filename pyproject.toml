@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "multidimio"
-version = "0.5.2"
+version = "0.5.3"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = ["TGS <sys-opensource@tgs.com>"]
 maintainers = [
@@ -27,7 +27,7 @@ python = ">=3.9,<3.12"
 click = "^8.1.7"
 click-params = "^0.4.1"
 zarr = "^2.16.1"
-dask = ">=2023.8.0"
+dask = ">=2023.10.0"
 tqdm = "^4.66.1"
 segyio = "^1.9.3"
 numba = ">=0.57.1,<1.0.0"
@@ -35,7 +35,7 @@ psutil = "^5.9.5"
 fsspec = ">=2023.9.1"
 
 # Extras
-distributed = {version = ">=2023.8.0", optional = true}
+distributed = {version = ">=2023.10.0", optional = true}
 bokeh = {version = "^3.2.2", optional = true}
 s3fs = {version = ">=2023.5.0", optional = true}
 gcsfs = {version = ">=2023.5.0", optional = true}
