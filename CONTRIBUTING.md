@@ -37,11 +37,23 @@ Request features on the [Issue Tracker].
 
 ## How to set up your development environment
 
-You need Python 3.7+ and the following tools:
+You need Python 3.9+ and the following tools:
 
 - [Poetry]
 - [Nox]
 - [nox-poetry]
+
+Another alternative is to use a [Development Container] has been setup to provide
+an environment with the required dependencies. This facilitates development on
+different systems.
+
+This should seamlessly enable development for users of [VS Code] on systems with docker installed.
+
+### Known Issues:
+
+- `git config --global --add safe.directory $(pwd)` might be needed inside the container.
+
+## How to Install and Run MDIO
 
 Install the package with development requirements:
 
@@ -60,6 +72,8 @@ $ poetry run mdio
 [poetry]: https://python-poetry.org/
 [nox]: https://nox.thea.codes/
 [nox-poetry]: https://nox-poetry.readthedocs.io/
+[development container]: https://containers.dev/
+[vs code]: https://code.visualstudio.com/docs/devcontainers/containers/
 
 ## How to test the project
 
