@@ -53,7 +53,6 @@ This should seamlessly enable development for users of [VS Code] on systems with
 
 - `git config --global --add safe.directory $(pwd)` might be needed inside the container.
 
-
 ## How to Install and Run MDIO
 
 Install the package with development requirements:
