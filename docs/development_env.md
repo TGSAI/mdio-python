@@ -4,6 +4,6 @@ To facilitate development on different systems a [dev container](https://contain
 
 For contributing guidelines please look here [link](../CONTRIBUTING.md)
 
-### Known issues:
+### Known Issues:
 
-- `git config --global --add safe.directory \`pwd\` ` might be needed inside the container.
+- `git config --global --add safe.directory $(pwd)` might be needed inside the container.
