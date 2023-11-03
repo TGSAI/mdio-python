@@ -21,7 +21,6 @@ notebooks/compression
 usage
 reference
 contributing
-Development Environment <development_env>
 Code of Conduct <codeofconduct>
 License <license>
 Changelog <https://github.com/TGSAI/mdio-python/releases>
