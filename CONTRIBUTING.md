@@ -43,7 +43,16 @@ You need Python 3.9+ and the following tools:
 - [Nox]
 - [nox-poetry]
 
-A [dev container](./docs/development_env.md) has been setup to provide a clean environment with the required dependencies.
+Another alternative is to use a [Development Container] has been setup to provide
+an environment with the required dependencies. This facilitates development on
+different systems.
+
+This should seamlessly enable development for users of [VS Code] on systems with docker installed.
+
+### Known Issues:
+
+- `git config --global --add safe.directory $(pwd)` might be needed inside the container.
+
 
 ## How to Install and Run MDIO
 
@@ -64,6 +73,8 @@ $ poetry run mdio
 [poetry]: https://python-poetry.org/
 [nox]: https://nox.thea.codes/
 [nox-poetry]: https://nox-poetry.readthedocs.io/
+[development container]: https://containers.dev/
+[vs code]: https://code.visualstudio.com/docs/devcontainers/containers/
 
 ## How to test the project
 
