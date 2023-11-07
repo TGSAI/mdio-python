@@ -46,8 +46,7 @@ def test_main_copy_succeeds(runner: CliRunner, zarr_tmp: Path, zarr_tmp2: Path) 
     cli_args.extend(["-o", str(zarr_tmp2)])
 
     result = runner.invoke(__main__.main, args=cli_args)
-    print(f"copy returns {result}")
-    # assert result.exit_code == 0
+    assert result.exit_code == 0
 
 
 def test_cli_version(runner: CliRunner) -> None:
