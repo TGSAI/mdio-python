@@ -11,17 +11,6 @@ except SystemError:
     pass
 
 
-DEFAULT_HELP = """
-MDIO CLI utilities.
-"""
-
-
-@click.group(help=DEFAULT_HELP)
-def cli():
-    """Setup click group."""
-    click.echo("MDIO CLI utilities")
-
-
 @click.command(name="copy")
 @click.option(
     "-i",
@@ -51,8 +40,8 @@ def cli():
     "--includes",
     required=False,
     help="""Data to include during copy. i.e. trace_headers. If this is not
-    specified, and certain data is excluded, it will not copy headers. If you want
-    to preserve headers, specify trace_headers. If left blank, it will copy
+    specified, and certain data is excluded, it will not copy headers. To
+    preserve headers, specify trace_headers. If left blank, it will copy
     everything except specified in excludes parameter.""",
     type=click.STRING,
 )
@@ -80,27 +69,13 @@ def copy(
     storage_options: Optional[dict] = None,
     overwrite: bool = False,
 ):
-    """Copy MDIO to MDIO.
+    """Copy a MDIO dataset to anpther MDIO dataset.
 
     Can also copy with empty data to be filled later. See `excludes`
     and `includes` parameters.
 
     More documentation about `excludes` and `includes` can be found
     in Zarr's documentation in `zarr.convenience.copy_store`.
-
-    Args:
-        input_mdio_path: MDIO reader or accessor instance. Data will be copied from here
-        output_mdio_path: Destination path. Could be any FSSpec mapping.
-        excludes: Data to exclude during copy. i.e. `chunked_012`. The raw data
-            won't be copied, but it will create an empty array to be filled.
-            If left blank, it will copy everything.
-        includes: Data to include during copy. i.e. `trace_headers`. If this is
-            not specified, and certain data is excluded, it will not copy headers.
-            If you want to preserve headers, specify `trace_headers`. If left blank,
-            it will copy everything except specified in `excludes` parameter.
-        storage_options: Storage options for the cloud storage backend.
-            Default is None (will assume anonymous).
-        overwrite: Overwrite destination or not.
     """
     mdio.copy_mdio(
         source=input_mdio_path,
@@ -145,7 +120,7 @@ def info(
     output_format,
     access_pattern,
 ):
-    """Provide information on MDIO dataset.
+    """Provide information on a MDIO dataset.
 
     By default this returns human readable information about the grid and stats for
     the dataset. If output-format is set to json then a json is returned to

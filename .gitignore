@@ -26,7 +26,6 @@ share/python-wheels/
 *.egg
 MANIFEST
 pip-*
-*pytest*
 tmp*
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -152,4 +151,4 @@ cython_debug/
 mdio1/*
 */mdio1/*
 pytest-of-*
-tmp/
+tmp
