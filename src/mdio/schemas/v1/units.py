@@ -1,5 +1,5 @@
 """Unit schemas specific to MDIO v1."""
-
+from typing import TypeAlias
 
 from pint import UnitRegistry
 from pydantic import Field
@@ -90,20 +90,20 @@ FrequencyUnitModel = create_unit_model(
 
 
 # Composite model types
-CoordinateUnitModel = LengthUnitModel | TimeUnitModel | AngleUnitModel
-AllUnitModel = (
+CoordinateUnitModel: TypeAlias = LengthUnitModel | TimeUnitModel | AngleUnitModel
+AllUnitModel: TypeAlias = (
     CoordinateUnitModel | DensityUnitModel | SpeedUnitModel | FrequencyUnitModel
 )
 
 
 # Versioned metadata conventions for units
-class CoordinateUnitsV1(VersionedMetadataConvention):
+class CoordinateUnits(VersionedMetadataConvention):
     """Coordinate Units."""
 
     units_v1: CoordinateUnitModel = Field(..., alias="units-v1")
 
 
-class UnitsV1(VersionedMetadataConvention):
+class Units(VersionedMetadataConvention):
     """All Units."""
 
     units_v1: AllUnitModel | list[AllUnitModel] = Field(..., alias="units-v1")
