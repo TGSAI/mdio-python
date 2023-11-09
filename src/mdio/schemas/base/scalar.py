@@ -1,4 +1,4 @@
-"""Schemas for numeric types.
+"""Schemas for scalar types.
 
 We take booleans, unsigned and signed integers, floats, and
 complex numbers from numpy data types and allow those.
@@ -21,13 +21,13 @@ ALLOWED_TYPES = [
 ]
 
 
-NumericType = StrEnum("NumericType", {t.upper(): t for t in ALLOWED_TYPES})
+ScalarType = StrEnum("ScalarType", {t.upper(): t for t in ALLOWED_TYPES})
 
 
 class DataType(BaseModel):
     """Represents an array type with a specific format and byte order."""
 
-    format: NumericType = Field()
+    format: ScalarType = Field()
     name: str | None = Field(default=None)
     offset: int | None = Field(default=None, ge=0)
 
