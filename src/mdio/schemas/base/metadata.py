@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import Field
 from pydantic import model_validator
 
 
@@ -75,3 +76,12 @@ class VersionedMetadataConvention(BaseModel):
     def model_dump_json(self, *args, **kwargs) -> str:
         """Override default model dump json to use alias."""
         return super().model_dump_json(by_alias=True, *args, **kwargs)
+
+
+class UserAttributes(BaseModel):
+    """User defined attributes as key/value pairs."""
+
+    attributes: dict[str, Any] = Field(
+        default_factory=dict,
+        description="User defined attributes as key/value pairs.",
+    )
