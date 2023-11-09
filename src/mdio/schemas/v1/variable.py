@@ -21,8 +21,8 @@ from mdio.schemas.base import Dimension
 from mdio.schemas.base import StructuredDataType
 from mdio.schemas.base import UserAttributes
 from mdio.schemas.v1 import CoordinateUnits
+from mdio.schemas.v1 import SummaryStatisticsMetadata
 from mdio.schemas.v1 import Units
-from mdio.schemas.v1.stats import SummaryStatisticsMetadata
 
 
 class LabeledArray(BaseModel):
