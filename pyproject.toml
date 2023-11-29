@@ -25,21 +25,21 @@ Changelog = "https://github.com/TGSAI/mdio-python/releases"
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
 click = "^8.1.7"
-click-params = "^0.4.1"
+click-params = "^0.5.0"
 zarr = "^2.16.1"
-dask = ">=2023.10.0"
+dask = ">=2023.11.0"
 tqdm = "^4.66.1"
 segyio = "^1.9.3"
 numba = ">=0.57.1,<1.0.0"
-psutil = "^5.9.5"
-fsspec = ">=2023.9.1"
-pydantic = "^2.4.2"
+psutil = "^5.9.6"
+fsspec = ">=2023.10.0"
+pydantic = "^2.5.2"
 pint = "^0.22"
-distributed = {version = ">=2023.10.0", optional = true}
-bokeh = {version = "^3.2.2", optional = true}
-s3fs = {version = ">=2023.5.0", optional = true}
-gcsfs = {version = ">=2023.5.0", optional = true}
-adlfs = {version = ">=2023.4.0", optional = true}
+distributed = {version = ">=2023.11.0", optional = true}
+bokeh = {version = "^3.3.1", optional = true}
+s3fs = {version = ">=2023.10.0", optional = true}
+gcsfs = {version = ">=2023.10.0", optional = true}
+adlfs = {version = ">=2023.10.0", optional = true}
 zfpy = {version = "^0.5.5", optional = true}
 
 [tool.poetry.extras]
@@ -48,31 +48,31 @@ cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.7.0"
-coverage = {version = "^7.3.0", extras = ["toml"]}
+black = "^23.11.0"
+coverage = {version = "^7.3.2", extras = ["toml"]}
 darglint = "^1.8.1"
 flake8 = "^6.1.0"
 flake8-bandit = "^4.1.1"
-flake8-bugbear = "^23.7.10"
+flake8-bugbear = "^23.11.26"
 flake8-docstrings = "^1.7.0"
 flake8-rst-docstrings = "^0.3.0"
-furo = ">=2023.9.10"
+furo = "^2023.9.10"
 isort = "^5.12.0"
-mypy = "^1.5.1"
+mypy = "^1.7.1"
 pep8-naming = "^0.13.3"
-pre-commit = "^3.3.3"
-pre-commit-hooks = "^4.4.0"
-pytest = "^7.4.0"
-pyupgrade = "^3.10.1"
+pre-commit = "^3.5.0"
+pre-commit-hooks = "^4.5.0"
+pytest = "^7.4.3"
+pyupgrade = "^3.15.0"
 safety = "^2.3.5"
-sphinx-autobuild = ">=2021.3.14"
-sphinx-click = "^5.0.1"
+sphinx-autobuild = "^2021.3.14"
+sphinx-click = "^5.1.0"
 sphinx-copybutton = "^0.5.2"
-typeguard = "^4.1.2"
-xdoctest = {version = "^1.1.1", extras = ["colors"]}
+typeguard = "^4.1.5"
+xdoctest = {version = "^1.1.2", extras = ["colors"]}
 myst-parser = "^2.0.0"
-Pygments = "^2.16.1"
-Sphinx = "^7.2.3"
+Pygments = "^2.17.2"
+Sphinx = "^7.2.6"
 autodoc-pydantic = "^2.0.1"
 sphinx-design = "^0.5.0"
 
