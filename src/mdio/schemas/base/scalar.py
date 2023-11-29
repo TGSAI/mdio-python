@@ -8,8 +8,9 @@ complex numbers from numpy data types and allow those.
 from enum import StrEnum
 
 import numpy as np
-from pydantic import BaseModel
 from pydantic import Field
+
+from mdio.schemas.base.core import StrictCamelBaseModel
 
 
 ALLOWED_TYPES = [
@@ -24,16 +25,16 @@ ALLOWED_TYPES = [
 ScalarType = StrEnum("ScalarType", {t.upper(): t for t in ALLOWED_TYPES})
 
 
-class DataType(BaseModel):
-    """Represents an array type with a specific format and byte order."""
+class StructuredField(StrictCamelBaseModel):
+    """Structured array field with name, format, and byte offset."""
 
     format: ScalarType = Field()
     name: str | None = Field(default=None)
     offset: int | None = Field(default=None, ge=0)
 
 
-class StructuredDataType(BaseModel):
-    """Structured array type with field names, formats, offsets, and item size."""
+class StructuredType(StrictCamelBaseModel):
+    """Structured array type with fields and total item size."""
 
-    formats: list[DataType] = Field()
+    fields: list[StructuredField] = Field()
     item_size: int | None = Field(default=None, gt=0)
