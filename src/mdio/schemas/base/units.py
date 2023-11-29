@@ -3,9 +3,9 @@
 
 from enum import Enum
 
-from pydantic import BaseModel
-from pydantic import ConfigDict
 from pydantic import Field
+
+from mdio.schemas.base.core import StrictCamelBaseModel
 
 
 class UnitEnum(str, Enum):
@@ -16,7 +16,7 @@ def create_unit_model(
     unit_enum: type[UnitEnum],
     model_name: str,
     quantity: str,
-) -> type[BaseModel]:
+) -> type[StrictCamelBaseModel]:
     """This generates a Pydantic BaseModel for a unit convention.
 
     Args:
@@ -34,11 +34,13 @@ def create_unit_model(
         create_unit_model(unit_enum, model_name, quantity)
     """
     attributes = {
-        quantity: Field(..., description=f"Model representing units of {quantity}"),
-        "model_config": ConfigDict(extra="forbid"),
+        quantity: Field(..., description=f"Unit of {quantity}."),
         "__annotations__": {quantity: unit_enum},
     }
 
     # Construct the BaseModel
-    unit_model = type(model_name, (BaseModel,), attributes)
+    unit_model = type(model_name, (StrictCamelBaseModel,), attributes)
+
+    unit_model.__doc__ = f"Model representing units of {quantity}."
+
     return unit_model
