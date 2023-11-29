@@ -8,17 +8,14 @@
   This metadata includes a version-specific stats field (`stats_v0`).
 """
 
-from pydantic import BaseModel
-from pydantic import ConfigDict
 from pydantic import Field
 
+from mdio.schemas.base.core import StrictCamelBaseModel
 from mdio.schemas.base.metadata import VersionedMetadataConvention
 
 
-class Statistics(BaseModel):
+class Statistics(StrictCamelBaseModel):
     """Data model for some statistics in MDIO v0."""
-
-    model_config = ConfigDict(extra="forbid")
 
     mean: float = Field(..., description="Mean value of the samples.")
     std: float = Field(..., description="Standard deviation of the samples.")
@@ -30,6 +27,4 @@ class Statistics(BaseModel):
 class StatisticsMetadata(VersionedMetadataConvention):
     """Data Model representing metadata for statistics."""
 
-    model_config = ConfigDict(extra="forbid")
-
-    stats_v0 = Field(..., alias="stats-v0")
+    stats_v0: Statistics = Field(...)
