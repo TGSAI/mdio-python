@@ -28,9 +28,9 @@ Note:
 from enum import Enum
 from enum import StrEnum
 
-from pydantic import BaseModel
-from pydantic import ConfigDict
 from pydantic import Field
+
+from mdio.schemas.base.core import StrictCamelBaseModel
 
 
 class BloscAlgorithm(StrEnum):
@@ -52,10 +52,8 @@ class BloscShuffle(Enum):
     AUTOSHUFFLE = -1
 
 
-class Blosc(BaseModel):
+class Blosc(StrictCamelBaseModel):
     """Data Model for Blosc options."""
-
-    model_config = ConfigDict(extra="forbid")
 
     name: str = Field(default="blosc", description="Name of the compressor.")
     algorithm: BloscAlgorithm = Field(
