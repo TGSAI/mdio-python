@@ -18,12 +18,13 @@ a histogram with count of each bin.
 
 from typing import TypeAlias
 
-from pydantic import BaseModel
-from pydantic import ConfigDict
 from pydantic import Field
 
+from mdio.schemas.base.core import StrictCamelBaseModel
+from mdio.schemas.base.metadata import VersionedMetadataConvention
 
-class BaseHistogram(BaseModel):
+
+class BaseHistogram(StrictCamelBaseModel):
     """Represents a histogram with bin counts."""
 
     counts: list[int] = Field(..., description="Count of each each bin.")
@@ -49,10 +50,8 @@ class EdgeDefinedHistogram(BaseHistogram):
 Histogram: TypeAlias = CenteredBinHistogram | EdgeDefinedHistogram
 
 
-class SummaryStatistics(BaseModel):
+class SummaryStatistics(StrictCamelBaseModel):
     """Data model for some statistics in MDIO v1 arrays."""
-
-    model_config = ConfigDict(extra="forbid")
 
     count: int = Field(..., description="The number of data points.")
     sum: float = Field(..., description="The total of all data values.")
@@ -62,13 +61,10 @@ class SummaryStatistics(BaseModel):
     histogram: Histogram = Field(..., description="Binned frequency distribution.")
 
 
-class SummaryStatisticsMetadata(BaseModel):
+class StatisticsMetadata(VersionedMetadataConvention):
     """Data Model representing metadata for statistics."""
 
-    model_config = ConfigDict(extra="forbid")
-
-    stats_v1: SummaryStatistics | list[SummaryStatistics] = Field(
-        ...,
-        alias="stats-v1",
+    stats_v1: SummaryStatistics | list[SummaryStatistics] | None = Field(
+        default=None,
         description="Minimal summary statistics.",
     )

@@ -1,4 +1,6 @@
 """Unit schemas specific to MDIO v1."""
+
+
 from typing import TypeAlias
 
 from pint import UnitRegistry
@@ -100,10 +102,10 @@ AllUnitModel: TypeAlias = (
 class CoordinateUnits(VersionedMetadataConvention):
     """Coordinate Units."""
 
-    units_v1: CoordinateUnitModel = Field(..., alias="units-v1")
+    units_v1: CoordinateUnitModel = Field(...)
 
 
-class Units(VersionedMetadataConvention):
+class AllUnits(VersionedMetadataConvention):
     """All Units."""
 
-    units_v1: AllUnitModel | list[AllUnitModel] = Field(..., alias="units-v1")
+    units_v1: AllUnitModel | list[AllUnitModel] = Field(...)
