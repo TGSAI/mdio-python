@@ -260,8 +260,10 @@ def segy_to_mdio(
 
         In cases where the user does not know if the input has unwrapped
         channels but desires to store with wrapped channel index use:
-        >>>    grid_overrides={"AutoChannelWrap": True,
-                               "AutoChannelTraceQC":  1000000}
+        >>> grid_overrides = {
+        >>>     "AutoChannelWrap": True,
+        >>>     "AutoChannelTraceQC": 1000000,
+        >>> }
 
         For cases with no well-defined trace header for indexing a NonBinned
         grid override is provided.This creates the index and attributes an
