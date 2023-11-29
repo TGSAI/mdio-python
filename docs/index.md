@@ -11,15 +11,13 @@ end-before: <!-- github-only -->
 [installation instructions]: installation
 
 ```{toctree}
----
-hidden:
-maxdepth: 1
----
+:hidden:
+
 installation
-notebooks/quickstart
-notebooks/compression
+tutorials/index
 usage
 reference
+schemas/index
 contributing
 Code of Conduct <codeofconduct>
 License <license>
