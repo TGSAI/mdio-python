@@ -1,4 +1,4 @@
-# Usage
+# Usage (CLI)
 
 ## Ingestion and Export
 
