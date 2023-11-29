@@ -26,10 +26,10 @@ Notes:
 
 from enum import StrEnum
 
-from pydantic import BaseModel
-from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
+
+from mdio.schemas.base.core import StrictCamelBaseModel
 
 
 class ZFPMode(StrEnum):
@@ -41,10 +41,8 @@ class ZFPMode(StrEnum):
     REVERSIBLE = "reversible"
 
 
-class ZFP(BaseModel):
+class ZFP(StrictCamelBaseModel):
     """Data Model for ZFP options."""
-
-    model_config = ConfigDict(extra="forbid")
 
     name: str = Field(default="zfp", description="Name of the compressor.")
     mode: ZFPMode = Field()
