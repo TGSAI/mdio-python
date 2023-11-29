@@ -11,58 +11,77 @@ additional metadata.
 variable in MDIO format. It can have coordinates and can also hold metadata.
 """
 
+
+from typing import Any
+from typing import get_type_hints
+
 from pydantic import BaseModel
-from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import create_model
 
-from mdio.schemas.base import Compressors
-from mdio.schemas.base import DataType
-from mdio.schemas.base import Dimension
-from mdio.schemas.base import StructuredDataType
-from mdio.schemas.base import UserAttributes
-from mdio.schemas.v1 import CoordinateUnits
-from mdio.schemas.v1 import SummaryStatisticsMetadata
-from mdio.schemas.v1 import Units
-
-
-class LabeledArray(BaseModel):
-    """An array with more metadata and labels."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str = Field(..., description="Name of the array.")
-    long_name: str = Field(default=None, description="Fully descriptive name.")
-    dimensions: list[Dimension] = Field(
-        ..., description="List of dimensions and respective sizes."
-    )
-    dtype: DataType | StructuredDataType = Field(
-        ..., description="Numeric or structured type of variable."
-    )
-    compressor: Compressors | None = Field(
-        default=None, description="Compression settings."
-    )
+from mdio.schemas.base.array import NamedArray
+from mdio.schemas.base.metadata import MetadataContainer
+from mdio.schemas.base.metadata import UserAttributes
+from mdio.schemas.base.scalar import ScalarType
+from mdio.schemas.base.scalar import StructuredType
+from mdio.schemas.v1.stats import StatisticsMetadata
+from mdio.schemas.v1.units import AllUnits
+from mdio.schemas.v1.units import CoordinateUnits
 
 
-class Coordinate(LabeledArray):
+class Coordinate(NamedArray):
     """An MDIO coordinate array with metadata."""
 
-    dimensions: list[str] = Field(
-        ...,
-        description="List of dimension names that maps to fully defined dimensions.",
-    )
-    dtype: DataType = Field(..., description="Data type of coordinate.")
+    dtype: ScalarType = Field(..., description="Data type of coordinate.")
     metadata: list[CoordinateUnits | UserAttributes] | None = Field(
         default=None, description="Coordinate metadata."
     )
 
 
-class Variable(LabeledArray):
+# Function to extract field types and defaults
+def model_fields(model: type[BaseModel]) -> dict[str, tuple[Any, Any]]:
+    """Extract Pydantic BaseModel fields.
+
+    Args:
+        model: (Type) The model object for which the fields will be extracted.
+
+    Returns:
+        A dictionary containing the fields of the model along with
+        their corresponding types and default values.
+
+    Example:
+        >>> class MyModel(BaseModel):
+        ...     name: str
+        ...     age: int = 0
+        ...
+        >>> model_fields(MyModel)
+        {'name': (str, <default_value>), 'age': (int, 0)}
+    """
+    annotations = get_type_hints(model)
+
+    fields = {}
+    for field_name, field in model.model_fields.items():
+        fields[field_name] = (annotations[field_name], field)
+
+    return fields
+
+
+Metadata = create_model(
+    "Metadata",
+    **model_fields(AllUnits),
+    **model_fields(StatisticsMetadata),
+    **model_fields(UserAttributes),
+    __base__=MetadataContainer,
+)
+
+
+class Variable(NamedArray):
     """An MDIO variable that has coordinates and metadata."""
+
+    dtype: ScalarType | StructuredType = Field(..., description="Type of the array.")
 
     coordinates: list[Coordinate] | None = Field(
         default=None,
-        description="Coordinates (labels) of the MDIO variable dimensions.",
+        description="Coordinates of the MDIO variable dimensions.",
     )
-    metadata: list[Units | SummaryStatisticsMetadata | UserAttributes] | None = Field(
-        default=None, description="Variable metadata."
-    )
+    metadata: Metadata | None = Field(default=None, description="Variable metadata.")
