@@ -78,7 +78,7 @@ checks them. If it is not pre-authenticated, you need to pass `--storage-options
 Using UNIX:
 
 ```shell
-mdio segy import \
+$ mdio segy import \
   --input-segy-path path/to/my.segy
   --output-mdio-file s3://bucket/prefix/my.mdio
   --header-locations 189,193
@@ -87,8 +87,8 @@ mdio segy import \
 
 Using Windows (note the extra escape characters `\`):
 
-```console
-mdio segy import \
+```shell
+$ mdio segy import \
   --input-segy-path path/to/my.segy
   --output-mdio-file s3://bucket/prefix/my.mdio
   --header-locations 189,193
@@ -113,7 +113,7 @@ authentication information to APIs.
 Using a service account:
 
 ```shell
-mdio segy import \
+$ mdio segy import \
   --input-segy-path path/to/my.segy
   --output-mdio-file gs://bucket/prefix/my.mdio
   --header-locations 189,193
@@ -123,7 +123,7 @@ mdio segy import \
 Using browser to populate authentication:
 
 ```shell
-mdio segy import \
+$ mdio segy import \
   --input-segy-path path/to/my.segy
   --output-mdio-file gs://bucket/prefix/my.mdio
   --header-locations 189,193
@@ -144,7 +144,7 @@ If ADL is not pre-authenticated, you need to pass `--storage-options`.
 `account_key`: Azure Data Lake storage account access key
 
 ```shell
-mdio segy import \
+$ mdio segy import \
   --input-segy-path path/to/my.segy
   --output-mdio-file az://bucket/prefix/my.mdio
   --header-locations 189,193
