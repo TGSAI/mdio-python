@@ -22,6 +22,7 @@ from pydantic import create_model
 from mdio.schemas.base.array import NamedArray
 from mdio.schemas.base.dtype import ScalarType
 from mdio.schemas.base.dtype import StructuredType
+from mdio.schemas.base.encoding import ChunkGridMetadata
 from mdio.schemas.base.metadata import MetadataContainer
 from mdio.schemas.base.metadata import UserAttributes
 from mdio.schemas.v1.stats import StatisticsMetadata
@@ -66,8 +67,9 @@ def model_fields(model: type[BaseModel]) -> dict[str, tuple[Any, Any]]:
     return fields
 
 
-Metadata = create_model(
-    "Metadata",
+VariableMetadata = create_model(
+    "VariableMetadata",
+    **model_fields(ChunkGridMetadata),
     **model_fields(AllUnits),
     **model_fields(StatisticsMetadata),
     **model_fields(UserAttributes),
@@ -86,4 +88,6 @@ class Variable(NamedArray):
         default=None,
         description="Coordinates of the MDIO variable dimensions.",
     )
-    metadata: Metadata | None = Field(default=None, description="Variable metadata.")
+    metadata: VariableMetadata | None = Field(
+        default=None, description="Variable metadata."
+    )
