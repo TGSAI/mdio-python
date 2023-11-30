@@ -41,6 +41,8 @@ s3fs = {version = ">=2023.10.0", optional = true}
 gcsfs = {version = ">=2023.10.0", optional = true}
 adlfs = {version = ">=2023.10.0", optional = true}
 zfpy = {version = "^0.5.5", optional = true}
+urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
+
 
 [tool.poetry.extras]
 distributed = ["distributed", "bokeh"]
