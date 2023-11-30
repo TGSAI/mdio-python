@@ -4,15 +4,20 @@
 
 # Version 1
 
+```{article-info}
+:author: Altay Sansal
+:date: "{sub-ref}`today`"
+:read-time: "{sub-ref}`wordcount-minutes` min read"
+:class-container: sd-p-0 sd-outline-muted sd-rounded-3 sd-font-weight-light
+```
+
 ## Data Models
 
 ```{eval-rst}
 .. automodule:: mdio.schemas.v1.dataset
     :members: Dataset
     :inherited-members: BaseModel
-```
 
-```{eval-rst}
 .. autopydantic_model:: mdio.schemas.v1.variable.Variable
     :inherited-members: BaseModel
 
@@ -23,6 +28,11 @@
 ## Data Types
 
 ```{eval-rst}
+.. autoclass:: mdio.schemas.base.dtype.ScalarType()
+    :members:
+    :undoc-members:
+    :member-order: bysource
+
 .. autopydantic_model:: mdio.schemas.base.dtype.StructuredType
 
 .. autopydantic_model:: mdio.schemas.base.dtype.StructuredField
@@ -33,9 +43,10 @@
 ```{eval-rst}
 .. automodule:: mdio.schemas.base.metadata
     :members: UserAttributes
-```
 
-```{eval-rst}
+.. autopydantic_model:: mdio.schemas.v1.variable.VariableMetadata
+    :inherited-members: BaseModel
+
 .. automodule:: mdio.schemas.base.dimension
     :members:
     :undoc-members:
@@ -69,14 +80,9 @@
     :inherited-members: BaseModel
 ```
 
-## Enumerations
+## Unit Definitions
 
 ```{eval-rst}
-.. autoclass:: mdio.schemas.base.dtype.ScalarType()
-    :members:
-    :undoc-members:
-    :member-order: bysource
-
 .. autoclass:: mdio.schemas.v1.units.AngleUnitEnum()
     :members:
     :undoc-members:
