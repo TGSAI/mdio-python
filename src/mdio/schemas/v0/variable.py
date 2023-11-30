@@ -2,11 +2,23 @@
 
 
 from pydantic import Field
+from pydantic import create_model
 
 from mdio.schemas.base.array import NamedArray
+from mdio.schemas.base.core import model_fields
 from mdio.schemas.base.dtype import ScalarType
 from mdio.schemas.base.dtype import StructuredType
+from mdio.schemas.base.encoding import ChunkGridMetadata
+from mdio.schemas.base.metadata import MetadataContainer
 from mdio.schemas.base.metadata import UserAttributes
+
+
+VariableMetadata = create_model(
+    "VariableMetadata",
+    **model_fields(ChunkGridMetadata),
+    **model_fields(UserAttributes),
+    __base__=MetadataContainer,
+)
 
 
 class Variable(NamedArray):
@@ -16,6 +28,6 @@ class Variable(NamedArray):
         ..., description="Type of the array."
     )
 
-    metadata: UserAttributes | None = Field(
+    metadata: VariableMetadata | None = Field(
         default=None, description="Variable metadata."
     )
