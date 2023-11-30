@@ -20,10 +20,10 @@ from pydantic import Field
 from pydantic import create_model
 
 from mdio.schemas.base.array import NamedArray
+from mdio.schemas.base.dtype import ScalarType
+from mdio.schemas.base.dtype import StructuredType
 from mdio.schemas.base.metadata import MetadataContainer
 from mdio.schemas.base.metadata import UserAttributes
-from mdio.schemas.base.scalar import ScalarType
-from mdio.schemas.base.scalar import StructuredType
 from mdio.schemas.v1.stats import StatisticsMetadata
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import CoordinateUnits
@@ -32,7 +32,7 @@ from mdio.schemas.v1.units import CoordinateUnits
 class Coordinate(NamedArray):
     """An MDIO coordinate array with metadata."""
 
-    dtype: ScalarType = Field(..., description="Data type of coordinate.")
+    data_type: ScalarType = Field(..., description="Data type of coordinate.")
     metadata: list[CoordinateUnits | UserAttributes] | None = Field(
         default=None, description="Coordinate metadata."
     )
@@ -78,7 +78,9 @@ Metadata = create_model(
 class Variable(NamedArray):
     """An MDIO variable that has coordinates and metadata."""
 
-    dtype: ScalarType | StructuredType = Field(..., description="Type of the array.")
+    data_type: ScalarType | StructuredType = Field(
+        ..., description="Type of the array."
+    )
 
     coordinates: list[Coordinate] | None = Field(
         default=None,

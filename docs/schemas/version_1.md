@@ -23,9 +23,9 @@
 ## Data Types
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.base.scalar.StructuredType
+.. autopydantic_model:: mdio.schemas.base.dtype.StructuredType
 
-.. autopydantic_model:: mdio.schemas.base.scalar.StructuredField
+.. autopydantic_model:: mdio.schemas.base.dtype.StructuredField
 ```
 
 ## Metadata
@@ -72,7 +72,7 @@
 ## Enumerations
 
 ```{eval-rst}
-.. autoclass:: mdio.schemas.base.scalar.ScalarType()
+.. autoclass:: mdio.schemas.base.dtype.ScalarType()
     :members:
     :undoc-members:
     :member-order: bysource
