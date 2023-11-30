@@ -16,6 +16,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
+    "sphinx.ext.autosummary",
     "sphinxcontrib.autodoc_pydantic",
     "sphinx.ext.autosectionlabel",
     "sphinx_click",
@@ -59,11 +60,13 @@ html_theme = "furo"
 
 myst_number_code_blocks = ["python"]
 myst_heading_anchors = 2
+myst_words_per_minute = 80
 myst_enable_extensions = [
     "colon_fence",
     "linkify",
     "replacements",
     "smartquotes",
+    "attrs_inline",
 ]
 
 # sphinx-copybutton configurations
