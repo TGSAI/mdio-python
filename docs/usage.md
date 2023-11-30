@@ -196,6 +196,6 @@ get information about usage.
 
 ```{eval-rst}
 .. click:: mdio.__main__:main
-    :prog: mdio
-    :nested: full
+   :prog: mdio
+   :nested: full
 ```
