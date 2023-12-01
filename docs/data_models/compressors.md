@@ -2,13 +2,15 @@
 :tocdepth: 3
 ```
 
+```{currentModule} mdio.schemas.compressors
+
+```
+
 # Compressors
 
 ## Dataset Compression
 
 ```{eval-rst}
-.. currentmodule:: mdio.schemas
-
 .. autosummary::
    Blosc
    ZFP
@@ -17,7 +19,7 @@
 ## Reference
 
 ```{eval-rst}
-.. autoclass:: mdio.schemas.Compressors
+.. autoclass:: Compressors
 ```
 
 :::
@@ -25,18 +27,18 @@
 :animate: fade-in-slide-down
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.Blosc
+.. autopydantic_model:: Blosc
 
 ----------
 
-.. autoclass:: mdio.schemas.compressors.BloscAlgorithm()
+.. autoclass:: BloscAlgorithm()
     :members:
     :undoc-members:
     :member-order: bysource
 
 ----------
 
-.. autoclass:: mdio.schemas.compressors.BloscShuffle()
+.. autoclass:: BloscShuffle()
     :members:
     :undoc-members:
     :member-order: bysource
@@ -48,11 +50,11 @@
 :animate: fade-in-slide-down
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.ZFP
+.. autopydantic_model:: ZFP
 
 ----------
 
-.. autoclass:: mdio.schemas.compressors.ZFPMode()
+.. autoclass:: ZFPMode()
     :members:
     :undoc-members:
     :member-order: bysource
