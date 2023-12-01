@@ -6,7 +6,13 @@
 
 ## Dataset Compression
 
-Lorem ipsum
+```{eval-rst}
+.. currentmodule:: mdio.schemas
+
+.. autosummary::
+   Blosc
+   ZFP
+```
 
 ## Reference
 
