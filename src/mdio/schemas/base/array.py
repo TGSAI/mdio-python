@@ -5,7 +5,7 @@ from pydantic import Field
 
 from mdio.schemas.base import Compressors
 from mdio.schemas.base.core import StrictCamelBaseModel
-from mdio.schemas.base.dimension import DimensionContext
+from mdio.schemas.dimension import DimensionContext
 
 
 class BaseArray(StrictCamelBaseModel):

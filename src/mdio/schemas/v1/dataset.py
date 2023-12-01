@@ -4,8 +4,8 @@
 from pydantic import Field
 
 from mdio.schemas.base.core import StrictCamelBaseModel
-from mdio.schemas.base.dimension import DimensionCollection
 from mdio.schemas.base.metadata import UserAttributes
+from mdio.schemas.dimension import DimensionCollection
 from mdio.schemas.v1.variable import Variable
 
 
@@ -18,8 +18,7 @@ class Dataset(StrictCamelBaseModel):
     name: str = Field(..., description="Name of the dataset.")
     variables: list[Variable] = Field(..., description="Variables in MDIO dataset")
     dimensions: DimensionCollection | None = Field(
-        default=None,
-        description="List of Dimension collection or reference to dimension names.",
+        default=None, description="List of Dimensions."
     )
     metadata: UserAttributes | None = Field(
         default=None, description="Dataset metadata."
