@@ -2,6 +2,10 @@
 :tocdepth: 3
 ```
 
+```{currentModule} mdio.schemas.v1.dataset
+
+```
+
 # MDIO v1
 
 ```{article-info}
@@ -11,10 +15,16 @@
 :class-container: sd-p-0 sd-outline-muted sd-rounded-3 sd-font-weight-light
 ```
 
-## MDIO Objects
+## Intro
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.v1.dataset.Dataset
+.. autosummary:: Dataset
+```
+
+## Reference
+
+```{eval-rst}
+.. autopydantic_model:: Dataset
     :inherited-members: BaseModel
 
 .. autopydantic_model:: mdio.schemas.v1.variable.Variable
@@ -24,8 +34,6 @@
     :inherited-members: BaseModel
 ```
 
-## Metadata
-
 ```{eval-rst}
 .. automodule:: mdio.schemas.base.metadata
     :members: UserAttributes
@@ -33,8 +41,6 @@
 .. autopydantic_model:: mdio.schemas.v1.variable.VariableMetadata
     :inherited-members: BaseModel
 ```
-
-### Units
 
 ```{eval-rst}
 .. autopydantic_model:: mdio.schemas.v1.units.AllUnits
@@ -63,8 +69,6 @@
 .. autopydantic_model:: mdio.schemas.v1.stats.CenteredBinHistogram
     :inherited-members: BaseModel
 ```
-
-## Unit Definitions
 
 ```{eval-rst}
 .. autoclass:: mdio.schemas.v1.units.AngleUnitEnum()
