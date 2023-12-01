@@ -23,14 +23,14 @@ Lorem ipsum
 
 ----------
 
-.. autoclass:: mdio.schemas.compressors.BloscAlgorithm
+.. autoclass:: mdio.schemas.compressors.BloscAlgorithm()
     :members:
     :undoc-members:
     :member-order: bysource
 
 ----------
 
-.. autoclass:: mdio.schemas.compressors.BloscShuffle
+.. autoclass:: mdio.schemas.compressors.BloscShuffle()
     :members:
     :undoc-members:
     :member-order: bysource
@@ -46,7 +46,7 @@ Lorem ipsum
 
 ----------
 
-.. autoclass:: mdio.schemas.compressors.ZFPMode
+.. autoclass:: mdio.schemas.compressors.ZFPMode()
     :members:
     :undoc-members:
     :member-order: bysource
