@@ -14,10 +14,10 @@ variable in MDIO format. It can have coordinates and can also hold metadata.
 from pydantic import Field
 from pydantic import create_model
 
+from mdio.schemas import ScalarType
+from mdio.schemas import StructuredType
 from mdio.schemas.base.array import NamedArray
 from mdio.schemas.base.core import model_fields
-from mdio.schemas.base.dtype import ScalarType
-from mdio.schemas.base.dtype import StructuredType
 from mdio.schemas.base.encoding import ChunkGridMetadata
 from mdio.schemas.base.metadata import MetadataContainer
 from mdio.schemas.base.metadata import UserAttributes

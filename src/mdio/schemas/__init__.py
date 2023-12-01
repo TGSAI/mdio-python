@@ -5,6 +5,8 @@ from mdio.schemas.compressors import ZFP
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.compressors import Compressors
 from mdio.schemas.dimension import Dimension
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
 
 
 __all__ = [
@@ -12,4 +14,6 @@ __all__ = [
     "Compressors",
     "ZFP",
     "Dimension",
+    "ScalarType",
+    "StructuredType",
 ]

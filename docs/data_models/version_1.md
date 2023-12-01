@@ -27,14 +27,14 @@
 ## Data Types
 
 ```{eval-rst}
-.. autoclass:: mdio.schemas.base.dtype.ScalarType()
+.. autoclass:: mdio.schemas.ScalarType()
     :members:
     :undoc-members:
     :member-order: bysource
 
-.. autopydantic_model:: mdio.schemas.base.dtype.StructuredType
+.. autopydantic_model:: mdio.schemas.StructuredType
 
-.. autopydantic_model:: mdio.schemas.base.dtype.StructuredField
+.. autopydantic_model:: mdio.schemas.dtype.StructuredField
 ```
 
 ## Metadata
