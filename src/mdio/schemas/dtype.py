@@ -23,6 +23,7 @@ ALLOWED_TYPES = [
 
 
 ScalarType = StrEnum("ScalarType", {t.upper(): t for t in ALLOWED_TYPES})
+ScalarType.__doc__ = """Scalar array data type."""
 
 
 class StructuredField(StrictCamelBaseModel):
