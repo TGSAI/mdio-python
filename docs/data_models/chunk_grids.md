@@ -2,6 +2,10 @@
 :tocdepth: 3
 ```
 
+```{currentModule} mdio.schemas.chunk_grid
+
+```
+
 # Chunk Grid Models
 
 ```{article-info}
@@ -28,8 +32,6 @@ The regular grid models are designed to represent a rectangular and regularly
 paced chunk grid.
 
 ```{eval-rst}
-.. currentmodule:: mdio.schemas.base.core
-
 .. autosummary::
    RegularChunkGrid
    RegularChunkShape
@@ -73,15 +75,13 @@ Note that the rows and columns are conceptual and visually not to scale.
 
 ## Rectilinear Grid
 
-The [RectilinearChunkGrid](mdio.schemas.base.core.RectilinearChunkGrid) model extends
+The [RectilinearChunkGrid](RectilinearChunkGrid) model extends
 the concept of chunk grids to accommodate rectangular and irregularly spaced chunks.
 This model is useful in data structures where non-uniform chunk sizes are necessary.
 [RectilinearChunkShape](RectilinearChunkShape) specifies the chunk sizes for each
 dimension as a list allowing for irregular intervals.
 
 ```{eval-rst}
-.. currentmodule:: mdio.schemas.base.core
-
 .. autosummary::
    RectilinearChunkGrid
    RectilinearChunkShape
@@ -132,11 +132,11 @@ conceptual and visually not to scale.
 :animate: fade-in-slide-down
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.base.core.RegularChunkGrid
+.. autopydantic_model:: RegularChunkGrid
 
 ----------
 
-.. autopydantic_model:: mdio.schemas.base.core.RegularChunkShape
+.. autopydantic_model:: RegularChunkShape
 ```
 
 :::
@@ -144,11 +144,11 @@ conceptual and visually not to scale.
 :animate: fade-in-slide-down
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.base.core.RectilinearChunkGrid
+.. autopydantic_model:: RectilinearChunkGrid
 
 ----------
 
-.. autopydantic_model:: mdio.schemas.base.core.RectilinearChunkShape
+.. autopydantic_model:: RectilinearChunkShape
 ```
 
 :::
