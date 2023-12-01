@@ -1,35 +1,58 @@
-"""This module defines a ZFP compression parameterization model using Pydantic.
+"""This module contains a Pydantic model to parameterize compressors.
 
-Classes:
-    ZFPMode: Enum that characterizes the ZFP compression mode.
-    ZFP: Class that represents the ZFP compression model.
-
-ZFPMode Enum Values:
-    FIXED_ACCURACY: Allows fixed accuracy mode.
-    FIXED_PRECISION: Allows fixed precision mode.
-    FIXED_RATE: Allows fixed rate mode.
-    REVERSIBLE: Allows reversible mode.
-
-ZFP Class Attributes:
-    mode: Specifies the compression mode.
-    tolerance: Specifies the parameter for the FIXED_ACCURACY mode.
-    rate: Specifies the parameter for the FIXED_RATE mode.
-    precision: Specifies the parameter for the FIXED_PRECISION mode.
-    write_header: Allows encoding of shape, scalar type, and compression parameters.
-
-Notes:
-    Only one parameter(tolerance, rate, precision) should be given at a time for a
-    respective mode. For REVERSIBLE mode, no parameter (tolerance, rate, precision)
-    should be used.
+Important Objects:
+    - Blosc: A Pydantic model that represents a Blosc compression setup.
+    - ZFP: Class that represents the ZFP compression model.
+    - Compressors: A type alias to combine all compressors.
 """
 
 
+from enum import Enum
 from enum import StrEnum
+from typing import TypeAlias
 
 from pydantic import Field
 from pydantic import model_validator
 
 from mdio.schemas.base.core import StrictCamelBaseModel
+
+
+class BloscAlgorithm(StrEnum):
+    """Enum for Blosc algorithm options."""
+
+    BLOSCLZ = "blosclz"
+    LZ4 = "lz4"
+    LZ4HC = "lz4hc"
+    ZLIB = "zlib"
+    ZSTD = "zstd"
+
+
+class BloscShuffle(Enum):
+    """Enum for Blosc shuffle options."""
+
+    NOSHUFFLE = 0
+    SHUFFLE = 1
+    BITSHUFFLE = 2
+    AUTOSHUFFLE = -1
+
+
+class Blosc(StrictCamelBaseModel):
+    """Data Model for Blosc options."""
+
+    name: str = Field(default="blosc", description="Name of the compressor.")
+    algorithm: BloscAlgorithm = Field(
+        default=BloscAlgorithm.LZ4,
+        description="The Blosc compression algorithm to be used.",
+    )
+    level: int = Field(default=5, ge=0, le=9, description="The compression level.")
+    shuffle: BloscShuffle = Field(
+        default=BloscShuffle.SHUFFLE,
+        description="The shuffle strategy to be applied before compression.",
+    )
+    blocksize: int = Field(
+        default=0,
+        description="The size of the block to be used for compression.",
+    )
 
 
 class ZFPMode(StrEnum):
@@ -87,3 +110,6 @@ class ZFP(StrictCamelBaseModel):
             raise ValueError("precision required for FIXED_PRECISION")
 
         return self
+
+
+Compressors: TypeAlias = Blosc | ZFP
