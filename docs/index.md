@@ -12,14 +12,41 @@ end-before: <!-- github-only -->
 
 ```{toctree}
 :hidden:
+:caption: Getting Started
 
 installation
-tutorials/index
 usage
+```
+
+```{toctree}
+:hidden:
+:caption: Core Concepts and Structures
+
+data_models/dimensions
+data_models/chunk_grids
+data_models/index
+```
+
+```{toctree}
+:hidden:
+:caption: Learning and Support
+
+tutorials/index
 reference
-schemas/index
+```
+
+```{toctree}
+:hidden:
+:caption: Community and Contribution
+
 contributing
 Code of Conduct <codeofconduct>
+```
+
+```{toctree}
+:hidden:
+:caption: Additional Resources
+
 License <license>
 Changelog <https://github.com/TGSAI/mdio-python/releases>
 ```

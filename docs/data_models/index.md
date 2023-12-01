@@ -1,11 +1,10 @@
-# Schemas
+# Dataset Models
 
 This section contains the data models for the MDIO format.
 
 ```{toctree}
-:hidden:
+:maxdepth: 2
 
-chunk_grids
 version_0
 version_1
 ```

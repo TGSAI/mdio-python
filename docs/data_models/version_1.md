@@ -46,11 +46,9 @@
 
 .. autopydantic_model:: mdio.schemas.v1.variable.VariableMetadata
     :inherited-members: BaseModel
-
-.. automodule:: mdio.schemas.base.dimension
-    :members:
-    :undoc-members:
 ```
+
+### Units
 
 ```{eval-rst}
 .. autopydantic_model:: mdio.schemas.v1.units.AllUnits
