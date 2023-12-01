@@ -2,7 +2,9 @@
 :tocdepth: 3
 ```
 
-# Version 1
+# MDIO v1
+
+## MDIO Objects
 
 ```{article-info}
 :author: Altay Sansal
@@ -10,8 +12,6 @@
 :read-time: "{sub-ref}`wordcount-minutes` min read"
 :class-container: sd-p-0 sd-outline-muted sd-rounded-3 sd-font-weight-light
 ```
-
-## Data Models
 
 ```{eval-rst}
 .. automodule:: mdio.schemas.v1.dataset
