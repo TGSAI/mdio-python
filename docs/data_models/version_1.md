@@ -14,8 +14,7 @@
 ```
 
 ```{eval-rst}
-.. automodule:: mdio.schemas.v1.dataset
-    :members: Dataset
+.. autopydantic_model:: mdio.schemas.v1.dataset.Dataset
     :inherited-members: BaseModel
 
 .. autopydantic_model:: mdio.schemas.v1.variable.Variable
