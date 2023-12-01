@@ -2,9 +2,21 @@
 :tocdepth: 3
 ```
 
+```{currentModule} mdio.schemas
+
+```
+
 # Data Types
 
 ## Intro
+
+```{eval-rst}
+.. autosummary::
+   :nosignatures:
+
+   ScalarType
+   StructuredType
+```
 
 ## Reference
 
@@ -12,7 +24,7 @@
 :animate: fade-in-slide-down
 
 ```{eval-rst}
-.. autoclass:: mdio.schemas.ScalarType()
+.. autoclass:: ScalarType()
     :members:
     :undoc-members:
     :member-order: bysource
@@ -24,11 +36,11 @@
 :animate: fade-in-slide-down
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.StructuredType
+.. autopydantic_model:: StructuredType
 
 ----------
 
-.. autopydantic_model:: mdio.schemas.dtype.StructuredField
+.. autopydantic_model:: StructuredField
 ```
 
 :::
