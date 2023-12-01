@@ -3,9 +3,9 @@
 
 from pydantic import Field
 
-from mdio.schemas.base.core import RectilinearChunkGrid
-from mdio.schemas.base.core import RegularChunkGrid
 from mdio.schemas.base.core import StrictCamelBaseModel
+from mdio.schemas.chunk_grid import RectilinearChunkGrid
+from mdio.schemas.chunk_grid import RegularChunkGrid
 
 
 class ChunkGridMetadata(StrictCamelBaseModel):
