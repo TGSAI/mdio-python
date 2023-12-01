@@ -1,6 +1,7 @@
 """MDIO schemas for different data types."""
 
 
+from mdio.schemas.array import NamedArray
 from mdio.schemas.compressors import ZFP
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.compressors import Compressors
@@ -11,6 +12,7 @@ from mdio.schemas.dtype import StructuredType
 
 
 __all__ = [
+    "NamedArray",
     "Blosc",
     "Compressors",
     "ZFP",

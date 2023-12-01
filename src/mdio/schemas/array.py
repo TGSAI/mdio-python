@@ -3,8 +3,8 @@
 
 from pydantic import Field
 
-from mdio.schemas import Compressors
 from mdio.schemas.base.core import StrictCamelBaseModel
+from mdio.schemas.compressors import Compressors
 from mdio.schemas.dimension import DimensionContext
 
 
