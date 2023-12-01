@@ -53,6 +53,7 @@ autosectionlabel_prefix_document = True
 
 autodoc_pydantic_field_list_validators = False
 autodoc_pydantic_field_swap_name_and_alias = True
+autodoc_pydantic_field_show_alias = False
 autodoc_pydantic_model_show_config_summary = False
 autodoc_pydantic_model_show_validator_summary = False
 autodoc_pydantic_model_show_validator_members = False
