@@ -4,14 +4,14 @@
 
 # MDIO v1
 
-## MDIO Objects
-
 ```{article-info}
 :author: Altay Sansal
 :date: "{sub-ref}`today`"
 :read-time: "{sub-ref}`wordcount-minutes` min read"
 :class-container: sd-p-0 sd-outline-muted sd-rounded-3 sd-font-weight-light
 ```
+
+## MDIO Objects
 
 ```{eval-rst}
 .. autopydantic_model:: mdio.schemas.v1.dataset.Dataset
