@@ -32,6 +32,7 @@ api_reference
 
 data_models/dimensions
 data_models/chunk_grids
+data_models/data_types
 data_models/compressors
 data_models/index
 ```
