@@ -18,10 +18,7 @@
 ## Intro
 
 ```{eval-rst}
-.. autosummary::
-   :nosignatures:
-
-   Dimension
+.. autosummary:: Dimension
 ```
 
 ## Reference
