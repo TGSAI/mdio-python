@@ -6,7 +6,7 @@ end-before: <!-- github-only -->
 
 [apache 2.0 license]: license
 [contributor guide]: contributing
-[command-line usage]: usage
+[command-line usage]: cli_usage
 [api reference]: reference
 [installation instructions]: installation
 
@@ -15,7 +15,7 @@ end-before: <!-- github-only -->
 :caption: Getting Started
 
 installation
-usage
+cli_usage
 ```
 
 ```{toctree}
