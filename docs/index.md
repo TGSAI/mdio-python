@@ -20,19 +20,19 @@ cli_usage
 
 ```{toctree}
 :hidden:
+:caption: Learning and Support
+
+tutorials/index
+reference
+```
+
+```{toctree}
+:hidden:
 :caption: Core Concepts and Structures
 
 data_models/dimensions
 data_models/chunk_grids
 data_models/index
-```
-
-```{toctree}
-:hidden:
-:caption: Learning and Support
-
-tutorials/index
-reference
 ```
 
 ```{toctree}
