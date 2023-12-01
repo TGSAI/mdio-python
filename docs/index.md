@@ -30,11 +30,11 @@ api_reference
 :hidden:
 :caption: Core Concepts and Structures
 
+data_models/index
 data_models/dimensions
 data_models/chunk_grids
 data_models/data_types
 data_models/compressors
-data_models/index
 ```
 
 ```{toctree}
