@@ -122,4 +122,4 @@ AllUnitModel: TypeAlias = (
 class AllUnits(VersionedMetadataConvention):
     """All Units."""
 
-    units_v1: AllUnitModel | list[AllUnitModel] = Field(...)
+    units_v1: AllUnitModel | list[AllUnitModel] | None = Field(default=None)
