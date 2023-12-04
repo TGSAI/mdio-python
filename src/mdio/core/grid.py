@@ -10,7 +10,7 @@ import numpy as np
 import zarr
 
 from mdio.constants import UINT32_MAX
-from mdio.core import Dimension
+from mdio.core.dimension import Dimension
 from mdio.core.serialization import Serializer
 
 
