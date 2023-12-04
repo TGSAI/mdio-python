@@ -91,10 +91,26 @@ FrequencyUnitModel = create_unit_model(
 )
 
 
+class VoltageUnitEnum(UnitEnum):
+    """Enum class representing units of voltage."""
+
+    MICROVOLT = ureg.microvolt
+    MILLIVOLT = ureg.millivolt
+    VOLT = ureg.volt
+
+
+VoltageUnitModel = create_unit_model(VoltageUnitEnum, "VoltageUnitModel", "voltage")
+
+
 # Composite model types
-CoordinateUnitModel: TypeAlias = LengthUnitModel | TimeUnitModel | AngleUnitModel
 AllUnitModel: TypeAlias = (
-    CoordinateUnitModel | DensityUnitModel | SpeedUnitModel | FrequencyUnitModel
+    LengthUnitModel
+    | TimeUnitModel
+    | AngleUnitModel
+    | DensityUnitModel
+    | SpeedUnitModel
+    | FrequencyUnitModel
+    | VoltageUnitModel
 )
 
 

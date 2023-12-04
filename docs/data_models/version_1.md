@@ -53,7 +53,8 @@
               AngleUnitModel,
               DensityUnitModel,
               SpeedUnitModel,
-              FrequencyUnitModel
+              FrequencyUnitModel,
+              VoltageUnitModel
 ```
 
 ```{eval-rst}
@@ -95,6 +96,11 @@
     :member-order: bysource
 
 .. autoclass:: mdio.schemas.v1.units.TimeUnitEnum()
+    :members:
+    :undoc-members:
+    :member-order: bysource
+
+.. autoclass:: mdio.schemas.v1.units.VoltageUnitEnum()
     :members:
     :undoc-members:
     :member-order: bysource
