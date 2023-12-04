@@ -2,12 +2,14 @@
 
 
 from enum import Enum
+from enum import unique
 
 from pydantic import Field
 
 from mdio.schemas.base.core import StrictCamelBaseModel
 
 
+@unique
 class UnitEnum(str, Enum):
     """An Enum representing units as strings, from pint."""
 
