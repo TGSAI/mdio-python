@@ -15,7 +15,7 @@ from numpy.typing import NDArray
 from psutil import cpu_count
 from tqdm.auto import tqdm
 
-from mdio.core import Dimension
+from mdio.core.dimension import Dimension
 from mdio.seismic._workers import header_scan_worker
 from mdio.seismic.byte_utils import Dtype
 
