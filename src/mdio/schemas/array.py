@@ -6,13 +6,13 @@ from pydantic import Field
 from mdio.schemas.base.core import StrictCamelBaseModel
 from mdio.schemas.compressors import ZFP
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.dimension import Dimension
+from mdio.schemas.dimension import NamedDimension
 
 
 class BaseArray(StrictCamelBaseModel):
     """A base array schema."""
 
-    dimensions: list[Dimension] | list[str] = Field(
+    dimensions: list[NamedDimension] | list[str] = Field(
         ..., description="List of Dimension collection or reference to dimension names."
     )
     compressor: Blosc | ZFP | None = Field(

@@ -44,8 +44,6 @@
 
 ```{eval-rst}
 .. autopydantic_model:: mdio.schemas.v1.units.AllUnits
-
-.. autopydantic_model:: mdio.schemas.v1.units.CoordinateUnits
 ```
 
 ```{eval-rst}

@@ -18,7 +18,7 @@
 ## Intro
 
 ```{eval-rst}
-.. autosummary:: Dimension
+.. autosummary:: NamedDimension
 ```
 
 ## Reference
@@ -27,7 +27,7 @@
 :open:
 
 ```{eval-rst}
-.. autopydantic_model:: Dimension
+.. autopydantic_model:: NamedDimension
 ```
 
 :::

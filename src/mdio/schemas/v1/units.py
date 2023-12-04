@@ -99,12 +99,6 @@ AllUnitModel: TypeAlias = (
 
 
 # Versioned metadata conventions for units
-class CoordinateUnits(VersionedMetadataConvention):
-    """Coordinate Units."""
-
-    units_v1: CoordinateUnitModel = Field(...)
-
-
 class AllUnits(VersionedMetadataConvention):
     """All Units."""
 

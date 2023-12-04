@@ -23,14 +23,13 @@ from mdio.schemas.base.metadata import MetadataContainer
 from mdio.schemas.base.metadata import UserAttributes
 from mdio.schemas.v1.stats import StatisticsMetadata
 from mdio.schemas.v1.units import AllUnits
-from mdio.schemas.v1.units import CoordinateUnits
 
 
 class Coordinate(NamedArray):
     """An MDIO coordinate array with metadata."""
 
     data_type: ScalarType = Field(..., description="Data type of coordinate.")
-    metadata: list[CoordinateUnits | UserAttributes] | None = Field(
+    metadata: list[AllUnits | UserAttributes] | None = Field(
         default=None, description="Coordinate metadata."
     )
 
