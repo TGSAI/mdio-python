@@ -29,7 +29,9 @@ class LengthUnitEnum(UnitEnum):
     MILE = ureg.mile
 
 
-LengthUnitModel = create_unit_model(LengthUnitEnum, "LengthUnitModel", "length")
+LengthUnitModel = create_unit_model(
+    LengthUnitEnum, "LengthUnitModel", "length", __name__
+)
 
 
 class TimeUnitEnum(UnitEnum):
@@ -44,7 +46,7 @@ class TimeUnitEnum(UnitEnum):
     DAY = ureg.day
 
 
-TimeUnitModel = create_unit_model(TimeUnitEnum, "TimeUnitModel", "time")
+TimeUnitModel = create_unit_model(TimeUnitEnum, "TimeUnitModel", "time", __name__)
 
 
 class DensityUnitEnum(UnitEnum):
@@ -55,7 +57,9 @@ class DensityUnitEnum(UnitEnum):
     POUNDS_PER_GAL = ureg.pounds / ureg.gallon
 
 
-DensityUnitModel = create_unit_model(DensityUnitEnum, "DensityUnitModel", "density")
+DensityUnitModel = create_unit_model(
+    DensityUnitEnum, "DensityUnitModel", "density", __name__
+)
 
 
 class SpeedUnitEnum(UnitEnum):
@@ -65,7 +69,7 @@ class SpeedUnitEnum(UnitEnum):
     FEET_PER_SECOND = ureg.feet / ureg.second
 
 
-SpeedUnitModel = create_unit_model(SpeedUnitEnum, "SpeedUnitModel", "speed")
+SpeedUnitModel = create_unit_model(SpeedUnitEnum, "SpeedUnitModel", "speed", __name__)
 
 
 class AngleUnitEnum(UnitEnum):
@@ -75,7 +79,7 @@ class AngleUnitEnum(UnitEnum):
     RADIANS = ureg.radian
 
 
-AngleUnitModel = create_unit_model(AngleUnitEnum, "AngleUnitModel", "angle")
+AngleUnitModel = create_unit_model(AngleUnitEnum, "AngleUnitModel", "angle", __name__)
 
 
 class FrequencyUnitEnum(UnitEnum):
@@ -85,7 +89,7 @@ class FrequencyUnitEnum(UnitEnum):
 
 
 FrequencyUnitModel = create_unit_model(
-    FrequencyUnitEnum, "FrequencyUnitModel", "frequency"
+    FrequencyUnitEnum, "FrequencyUnitModel", "frequency", __name__
 )
 
 
@@ -97,7 +101,9 @@ class VoltageUnitEnum(UnitEnum):
     VOLT = ureg.volt
 
 
-VoltageUnitModel = create_unit_model(VoltageUnitEnum, "VoltageUnitModel", "voltage")
+VoltageUnitModel = create_unit_model(
+    VoltageUnitEnum, "VoltageUnitModel", "voltage", __name__
+)
 
 
 # Composite model types
