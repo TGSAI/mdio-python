@@ -4,17 +4,18 @@
 from pydantic import Field
 
 from mdio.schemas.base.core import StrictCamelBaseModel
-from mdio.schemas.compressors import Compressors
-from mdio.schemas.dimension import DimensionContext
+from mdio.schemas.compressors import ZFP
+from mdio.schemas.compressors import Blosc
+from mdio.schemas.dimension import Dimension
 
 
 class BaseArray(StrictCamelBaseModel):
     """A base array schema."""
 
-    dimensions: DimensionContext = Field(
+    dimensions: list[Dimension] | list[str] = Field(
         ..., description="List of Dimension collection or reference to dimension names."
     )
-    compressor: Compressors | None = Field(
+    compressor: Blosc | ZFP | None = Field(
         default=None, description="Compression settings."
     )
 

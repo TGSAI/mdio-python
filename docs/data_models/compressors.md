@@ -25,10 +25,6 @@
 
 ## Reference
 
-```{eval-rst}
-.. autoclass:: Compressors
-```
-
 :::
 :::{dropdown} Blosc
 :animate: fade-in-slide-down

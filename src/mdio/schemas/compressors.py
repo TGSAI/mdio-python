@@ -3,13 +3,11 @@
 Important Objects:
     - Blosc: A Pydantic model that represents a Blosc compression setup.
     - ZFP: Class that represents the ZFP compression model.
-    - Compressors: A type alias to combine all compressors.
 """
 
 
 from enum import Enum
 from enum import StrEnum
-from typing import TypeAlias
 
 from pydantic import Field
 from pydantic import model_validator
@@ -110,6 +108,3 @@ class ZFP(StrictCamelBaseModel):
             raise ValueError("precision required for FIXED_PRECISION")
 
         return self
-
-
-Compressors: TypeAlias = Blosc | ZFP
