@@ -5,6 +5,7 @@ from enum import Enum
 from enum import unique
 
 from pydantic import Field
+from pydantic import create_model
 
 from mdio.schemas.base.core import StrictCamelBaseModel
 
@@ -18,16 +19,19 @@ def create_unit_model(
     unit_enum: type[UnitEnum],
     model_name: str,
     quantity: str,
+    module: str,
 ) -> type[StrictCamelBaseModel]:
-    """This generates a Pydantic BaseModel for a unit convention.
+    """Dynamically creates a pydantic model from a unit Enum.
 
     Args:
         unit_enum: UnitEnum representing the units for a specific quantity.
-        model_name: String representing the name of the unit model.
+        model_name: The name of the model to be created.
         quantity: String representing the quantity for which the unit model is created.
+        module: Name of the module in which the model is to be created.
+            This should be the `__name__` attribute of the module.
 
     Returns:
-        A type representing the unit model derived from the BaseModel.
+        A Pydantic Model representing the unit model derived from the BaseModel.
 
     Example:
         unit_enum = UnitEnum
@@ -35,14 +39,10 @@ def create_unit_model(
         quantity = "length"
         create_unit_model(unit_enum, model_name, quantity)
     """
-    attributes = {
-        quantity: Field(..., description=f"Unit of {quantity}."),
-        "__annotations__": {quantity: unit_enum},
-    }
-
-    # Construct the BaseModel
-    unit_model = type(model_name, (StrictCamelBaseModel,), attributes)
-
-    unit_model.__doc__ = f"Model representing units of {quantity}."
-
-    return unit_model
+    return create_model(
+        model_name,
+        quantity=(unit_enum, Field(..., description=f"Unit of {quantity}.")),
+        __base__=StrictCamelBaseModel,
+        __doc__=f"Model representing units of {quantity}.",
+        __module__=module,
+    )
