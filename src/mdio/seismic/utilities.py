@@ -10,7 +10,7 @@ from dask.array.core import auto_chunks
 from numpy.typing import DTypeLike
 from numpy.typing import NDArray
 
-from mdio.core import Dimension
+from mdio.core.dimension import Dimension
 from mdio.seismic.byte_utils import Dtype
 from mdio.seismic.geometry import GridOverrider
 from mdio.seismic.parsers import parse_sample_axis
