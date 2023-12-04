@@ -51,7 +51,7 @@ class DensityUnitEnum(UnitEnum):
     """Enum class representing units of density."""
 
     GRAMS_PER_CC = ureg.gram / ureg.centimeter**3
-    KILOGRAMS_PER_CC = ureg.kilogram / ureg.meter**3
+    KILOGRAMS_PER_M3 = ureg.kilogram / ureg.meter**3
     POUNDS_PER_GAL = ureg.pounds / ureg.gallon
 
 
@@ -81,9 +81,7 @@ AngleUnitModel = create_unit_model(AngleUnitEnum, "AngleUnitModel", "angle")
 class FrequencyUnitEnum(UnitEnum):
     """Enum class representing units of frequency."""
 
-    FREQUENCY = ureg.hertz
-    PHASE_DEG = ureg.degree
-    PHASE_RAD = ureg.radian
+    HERTZ = ureg.hertz
 
 
 FrequencyUnitModel = create_unit_model(
