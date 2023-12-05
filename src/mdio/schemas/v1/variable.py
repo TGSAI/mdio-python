@@ -17,10 +17,10 @@ from pydantic import create_model
 from mdio.schemas import NamedArray
 from mdio.schemas import ScalarType
 from mdio.schemas import StructuredType
-from mdio.schemas.base.encoding import ChunkGridMetadata
-from mdio.schemas.base.metadata import MetadataContainer
-from mdio.schemas.base.metadata import UserAttributes
 from mdio.schemas.core import model_fields
+from mdio.schemas.metadata import ChunkGridMetadata
+from mdio.schemas.metadata import MetadataContainer
+from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.stats import StatisticsMetadata
 from mdio.schemas.v1.units import AllUnits
 

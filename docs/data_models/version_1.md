@@ -35,7 +35,7 @@
 ```
 
 ```{eval-rst}
-.. automodule:: mdio.schemas.base.metadata
+.. automodule:: mdio.schemas.metadata
     :members: UserAttributes
 
 .. autopydantic_model:: mdio.schemas.v1.variable.VariableMetadata

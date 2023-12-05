@@ -6,9 +6,9 @@ from typing import TypeAlias
 from pint import UnitRegistry
 from pydantic import Field
 
-from mdio.schemas.base.metadata import VersionedMetadataConvention
 from mdio.schemas.base.units import UnitEnum
 from mdio.schemas.base.units import create_unit_model
+from mdio.schemas.metadata import VersionedMetadataConvention
 
 
 ureg = UnitRegistry()
