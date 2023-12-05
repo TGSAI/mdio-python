@@ -25,7 +25,7 @@ Changelog = "https://github.com/TGSAI/mdio-python/releases"
 [tool.poetry.dependencies]
 python = ">=3.9,<3.12"
 click = "^8.1.7"
-click-params = "^0.4.1"
+click-params = "^0.5.0"
 zarr = "^2.16.1"
 dask = ">=2023.10.0"
 tqdm = "^4.66.1"
