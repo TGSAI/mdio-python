@@ -1,6 +1,6 @@
 furo==2023.9.10
 sphinx==7.2.6
-sphinx-click==5.0.1
+sphinx-click==5.1.0
 sphinx-copybutton==0.5.2
 # myst-nb==0.17.2
 myst-nb @ git+https://github.com/executablebooks/MyST-NB@35ebd54
