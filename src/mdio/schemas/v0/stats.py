@@ -10,7 +10,7 @@
 
 from pydantic import Field
 
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.base import StrictCamelBaseModel
 from mdio.schemas.metadata import VersionedMetadataConvention
 
 

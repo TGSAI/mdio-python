@@ -1,7 +1,7 @@
 """Dataset model for MDIO V0."""
 from pydantic import Field
 
-from mdio.schemas.dataset import BaseDataset
+from mdio.schemas.base import BaseDataset
 from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v0.variable import Variable
 

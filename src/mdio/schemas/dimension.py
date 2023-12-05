@@ -3,7 +3,7 @@
 
 from pydantic import Field
 
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.base import StrictCamelBaseModel
 
 
 class NamedDimension(StrictCamelBaseModel):

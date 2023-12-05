@@ -5,14 +5,6 @@ from typing import Any
 from typing import get_type_hints
 
 from pydantic import BaseModel
-from pydantic import ConfigDict
-from pydantic.alias_generators import to_camel
-
-
-class StrictCamelBaseModel(BaseModel):
-    """A BaseModel subclass with Pascal Cased aliases."""
-
-    model_config = ConfigDict(extra="forbid", alias_generator=to_camel)
 
 
 def model_fields(model: type[BaseModel]) -> dict[str, tuple[Any, Any]]:

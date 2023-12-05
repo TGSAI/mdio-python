@@ -10,7 +10,7 @@ from enum import StrEnum
 import numpy as np
 from pydantic import Field
 
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.base import StrictCamelBaseModel
 
 
 ALLOWED_TYPES = [

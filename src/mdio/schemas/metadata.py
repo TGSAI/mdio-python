@@ -6,9 +6,9 @@ from typing import Any
 
 from pydantic import Field
 
+from mdio.schemas.base import StrictCamelBaseModel
 from mdio.schemas.chunk_grid import RectilinearChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.core import StrictCamelBaseModel
 
 
 class ChunkGridMetadata(StrictCamelBaseModel):
