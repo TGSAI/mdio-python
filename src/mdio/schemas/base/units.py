@@ -39,9 +39,11 @@ def create_unit_model(
         quantity = "length"
         create_unit_model(unit_enum, model_name, quantity)
     """
+    fields = {quantity: (unit_enum, Field(..., description=f"Unit of {quantity}."))}
+
     return create_model(
         model_name,
-        quantity=(unit_enum, Field(..., description=f"Unit of {quantity}.")),
+        **fields,
         __base__=StrictCamelBaseModel,
         __doc__=f"Model representing units of {quantity}.",
         __module__=module,
