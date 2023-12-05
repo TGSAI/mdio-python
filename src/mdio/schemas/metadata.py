@@ -1,7 +1,6 @@
 """Metadata schemas and conventions."""
 
 
-import re
 from typing import Any
 
 from pydantic import Field
@@ -18,36 +17,6 @@ class ChunkGridMetadata(StrictCamelBaseModel):
         default=None,
         description="Chunk grid specification for the array.",
     )
-
-
-def follows_metadata_key_convention(key: str) -> bool:
-    """Check if the metadata convention key meets the required format.
-
-    We expect metadata conventions to be in the following format:
-
-    ```JSON
-    {"units-v1": {"length": "m"}}
-    // or
-    {"units-v1": {"length": "m"}}
-    // or
-    {"units-v1": {"length": "m"}}
-    //or
-    {"units-v1": {"length": "m"}}
-    ```
-
-    In most programming languages, hyphens are not permitted within variable
-    names. Instead, underscores are used. When such a field needs to be
-    externally represented with a hyphen, an alias must be for the variable,
-    substituting the underscore with a hyphen.
-
-    Args:
-        key: The key to be checked against the metadata key convention.
-
-    Returns:
-        True if the key follows the metadata key convention, False otherwise.
-    """
-    pattern = r"^[a-z]+_v\d+$"
-    return bool(re.match(pattern, key))
 
 
 class VersionedMetadataConvention(StrictCamelBaseModel):
