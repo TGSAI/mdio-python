@@ -20,11 +20,11 @@ from typing import TypeAlias
 
 from pydantic import Field
 
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.core import CamelCaseStrictModel
 from mdio.schemas.metadata import VersionedMetadataConvention
 
 
-class BaseHistogram(StrictCamelBaseModel):
+class BaseHistogram(CamelCaseStrictModel):
     """Represents a histogram with bin counts."""
 
     counts: list[int] = Field(..., description="Count of each each bin.")
@@ -50,7 +50,7 @@ class EdgeDefinedHistogram(BaseHistogram):
 Histogram: TypeAlias = CenteredBinHistogram | EdgeDefinedHistogram
 
 
-class SummaryStatistics(StrictCamelBaseModel):
+class SummaryStatistics(CamelCaseStrictModel):
     """Data model for some statistics in MDIO v1 arrays."""
 
     count: int = Field(..., description="The number of data points.")

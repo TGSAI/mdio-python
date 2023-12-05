@@ -7,7 +7,7 @@ from enum import unique
 from pydantic import Field
 from pydantic import create_model
 
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.core import CamelCaseStrictModel
 
 
 @unique
@@ -20,7 +20,7 @@ def create_unit_model(
     model_name: str,
     quantity: str,
     module: str,
-) -> type[StrictCamelBaseModel]:
+) -> type[CamelCaseStrictModel]:
     """Dynamically creates a pydantic model from a unit Enum.
 
     Args:
@@ -44,7 +44,7 @@ def create_unit_model(
     return create_model(
         model_name,
         **fields,
-        __base__=StrictCamelBaseModel,
+        __base__=CamelCaseStrictModel,
         __doc__=f"Model representing units of {quantity}.",
         __module__=module,
     )

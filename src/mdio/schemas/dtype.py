@@ -10,7 +10,7 @@ from enum import StrEnum
 import numpy as np
 from pydantic import Field
 
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.core import CamelCaseStrictModel
 
 
 ALLOWED_TYPES = [
@@ -26,7 +26,7 @@ ScalarType = StrEnum("ScalarType", {t.upper(): t for t in ALLOWED_TYPES})
 ScalarType.__doc__ = """Scalar array data type."""
 
 
-class StructuredField(StrictCamelBaseModel):
+class StructuredField(CamelCaseStrictModel):
     """Structured array field with name, format, and byte offset."""
 
     format: ScalarType = Field()
@@ -34,8 +34,16 @@ class StructuredField(StrictCamelBaseModel):
     offset: int | None = Field(default=None, ge=0)
 
 
-class StructuredType(StrictCamelBaseModel):
+class StructuredType(CamelCaseStrictModel):
     """Structured array type with fields and total item size."""
 
     fields: list[StructuredField] = Field()
     item_size: int | None = Field(default=None, gt=0)
+
+
+class DataTypeModel(CamelCaseStrictModel):
+    """Structured array type with fields and total item size."""
+
+    data_type: ScalarType | StructuredType = Field(
+        ..., description="Type of the array."
+    )

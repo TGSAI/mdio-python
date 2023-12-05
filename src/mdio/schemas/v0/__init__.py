@@ -1,7 +1,7 @@
 """Schema specific to MDIO v0."""
 
 
-from mdio.schemas.v0.dataset import Dataset
+from mdio.schemas.v0.dataset import DatasetModelV0
 
 
-__all__ = ["Dataset"]
+__all__ = ["DatasetModelV0"]

@@ -12,7 +12,7 @@ from enum import StrEnum
 from pydantic import Field
 from pydantic import model_validator
 
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.core import CamelCaseStrictModel
 
 
 class BloscAlgorithm(StrEnum):
@@ -34,7 +34,7 @@ class BloscShuffle(Enum):
     AUTOSHUFFLE = -1
 
 
-class Blosc(StrictCamelBaseModel):
+class Blosc(CamelCaseStrictModel):
     """Data Model for Blosc options."""
 
     name: str = Field(default="blosc", description="Name of the compressor.")
@@ -62,7 +62,7 @@ class ZFPMode(StrEnum):
     REVERSIBLE = "reversible"
 
 
-class ZFP(StrictCamelBaseModel):
+class ZFP(CamelCaseStrictModel):
     """Data Model for ZFP options."""
 
     name: str = Field(default="zfp", description="Name of the compressor.")
@@ -108,3 +108,11 @@ class ZFP(StrictCamelBaseModel):
             raise ValueError("precision required for FIXED_PRECISION")
 
         return self
+
+
+class CompressorModel(CamelCaseStrictModel):
+    """Model representing compressor configuration."""
+
+    compressor: Blosc | ZFP | None = Field(
+        default=None, description="Compression settings."
+    )

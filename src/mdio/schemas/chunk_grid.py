@@ -3,10 +3,10 @@
 
 from pydantic import Field
 
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.core import CamelCaseStrictModel
 
 
-class RegularChunkShape(StrictCamelBaseModel):
+class RegularChunkShape(CamelCaseStrictModel):
     """Represents regular chunk sizes along each dimension."""
 
     chunk_shape: list[int] = Field(
@@ -14,7 +14,7 @@ class RegularChunkShape(StrictCamelBaseModel):
     )
 
 
-class RectilinearChunkShape(StrictCamelBaseModel):
+class RectilinearChunkShape(CamelCaseStrictModel):
     """Represents irregular chunk sizes along each dimension."""
 
     chunk_shape: list[list[int]] = Field(
@@ -23,7 +23,7 @@ class RectilinearChunkShape(StrictCamelBaseModel):
     )
 
 
-class RegularChunkGrid(StrictCamelBaseModel):
+class RegularChunkGrid(CamelCaseStrictModel):
     """Represents a rectangular and regularly spaced chunk grid."""
 
     name: str = Field(default="regular", description="The name of the chunk grid.")
@@ -33,7 +33,7 @@ class RegularChunkGrid(StrictCamelBaseModel):
     )
 
 
-class RectilinearChunkGrid(StrictCamelBaseModel):
+class RectilinearChunkGrid(CamelCaseStrictModel):
     """Represents a rectangular and irregularly spaced chunk grid."""
 
     name: str = Field(default="rectilinear", description="The name of the chunk grid.")

@@ -39,6 +39,7 @@ exclude_patterns = [
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "pydantic": ("https://docs.pydantic.dev/latest/", None),
     "zarr": ("https://zarr.readthedocs.io/en/stable/", None),
 }
 

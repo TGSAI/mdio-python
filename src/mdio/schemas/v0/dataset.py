@@ -1,21 +1,89 @@
 """Dataset model for MDIO V0."""
 
 
+from typing import Optional
+
+from pydantic import AwareDatetime
 from pydantic import Field
 
+from mdio.schemas.base import BaseArray
 from mdio.schemas.base import BaseDataset
-from mdio.schemas.metadata import UserAttributes
-from mdio.schemas.v0.variable import Variable
+from mdio.schemas.core import CamelCaseStrictModel
+from mdio.schemas.core import StrictModel
 
 
-class Dataset(BaseDataset):
-    """Represents an MDIO dataset.
+class DimensionModelV0(CamelCaseStrictModel):
+    """Represents dimension schema for MDIO v0."""
 
-    A dataset consists of variables and metadata.
-    """
+    name: str = Field(..., description="Name of the dimension.")
+    coords: list[int] = Field(..., description="Coordinate labels (ticks).")
 
-    name: str = Field(..., description="Name of the dataset.")
-    variables: list[Variable] = Field(..., description="Variables in MDIO dataset")
-    attributes: UserAttributes | None = Field(
-        default=None, description="Dataset metadata."
+
+class DatasetMetadataModelV0(StrictModel):
+    """Represents dataset attributes schema for MDIO v0."""
+
+    api_version: str = Field(
+        ...,
+        description="MDIO version.",
+    )
+
+    created: AwareDatetime = Field(
+        ...,
+        description="Creation time with TZ info.",
+    )
+
+    dimension: list[DimensionModelV0] = Field(
+        ...,
+        description="Dimensions.",
+    )
+
+    mean: float | None = Field(
+        default=None,
+        description="Mean value of the samples.",
+    )
+
+    # Statistical information
+    std: Optional[float] = Field(
+        default=None, description="Standard deviation of the samples."
+    )
+
+    rms: Optional[float] = Field(
+        default=None, description="Root mean squared value of the samples."
+    )
+
+    min: Optional[float] = Field(
+        default=None,
+        description="Minimum value of the samples.",
+    )
+
+    max: Optional[float] = Field(
+        default=None,
+        description="Maximum value of the samples.",
+    )
+
+    trace_count: Optional[int] = Field(
+        default=None, description="Number of traces in the SEG-Y file."
+    )
+
+
+class VariableModelV0(BaseArray):
+    """Represents an MDIO v0 variable schema."""
+
+
+class DatasetModelV0(BaseDataset):
+    """Represents an MDIO v0 dataset schema."""
+
+    seismic: list[VariableModelV0] = Field(
+        ...,
+        description="Variable containing seismic.",
+    )
+
+    headers: list[VariableModelV0] = Field(
+        ...,
+        description="Variable containing headers.",
+    )
+
+    metadata: DatasetMetadataModelV0 = Field(
+        ...,
+        description="Dataset metadata.",
     )

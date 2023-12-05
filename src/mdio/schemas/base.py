@@ -7,14 +7,15 @@ from pydantic.json_schema import GenerateJsonSchema
 
 from mdio.schemas.compressors import ZFP
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.core import CamelCaseStrictModel
 from mdio.schemas.dimension import NamedDimension
+from mdio.schemas.dtype import DataTypeModel
 
 
 JSON_SCHEMA_DIALECT = GenerateJsonSchema.schema_dialect
 
 
-class BaseDataset(StrictCamelBaseModel):
+class BaseDataset(CamelCaseStrictModel):
     """A base class for MDIO datasets.
 
     We add schema dialect to extend the config of `StrictCamelBaseModel`.
@@ -25,7 +26,7 @@ class BaseDataset(StrictCamelBaseModel):
     model_config = ConfigDict(json_schema_extra={"$schema": JSON_SCHEMA_DIALECT})
 
 
-class BaseArray(StrictCamelBaseModel):
+class BaseArray(DataTypeModel, CamelCaseStrictModel):
     """A base array schema."""
 
     dimensions: list[NamedDimension] | list[str] = Field(

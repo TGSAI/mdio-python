@@ -1,3 +1,11 @@
+```{eval-rst}
+:tocdepth: 3
+```
+
+```{currentModule} mdio.schemas.v0.dataset
+
+```
+
 # MDIO v0
 
 ```{article-info}
@@ -7,19 +15,41 @@
 :class-container: sd-p-0 sd-outline-muted sd-rounded-3 sd-font-weight-light
 ```
 
-## Dataset
+## Intro
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.v0.dataset.Dataset
+.. autosummary::
+
+   DatasetModelV0
+   VariableModelV0
+   DatasetMetadataModelV0
+   DimensionModelV0
+```
+
+## Reference
+
+:::{dropdown} Dataset
+:open:
+
+```{eval-rst}
+.. autopydantic_model:: DatasetModelV0
     :inherited-members: BaseModel
 
-.. autopydantic_model:: mdio.schemas.v0.variable.Variable
+.. autopydantic_model:: DatasetMetadataModelV0
+    :inherited-members: BaseModel
+
+.. autopydantic_model:: DimensionModelV0
     :inherited-members: BaseModel
 ```
 
-## Metadata
+:::
+
+:::{dropdown} Variable
+:open:
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.v0.variable.VariableMetadata
+.. autopydantic_model:: VariableModelV0
     :inherited-members: BaseModel
 ```
+
+:::

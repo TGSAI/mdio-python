@@ -36,7 +36,13 @@ def model_fields(model: type[BaseModel]) -> dict[str, tuple[Any, Any]]:
     return fields
 
 
-class StrictCamelBaseModel(BaseModel):
-    """A BaseModel subclass with Pascal Cased aliases."""
+class StrictModel(BaseModel):
+    """A model with forbidden extras."""
 
-    model_config = ConfigDict(extra="forbid", alias_generator=to_camel)
+    model_config = ConfigDict(extra="forbid")
+
+
+class CamelCaseStrictModel(StrictModel):
+    """A model with forbidden extras and camel case aliases."""
+
+    model_config = ConfigDict(alias_generator=to_camel)

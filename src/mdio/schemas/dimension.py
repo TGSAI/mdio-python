@@ -3,10 +3,10 @@
 
 from pydantic import Field
 
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.core import CamelCaseStrictModel
 
 
-class NamedDimension(StrictCamelBaseModel):
+class NamedDimension(CamelCaseStrictModel):
     """Represents a single dimension with a name and size."""
 
     name: str = Field(..., description="Unique identifier for the dimension.")

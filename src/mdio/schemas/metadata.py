@@ -7,10 +7,10 @@ from pydantic import Field
 
 from mdio.schemas.chunk_grid import RectilinearChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.core import StrictCamelBaseModel
+from mdio.schemas.core import CamelCaseStrictModel
 
 
-class ChunkGridMetadata(StrictCamelBaseModel):
+class ChunkGridMetadata(CamelCaseStrictModel):
     """Definition of chunk grid."""
 
     chunk_grid: RegularChunkGrid | RectilinearChunkGrid | None = Field(
@@ -19,7 +19,7 @@ class ChunkGridMetadata(StrictCamelBaseModel):
     )
 
 
-class VersionedMetadataConvention(StrictCamelBaseModel):
+class VersionedMetadataConvention(CamelCaseStrictModel):
     """Data model for versioned metadata convention."""
 
     def model_dump(self, *args, **kwargs) -> dict[str, Any]:
@@ -31,14 +31,10 @@ class VersionedMetadataConvention(StrictCamelBaseModel):
         return super().model_dump_json(*args, **kwargs, by_alias=True)
 
 
-class UserAttributes(StrictCamelBaseModel):
+class UserAttributes(CamelCaseStrictModel):
     """User defined attributes as key/value pairs."""
 
     attributes: dict[str, Any] | None = Field(
         default=None,
         description="User defined attributes as key/value pairs.",
     )
-
-
-class MetadataContainer(StrictCamelBaseModel):
-    """A container model for metadata."""

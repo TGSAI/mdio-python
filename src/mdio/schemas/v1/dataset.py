@@ -10,7 +10,7 @@ from mdio.schemas.v1.variable import Variable
 
 
 class Dataset(BaseDataset):
-    """Represents an MDIO dataset.
+    """Represents an MDIO v1 dataset.
 
     A dataset consists of variables and metadata.
     """
