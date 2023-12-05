@@ -1,24 +1,17 @@
 """Base models to subclass from."""
 
 
-from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
-from pydantic.alias_generators import to_camel
 from pydantic.json_schema import GenerateJsonSchema
 
 from mdio.schemas.compressors import ZFP
 from mdio.schemas.compressors import Blosc
+from mdio.schemas.core import StrictCamelBaseModel
 from mdio.schemas.dimension import NamedDimension
 
 
 JSON_SCHEMA_DIALECT = GenerateJsonSchema.schema_dialect
-
-
-class StrictCamelBaseModel(BaseModel):
-    """A BaseModel subclass with Pascal Cased aliases."""
-
-    model_config = ConfigDict(extra="forbid", alias_generator=to_camel)
 
 
 class BaseDataset(StrictCamelBaseModel):
