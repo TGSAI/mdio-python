@@ -4,10 +4,10 @@
 from pydantic import Field
 from pydantic import create_model
 
-from mdio.schemas import NamedArray
-from mdio.schemas import ScalarType
-from mdio.schemas import StructuredType
+from mdio.schemas.base import NamedArray
 from mdio.schemas.core import model_fields
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import MetadataContainer
 from mdio.schemas.metadata import UserAttributes
