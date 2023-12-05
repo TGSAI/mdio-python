@@ -3,9 +3,9 @@
 
 from pydantic import Field
 
-from mdio.schemas.base.core import StrictCamelBaseModel
 from mdio.schemas.compressors import ZFP
 from mdio.schemas.compressors import Blosc
+from mdio.schemas.core import StrictCamelBaseModel
 from mdio.schemas.dimension import NamedDimension
 
 

@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import Field
 
-from mdio.schemas.base.core import StrictCamelBaseModel
+from mdio.schemas.core import StrictCamelBaseModel
 
 
 def follows_metadata_key_convention(key: str) -> bool:

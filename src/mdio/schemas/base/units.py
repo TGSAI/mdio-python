@@ -7,7 +7,7 @@ from enum import unique
 from pydantic import Field
 from pydantic import create_model
 
-from mdio.schemas.base.core import StrictCamelBaseModel
+from mdio.schemas.core import StrictCamelBaseModel
 
 
 @unique

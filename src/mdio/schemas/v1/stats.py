@@ -20,8 +20,8 @@ from typing import TypeAlias
 
 from pydantic import Field
 
-from mdio.schemas.base.core import StrictCamelBaseModel
 from mdio.schemas.base.metadata import VersionedMetadataConvention
+from mdio.schemas.core import StrictCamelBaseModel
 
 
 class BaseHistogram(StrictCamelBaseModel):

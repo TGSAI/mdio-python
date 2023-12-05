@@ -4,7 +4,7 @@
 from pydantic import ConfigDict
 from pydantic.json_schema import GenerateJsonSchema
 
-from mdio.schemas.base.core import StrictCamelBaseModel
+from mdio.schemas.core import StrictCamelBaseModel
 
 
 JSON_SCHEMA_DIALECT = GenerateJsonSchema.schema_dialect

@@ -12,7 +12,7 @@ from enum import StrEnum
 from pydantic import Field
 from pydantic import model_validator
 
-from mdio.schemas.base.core import StrictCamelBaseModel
+from mdio.schemas.core import StrictCamelBaseModel
 
 
 class BloscAlgorithm(StrEnum):
