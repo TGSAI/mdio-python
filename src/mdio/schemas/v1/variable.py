@@ -46,7 +46,7 @@ VariableMetadata = create_model(
 class Variable(NamedArray):
     """An MDIO variable that has coordinates and metadata."""
 
-    coordinates: list[Coordinate] | None = Field(
+    coordinates: list[Coordinate] | list[str] | None = Field(
         default=None,
         description="Coordinates of the MDIO variable dimensions.",
     )
