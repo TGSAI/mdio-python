@@ -22,14 +22,6 @@ class ChunkGridMetadata(CamelCaseStrictModel):
 class VersionedMetadataConvention(CamelCaseStrictModel):
     """Data model for versioned metadata convention."""
 
-    def model_dump(self, *args, **kwargs) -> dict[str, Any]:
-        """Override default model dump to use alias."""
-        return super().model_dump(*args, **kwargs, by_alias=True)
-
-    def model_dump_json(self, *args, **kwargs) -> str:
-        """Override default model dump json to use alias."""
-        return super().model_dump_json(*args, **kwargs, by_alias=True)
-
 
 class UserAttributes(CamelCaseStrictModel):
     """User defined attributes as key/value pairs."""
