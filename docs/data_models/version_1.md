@@ -19,28 +19,42 @@
 
 ```{eval-rst}
 .. autosummary:: Dataset
+.. autosummary:: DatasetMetadata
 ```
 
 ## Reference
+
+:::{dropdown} Dataset
+:open:
 
 ```{eval-rst}
 .. autopydantic_model:: Dataset
     :inherited-members: BaseModel
 
+.. autopydantic_model:: DatasetMetadata
+    :inherited-members: BaseModel
+```
+
+:::
+:::{dropdown} Variable
+
+```{eval-rst}
 .. autopydantic_model:: mdio.schemas.v1.variable.Variable
     :inherited-members: BaseModel
 
 .. autopydantic_model:: mdio.schemas.v1.variable.Coordinate
     :inherited-members: BaseModel
-```
 
-```{eval-rst}
 .. automodule:: mdio.schemas.metadata
     :members: UserAttributes
 
 .. autopydantic_model:: mdio.schemas.v1.variable.VariableMetadata
     :inherited-members: BaseModel
 ```
+
+:::
+
+:::{dropdown} Units
 
 ```{eval-rst}
 .. autopydantic_model:: mdio.schemas.v1.units.AllUnits
@@ -57,6 +71,10 @@
               VoltageUnitModel
 ```
 
+:::
+
+:::{dropdown} Stats
+
 ```{eval-rst}
 .. autopydantic_model:: mdio.schemas.v1.stats.StatisticsMetadata
 
@@ -68,6 +86,10 @@
 .. autopydantic_model:: mdio.schemas.v1.stats.CenteredBinHistogram
     :inherited-members: BaseModel
 ```
+
+:::
+
+:::{dropdown} Enums
 
 ```{eval-rst}
 .. autoclass:: mdio.schemas.v1.units.AngleUnitEnum()
@@ -105,3 +127,5 @@
     :undoc-members:
     :member-order: bysource
 ```
+
+:::
