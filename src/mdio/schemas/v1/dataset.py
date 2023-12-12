@@ -1,12 +1,43 @@
 """Dataset model for MDIO V1."""
 
 
+from pydantic import AwareDatetime
 from pydantic import Field
+from pydantic import create_model
 
 from mdio.schemas.base import BaseDataset
-from mdio.schemas.dimension import NamedDimension
+from mdio.schemas.core import CamelCaseStrictModel
+from mdio.schemas.core import model_fields
 from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.variable import Variable
+
+
+class DatasetInfo(CamelCaseStrictModel):
+    """Contains information about a dataset."""
+
+    name: str = Field(..., description="Name or identifier for the dataset.")
+
+    api_version: str = Field(
+        ...,
+        description="The version of the MDIO API that the dataset complies with.",
+    )
+
+    created_on: AwareDatetime = Field(
+        ...,
+        description=(
+            "The timestamp indicating when the dataset was first created, "
+            "including timezone information. Expressed in ISO 8601 format."
+        ),
+    )
+
+
+DatasetMetadata = create_model(
+    "DatasetMetadata",
+    **model_fields(DatasetInfo),
+    **model_fields(UserAttributes),
+    __base__=CamelCaseStrictModel,
+)
+DatasetMetadata.__doc__ = "The metadata about the dataset."
 
 
 class Dataset(BaseDataset):
@@ -15,11 +46,5 @@ class Dataset(BaseDataset):
     A dataset consists of variables and metadata.
     """
 
-    name: str = Field(..., description="Name of the dataset.")
     variables: list[Variable] = Field(..., description="Variables in MDIO dataset")
-    dimensions: list[NamedDimension] | None = Field(
-        default=None, description="List of Dimensions."
-    )
-    metadata: UserAttributes | None = Field(
-        default=None, description="Dataset metadata."
-    )
+    metadata: DatasetMetadata = Field(default=None, description="Dataset metadata.")
