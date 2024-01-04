@@ -100,6 +100,18 @@ def analyze_streamer_headers(
 
             if cable_chan_min[idx2] < max_val and cable_chan_max[idx2] > min_val:
                 geom_type = StreamerShotGeometryType.A
+                logger.info("Found overlapping channels, assuming streamer type A")
+                logger.info(
+                    f"""Cable {cable} index {idx} with channel min {min_val} and
+  max {max_val} overlaps cable {cable2} index {idx2} with channel min
+  {cable_chan_min[idx2]} and max {cable_chan_max[idx2]}"""
+                )
+                logger.info(
+                    """If overlapping channels are not expected, this is potentially
+ due to aux traces.  Consider fixing the SEG-Y file. If this is not possible, use the
+ AutoIndex grid override (and not channel) to fix the channel numbers."""
+                )
+                return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
     return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
