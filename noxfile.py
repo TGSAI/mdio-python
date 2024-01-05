@@ -218,9 +218,7 @@ def docs_build(session: Session) -> None:
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
-        # TODO(Altay): Update this to v1.0.0 when its out. Right now we
-        #  use this because myst-nb stable doesn't work with Sphinx 7.
-        "myst-nb@git+https://github.com/executablebooks/MyST-NB@35ebd54",
+        "myst-nb",
         "linkify-it-py",
     )
 
@@ -242,9 +240,7 @@ def docs(session: Session) -> None:
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
-        # TODO(Altay): Update this to v1.0.0 when its out. Right now we
-        #  use this because myst-nb stable doesn't work with Sphinx 7.
-        "myst-nb@git+https://github.com/executablebooks/MyST-NB@35ebd54",
+        "myst-nb",
         "linkify-it-py",
     )
 
