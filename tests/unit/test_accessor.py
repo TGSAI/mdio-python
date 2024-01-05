@@ -44,7 +44,7 @@ class TestReader:
 
     def test_live_mask(self, mock_reader):
         """Check if live mask is full as expected."""
-        assert np.alltrue(mock_reader.live_mask[:])
+        assert np.all(mock_reader.live_mask[:])
 
     @pytest.mark.parametrize(
         "il_coord, il_index, xl_coord, xl_index, z_coord, z_index",
