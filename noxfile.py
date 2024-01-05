@@ -215,11 +215,13 @@ def docs_build(session: Session) -> None:
     session.install(".")
     session.install(
         "sphinx",
+        "sphinx-design",
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
         "myst-nb",
         "linkify-it-py",
+        "autodoc-pydantic",
     )
 
     build_dir = Path("docs", "_build")
@@ -236,12 +238,14 @@ def docs(session: Session) -> None:
     session.install(".")
     session.install(
         "sphinx",
+        "sphinx-design",
         "sphinx-autobuild",
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
         "myst-nb",
         "linkify-it-py",
+        "autodoc-pydantic",
     )
 
     build_dir = Path("docs", "_build")
