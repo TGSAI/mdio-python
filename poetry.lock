@@ -2869,6 +2869,7 @@ files = [
 numpy = [
     {version = ">=1.22.4,<2", markers = "python_version < \"3.11\""},
     {version = ">=1.23.2,<2", markers = "python_version == \"3.11\""},
+    {version = ">=1.26.0,<2", markers = "python_version >= \"3.12\""},
 ]
 python-dateutil = ">=2.8.2"
 pytz = ">=2020.1"
@@ -5158,5 +5159,5 @@ lossy = ["zfpy"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = ">=3.9,<3.12"
-content-hash = "60768a49cfea77043ea82fb46abc8635329d7d11a82f7af1f1f9ed1796a42b3f"
+python-versions = ">=3.9,<3.13"
+content-hash = "52c08efcb0793d18aff5cfa0e65b1fb7f474d2c1897b5da39993a316f1b7425e"
