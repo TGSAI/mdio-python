@@ -49,31 +49,31 @@ cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.7.0"
-coverage = {version = "^7.3.0", extras = ["toml"]}
+black = "^23.12.1"
+coverage = {version = "^7.4.0", extras = ["toml"]}
 darglint = "^1.8.1"
-flake8 = "^6.1.0"
+flake8 = "^7.0.0"
 flake8-bandit = "^4.1.1"
-flake8-bugbear = "^23.7.10"
+flake8-bugbear = "^23.12.2"
 flake8-docstrings = "^1.7.0"
 flake8-rst-docstrings = "^0.3.0"
 furo = ">=2023.9.10"
-isort = "^5.12.0"
-mypy = "^1.5.1"
+isort = "^5.13.2"
+mypy = "^1.8.0"
 pep8-naming = "^0.13.3"
-pre-commit = "^3.3.3"
-pre-commit-hooks = "^4.4.0"
-pytest = "^7.4.0"
-pyupgrade = "^3.10.1"
+pre-commit = "^3.6.0"
+pre-commit-hooks = "^4.5.0"
+pytest = "^7.4.4"
+pyupgrade = "^3.15.0"
 safety = "^2.3.5"
-sphinx-autobuild = ">=2021.3.14"
-sphinx-click = "^5.0.1"
+sphinx-autobuild = "^2021.3.14"
+sphinx-click = "^5.1.0"
 sphinx-copybutton = "^0.5.2"
-typeguard = "^4.1.2"
-xdoctest = {version = "^1.1.1", extras = ["colors"]}
+typeguard = "^4.1.5"
+xdoctest = {version = "^1.1.2", extras = ["colors"]}
 myst-parser = "^2.0.0"
-Pygments = "^2.16.1"
-Sphinx = "^7.2.3"
+Pygments = "^2.17.2"
+Sphinx = "^7.2.6"
 
 [tool.poetry.scripts]
 mdio = "mdio.__main__:main"
