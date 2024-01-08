@@ -66,7 +66,7 @@ def analyze_streamer_headers(
     """Check input headers for SEG-Y input to help determine geometry.
 
     This function reads in trace_qc_count headers and finds the unique cable values.
-    The function then checks to make sure channel numbers for different cables do
+    The function then checks to ensure channel numbers for different cables do
     not overlap.
 
     Args:
@@ -91,26 +91,34 @@ def analyze_streamer_headers(
 
     # Check channel numbers do not overlap for case B
     geom_type = StreamerShotGeometryType.B
-    for idx, cable in enumerate(unique_cables):
-        min_val = cable_chan_min[idx]
-        max_val = cable_chan_max[idx]
+    for idx1, cable1 in enumerate(unique_cables):
+        min_val1 = cable_chan_min[idx1]
+        max_val1 = cable_chan_max[idx1]
+
+        cable1_range = (min_val1, max_val1)
         for idx2, cable2 in enumerate(unique_cables):
-            if cable2 == cable:
+            if cable2 == cable1:
                 continue
 
-            if cable_chan_min[idx2] < max_val and cable_chan_max[idx2] > min_val:
+            min_val2 = cable_chan_min[idx2]
+            max_val2 = cable_chan_max[idx2]
+            cable2_range = (min_val2, max_val2)
+
+            # Check for overlap and return early with Type A
+            if min_val2 < max_val1 and max_val2 > min_val1:
                 geom_type = StreamerShotGeometryType.A
+
+                overlap_info = (
+                    f"Cable {cable1} index {idx1} with channel range {cable1_range} "
+                    f"overlaps cable {cable2} index {idx2} with channel range "
+                    f"{cable2_range}. Check for aux trace issues if the overlap is "
+                    "unexpected. To fix, modify the SEG-Y file or use AutoIndex "
+                    "grid override (not channel) for channel number correction."
+                )
+
                 logger.info("Found overlapping channels, assuming streamer type A")
-                logger.info(
-                    f"""Cable {cable} index {idx} with channel min {min_val} and
-  max {max_val} overlaps cable {cable2} index {idx2} with channel min
-  {cable_chan_min[idx2]} and max {cable_chan_max[idx2]}"""
-                )
-                logger.info(
-                    """If overlapping channels are not expected, this is potentially
- due to aux traces.  Consider fixing the SEG-Y file. If this is not possible, use the
- AutoIndex grid override (and not channel) to fix the channel numbers."""
-                )
+                logger.info(overlap_info)
+
                 return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
     return unique_cables, cable_chan_min, cable_chan_max, geom_type
