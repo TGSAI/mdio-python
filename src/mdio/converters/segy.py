@@ -90,6 +90,8 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
     logger.debug(f"Dimensions: {dims}")
     logger.debug(f"num_traces = {num_traces}")
+    logger.debug(f"grid_traces = {grid_traces}")
+    logger.debug(f"sparsity = {grid_traces/num_traces}")
 
     grid_sparsity_ratio_limit = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", 10)
     try:
