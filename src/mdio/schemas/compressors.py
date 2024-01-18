@@ -89,23 +89,30 @@ class ZFP(CamelCaseStrictModel):
     )
 
     @model_validator(mode="after")
-    def check_requirements(self):
+    def check_requirements(self) -> "ZFP":
         """Check if ZFP parameters make sense."""
         mode = self.mode
 
+        # Check if reversible mode is provided without other parameters.
         if mode == ZFPMode.REVERSIBLE:
             if any(
                 getattr(self, key) is not None
                 for key in ["tolerance", "rate", "precision"]
             ):
-                raise ValueError("Other fields must be None in REVERSIBLE mode")
+                msg = "Other fields must be None in REVERSIBLE mode"
+                raise ValueError(msg)
 
         if mode == ZFPMode.FIXED_ACCURACY and self.tolerance is None:
-            raise ValueError("tolerance required for FIXED_ACCURACY")
-        elif mode == ZFPMode.FIXED_RATE and self.rate is None:
-            raise ValueError("rate required for FIXED_RATE")
-        elif mode == ZFPMode.FIXED_PRECISION and self.precision is None:
-            raise ValueError("precision required for FIXED_PRECISION")
+            msg = "Tolerance required for FIXED_ACCURACY mode"
+            raise ValueError(msg)
+
+        if mode == ZFPMode.FIXED_RATE and self.rate is None:
+            msg = "Rate required for FIXED_RATE mode"
+            raise ValueError(msg)
+
+        if mode == ZFPMode.FIXED_PRECISION and self.precision is None:
+            msg = "Precision required for FIXED_PRECISION mode"
+            raise ValueError(msg)
 
         return self
 
