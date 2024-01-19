@@ -24,8 +24,8 @@ except ImportError:
 
 
 def mdio_to_segy(  # noqa: PLR0913
-    mdio_path_or_buffer: str,
-    output_segy_path: str,
+    mdio_path_or_buffer: str | Path,
+    output_segy_path: str | Path,
     endian: str = "big",
     access_pattern: str = "012",
     out_sample_format: str = "ibm32",
@@ -164,9 +164,9 @@ def mdio_to_segy(  # noqa: PLR0913
 
     # tmp file root
     out_dir = Path(output_segy_path).parent
-    tmp_dir = TemporaryDirectory(dir=out_dir)
 
-    with tmp_dir:
+    with TemporaryDirectory(dir=out_dir) as tmp_dir:
+        tmp_path = Path(tmp_dir)
         with TqdmCallback(desc="Unwrapping MDIO Blocks"):
             flat_files = to_segy(
                 samples=samples,
@@ -174,7 +174,7 @@ def mdio_to_segy(  # noqa: PLR0913
                 live_mask=live_mask,
                 out_dtype=out_dtype,
                 out_byteorder=out_byteorder,
-                file_root=tmp_dir.name,
+                file_root=tmp_path,
                 axis=tuple(range(1, samples.ndim)),
             ).compute()
 

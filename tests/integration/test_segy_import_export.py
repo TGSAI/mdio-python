@@ -227,14 +227,14 @@ class TestExport:
     ) -> None:
         """Test 3D export to IBM and IEEE."""
         mdio_to_segy(
-            mdio_path_or_buffer=zarr_tmp.__str__(),
-            output_segy_path=segy_export_ibm_tmp.__str__(),
+            mdio_path_or_buffer=zarr_tmp,
+            output_segy_path=segy_export_ibm_tmp,
             out_sample_format="ibm32",
         )
 
         mdio_to_segy(
-            mdio_path_or_buffer=zarr_tmp.__str__(),
-            output_segy_path=segy_export_ieee_tmp.__str__(),
+            mdio_path_or_buffer=zarr_tmp,
+            output_segy_path=segy_export_ieee_tmp,
             out_sample_format="float32",
         )
 

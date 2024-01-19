@@ -25,6 +25,8 @@ from mdio.seismic.creation import concat_files
 from mdio.seismic.creation import write_to_segy_stack
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from numpy.typing import NDArray
 
     from mdio.core import Grid
@@ -259,7 +261,7 @@ def to_segy(  # noqa: PLR0913
     live_mask: Array,
     out_dtype: Dtype,
     out_byteorder: ByteOrder,
-    file_root: str,
+    file_root: Path,
     axis: tuple[int] | None = None,
 ) -> Array:
     r"""Convert MDIO blocks to SEG-Y parts.

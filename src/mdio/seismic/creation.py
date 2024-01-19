@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from shutil import copyfileobj
 from time import sleep
 from typing import TYPE_CHECKING
@@ -22,8 +23,6 @@ from mdio.seismic.byte_utils import get_byteorder
 from mdio.seismic.ibm_float import ieee2ibm
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from numpy.typing import NDArray
 
 
@@ -124,7 +123,7 @@ def mdio_spec_to_segy(  # noqa: PLR0913
 
 def write_to_segy_stack(  # noqa: PLR0913
     samples: NDArray[float],
-    headers: NDArray[Dtype],
+    headers: NDArray[Any],  # type: ignore
     live: NDArray[bool],
     out_dtype: Dtype,
     out_byteorder: ByteOrder,
@@ -249,7 +248,7 @@ def cast_sample_format(
     return samples
 
 
-def concat_files(paths: list[Path], progress: bool = False) -> Path:
+def concat_files(paths: list[str], progress: bool = False) -> Path:
     """Concatenate files on disk, sequentially in given order.
 
     This function takes files on disk, and it combines them by
@@ -266,6 +265,8 @@ def concat_files(paths: list[Path], progress: bool = False) -> Path:
     Returns:
         Path to the returned file (first one from input).
     """
+    paths = [Path(path) for path in paths]
+
     first_file = paths.pop(0)
 
     if progress is True:
