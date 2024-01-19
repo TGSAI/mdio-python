@@ -1,6 +1,5 @@
 """MDIO accessor APIs."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -492,10 +491,16 @@ class MDIOAccessor:
         if dimensions is None:
             dims = self.grid.dims
         else:
-            dims = [self.grid.select_dim(dim_name) for dim_name in dimensions]
+            dims = []
+            for query_dim in dimensions:
+                try:
+                    dims.append(self.grid.select_dim(query_dim))
+                except ValueError as err:
+                    msg = f"Requested dimension {query_dim} does not exist."
+                    raise KeyError(msg) from err
 
         dim_indices = ()
-        for mdio_dim, dim_query_coords in zip(dims, queries):  # noqa: B905
+        for mdio_dim, dim_query_coords in zip(dims, queries):
             # Make sure all coordinates exist.
             query_diff = np.setdiff1d(dim_query_coords, mdio_dim.coords)
             if len(query_diff) > 0:

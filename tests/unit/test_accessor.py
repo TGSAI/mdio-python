@@ -136,7 +136,7 @@ class TestExceptions:
 
     def test_wrong_index(self, mock_reader: MDIOReader) -> None:
         """If user asks for an index that doesn't exist."""
-        with pytest.raises(ValueError, match="does not have coordinate(s)"):
+        with pytest.raises(KeyError, match="(.+?) does not exist"):
             mock_reader.coord_to_index(0, dimensions="non_existent")
 
     def test_mdio_exists(self, mock_reader: MDIOReader) -> None:
