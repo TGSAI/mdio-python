@@ -27,7 +27,7 @@ python = ">=3.9,<3.13"
 click = "^8.1.7"
 click-params = "^0.5.0"
 zarr = "^2.16.1"
-dask = ">=2023.12.1"
+dask = "^2024.1.0"
 tqdm = "^4.66.1"
 segyio = "^1.9.3"
 numba = "0.59.0rc1"
@@ -35,7 +35,7 @@ psutil = "^5.9.7"
 fsspec = "^2023.12.2"
 pydantic = "^2.5.3"
 pint = "^0.23"
-distributed = {version = ">=2023.12.1", optional = true}
+distributed = {version = ">=2024.1.0", optional = true}
 bokeh = {version = "^3.3.2", optional = true}
 s3fs = {version = ">=2023.12.2", optional = true}
 gcsfs = {version = ">=2023.12.2.post1", optional = true}
@@ -50,21 +50,13 @@ cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.12.1"
+ruff = "^0.1.13"
 coverage = {version = "^7.4.0", extras = ["toml"]}
 darglint = "^1.8.1"
-flake8 = "^7.0.0"
-flake8-bandit = "^4.1.1"
-flake8-bugbear = "^23.12.2"
-flake8-docstrings = "^1.7.0"
-flake8-rst-docstrings = "^0.3.0"
-isort = "^5.13.2"
 mypy = "^1.8.0"
-pep8-naming = "^0.13.3"
 pre-commit = "^3.6.0"
 pre-commit-hooks = "^4.5.0"
 pytest = "^7.4.4"
-pyupgrade = "^3.15.0"
 safety = "^2.3.5"
 typeguard = "^4.1.5"
 xdoctest = {version = "^1.1.2", extras = ["colors"]}
@@ -85,6 +77,59 @@ sphinx-autobuild = ">=2021.3.14"
 [tool.poetry.scripts]
 mdio = "mdio.__main__:main"
 
+[tool.ruff]
+target-version = "py39"
+src = ["src"]
+select = [
+    "E",  # pycodestyle
+    "F",   # pyflakes
+    "B",  # bugbear
+    "I",  # isort
+    "UP",  # pyupgrade
+    "N",  # pep8-naming
+    "D",   # pydocstyle
+    "ANN",  # annotations
+    "S",  # bandit
+    "A",  # builtins
+    "C4",  # comprehensions
+    "DTZ",  # datetimez
+    "EM",  # errmsg
+    "ICN",  # import-conventions
+    "PIE",  # pie
+    "PT",  # pytest-style
+    "RSE",  # raise
+    "RET",  # return
+    "SIM",  # simplify
+    "TID",  # tidy-imports
+    "TCH",  # type-checking
+    "ARG",  # unused-arguments
+    "PTH",  # use-pathlib
+    "TD",  # todos
+    "PL",  # pylint
+    "FLY", # flynt
+    "NPY",  # numpy
+]
+ignore = [
+    "ANN101",  # Missing type annotation for `self`
+]
+
+
+[tool.ruff.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.flake8-annotations]
+mypy-init-return = true
+
+[tool.ruff.pydocstyle]
+convention = "google"
+
+[tool.ruff.isort]
+force-single-line = true
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 100
+ignore-overlong-task-comments = true
+
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
 tests = ["tests", "*/tests"]
@@ -96,11 +141,6 @@ source = ["mdio", "tests"]
 [tool.coverage.report]
 show_missing = true
 fail_under = 80
-
-[tool.isort]
-profile = "black"
-force_single_line = true
-lines_after_imports = 2
 
 [tool.mypy]
 strict = true
