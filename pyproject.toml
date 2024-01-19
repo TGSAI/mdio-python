@@ -31,7 +31,7 @@ dask = "^2024.1.0"
 tqdm = "^4.66.1"
 segyio = "^1.9.3"
 numba = "0.59.0rc1"
-psutil = "^5.9.7"
+psutil = "^5.9.8"
 fsspec = "^2023.12.2"
 pydantic = "^2.5.3"
 pint = "^0.23"
@@ -50,7 +50,7 @@ cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.1.13"
+ruff = "^0.1.14"
 coverage = {version = "^7.4.0", extras = ["toml"]}
 darglint = "^1.8.1"
 mypy = "^1.8.0"
@@ -68,11 +68,11 @@ sphinx = "^7.2.6"
 sphinx-design = "^0.5.0"
 sphinx-click = "^5.1.0"
 sphinx-copybutton = "^0.5.2"
-furo = ">=2023.9.10"
+furo = "^2023.9.10"
 myst-nb = "^1.0.0"
 linkify-it-py = "^2.0.2"
 autodoc-pydantic = "^2.0.1"
-sphinx-autobuild = ">=2021.3.14"
+sphinx-autobuild = "^2021.3.14"
 
 [tool.poetry.scripts]
 mdio = "mdio.__main__:main"
