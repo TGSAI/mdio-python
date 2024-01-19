@@ -3,17 +3,25 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+from typing import Any
+
 import zarr
 
 from mdio.api.io_utils import process_url
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def copy_mdio(
-    source,
-    dest_path_or_buffer: str,
-    excludes="",
-    includes="",
-    storage_options: dict | None = None,
+    from mdio.api.accessor import MDIOAccessor
+
+
+def copy_mdio(  # noqa: PLR0913
+    source: MDIOAccessor,
+    dest_path_or_buffer: str | Path,
+    excludes: str = "",
+    includes: str = "",
+    storage_options: dict[str, Any] | None = None,
     overwrite: bool = False,
 ) -> None:
     """Copy MDIO file.
@@ -61,7 +69,7 @@ def copy_mdio(
     )
 
     if len(excludes) > 0:
-        data_path = "/".join(["data", excludes])
+        data_path = f"data/{excludes}"
         source_array = source.root[data_path]
         dimension_separator = source_array._dimension_separator
 

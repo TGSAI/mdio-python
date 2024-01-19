@@ -10,7 +10,6 @@ from textwrap import dedent
 
 import nox
 
-
 try:
     from nox_poetry import Session
     from nox_poetry import session
@@ -26,7 +25,7 @@ except ImportError:
 
 package = "mdio"
 python_versions = ["3.12", "3.11", "3.10", "3.9"]
-nox.needs_version = ">= 2022.1.7"
+nox.needs_version = ">=2023.04.22"
 nox.options.sessions = (
     "pre-commit",
     "safety",
@@ -122,18 +121,10 @@ def precommit(session: Session) -> None:
         "--show-diff-on-failure",
     ]
     session.install(
-        "black",
         "darglint",
-        "flake8",
-        "flake8-bandit",
-        "flake8-bugbear",
-        "flake8-docstrings",
-        "flake8-rst-docstrings",
-        "isort",
-        "pep8-naming",
         "pre-commit",
         "pre-commit-hooks",
-        "pyupgrade",
+        "ruff",
     )
     session.run("pre-commit", *args)
     if args and args[0] == "install":
@@ -217,13 +208,13 @@ def docs_build(session: Session) -> None:
     session.install(".")
     session.install(
         "sphinx",
+        "sphinx-design",
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
-        # TODO(Altay): Update this to v1.0.0 when its out. Right now we
-        #  use this because myst-nb stable doesn't work with Sphinx 7.
-        "myst-nb@git+https://github.com/executablebooks/MyST-NB@35ebd54",
+        "myst-nb",
         "linkify-it-py",
+        "autodoc-pydantic",
     )
 
     build_dir = Path("docs", "_build")
@@ -240,14 +231,14 @@ def docs(session: Session) -> None:
     session.install(".")
     session.install(
         "sphinx",
+        "sphinx-design",
         "sphinx-autobuild",
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
-        # TODO(Altay): Update this to v1.0.0 when its out. Right now we
-        #  use this because myst-nb stable doesn't work with Sphinx 7.
-        "myst-nb@git+https://github.com/executablebooks/MyST-NB@35ebd54",
+        "myst-nb",
         "linkify-it-py",
+        "autodoc-pydantic",
     )
 
     build_dir = Path("docs", "_build")

@@ -3,15 +3,15 @@
 
 from __future__ import annotations
 
-import os
-from os import path
+from pathlib import Path
 from shutil import copyfileobj
 from time import sleep
+from typing import TYPE_CHECKING
+from typing import Any
 from uuid import uuid4
 
 import numpy as np
 import segyio
-from numpy.typing import NDArray
 from segyio.binfield import keys as bfkeys
 from tqdm.auto import tqdm
 
@@ -22,18 +22,21 @@ from mdio.seismic.byte_utils import Dtype
 from mdio.seismic.byte_utils import get_byteorder
 from mdio.seismic.ibm_float import ieee2ibm
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
-def mdio_spec_to_segy(
-    mdio_path_or_buffer,
-    output_segy_path,
-    endian,
-    access_pattern,
-    out_sample_format,
-    storage_options,
-    new_chunks,
-    selection_mask,
-    backend,
-):
+
+def mdio_spec_to_segy(  # noqa: PLR0913
+    mdio_path_or_buffer: str | Path,
+    output_segy_path: str | Path,
+    endian: str,
+    access_pattern: str,
+    out_sample_format: str,
+    storage_options: dict[str, Any],
+    new_chunks: tuple[int, ...],
+    selection_mask: NDArray[bool],
+    backend: str,
+) -> tuple[MDIOReader, SegyFloatFormat]:
     """Create SEG-Y file without any traces given MDIO specification.
 
     This function opens an MDIO file, gets some relevant information for SEG-Y files,
@@ -118,13 +121,13 @@ def mdio_spec_to_segy(
     return mdio, out_sample_format
 
 
-def write_to_segy_stack(
-    samples: NDArray,
-    headers: NDArray,
-    live: NDArray,
+def write_to_segy_stack(  # noqa: PLR0913
+    samples: NDArray[float],
+    headers: NDArray[Any],  # type: ignore
+    live: NDArray[bool],
     out_dtype: Dtype,
     out_byteorder: ByteOrder,
-    file_root: str,
+    file_root: Path,
 ) -> NDArray:
     """Pre-process seismic data for SEG-Y and write partial blocks.
 
@@ -155,8 +158,8 @@ def write_to_segy_stack(
     # Make output array with string type. We need to know
     # the length of the string ahead of time.
     # Last axis can be written as sequential, so we collapse that to 1.
-    mock_path = path.join(file_root, uuid4().hex)
-    paths_dtype = f"U{len(mock_path)}"
+    mock_path = file_root / uuid4().hex
+    paths_dtype = f"U{len(str(mock_path))}"
     paths_shape = live.shape[:-1] + (1,)
     part_segy_paths = np.full(paths_shape, fill_value="missing", dtype=paths_dtype)
 
@@ -189,7 +192,7 @@ def write_to_segy_stack(
             continue
 
         # Generate unique file name and append to return list.
-        file_path = path.join(file_root, uuid4().hex)
+        file_path = file_root / uuid4().hex
         part_segy_paths[index] = file_path
 
         # Interleave samples and headers
@@ -198,7 +201,7 @@ def write_to_segy_stack(
         part_traces["trace"] = samples[index][part_live]
         part_traces["pad"] = 0
 
-        with open(file_path, mode="wb") as fp:
+        with file_path.open(mode="wb") as fp:
             part_traces.tofile(fp)
 
     return part_segy_paths
@@ -245,9 +248,7 @@ def cast_sample_format(
     return samples
 
 
-# TODO: Abstract this to support various implementations by
-#  object stores and file systems. Probably fsspec solution.
-def concat_files(paths: list[str], progress=False) -> str:
+def concat_files(paths: list[str], progress: bool = False) -> Path:
     """Concatenate files on disk, sequentially in given order.
 
     This function takes files on disk, and it combines them by
@@ -264,16 +265,18 @@ def concat_files(paths: list[str], progress=False) -> str:
     Returns:
         Path to the returned file (first one from input).
     """
+    paths = [Path(path) for path in paths]
+
     first_file = paths.pop(0)
 
     if progress is True:
         paths = tqdm(paths, desc="Merging lines")
 
-    with open(first_file, "ab+") as first_fp:
+    with first_file.open(mode="ab+") as first_fp:
         for next_file in paths:
-            with open(next_file, "rb") as next_fp:
+            with next_file.open(mode="rb") as next_fp:
                 copyfileobj(next_fp, first_fp)
 
-            os.remove(next_file)
+            next_file.unlink()
 
     return first_file

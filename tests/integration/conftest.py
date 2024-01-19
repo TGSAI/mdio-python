@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-import os
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -11,9 +11,12 @@ import segyio
 
 from mdio.seismic.geometry import StreamerShotGeometryType
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def create_segy_mock_4d(
-    fake_segy_tmp: str,
+
+def create_segy_mock_4d(  # noqa: PLR0913
+    fake_segy_tmp: Path,
     num_samples: int,
     shots: list,
     cables: list,
@@ -23,7 +26,7 @@ def create_segy_mock_4d(
 ) -> str:
     """Dummy 4D SEG-Y file for use in tests."""
     spec = segyio.spec()
-    segy_file = os.path.join(fake_segy_tmp, f"4d_type_{chan_header_type}.sgy")
+    segy_file = fake_segy_tmp / f"4d_type_{chan_header_type}.sgy"
 
     shot_count = len(shots)
     total_chan = np.sum(receivers_per_cable)
@@ -38,8 +41,7 @@ def create_segy_mock_4d(
     cable_headers = []
     channel_headers = []
 
-    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-    for cable, num_rec in zip(cables, receivers_per_cable):  # noqa: B905
+    for cable, num_rec in zip(cables, receivers_per_cable):
         cable_headers.append(np.repeat(cable, num_rec))
 
         channel_headers.append(np.arange(num_rec) + 1)

@@ -15,7 +15,6 @@ from click_params import JSON
 from click_params import IntListParamType
 from click_params import StringListParamType
 
-
 SEGY_HELP = """
 MDIO and SEG-Y conversion utilities. Below is general information
 about the SEG-Y format and MDIO features. For import or export
@@ -146,21 +145,21 @@ cli = Group(name="segy", help=SEGY_HELP)
     help="Option to add grid overrides.",
     type=JSON,
 )
-def segy_import(
+def segy_import(  # noqa: PLR0913
     segy_path: str,
     mdio_path: str,
-    header_locations: list[int],
-    header_types: list[str],
-    header_names: list[str],
-    chunk_size: list[int],
+    header_locations: tuple[int, ...],
+    header_types: tuple[str, ...],
+    header_names: tuple[str, ...],
+    chunk_size: tuple[int, ...],
     endian: str,
     lossless: bool,
     compression_tolerance: float,
     storage_options: dict[str, Any],
     overwrite: bool,
     grid_overrides: dict[str, Any],
-):
-    """Ingest SEG-Y file to MDIO.
+) -> None:
+    r"""Ingest SEG-Y file to MDIO.
 
     SEG-Y format is explained in the "segy" group of the command line
     interface. To see additional information run:
@@ -405,14 +404,14 @@ def segy_import(
     show_default=True,
     show_choices=True,
 )
-def segy_export(
+def segy_export(  # noqa: PLR0913
     mdio_file: str,
     segy_path: str,
     access_pattern: str,
     segy_format: str,
     storage_options: dict[str, Any],
     endian: str,
-):
+) -> None:
     """Export MDIO file to SEG-Y.
 
     SEG-Y format is explained in the "segy" group of the command line

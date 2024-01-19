@@ -6,7 +6,9 @@ from typing import Any
 import zarr
 
 
-def write_attribute(name: str, attribute: Any, zarr_group: zarr.Group) -> None:
+def write_attribute(
+    name: str, attribute: dict[str, Any], zarr_group: zarr.Group
+) -> None:
     """Write a mappable to Zarr array or group attribute.
 
     Args:

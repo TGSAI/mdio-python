@@ -3,21 +3,26 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 from dask.array.core import auto_chunks
-from numpy.typing import DTypeLike
-from numpy.typing import NDArray
 
-from mdio.core import Dimension
-from mdio.seismic.byte_utils import Dtype
+from mdio.core.dimension import Dimension
 from mdio.seismic.geometry import GridOverrider
 from mdio.seismic.parsers import parse_sample_axis
 from mdio.seismic.parsers import parse_trace_headers
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
-def get_grid_plan(  # noqa:  C901
+    from numpy.typing import DTypeLike
+    from numpy.typing import NDArray
+
+    from mdio.seismic.byte_utils import Dtype
+
+
+def get_grid_plan(  # noqa: PLR0913
     segy_path: str,
     segy_endian: str,
     index_bytes: Sequence[int],
@@ -149,8 +154,7 @@ def segy_export_rechunker(
         new_chunks = tuple(map(int, new_chunks))
         prev_chunks = new_chunks
 
-    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-    qc_iterator = zip(new_chunks, chunks, shape)  # noqa: B905
+    qc_iterator = zip(new_chunks, chunks, shape)
 
     for idx, (dim_new_chunk, dim_chunk, dim_size) in enumerate(qc_iterator):
         # Sometimes dim_chunk can be larger than dim_size. This catches when

@@ -21,9 +21,10 @@ Examples:
     * Then reverse it and get `ASCII_TO_EBCDIC[33]` that maps back to `0x4F` which is "|".
 """
 
+# ruff: noqa: E501
+
 
 import numpy as np
-
 
 # fmt: off
 ASCII_TO_EBCDIC = np.asarray(

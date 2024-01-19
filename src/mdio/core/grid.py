@@ -5,13 +5,17 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import zarr
 
 from mdio.constants import UINT32_MAX
-from mdio.core import Dimension
+from mdio.core.dimension import Dimension
 from mdio.core.serialization import Serializer
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 @dataclass
@@ -31,60 +35,59 @@ class Grid:
 
     dims: list[Dimension]
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Initialize convenience properties."""
         self.dim_names = tuple(dim.name for dim in self.dims)
         self.shape = tuple(dim.size for dim in self.dims)
         self.ndim = len(self.dims)
 
-    def __getitem__(self, item) -> Dimension:
+    def __getitem__(self, item: int) -> Dimension:
         """Gets a specific dimension by index."""
         return self.dims[item]
 
-    def __setitem__(self, key, value: Dimension) -> None:
+    def __setitem__(self, key: int, value: Dimension) -> None:
         """Sets a specific dimension by index."""
         self.dims[key] = value
 
-    def select_dim(self, name) -> Dimension:
+    def select_dim(self, name: str) -> Dimension:
         """Gets a specific dimension by name."""
         index = self.dim_names.index(name)
         return self.dims[index]
 
-    def get_min(self, name):
+    def get_min(self, name: str) -> int | float:
         """Get minimum value of a dimension with a given name."""
-        return self.select_dim(name).min()
+        return self.select_dim(name).min().tolist()
 
-    def get_max(self, name):
+    def get_max(self, name: str) -> int | float:
         """Get maximum value of a dimension with a given name."""
-        return self.select_dim(name).max()
+        return self.select_dim(name).max().tolist()
 
-    def serialize(self, stream_format):
+    def serialize(self, stream_format: str) -> str:
         """Serialize the Grid into buffer."""
         serializer = GridSerializer(stream_format)
         return serializer.serialize(self)
 
     @classmethod
-    def deserialize(cls, stream, stream_format):
+    def deserialize(cls: Grid, stream: str, stream_format: str) -> Grid:
         """Deserialize buffer into Grid."""
         serializer = GridSerializer(stream_format)
         return serializer.deserialize(stream)
 
-    # TODO: Make this a deserialize option
     @classmethod
-    def from_zarr(cls, zarr_root: zarr.Group):
+    def from_zarr(cls: Grid, zarr_root: zarr.Group) -> Grid:
         """Deserialize grid from Zarr attributes."""
         dims_list = zarr_root.attrs["dimension"]
         dims_list = [Dimension.from_dict(dim) for dim in dims_list]
 
         return cls(dims_list)
 
-    def build_map(self, index_headers):
+    def build_map(self, index_headers: dict[str, NDArray]) -> None:
         """Build a map for live traces based on `index_headers`.
 
         Args:
             index_headers: Headers to be normalized (indexed)
         """
-        live_dim_indices = tuple()
+        live_dim_indices = ()
         for dim in self.dims[:-1]:
             dim_hdr = index_headers[dim.name]
             live_dim_indices += (np.searchsorted(dim, dim_hdr),)
@@ -111,7 +114,7 @@ class GridSerializer(Serializer):
 
         payload = self.deserialize_func(stream)
         payload = [Dimension.from_dict(dim) for dim in payload]
-        payload = dict(dims=payload)
+        payload = {"dims": payload}
         payload = self.validate_payload(payload, signature)
 
         return Grid(**payload)

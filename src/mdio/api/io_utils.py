@@ -3,16 +3,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Any
 
 import dask.array as da
 import zarr
 from zarr.storage import FSStore
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
 
 def process_url(
-    url: str,
-    mode: str,
+    url: str | Path,
+    mode: str | Path,
     storage_options: dict[str, Any],
     memory_cache_size: int,
     disk_cache: bool,
@@ -83,20 +87,18 @@ def process_url(
         ... )
     """
     if disk_cache is True:
-        url = "::".join(["simplecache", url])
+        url = f"simplecache::{url}"
 
     # Strip whitespaces and slashes from end of string
-    url = url.rstrip("/ ")
+    url_str = str(url).rstrip("/ ")
 
-    # Flag for checking write access
-    check = True if mode == "w" else False
-
-    # TODO: Turning off write checking now because zarr has a bug.
-    #  Get rid of this once bug is fixed.
+    # Turning off write checking now because zarr has a bug.
+    # Get rid of this once bug is fixed.
+    # check = True if mode == "w" else False
     check = False
 
     store = FSStore(
-        url=url,
+        url=url_str,
         check=check,
         create=check,
         mode=mode,
@@ -124,7 +126,9 @@ def open_zarr_array(group_handle: zarr.Group, name: str) -> zarr.Array:
     return group_handle[name]
 
 
-def open_zarr_array_dask(group_handle: zarr.Group, name: str, **kwargs) -> da.Array:
+def open_zarr_array_dask(
+    group_handle: zarr.Group, name: str, **kwargs: dict[str, Any]
+) -> da.Array:
     """Open Zarr array lazily using Dask.
 
     Note: All other kwargs get passed to dask.array.from_zarr()

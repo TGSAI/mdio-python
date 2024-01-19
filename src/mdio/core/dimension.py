@@ -5,18 +5,18 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 
 from mdio.core.serialization import Serializer
 from mdio.exceptions import ShapeError
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
-# TODO: once min Python >3.10, remove slots attribute and
-#  add `slots=True` to dataclass decorator and also add
-#  `kw_only=True` to enforce keyword only initialization.
+
 @dataclass(eq=False, order=False)
 class Dimension:
     """Dimension class.
@@ -34,12 +34,13 @@ class Dimension:
     coords: list | tuple | NDArray | range
     name: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Post process and validation."""
         self.coords = np.asarray(self.coords)
         if self.coords.ndim != 1:
+            msg = "Dimensions can only have vector coordinates."
             raise ShapeError(
-                "Dimensions can only have vector coordinates",
+                msg,
                 ("# Dim", "Expected"),
                 (self.coords.ndim, 1),
             )
@@ -51,10 +52,10 @@ class Dimension:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert dimension to dictionary."""
-        return dict(name=self.name, coords=self.coords.tolist())
+        return {"name": self.name, "coords": self.coords.tolist()}
 
     @classmethod
-    def from_dict(cls, other: dict[str, Any]) -> Dimension:
+    def from_dict(cls: Dimension, other: dict[str, Any]) -> Dimension:
         """Make dimension from dictionary."""
         return Dimension(**other)
 
@@ -66,7 +67,7 @@ class Dimension:
         """Gets a specific coordinate value by index."""
         return self.coords[item]
 
-    def __setitem__(self, key: int, value: Any) -> None:
+    def __setitem__(self, key: int, value: NDArray[float]) -> None:
         """Sets a specific coordinate value by index."""
         self.coords[key] = value
 
@@ -78,15 +79,16 @@ class Dimension:
         """Compares if the dimension has same properties."""
         if not isinstance(other, Dimension):
             other_type = type(other).__name__
-            raise TypeError(f"Can't compare Dimension with {other_type}")
+            msg = f"Can't compare Dimension with {other_type}"
+            raise TypeError(msg)
 
         return hash(self) == hash(other)
 
-    def min(self) -> NDArray[np.float]:
+    def min(self) -> NDArray[float]:
         """Get minimum value of dimension."""
         return np.min(self.coords)
 
-    def max(self) -> NDArray[np.float]:
+    def max(self) -> NDArray[float]:
         """Get maximum value of dimension."""
         return np.max(self.coords)
 
@@ -96,7 +98,7 @@ class Dimension:
         return serializer.serialize(self)
 
     @classmethod
-    def deserialize(cls, stream: str, stream_format: str) -> Dimension:
+    def deserialize(cls: Dimension, stream: str, stream_format: str) -> Dimension:
         """Deserialize buffer into Dimension."""
         serializer = DimensionSerializer(stream_format)
         return serializer.deserialize(stream)
@@ -107,11 +109,11 @@ class DimensionSerializer(Serializer):
 
     def serialize(self, dimension: Dimension) -> str:
         """Serialize Dimension into buffer."""
-        payload = dict(
-            name=dimension.name,
-            length=len(dimension),
-            coords=dimension.coords.tolist(),
-        )
+        payload = {
+            "name": dimension.name,
+            "length": len(dimension),
+            "coords": dimension.coords.tolist(),
+        }
         return self.serialize_func(payload)
 
     def deserialize(self, stream: str) -> Dimension:

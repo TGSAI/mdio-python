@@ -6,7 +6,6 @@ import os
 import numba as nb
 import numpy as np
 
-
 # If Numba's JIT compilation is disabled, force vectorized
 # functions to Numba's Object Mode. This is only used when running
 # tests and we want a coverage report to JIT functions.
@@ -16,10 +15,10 @@ try:
 except KeyError:  # pragma: no cover
     NUMBA_DISABLE_JIT = 0
 
-OBJECT_MODE = True if NUMBA_DISABLE_JIT else False
-JIT_CACHE = False if NUMBA_DISABLE_JIT else True
+OBJECT_MODE = bool(NUMBA_DISABLE_JIT)
+JIT_CACHE = not NUMBA_DISABLE_JIT
 JIT_TARGET = "cpu"
-JIT_KWARGS = dict(cache=JIT_CACHE, forceobj=OBJECT_MODE)
+JIT_KWARGS = {"cache": JIT_CACHE, "forceobj": OBJECT_MODE}
 
 # IEEE to IBM MASKS ETC
 IEEE32_SIGN = np.uint32(0x80000000)
@@ -87,7 +86,7 @@ def ieee2ibm_single(ieee: np.float32) -> np.uint32:
     exponent = exponent + 64
     # From here down exponent -> ibm_exponent
     exponent = 0 if exponent < 0 else exponent
-    exponent = 127 if exponent > 127 else exponent
+    exponent = 127 if exponent > 127 else exponent  # noqa: PLR2004
     exponent = exponent << 24
     exponent = exponent if ieee else 0
 
@@ -95,9 +94,8 @@ def ieee2ibm_single(ieee: np.float32) -> np.uint32:
     # 24-bit IBM mantissa. Downshift it by the remainder from the exponent's
     # division by 4. It is allowed to have up to 3 leading 0s.
     ibm_mantissa = ((ieee & IEEE32_FRACTION) | 0x800000) >> downshift
-    ibm = sign | exponent | ibm_mantissa
 
-    return ibm
+    return sign | exponent | ibm_mantissa
 
 
 @nb.njit(
@@ -108,7 +106,6 @@ def ieee2ibm_single(ieee: np.float32) -> np.uint32:
         "sign": nb.int8,
         "exponent": nb.uint8,
         "mantissa": nb.float32,
-        "ieee": nb.float32,
     },
 )
 def ibm2ieee_single(ibm: np.uint32) -> np.float32:
@@ -139,13 +136,12 @@ def ibm2ieee_single(ibm: np.uint32) -> np.float32:
     # This 16.0 (instead of just 16) is super important.
     # If the base is not a float, it won't work for negative
     # exponents, and fail silently and return zero.
-    ieee = sign * mantissa * 16.0 ** (exponent - 64)
 
-    return ieee
+    return sign * mantissa * 16.0 ** (exponent - 64)
 
 
 @nb.njit("uint32(uint32)", cache=JIT_CACHE)
-def byteswap_uint32_single(value):
+def byteswap_uint32_single(value: np.uint32) -> np.uint32:
     """Endianness swapping that can be JIT compiled.
 
     This is faster or on par with the numpy implementation depending
@@ -168,8 +164,7 @@ def byteswap_uint32_single(value):
         return value
 
     value = ((value << 8) & BYTEMASK_1_3) | ((value >> 8) & BYTEMASK_2_4)
-    value = np.uint32(value << 16) | np.uint32(value >> 16)
-    return value
+    return np.uint32(value << 16) | np.uint32(value >> 16)
 
 
 @nb.vectorize("uint32(float32)", target=JIT_TARGET, **JIT_KWARGS)
@@ -185,6 +180,6 @@ def ibm2ieee(ibm_array: np.uint32) -> np.float32:  # pragma: no cover
 
 
 @nb.vectorize("uint32(uint32)", **JIT_KWARGS)
-def byteswap_uint32(value):  # pragma: no cover
+def byteswap_uint32(value: np.uint32) -> np.uint32:  # pragma: no cover
     """Wrapper for vectorizing byte-swap to arrays."""
     return byteswap_uint32_single(value)

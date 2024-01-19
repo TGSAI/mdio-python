@@ -19,7 +19,6 @@ from mdio.seismic.exceptions import GridOverrideMissingParameterError
 from mdio.seismic.exceptions import GridOverrideUnknownError
 from mdio.seismic.geometry import GridOverrider
 
-
 SHOTS = arange(100, 104, dtype="int32")
 CABLES = arange(11, 15, dtype="int32")
 RECEIVERS = arange(1, 6, dtype="int32")
@@ -46,7 +45,7 @@ def get_dims(headers: dict[str, npt.NDArray]) -> list[Dimension]:
     return dims
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_streamer_headers() -> dict[str, npt.NDArray]:
     """Generate dictionary of mocked streamer index headers."""
     grids = meshgrid(SHOTS, CABLES, RECEIVERS, indexing="ij")
@@ -57,13 +56,11 @@ def mock_streamer_headers() -> dict[str, npt.NDArray]:
         shot_mask = permutations[:, 0] == shot
         permutations[shot_mask, -1] = arange(1, len(CABLES) * len(RECEIVERS) + 1)
 
-    result = dict(
-        shot_point=permutations[:, 0],
-        cable=permutations[:, 1],
-        channel=permutations[:, 2],
-    )
-
-    return result
+    return {
+        "shot_point": permutations[:, 0],
+        "cable": permutations[:, 1],
+        "channel": permutations[:, 2],
+    }
 
 
 class TestAutoGridOverrides:

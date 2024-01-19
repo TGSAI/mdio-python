@@ -36,10 +36,9 @@ class ChunkIterator:
             self.len_chunks = self.len_chunks[:-1] + (self.arr_shape[-1],)
 
         # Compute number of chunks per dimension, and total number of chunks
-        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
         self.dim_chunks = [
             ceil(len_dim / chunk)
-            for len_dim, chunk in zip(self.arr_shape, self.len_chunks)  # noqa: B905
+            for len_dim, chunk in zip(self.arr_shape, self.len_chunks)
         ]
         self.num_chunks = np.prod(self.dim_chunks)
 
@@ -49,41 +48,34 @@ class ChunkIterator:
         self._ranges = itertools.product(*dim_ranges)
         self._idx = 0
 
-    def __iter__(self):
+    def __iter__(self) -> "ChunkIterator":
         """Iteration context."""
         return self
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Get total number of chunks."""
         return self.num_chunks
 
-    def __next__(self):
+    def __next__(self) -> tuple[slice, ...]:
         """Iteration logic."""
         if self._idx <= self.num_chunks:
             # We build slices here. It is dimension agnostic
             current_start = next(self._ranges)
 
-            # TODO: Add strict=True and remove noqa when minimum Python is 3.10
             start_indices = tuple(
-                dim * chunk
-                for dim, chunk in zip(current_start, self.len_chunks)  # noqa: B905
+                dim * chunk for dim, chunk in zip(current_start, self.len_chunks)
             )
 
-            # TODO: Add strict=True and remove noqa when minimum Python is 3.10
             stop_indices = tuple(
-                (dim + 1) * chunk
-                for dim, chunk in zip(current_start, self.len_chunks)  # noqa: B905
+                (dim + 1) * chunk for dim, chunk in zip(current_start, self.len_chunks)
             )
 
-            # TODO: Add strict=True and remove noqa when minimum Python is 3.10
             slices = tuple(
-                slice(start, stop)
-                for start, stop in zip(start_indices, stop_indices)  # noqa: B905
+                slice(start, stop) for start, stop in zip(start_indices, stop_indices)
             )
 
             self._idx += 1
 
             return slices
 
-        else:
-            raise StopIteration
+        raise StopIteration

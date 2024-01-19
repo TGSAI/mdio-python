@@ -6,24 +6,29 @@ from __future__ import annotations
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from math import ceil
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Sequence
 
 import numpy as np
 import segyio
-from numpy.typing import NDArray
 from psutil import cpu_count
 from tqdm.auto import tqdm
 
-from mdio.core import Dimension
+from mdio.core.dimension import Dimension
 from mdio.seismic._workers import header_scan_worker
-from mdio.seismic.byte_utils import Dtype
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from numpy.typing import NDArray
+
+    from mdio.seismic.byte_utils import Dtype
 
 
 NUM_CORES = cpu_count(logical=False)
 
 
-def get_trace_count(segy_path, segy_endian):
+def get_trace_count(segy_path: str, segy_endian: str) -> int:
     """Get trace count from SEG-Y file (size)."""
     with segyio.open(
         filename=segy_path,
@@ -31,9 +36,7 @@ def get_trace_count(segy_path, segy_endian):
         ignore_geometry=True,
         endian=segy_endian,
     ) as segy_handle:
-        trace_count = segy_handle.tracecount
-
-    return trace_count
+        return segy_handle.tracecount
 
 
 def parse_binary_header(segy_handle: segyio.SegyFile) -> dict[str, Any]:
@@ -66,14 +69,13 @@ def parse_text_header(segy_handle: segyio.SegyFile) -> list[str]:
         Parsed text header in list with lines as elements.
     """
     text_header = segy_handle.text[0].decode(errors="ignore")
-    text_header = [
+    return [
         text_header[char_idx : char_idx + 80]
         for char_idx in range(0, len(text_header), 80)
     ]
-    return text_header
 
 
-def parse_trace_headers(
+def parse_trace_headers(  # noqa: PLR0913
     segy_path: str,
     segy_endian: str,
     byte_locs: Sequence[int],
@@ -113,7 +115,7 @@ def parse_trace_headers(
 
     num_workers = min(n_blocks, NUM_CORES)
 
-    tqdm_kw = dict(unit="block", dynamic_ncols=True)
+    tqdm_kw = {"unit": "block", "dynamic_ncols": True}
     with ProcessPoolExecutor(num_workers) as executor:
         # pool.imap is lazy
         lazy_work = executor.map(

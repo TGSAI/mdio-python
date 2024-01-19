@@ -16,7 +16,7 @@ class EnvironmentFormatError(Exception):
 class GridTraceCountError(Exception):
     """Raised when grid trace counts don't match the SEG-Y trace count."""
 
-    def __init__(self, grid_traces, segy_traces):
+    def __init__(self, grid_traces: int, segy_traces: int) -> None:
         """Initialize error."""
         self.message = (
             f"{grid_traces} != {segy_traces}"
@@ -32,7 +32,7 @@ class GridTraceCountError(Exception):
 class GridTraceSparsityError(Exception):
     """Raised when mdio grid will be sparsely populated from SEG-Y traces."""
 
-    def __init__(self, shape, num_traces, msg: str = ""):
+    def __init__(self, shape: tuple[int, ...], num_traces: int, msg: str = "") -> None:
         """Initialize error."""
         self.message = (
             f"Grid shape: {shape} but SEG-Y tracecount: {num_traces}. "
