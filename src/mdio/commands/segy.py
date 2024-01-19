@@ -2,6 +2,8 @@
 
 
 try:
+    from typing import Any
+
     import click
     import click_params
 
@@ -154,21 +156,21 @@ cli = click.Group(name="segy", help=SEGY_HELP)
     help="Option to add grid overrides.",
     type=click_params.JSON,
 )
-def segy_import(
-    input_segy_path,
-    output_mdio_file,
-    header_locations,
-    header_types,
-    header_names,
-    chunk_size,
-    endian,
-    lossless,
-    compression_tolerance,
-    storage_options,
-    overwrite,
-    grid_overrides,
-):
-    """Ingest SEG-Y file to MDIO.
+def segy_import(  # noqa: PLR0913
+    input_segy_path: str,
+    output_mdio_file: str,
+    header_locations: tuple[int, ...],
+    header_types: tuple[str, ...],
+    header_names: tuple[str, ...],
+    chunk_size: tuple[int, ...],
+    endian: str,
+    lossless: bool,
+    compression_tolerance: float,
+    storage_options: dict[str, Any],
+    overwrite: bool,
+    grid_overrides: dict[str, Any],
+) -> None:
+    r"""Ingest SEG-Y file to MDIO.
 
     SEG-Y format is explained in the "segy" group of the command line
     interface. To see additional information run:
@@ -423,14 +425,14 @@ def segy_import(
     show_default=True,
     show_choices=True,
 )
-def segy_export(
-    input_mdio_file,
-    output_segy_path,
-    access_pattern,
-    segy_format,
-    storage_options,
-    endian,
-):
+def segy_export(  # noqa: PLR0913
+    input_mdio_file: str,
+    output_segy_path: str,
+    access_pattern: str,
+    segy_format: str,
+    storage_options: dict[str, Any],
+    endian: str,
+) -> None:
     """Export MDIO file to SEG-Y.
 
     SEG-Y format is explained in the "segy" group of the command line

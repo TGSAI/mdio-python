@@ -7,7 +7,6 @@ from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
 
-
 __all__ = [
     "Blosc",
     "ZFP",

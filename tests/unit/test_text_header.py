@@ -14,12 +14,13 @@ from mdio.seismic.headers_text import unwrap_string
 from mdio.seismic.headers_text import wrap_strings
 
 
-# fmt: off
 @pytest.mark.parametrize(
     "ascii_str, hex_stream",
     [
-        ("f", b"86"), ("~", b"a1"),
-        ("aA", b"81-c1"), ("zZ", b"a9-e9"),
+        ("f", b"86"),
+        ("~", b"a1"),
+        ("aA", b"81-c1"),
+        ("zZ", b"a9-e9"),
         ("@Ac5", b"7c-c1-83-f5"),
         (["# 45", "13.2", "J|kX"], b"7b-40-f4-f5-f1-f3-4b-f2-d1-6a-92-e7"),
     ],
@@ -27,13 +28,13 @@ from mdio.seismic.headers_text import wrap_strings
 class TestEbcdic:
     """Test ASCII/EBCDIC coding."""
 
-    def test_encode(self, ascii_str, hex_stream):
+    def test_encode(self, ascii_str: str, hex_stream: bytes) -> None:
         """Encoding from ASCII to EBCDIC."""
         ebcdic_buffer = ascii_to_ebcdic(ascii_str)
         ascii_to_hex = hexlify(ebcdic_buffer, sep="-")
         assert ascii_to_hex == hex_stream
 
-    def test_decode(self, ascii_str, hex_stream):
+    def test_decode(self, ascii_str: str, hex_stream: bytes) -> None:
         """Decoding from EBCDIC to ASCII."""
         ebcdic_buffer = unhexlify(hex_stream.replace(b"-", b""))
 
@@ -48,56 +49,71 @@ class TestEbcdic:
 
 
 @pytest.mark.parametrize(
-    "rows, cols, wrapped, unwrapped",
+    ("rows", "cols", "wrapped", "unwrapped"),
     [
-        (1, 1, 'a', ['a']),
-        (1, 2, '12', ['12']),
-        (2, 3, 'ab~|ef', ['ab~', '|ef']),
-        (4, 3, 'a1b2c3d4e5f6', ['a1b', '2c3', 'd4e', '5f6']),
+        (1, 1, "a", ["a"]),
+        (1, 2, "12", ["12"]),
+        (2, 3, "ab~|ef", ["ab~", "|ef"]),
+        (4, 3, "a1b2c3d4e5f6", ["a1b", "2c3", "d4e", "5f6"]),
     ],
 )
 class TestWrapping:
     """String wrappers and unwrappers."""
 
-    def test_wrap(self, rows, cols, wrapped, unwrapped):
+    def test_wrap(
+        self, rows: int, cols: int, wrapped: str, unwrapped: list[str]
+    ) -> None:
         """Test from list of strings to a flat string."""
         actual = wrap_strings(unwrapped)
         assert wrapped == actual
         assert len(wrapped) == rows * cols
 
-    def test_unwrap(self, rows, cols, wrapped, unwrapped):
+    def test_unwrap(
+        self, rows: int, cols: int, wrapped: str, unwrapped: list[str]
+    ) -> None:
         """Test flat string to list of strings."""
         actual = unwrap_string(wrapped, rows, cols)
         assert unwrapped == actual
         assert len(unwrapped) == rows
         assert len(unwrapped[0]) == cols
 
-    def test_wrong_length_exception(self, rows, cols, wrapped, unwrapped):
+    def test_wrong_length_exception(
+        self, rows: int, cols: int, wrapped: str, unwrapped: list[str]
+    ) -> None:
         """Test if we raise the exception when rows/cols don't match size."""
         rows += 1
         cols += 1
-        with pytest.raises(ValueError):
+
+        msg = "rows x cols must be equal text_header length"
+        with pytest.raises(ValueError, match=msg):
             assert unwrapped == unwrap_string(wrapped, rows, cols)
 
 
-# fmt: on
 @pytest.mark.parametrize(
-    "rows, cols, upper_prob, lower_prob, digits_prob, symbol_prob, space_prob",
+    (
+        "rows",
+        "cols",
+        "uppercase_prob",
+        "lowercase_prob",
+        "digits_prob",
+        "symbol_prob",
+        "space_prob",
+    ),
     [
         (40, 80, 0.5, 1, 0.25, 0.05, 10),
         (15, 25, 0.2, 1.5, 0.55, 0.1, 5),
         (30, 60, 0.3, 1.2, 0.35, 0.15, 6),
     ],
 )
-def test_roundtrip(
-    rows,
-    cols,
-    upper_prob,
-    lower_prob,
-    digits_prob,
-    symbol_prob,
-    space_prob,
-):
+def test_roundtrip(  # noqa: PLR0913
+    rows: int,
+    cols: int,
+    uppercase_prob: float,
+    lowercase_prob: float,
+    digits_prob: float,
+    symbol_prob: float,
+    space_prob: float,
+) -> None:
     """Test converting randomly generated ASCII / EBCDIC and back."""
     # Get all kinds of letters, numbers, and symbols
     upper = string.ascii_uppercase
@@ -107,8 +123,8 @@ def test_roundtrip(
     whitespace = " "
 
     # Define probabilities (weights) for each character for random sampling
-    upper_prob = [upper_prob] * len(upper)
-    lower_prob = [lower_prob] * len(lower)
+    upper_prob = [uppercase_prob] * len(upper)
+    lower_prob = [lowercase_prob] * len(lower)
     digits_prob = [digits_prob] * len(digits)
     symbol_prob = [symbol_prob] * len(symbols)
     space_prob = [space_prob] * len(whitespace)

@@ -3,22 +3,28 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Sequence
 
 import numpy as np
 import segyio
-from numpy.typing import ArrayLike
-from zarr import Array
 
 from mdio.constants import UINT32_MAX
-from mdio.core import Grid
 from mdio.seismic.byte_utils import ByteOrder
 from mdio.seismic.byte_utils import Dtype
 from mdio.seismic.ibm_float import ibm2ieee
 
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
-def header_scan_worker(
+    from numpy.typing import ArrayLike
+    from zarr import Array
+
+    from mdio.core import Grid
+
+
+def header_scan_worker(  # noqa: PLR0913
     segy_path_or_handle: str | segyio.SegyFile,
     trace_range: Sequence[int],
     byte_locs: Sequence[int],
@@ -54,7 +60,7 @@ def header_scan_worker(
     """
     start, stop = trace_range
 
-    if isinstance(segy_path_or_handle, str):
+    if isinstance(segy_path_or_handle, (str, Path)):
         with segyio.open(
             filename=segy_path_or_handle,
             mode="r",
@@ -71,7 +77,8 @@ def header_scan_worker(
         ]
 
     else:
-        raise TypeError("Unsupported type for segy_path_or_handle")
+        msg = "Unsupported type for segy_path_or_handle"
+        raise TypeError(msg)
 
     # We keep only the ones we want here (if there is a subset).
     # Sometimes we have custom header locations that are not SEG-Y Std Rev 1.
@@ -104,18 +111,15 @@ def header_scan_worker(
     block_headers = {name: block_headers[name] for name in index_names}
 
     out_dtype = []
-    for name, type_ in zip(index_names, byte_types):  # noqa: B905
-        if type_ == Dtype.IBM32:
-            native_dtype = Dtype.FLOAT32.numpy_dtype
-        else:
-            native_dtype = type_.numpy_dtype
-
+    for name, type_ in zip(index_names, byte_types):
+        native_dtype = (
+            Dtype.FLOAT32.numpy_dtype if type_ == Dtype.IBM32 else type_.numpy_dtype
+        )
         out_dtype.append((name, native_dtype))
 
     # out_array = np.empty(n_traces, out_dtype)
     out_array = {}
 
-    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
     for name, loc, type_ in zip(index_names, byte_locs, byte_types):  # noqa: B905
         # Handle exception when a byte_loc is None
         if loc is None:
@@ -135,7 +139,7 @@ def header_scan_worker(
     return out_array
 
 
-def trace_worker(
+def trace_worker(  # noqa: PLR0913
     segy_path: str,
     data_array: Array,
     metadata_array: Array,
@@ -173,7 +177,7 @@ def trace_worker(
     live_subset = grid.live_mask[chunk_indices[:-1]]
     n_dim = grid.ndim
     if np.count_nonzero(live_subset) == 0:
-        return
+        return None
 
     # Let's get trace numbers from grid map using the chunk indices.
     seq_trace_indices = grid.map[chunk_indices[:-1]]
@@ -214,7 +218,7 @@ def trace_worker(
     nonzero_z = np.where(np.any(tmp_data != 0, axis=non_sample_axes))
 
     if len(nonzero_z[0]) == 0:
-        return
+        return None
 
     dimn_start = np.min(nonzero_z)
     dimn_end = np.max(nonzero_z) + 1

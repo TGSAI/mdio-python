@@ -11,7 +11,6 @@ from mdio.schemas.core import CamelCaseStrictModel
 from mdio.schemas.dimension import NamedDimension
 from mdio.schemas.dtype import DataTypeModel
 
-
 JSON_SCHEMA_DIALECT = GenerateJsonSchema.schema_dialect
 
 

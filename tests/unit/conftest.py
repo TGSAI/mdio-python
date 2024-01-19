@@ -5,10 +5,10 @@ from __future__ import annotations
 
 from datetime import datetime
 from importlib import metadata
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from numpy.typing import NDArray
 from zarr import Group
 from zarr import consolidate_metadata
 from zarr.storage import FSStore
@@ -19,6 +19,8 @@ from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
 from mdio.seismic.helpers_segy import create_zarr_hierarchy
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 API_VERSION = metadata.version("multidimio")
 
@@ -30,57 +32,55 @@ TEST_DIMS = {
 
 
 @pytest.fixture(scope="module")
-def mock_store(tmp_path_factory):
+def mock_store(tmp_path_factory: pytest.TempPathFactory) -> FSStore:
     """Make a mocked MDIO store for writing."""
     tmp_dir = tmp_path_factory.mktemp("mdio")
     return FSStore(tmp_dir.name)
 
 
-@pytest.fixture
-def mock_dimensions():
+@pytest.fixture()
+def mock_dimensions() -> list[Dimension]:
     """Make some fake dimensions."""
-    dimensions = [Dimension(coords, name) for name, coords in TEST_DIMS.items()]
-    return dimensions
+    return [Dimension(coords, name) for name, coords in TEST_DIMS.items()]
 
 
-@pytest.fixture
-def mock_coords():
+@pytest.fixture()
+def mock_coords() -> tuple[NDArray[int], NDArray[int]]:
     """Make some fake X/Y coordinates."""
     xl_grid, il_grid = np.meshgrid(TEST_DIMS["crossline"], TEST_DIMS["inline"])
     return il_grid, xl_grid
 
 
-@pytest.fixture
-def mock_text():
+@pytest.fixture()
+def mock_text() -> list[str]:
     """Make a mock text header."""
     return [f"{idx:02d} ab " * 16 for idx in range(40)]
 
 
-@pytest.fixture
-def mock_bin():
+@pytest.fixture()
+def mock_bin() -> dict[str, int]:
     """Make a mock binary header."""
-    return dict(bin_hdr1=5, bin_hdr2=10)
+    return {"bin_hdr1": 5, "bin_hdr2": 10}
 
 
-@pytest.fixture
-def mock_data(mock_coords):
+@pytest.fixture()
+def mock_data(mock_coords: tuple[NDArray[int], NDArray[int]]) -> NDArray[float]:
     """Make some mock data as numpy array."""
     il_grid, xl_grid = mock_coords
     data = il_grid / xl_grid
-    data = data[..., None] + TEST_DIMS["sample"][None, None, :]
 
-    return data
+    return data[..., None] + TEST_DIMS["sample"][None, None, :]
 
 
-@pytest.fixture
-def mock_mdio(
+@pytest.fixture()
+def mock_mdio(  # noqa: PLR0913
     mock_store: FSStore,
     mock_dimensions: list[Dimension],
     mock_coords: tuple[NDArray],
     mock_data: NDArray,
     mock_text: list[str],
     mock_bin: dict[str, int],
-):
+) -> Group:
     """This mocks most of mdio.converters.segy in memory."""
     zarr_root = create_zarr_hierarchy(
         store=mock_store,
@@ -115,7 +115,9 @@ def mock_mdio(
         dimension_separator="/",
     )
 
-    write_attribute(name="created", zarr_group=zarr_root, attribute=str(datetime.now()))
+    iso_time = str(datetime.now().astimezone().isoformat())
+
+    write_attribute(name="created", zarr_group=zarr_root, attribute=iso_time)
     write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
     write_attribute(name="text_header", zarr_group=metadata_grp, attribute=mock_text)
     write_attribute(name="binary_header", zarr_group=metadata_grp, attribute=mock_bin)
@@ -139,7 +141,7 @@ def mock_mdio(
 
     metadata_grp.create_dataset(
         data=il_grid * xl_grid,
-        name="_".join(["chunked_012", "trace_headers"]),
+        name="chunked_012_trace_headers",
         shape=grid.shape[:-1],  # Same spatial shape as data
         chunks=data_arr.chunks[:-1],  # Same spatial chunks as data
         dimension_separator="/",
@@ -150,13 +152,13 @@ def mock_mdio(
     return zarr_root
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_reader(mock_mdio: Group) -> MDIOReader:
     """Reader that points to the mocked data to be used later."""
     return MDIOReader(mock_mdio.store.path)
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_reader_cached(mock_mdio: Group) -> MDIOReader:
     """Reader that points to the mocked data to be used later. (with local caching)."""
     return MDIOReader(

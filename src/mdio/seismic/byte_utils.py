@@ -27,7 +27,7 @@ class Dtype(Enum):
     IBM32 = ("IBM32", "u4")
 
     @property
-    def numpy_dtype(self):
+    def numpy_dtype(self) -> np.dtype:
         """Return a numpy dtype of the Enum."""
         return np.dtype(self.value[1])
 
@@ -62,11 +62,11 @@ class OrderedType:
         return self.dtype.itemsize
 
     @property
-    def dtype(self):
+    def dtype(self) -> np.dtype:
         """Return Numpy dtype of the struct."""
         return np.dtype(self.endian + self.type.numpy_dtype)
 
-    def byteswap(self):
+    def byteswap(self) -> None:
         """Swap endianness in place."""
         swapped_dtype = self.dtype.newbyteorder()
         swapped_order = swapped_dtype.byteorder
@@ -88,6 +88,4 @@ def get_byteorder(array: NDArray) -> str:
     if array.dtype.isnative:
         return SYS_BYTEORDER
 
-    byteorder = array.dtype.byteorder
-
-    return byteorder
+    return array.dtype.byteorder

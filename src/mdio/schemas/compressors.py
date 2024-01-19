@@ -94,13 +94,11 @@ class ZFP(CamelCaseStrictModel):
         mode = self.mode
 
         # Check if reversible mode is provided without other parameters.
-        if mode == ZFPMode.REVERSIBLE:
-            if any(
-                getattr(self, key) is not None
-                for key in ["tolerance", "rate", "precision"]
-            ):
-                msg = "Other fields must be None in REVERSIBLE mode"
-                raise ValueError(msg)
+        if mode == ZFPMode.REVERSIBLE and any(
+            getattr(self, key) is not None for key in ["tolerance", "rate", "precision"]
+        ):
+            msg = "Other fields must be None in REVERSIBLE mode"
+            raise ValueError(msg)
 
         if mode == ZFPMode.FIXED_ACCURACY and self.tolerance is None:
             msg = "Tolerance required for FIXED_ACCURACY mode"

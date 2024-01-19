@@ -9,7 +9,7 @@ from click.testing import CliRunner
 from mdio import __main__
 
 
-@pytest.fixture
+@pytest.fixture()
 def runner() -> CliRunner:
     """Fixture for invoking command-line interfaces."""
     return CliRunner()

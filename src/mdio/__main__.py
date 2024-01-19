@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Callable
 
 import click
@@ -11,8 +12,7 @@ import click_params
 
 import mdio
 
-
-plugin_folder = os.path.join(os.path.dirname(__file__), "commands")
+plugin_folder = Path(__file__).parent / "commands"
 
 
 class MyCLI(click.MultiCommand):
@@ -40,7 +40,7 @@ class MyCLI(click.MultiCommand):
         http://lybniz2.sourceforge.net/safeeval.html
     """
 
-    def list_commands(self, ctx: click.Context) -> list[str]:
+    def list_commands(self, ctx: click.Context) -> list[str]:  # noqa: ARG002
         """List commands available under `commands` module."""
         rv = []
         for filename in os.listdir(plugin_folder):
@@ -50,7 +50,7 @@ class MyCLI(click.MultiCommand):
 
         return rv
 
-    def get_command(self, ctx: click.Context, name: str) -> dict[Callable]:
+    def get_command(self, ctx: click.Context, name: str) -> dict[Callable]:  # noqa: ARG002
         """Get command implementation from `commands` module."""
         global_ns = {
             "__builtins__": None,
@@ -61,9 +61,9 @@ class MyCLI(click.MultiCommand):
         }
         local_ns = {}
 
-        fn = os.path.join(plugin_folder, name + ".py")
-        with open(fn) as f:
-            code = compile(f.read(), fn, "exec")
+        file_name = plugin_folder / f"{name}.py"
+        with file_name.open(mode="r") as f:
+            code = compile(f.read(), file_name, "exec")
             eval(code, global_ns, local_ns)  # noqa: S307
 
         return local_ns["cli"]

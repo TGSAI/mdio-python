@@ -4,7 +4,7 @@
 
 project = "MDIO"
 author = "TGS"
-copyright = "2023, TGS"
+copyright = "2023, TGS"  # noqa: A001
 
 # -- General configuration ---------------------------------------------------
 

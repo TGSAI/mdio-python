@@ -1,6 +1,7 @@
 """End to end testing for SEG-Y to MDIO conversion and back."""
 
-from os.path import getsize
+from pathlib import Path
+from typing import Any
 
 import dask
 import numpy as np
@@ -13,7 +14,6 @@ from mdio import mdio_to_segy
 from mdio.converters import segy_to_mdio
 from mdio.core import Dimension
 from mdio.seismic.geometry import StreamerShotGeometryType
-
 
 dask.config.set(scheduler="synchronous")
 
@@ -29,17 +29,17 @@ dask.config.set(scheduler="synchronous")
 class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
 
-    def test_import_4d_segy(
+    def test_import_4d_segy(  # noqa: PLR0913
         self,
-        segy_mock_4d_shots,
-        zarr_tmp,
-        header_locations,
-        header_names,
-        header_types,
-        endian,
-        grid_overrides,
-        chan_header_type,
-    ):
+        segy_mock_4d_shots: dict[StreamerShotGeometryType, str],
+        zarr_tmp: Path,
+        header_locations: tuple[int, ...],
+        header_names: tuple[str, ...],
+        header_types: tuple[str, ...],
+        endian: str,
+        grid_overrides: dict[str, Any],
+        chan_header_type: StreamerShotGeometryType,
+    ) -> None:
         """Test importing a SEG-Y file to MDIO."""
         segy_path = segy_mock_4d_shots[chan_header_type]
 
@@ -86,23 +86,23 @@ class TestImport4DNonReg:
 class TestImport4D:
     """Test for 4D segy import with grid overrides."""
 
-    def test_import_4d_segy(
+    def test_import_4d_segy(  # noqa: PLR0913
         self,
-        segy_mock_4d_shots,
-        zarr_tmp,
-        header_locations,
-        header_names,
-        header_types,
-        endian,
-        grid_overrides,
-        chan_header_type,
-    ):
+        segy_mock_4d_shots: dict[StreamerShotGeometryType, str],
+        zarr_tmp: Path,
+        header_locations: tuple[int, ...],
+        header_names: tuple[str, ...],
+        header_types: tuple[str, ...],
+        endian: str,
+        grid_overrides: dict[str, Any],
+        chan_header_type: StreamerShotGeometryType,
+    ) -> None:
         """Test importing a SEG-Y file to MDIO."""
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         segy_to_mdio(
             segy_path=segy_path,
-            mdio_path_or_buffer=zarr_tmp.__str__(),
+            mdio_path_or_buffer=zarr_tmp,
             index_bytes=header_locations,
             index_names=header_names,
             index_types=header_types,
@@ -145,9 +145,14 @@ class TestImport4D:
 class TestImport:
     """Import tests."""
 
-    def test_3d_import(
-        self, segy_input, zarr_tmp, header_locations, header_names, endian
-    ):
+    def test_3d_import(  # noqa: PLR0913
+        self,
+        segy_input: Path,
+        zarr_tmp: Path,
+        header_locations: tuple[int, ...],
+        header_names: tuple[str, ...],
+        endian: str,
+    ) -> None:
         """Test importing a SEG-Y file to MDIO."""
         segy_to_mdio(
             segy_path=segy_input.__str__(),
@@ -162,13 +167,13 @@ class TestImport:
 class TestReader:
     """Test reader functionality."""
 
-    def test_meta_read(self, zarr_tmp):
+    def test_meta_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         mdio = MDIOReader(zarr_tmp.__str__())
-        assert mdio.binary_header["Samples"] == 1501
-        assert mdio.binary_header["Interval"] == 2000
+        assert mdio.binary_header["Samples"] == 1501  # noqa: PLR2004
+        assert mdio.binary_header["Interval"] == 2000  # noqa: PLR2004
 
-    def test_grid(self, zarr_tmp):
+    def test_grid(self, zarr_tmp: Path) -> None:
         """Grid reading tests."""
         mdio = MDIOReader(zarr_tmp.__str__())
         grid = mdio.grid
@@ -177,7 +182,7 @@ class TestReader:
         assert grid.select_dim("crossline") == Dimension(range(1, 189), "crossline")
         assert grid.select_dim("sample") == Dimension(range(0, 3002, 2), "sample")
 
-    def test_get_data(self, zarr_tmp):
+    def test_get_data(self, zarr_tmp: Path) -> None:
         """Data retrieval tests."""
         mdio = MDIOReader(zarr_tmp.__str__())
 
@@ -186,7 +191,7 @@ class TestReader:
         assert mdio[:, 0, :].shape == (345, 1501)
         assert mdio[:, :, 0].shape == (345, 188)
 
-    def test_inline(self, zarr_tmp):
+    def test_inline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 inlines' mean and std. dev."""
         mdio = MDIOReader(zarr_tmp.__str__())
 
@@ -195,18 +200,18 @@ class TestReader:
 
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
 
-    def test_crossline(self, zarr_tmp):
+    def test_crossline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
-        mdio = MDIOReader(zarr_tmp.__str__())
+        mdio = MDIOReader(zarr_tmp)
 
         xlines = mdio[:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
         npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01])
 
-    def test_zslice(self, zarr_tmp):
+    def test_zslice(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
-        mdio = MDIOReader(zarr_tmp.__str__())
+        mdio = MDIOReader(zarr_tmp)
 
         slices = mdio[:, :, ::225]
         mean, std = slices.mean(), slices.std()
@@ -217,7 +222,9 @@ class TestReader:
 class TestExport:
     """Test SEG-Y exporting functionaliy."""
 
-    def test_3d_export(self, zarr_tmp, segy_export_ibm_tmp, segy_export_ieee_tmp):
+    def test_3d_export(
+        self, zarr_tmp: Path, segy_export_ibm_tmp: Path, segy_export_ieee_tmp: Path
+    ) -> None:
         """Test 3D export to IBM and IEEE."""
         mdio_to_segy(
             mdio_path_or_buffer=zarr_tmp.__str__(),
@@ -231,21 +238,25 @@ class TestExport:
             out_sample_format="float32",
         )
 
-    def test_ibm_size_equal(self, segy_input, segy_export_ibm_tmp):
+    def test_ibm_size_equal(self, segy_input: Path, segy_export_ibm_tmp: Path) -> None:
         """Check if file sizes match on IBM file."""
-        assert getsize(segy_input) == getsize(segy_export_ibm_tmp)
+        assert segy_input.stat().st_size == segy_export_ibm_tmp.stat().st_size
 
-    def test_ieee_size_equal(self, segy_input, segy_export_ieee_tmp):
+    def test_ieee_size_equal(
+        self, segy_input: Path, segy_export_ieee_tmp: Path
+    ) -> None:
         """Check if file sizes match on IEEE file."""
-        assert getsize(segy_input) == getsize(segy_export_ieee_tmp)
+        assert segy_input.stat().st_size == segy_export_ieee_tmp.stat().st_size
 
-    def test_ibm_rand_equal(self, segy_input, segy_export_ibm_tmp):
+    def test_ibm_rand_equal(self, segy_input: Path, segy_export_ibm_tmp: Path) -> None:
         """IBM. Is random original traces and headers match round-trip file?"""
+        rng = np.random.default_rng()
+
         with segyio.open(segy_input, ignore_geometry=True) as in_segy:
             in_tracecount = in_segy.tracecount
             in_text = in_segy.text[0]
             in_binary = in_segy.bin
-            random_indices = np.random.randint(0, in_tracecount, 100)
+            random_indices = rng.integers(0, in_tracecount, size=100)
             in_trc_hdrs = [in_segy.header[idx] for idx in random_indices]
             in_traces = [in_segy.trace[idx] for idx in random_indices]
 
@@ -262,14 +273,17 @@ class TestExport:
         assert in_trc_hdrs == out_trc_hdrs
         npt.assert_array_equal(in_traces, out_traces)
 
-    def test_ieee_rand_equal(self, segy_input, segy_export_ieee_tmp):
+    def test_ieee_rand_equal(
+        self, segy_input: Path, segy_export_ieee_tmp: Path
+    ) -> None:
         """IEEE. Is random original traces and headers match round-trip file?"""
+        rng = np.random.default_rng()
         with segyio.open(segy_input, ignore_geometry=True) as in_segy:
             in_tracecount = in_segy.tracecount
             in_text = in_segy.text[0]
             in_binary = dict(in_segy.bin)  # Cast to dict bc read-only
             in_binary.pop(3225)  # Remove format bc comparing IBM / IEEE
-            random_indices = np.random.randint(0, in_tracecount, 100)
+            random_indices = rng.integers(0, in_tracecount, size=100)
             in_trc_hdrs = [in_segy.header[idx] for idx in random_indices]
             in_traces = [in_segy.trace[idx] for idx in random_indices]
 

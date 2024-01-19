@@ -7,6 +7,7 @@ from mdio.seismic.byte_utils import OrderedType
 from mdio.seismic.headers import Header
 from mdio.seismic.headers import HeaderGroup
 
+# ruff: noqa: E501
 
 SEGY_REV0_TEXT = {"rows": 40, "cols": 80, "word_length": 4}
 

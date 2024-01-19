@@ -3,12 +3,15 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 
 from mdio.seismic.ebcdic import ASCII_TO_EBCDIC
 from mdio.seismic.ebcdic import EBCDIC_TO_ASCII
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 
 def wrap_strings(text_header: Sequence[str]) -> str:
@@ -23,8 +26,7 @@ def wrap_strings(text_header: Sequence[str]) -> str:
     Returns:
         Concatenated string.
     """
-    joined = "".join(text_header)
-    return joined
+    return "".join(text_header)
 
 
 def unwrap_string(text_header: str, rows: int = 40, cols: int = 80) -> list[str]:
@@ -48,7 +50,8 @@ def unwrap_string(text_header: str, rows: int = 40, cols: int = 80) -> list[str]
         ValueError: if rows and columns don't match the size of string.
     """
     if rows * cols != len(text_header):
-        raise ValueError("rows x cols must be equal text_header length.")
+        msg = "rows x cols must be equal text_header length."
+        raise ValueError(msg)
 
     unwrapped = []
     for idx in range(rows):
@@ -75,8 +78,7 @@ def ascii_to_ebcdic(text_header: Sequence[str]) -> bytearray:
     ascii_encoded = ascii_flat.encode()
     ascii_uint = np.frombuffer(ascii_encoded, dtype="uint8")
     ebcdic_uint = ASCII_TO_EBCDIC[ascii_uint]
-    ebcdic_bytes = ebcdic_uint.tobytes()
-    return ebcdic_bytes
+    return ebcdic_uint.tobytes()
 
 
 def ebcdic_to_ascii(

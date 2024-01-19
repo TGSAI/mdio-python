@@ -10,7 +10,6 @@ from mdio.schemas.metadata import VersionedMetadataConvention
 from mdio.schemas.units import UnitEnum
 from mdio.schemas.units import create_unit_model
 
-
 ureg = UnitRegistry()
 ureg.default_format = "~C"  # compact, abbreviated (symbol).
 

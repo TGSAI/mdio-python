@@ -54,15 +54,15 @@ class HeaderGroup(abc.MutableSequence):
         """Append a new header."""
         self.headers.append(header)
 
-    def insert(self, index: int, header) -> None:
+    def insert(self, index: int, header: Header) -> None:
         """Insert a new header to given index."""
         self.headers.insert(index, header)
 
-    def __getitem__(self, item) -> Header:
+    def __getitem__(self, item: int) -> Header:
         """Get a specific header by index."""
         return self.headers.__getitem__(item)
 
-    def __setitem__(self, key, value) -> None:
+    def __setitem__(self, key: int, value: Header) -> None:
         """Set a specific header by index."""
         self.headers.__setitem__(key, value)
 
@@ -70,7 +70,7 @@ class HeaderGroup(abc.MutableSequence):
         """Size of struct in bytes."""
         return self.dtype.itemsize
 
-    def __delitem__(self, key) -> None:
+    def __delitem__(self, key: int) -> None:
         """Delete header by index."""
         self.headers.__delitem__(key)
 
@@ -85,19 +85,18 @@ class HeaderGroup(abc.MutableSequence):
             formats.append(header.dtype)
             offsets.append(header.offset)
 
-        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-        headers_sort = sorted(zip(offsets, names, formats))  # noqa: B905
-        offsets, names, formats = zip(*headers_sort)  # noqa: B905
+        headers_sort = sorted(zip(offsets, names, formats))
+        offsets, names, formats = zip(*headers_sort)
 
-        dtype_dict = dict(
-            names=names,
-            formats=formats,
-            offsets=offsets,
-            itemsize=self.itemsize,
-        )
+        dtype_dict = {
+            "names": names,
+            "formats": formats,
+            "offsets": offsets,
+            "itemsize": self.itemsize,
+        }
 
         return np.dtype(dtype_dict)
 
-    def byteswap(self):
+    def byteswap(self) -> None:
         """Swap endianness in place."""
         [header.byteswap() for header in self.headers]

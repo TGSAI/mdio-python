@@ -34,14 +34,14 @@ from mdio.seismic.ibm_float import ieee2ibm
 class TestIbmIeee:
     """Test conversions, back and forth."""
 
-    def test_ieee_to_ibm(self, ieee, ibm):
+    def test_ieee_to_ibm(self, ieee: float, ibm: int) -> None:
         """IEEE to IBM conversion."""
         ieee_fp32 = np.float32(ieee)
         actual_ibm = ieee2ibm(ieee_fp32)
         expected_ibm = np.uint32(ibm)
         np.testing.assert_array_equal(actual_ibm, expected_ibm)
 
-    def test_ibm_to_ieee(self, ieee, ibm):
+    def test_ibm_to_ieee(self, ieee: float, ibm: int) -> None:
         """IBM to IEEE conversion."""
         expected_ieee = np.float32(ieee)
         actual_ibm = np.uint32(ibm)
@@ -52,9 +52,10 @@ class TestIbmIeee:
 
 
 @pytest.mark.parametrize("shape", [(1,), (10,), (20, 20), (150, 150)])
-def test_ieee_to_ibm_roundtrip(shape: tuple):
+def test_ieee_to_ibm_roundtrip(shape: tuple[int, ...]) -> None:
     """IEEE to IBM and then back to IEEE conversion."""
-    expected_ieee = np.random.randn(*shape).astype("float32")
+    rng = np.random.default_rng()
+    expected_ieee = rng.normal(size=shape).astype("float32")
 
     actual_ibm = ieee2ibm(expected_ieee)
     actual_ieee = ibm2ieee(actual_ibm)
@@ -64,7 +65,7 @@ def test_ieee_to_ibm_roundtrip(shape: tuple):
 
 
 @pytest.mark.parametrize(
-    "original, swapped",
+    ("original", "swapped"),
     [
         (0x00000000, 0x00000000),
         (0xF0000000, 0x000000F0),
@@ -76,7 +77,7 @@ def test_ieee_to_ibm_roundtrip(shape: tuple):
         (0xAB12CD34, 0x34CD12AB),
     ],
 )
-def test_byteswap(original, swapped):
+def test_byteswap(original: int, swapped: int) -> None:
     """Test endian swapping operations."""
     original = np.uint32(original)
     expected = np.uint32(swapped)

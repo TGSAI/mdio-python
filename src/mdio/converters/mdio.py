@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-from os import path
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -17,14 +17,13 @@ from mdio.seismic.creation import concat_files
 from mdio.seismic.creation import mdio_spec_to_segy
 from mdio.seismic.utilities import segy_export_rechunker
 
-
 try:
     import distributed
 except ImportError:
     distributed = None
 
 
-def mdio_to_segy(  # noqa: C901
+def mdio_to_segy(  # noqa: PLR0913
     mdio_path_or_buffer: str,
     output_segy_path: str,
     endian: str = "big",
@@ -139,7 +138,8 @@ def mdio_to_segy(  # noqa: C901
 
     # This handles the case if we are skipping a whole block.
     if live_mask.sum() == 0:
-        raise ValueError("No traces will be written out. Live mask is empty.")
+        msg = "No traces will be written out. Live mask is empty."
+        raise ValueError(msg)
 
     # Find rough dim limits, so we don't unnecessarily hit disk / cloud store.
     # Typically, gets triggered when there is a selection mask
@@ -163,7 +163,7 @@ def mdio_to_segy(  # noqa: C901
     out_byteorder = ByteOrder[endian.upper()]
 
     # tmp file root
-    out_dir = path.dirname(output_segy_path)
+    out_dir = Path(output_segy_path).parent
     tmp_dir = TemporaryDirectory(dir=out_dir)
 
     with tmp_dir:
