@@ -242,10 +242,12 @@ class TestImport6D:
 
         # Expected values
         num_samples = 25
-        shots = [2, 3, 5, 6, 7, 8, 9]
+        shots = [2, 3, 5, 6, 7, 8, 9] # original shot list
         if grid_overrides is not None and "AutoShotWrap" in grid_overrides:
-            shots_new = [int(shot / 2) for shot in shots_o] # Updated shot index when ingesting with 2 guns
-             shots_set = set(shots_new) # remove duplicates
+            shots_new = [
+                int(shot / 2) for shot in shots
+            ] # Updated shot index when ingesting with 2 guns
+            shots_set = set(shots_new) # remove duplicates
             shots = list(shots_set) # Unique shot points for 6D indexed with gun
         cables = [0, 101, 201, 301]
         guns = [1, 2]
