@@ -4,4 +4,4 @@ sphinx-click==5.1.0
 sphinx-copybutton==0.5.2
 # myst-nb==0.17.2
 myst-nb @ git+https://github.com/executablebooks/MyST-NB@35ebd54
-linkify-it-py==2.0.2
+linkify-it-py==2.0.3
