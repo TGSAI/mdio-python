@@ -66,13 +66,21 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     logged.  If density is less than 10% an exception is raised. To ignore
     trace sparsity check set environment variable:
         MDIO_IGNORE_CHECKS = True
+    To change the ratio set the environment variable:
+        MDIO_GRID_SPARSITY_RATIO_LIMIT = 10
 
     Args:
         grid: The grid instance to check.
         num_traces: Expected number of traces.
 
     Raises:
-        GridTraceSparsityError: When the grid is too sparse.
+        GridTraceSparsityError: Raised if the grid is significantly larger
+            than the number of traces in the SEG-Y file. By default the error
+            is raised if the grid is more than 10 times larger than the number
+            of traces in the SEG-Y file. This can be disabled by setting the
+            environment variable `MDIO_IGNORE_CHECKS` to `True`. The limit can
+            be changed by setting the environment variable
+            `MDIO_GRID_SPARSITY_RATIO_LIMIT`.
     """
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)  # Exclude sample
     dims = {k: v for k, v in zip(grid.dim_names, grid.shape)}  # noqa: B905
@@ -80,27 +88,38 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     logger.debug(f"Dimensions: {dims}")
     logger.debug(f"num_traces = {num_traces}")
 
-    # Extreme case where the grid is very sparse (usually user error)
-    if grid_traces > 10 * num_traces:
-        logger.warning("WARNING: Sparse mdio grid detected!")
+    grid_sparsity_ratio_limit = os.getenv("MDIO_GRID_SPARSITY_RATIO_LIMIT", 10)
+    try:
+        grid_sparsity_ratio_limit_ = float(grid_sparsity_ratio_limit)
+    except ValueError:
+        logger.warning(
+            """
+                     WARNING: Failed to use MDIO_GRID_SPARSITY_RATIO_LIMIT,
+                     using default value of 10.
+                     """
+        )
+        grid_sparsity_ratio_limit_ = 10
+
+    # Warning if we have above 50% sparsity.
+    if grid_traces > min(2, grid_sparsity_ratio_limit_) * num_traces:
+        msg = (
+            f"Proposed ingestion grid is sparse. Ingestion grid: {dims}. "
+            f"SEG-Y trace count:{num_traces}, grid trace count: {grid_traces}."
+        )
+        logger.warning(msg)
         for dim_name in grid.dim_names:
             dim_min = grid.get_min(dim_name)
             dim_max = grid.get_max(dim_name)
             logger.warning(f"{dim_name} min: {dim_min} max: {dim_max}")
+
+    # Extreme case where the grid is very sparse (usually user error)
+    if grid_traces > grid_sparsity_ratio_limit_ * num_traces:
+        logger.warning("WARNING: Sparse mdio grid detected!")
         if os.getenv("MDIO_IGNORE_CHECKS", False):
             # Do not raise an exception if MDIO_IGNORE_CHECK is False
             pass
         else:
             raise GridTraceSparsityError(grid.shape, num_traces)
-
-    # Warning if we have above 50% sparsity.
-    if grid_traces > 2 * num_traces:
-        msg = (
-            f"Proposed ingestion grid is sparse. Ingestion grid: {dims}. "
-            f"SEG-Y trace count:{num_traces}, grid trace count: {grid_traces}."
-        )
-
-        logger.warning(msg)
 
 
 def segy_to_mdio(
