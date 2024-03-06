@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-import os
+from pathlib import Path
 from typing import Callable
 
 import click
@@ -12,7 +12,9 @@ import click_params
 import mdio
 
 
-plugin_folder = os.path.join(os.path.dirname(__file__), "commands")
+plugin_folder = Path(__file__).parent / "commands"
+
+ignored_modules = ["__init__.py"]
 
 
 class MyCLI(click.MultiCommand):
@@ -43,9 +45,13 @@ class MyCLI(click.MultiCommand):
     def list_commands(self, ctx: click.Context) -> list[str]:
         """List commands available under `commands` module."""
         rv = []
-        for filename in os.listdir(plugin_folder):
-            if filename.endswith(".py") and filename != "__init__.py":
-                rv.append(filename[:-3])
+        for filename in plugin_folder.iterdir():
+            if filename.name in ignored_modules:
+                continue
+
+            if filename.suffix == ".py":
+                rv.append(filename.stem)
+
         rv.sort()
 
         return rv
@@ -61,8 +67,8 @@ class MyCLI(click.MultiCommand):
         }
         local_ns = {}
 
-        fn = os.path.join(plugin_folder, name + ".py")
-        with open(fn) as f:
+        fn = plugin_folder / Path(name + ".py")
+        with fn.open() as f:
             code = compile(f.read(), fn, "exec")
             eval(code, global_ns, local_ns)  # noqa: S307
 
@@ -82,7 +88,3 @@ def main() -> None:
 
     From this main command, we can see the MDIO version.
     """
-
-
-if __name__ == "__main__":
-    main(prog_name="mdio")  # pragma: no cover
