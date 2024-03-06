@@ -11,7 +11,7 @@ from typing import Callable
 import click
 
 
-IGNORED_MODULES = ["__init__.py"]
+KNOWN_MODULES = ["segy.py"]
 
 
 class MyCLI(click.MultiCommand):
@@ -29,15 +29,15 @@ class MyCLI(click.MultiCommand):
         """Initializer function."""
         super().__init__(*args, **kwargs)
         self.plugin_folder = plugin_folder
-        self.ignored_modules = IGNORED_MODULES
+        self.known_modules = KNOWN_MODULES
 
     def list_commands(self, ctx: click.Context) -> list[str]:
         """List commands available under `commands` module."""
         rv = []
         for filename in self.plugin_folder.iterdir():
-            if filename.name in self.ignored_modules:
-                continue
-            if filename.suffix == ".py":
+            is_known = filename.name in self.known_modules
+            is_python = filename.suffix == ".py"
+            if is_known and is_python:
                 rv.append(filename.stem)
         rv.sort()
         return rv
@@ -46,8 +46,8 @@ class MyCLI(click.MultiCommand):
         """Get command implementation from `commands` module."""
         try:
             filepath = self.plugin_folder / f"{name}.py"
-            if not filepath.exists() or filepath.name in self.ignored_modules:
-                click.echo(f"Command {name} not found or is ignored.")
+            if filepath.name not in self.known_modules:
+                click.echo(f"Command {name} is not safe to execute.")
                 return None
 
             module_name = f"mdio.commands.{name}"
@@ -61,8 +61,16 @@ class MyCLI(click.MultiCommand):
             return None
 
 
+def get_package_version(package_name: str, default: str = "unknown") -> str:
+    """Safely fetch the package version, providing a default if not found."""
+    try:
+        return metadata.version(package_name)
+    except metadata.PackageNotFoundError:
+        return default
+
+
 @click.command(cls=MyCLI, plugin_folder=Path(__file__).parent / "commands")
-@click.version_option(metadata.version("multidimio"))
+@click.version_option(get_package_version("multidimio"))
 def main() -> None:
     """Welcome to MDIO!
 
