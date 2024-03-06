@@ -3,74 +3,74 @@
 
 from __future__ import annotations
 
-import os
+import importlib
+from importlib import metadata
+from pathlib import Path
 from typing import Callable
 
 import click
-import click_params
-
-import mdio
 
 
-plugin_folder = os.path.join(os.path.dirname(__file__), "commands")
+KNOWN_MODULES = ["segy.py"]
 
 
 class MyCLI(click.MultiCommand):
     """CLI generator via plugin design pattern.
 
-    This class will generate the CLI submodules based on what is included
-    in the `commands` folder in `mdio` module. The CLI components are
-    implemented under `commands`, and this class will parse them and serve
-    them as user requests it.
+    This class dynamically loads command modules from the specified
+    `plugin_folder`. Each command module should define a `cli` function
+    that implements the command logic.
 
-    Serving happens by evaluating the Python function using `eval`.
-
-    The original implementation in the `click` reference using `eval` is
-    dangerous because it allows arbitrary code execution. However, we fix
-    that by providing a global namespace to `eval` with ONLY allowed modules
-    and by explicitly NOT allowing any python builtin functions (like import),
-    and also by providing an empty local namespace to be filled with CLI
-    functions. Check the `get_command` method for implementation.
-
-    References:
-        Original implementation:
-        https://click.palletsprojects.com/en/8.1.x/commands/#custom-multi-commands
-
-        Safe version of eval:
-        http://lybniz2.sourceforge.net/safeeval.html
+    Args:
+    - plugin_folder: Path to the directory containing command modules.
     """
+
+    def __init__(self, plugin_folder: Path, *args, **kwargs):
+        """Initializer function."""
+        super().__init__(*args, **kwargs)
+        self.plugin_folder = plugin_folder
+        self.known_modules = KNOWN_MODULES
 
     def list_commands(self, ctx: click.Context) -> list[str]:
         """List commands available under `commands` module."""
         rv = []
-        for filename in os.listdir(plugin_folder):
-            if filename.endswith(".py") and filename != "__init__.py":
-                rv.append(filename[:-3])
+        for filename in self.plugin_folder.iterdir():
+            is_known = filename.name in self.known_modules
+            is_python = filename.suffix == ".py"
+            if is_known and is_python:
+                rv.append(filename.stem)
         rv.sort()
-
         return rv
 
-    def get_command(self, ctx: click.Context, name: str) -> dict[Callable]:
+    def get_command(self, ctx: click.Context, name: str) -> Callable | None:
         """Get command implementation from `commands` module."""
-        global_ns = {
-            "__builtins__": None,
-            "SystemError": SystemError,
-            "click": click,
-            "click_params": click_params,
-            "mdio": mdio,
-        }
-        local_ns = {}
+        try:
+            filepath = self.plugin_folder / f"{name}.py"
+            if filepath.name not in self.known_modules:
+                click.echo(f"Command {name} is not safe to execute.")
+                return None
 
-        fn = os.path.join(plugin_folder, name + ".py")
-        with open(fn) as f:
-            code = compile(f.read(), fn, "exec")
-            eval(code, global_ns, local_ns)  # noqa: S307
+            module_name = f"mdio.commands.{name}"
+            spec = importlib.util.spec_from_file_location(module_name, str(filepath))
+            if spec and spec.loader:
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                return module.cli
+        except Exception as e:
+            click.echo(f"Error loading command {name}: {e}")
+            return None
 
-        return local_ns["cli"]
+
+def get_package_version(package_name: str, default: str = "unknown") -> str:
+    """Safely fetch the package version, providing a default if not found."""
+    try:
+        return metadata.version(package_name)
+    except metadata.PackageNotFoundError:
+        return default
 
 
-@click.command(cls=MyCLI)
-@click.version_option(mdio.__version__)
+@click.command(cls=MyCLI, plugin_folder=Path(__file__).parent / "commands")
+@click.version_option(get_package_version("multidimio"))
 def main() -> None:
     """Welcome to MDIO!
 
@@ -82,7 +82,3 @@ def main() -> None:
 
     From this main command, we can see the MDIO version.
     """
-
-
-if __name__ == "__main__":
-    main(prog_name="mdio")  # pragma: no cover
