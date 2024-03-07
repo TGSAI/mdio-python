@@ -3,12 +3,12 @@
 
 from __future__ import annotations
 
-import click_params
 from click import BOOL
 from click import STRING
 from click import argument
 from click import command
 from click import option
+from click_params import JSON
 
 
 @command(name="copy")
@@ -48,7 +48,7 @@ from click import option
     "--storage-options",
     required=False,
     help="Custom storage options for cloud backends",
-    type=click_params.JSON,
+    type=JSON,
 )
 @option(
     "-overwrite",
@@ -67,7 +67,7 @@ def copy(
     excludes: str = "",
     storage_options: dict | None = None,
     overwrite: bool = False,
-):
+) -> None:
     """Copy a MDIO dataset to anpther MDIO dataset.
 
     Can also copy with empty data to be filled later. See `excludes`
