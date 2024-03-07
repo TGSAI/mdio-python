@@ -16,6 +16,7 @@ import segyio
 import zarr
 
 from mdio.api.io_utils import process_url
+from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Grid
@@ -67,7 +68,7 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     trace sparsity check set environment variable:
         MDIO_IGNORE_CHECKS = True
     To change the ratio set the environment variable:
-        MDIO_GRID_SPARSITY_RATIO_LIMIT = 10
+        MDIO__GRID__SPARSITY_RATIO_LIMIT = 10
 
     Args:
         grid: The grid instance to check.
@@ -80,7 +81,9 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
             of traces in the SEG-Y file. This can be disabled by setting the
             environment variable `MDIO_IGNORE_CHECKS` to `True`. The limit can
             be changed by setting the environment variable
-            `MDIO_GRID_SPARSITY_RATIO_LIMIT`.
+            `MDIO__GRID__SPARSITY_RATIO_LIMIT`.
+        EnvironmentFormatError: Raised if the environment variable
+            MDIO__GRID__SPARSITY_RATIO_LIMIT is not a float.
     """
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)  # Exclude sample
     dims = {k: v for k, v in zip(grid.dim_names, grid.shape)}  # noqa: B905
@@ -88,29 +91,27 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     logger.debug(f"Dimensions: {dims}")
     logger.debug(f"num_traces = {num_traces}")
 
-    grid_sparsity_ratio_limit = os.getenv("MDIO_GRID_SPARSITY_RATIO_LIMIT", 10)
+    grid_sparsity_ratio_limit = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", 10)
     try:
         grid_sparsity_ratio_limit_ = float(grid_sparsity_ratio_limit)
     except ValueError:
-        logger.warning(
-            """
-                     WARNING: Failed to use MDIO_GRID_SPARSITY_RATIO_LIMIT,
-                     using default value of 10.
-                     """
-        )
-        grid_sparsity_ratio_limit_ = 10
+        raise EnvironmentFormatError(
+            "MDIO__GRID__SPARSITY_RATIO_LIMIT", "float"
+        ) from None
 
     # Warning if we have above 50% sparsity.
+    msg = ""
     if grid_traces > min(2, grid_sparsity_ratio_limit_) * num_traces:
         msg = (
             f"Proposed ingestion grid is sparse. Ingestion grid: {dims}. "
             f"SEG-Y trace count:{num_traces}, grid trace count: {grid_traces}."
         )
-        logger.warning(msg)
         for dim_name in grid.dim_names:
             dim_min = grid.get_min(dim_name)
             dim_max = grid.get_max(dim_name)
-            logger.warning(f"{dim_name} min: {dim_min} max: {dim_max}")
+            msg += f"\n{dim_name} min: {dim_min} max: {dim_max}"
+
+        logger.warning(msg)
 
     # Extreme case where the grid is very sparse (usually user error)
     if grid_traces > grid_sparsity_ratio_limit_ * num_traces:
@@ -119,7 +120,7 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
             # Do not raise an exception if MDIO_IGNORE_CHECK is False
             pass
         else:
-            raise GridTraceSparsityError(grid.shape, num_traces)
+            raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
 def segy_to_mdio(
