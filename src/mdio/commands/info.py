@@ -3,6 +3,7 @@
 
 from json import dumps as json_dumps
 
+from click import STRING
 from click import Choice
 from click import argument
 from click import command
@@ -15,14 +16,14 @@ from mdio import MDIOReader
 
 
 @command(name="info")
-@argument("mdio-path", type=str)
+@argument("mdio-path", type=STRING)
 @option(
     "-access",
     "--access-pattern",
     required=False,
     default="012",
     help="Access pattern of the file",
-    type=str,
+    type=STRING,
     show_default=True,
 )
 @option(
