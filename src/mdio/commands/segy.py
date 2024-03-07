@@ -1,13 +1,10 @@
 """SEG-Y Import/Export CLI Plugin."""
 
 
-try:
-    import click
-    import click_params
+import click
+import click_params
 
-    import mdio
-except SystemError:
-    pass
+import mdio
 
 
 SEGY_HELP = """
