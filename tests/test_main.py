@@ -9,7 +9,7 @@ from click.testing import CliRunner
 from mdio import __main__
 
 
-@pytest.fixture
+@pytest.fixture()
 def runner() -> CliRunner:
     """Fixture for invoking command-line interfaces."""
     return CliRunner()
@@ -32,7 +32,7 @@ def test_main_succeeds(runner: CliRunner, segy_input: str, zarr_tmp: Path) -> No
 def test_main_info_succeeds(runner: CliRunner, zarr_tmp: Path) -> None:
     """It exits with a status code of zero."""
     cli_args = ["info"]
-    cli_args.extend(["-i", str(zarr_tmp)])
+    cli_args.extend([str(zarr_tmp)])
 
     result = runner.invoke(__main__.main, args=cli_args)
     assert result.exit_code == 0

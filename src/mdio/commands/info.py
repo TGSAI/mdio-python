@@ -4,6 +4,7 @@
 from json import dumps as json_dumps
 
 from click import Choice
+from click import argument
 from click import command
 from click import option
 from rich import print
@@ -14,13 +15,7 @@ from mdio import MDIOReader
 
 
 @command(name="info")
-@option(
-    "-i",
-    "--input-mdio-file",
-    required=True,
-    help="Input path of the mdio file",
-    type=str,
-)
+@argument("mdio-path", type=str)
 @option(
     "-access",
     "--access-pattern",
@@ -34,7 +29,7 @@ from mdio import MDIOReader
     "-format",
     "--output-format",
     required=False,
-    default="plain",
+    default="pretty",
     help="Output format. Pretty console or JSON.",
     type=Choice(["pretty", "json"]),
     show_default=True,
