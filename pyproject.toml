@@ -110,5 +110,5 @@ ignore_missing_imports = true
 
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core", "fastentrypoints"]
 build-backend = "poetry.core.masonry.api"
