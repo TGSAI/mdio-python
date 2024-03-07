@@ -189,10 +189,11 @@ def analyze_shotlines_for_guns(
             num_shots_sl = np.unique(shots_current_sl_gun).shape[0]
             mod_shots = np.floor(shots_current_sl_gun / num_guns_sl)
             if len(np.unique(mod_shots)) != num_shots_sl:
-                logger.info(
-                    f"""Shot line {shot_line} has {num_shots_sl} when using div by
-{num_guns_sl} (num_guns) has  {np.unique(mod_shots)} unique mod shots."""
+                msg = (
+                    f"Shot line {shot_line} has {num_shots_sl} when using div by "
+                    f"{num_guns_sl} (num_guns) has  {np.unique(mod_shots)} unique mod shots."
                 )
+                logger.info(msg)
                 geom_type = ShotGunGeometryType.A
                 return unique_shot_lines, unique_guns_in_shot_line, geom_type
     return unique_shot_lines, unique_guns_in_shot_line, geom_type
