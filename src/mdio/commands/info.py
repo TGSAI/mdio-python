@@ -36,7 +36,7 @@ from mdio import MDIOReader
     show_choices=True,
 )
 def info(
-    input_mdio_file: str,
+    mdio_path: str,
     output_format: str,
     access_pattern: str,
 ) -> None:
@@ -47,7 +47,7 @@ def info(
     facilitate parsing.
     """
     reader = MDIOReader(
-        input_mdio_file,
+        mdio_path,
         access_pattern=access_pattern,
         return_metadata=True,
     )
@@ -83,7 +83,7 @@ def info(
         for stat, value in reader.stats.items():
             stat_table.add_row(stat, f"{value:.4f}")
 
-        master_table = Table()
+        master_table = Table(title=f"File Information for {mdio_path}")
         master_table.add_column("MDIO Grid", justify="center")
         master_table.add_column("MDIO Statistics", justify="center")
         master_table.add_row(grid_table, stat_table)
