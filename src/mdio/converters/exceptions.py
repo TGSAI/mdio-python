@@ -20,11 +20,11 @@ class GridTraceCountError(Exception):
 class GridTraceSparsityError(Exception):
     """Raised when mdio grid will be sparsely populated from SEG-Y traces."""
 
-    def __init__(self, shape, num_traces):
+    def __init__(self, shape, num_traces, msg: str = ""):
         """Initialize error."""
         self.message = (
             f"Grid shape: {shape} but SEG-Y tracecount: {num_traces}. "
             "This grid is very sparse and most likely user error with indexing."
         )
-
+        self.message += f"\n{msg}" if msg else ""
         super().__init__(self.message)
