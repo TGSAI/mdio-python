@@ -18,7 +18,7 @@ def create_segy_mock_4d(
     shots: list,
     cables: list,
     receivers_per_cable: list,
-    guns: list = None,
+    guns: list | None = None,
     chan_header_type: StreamerShotGeometryType = StreamerShotGeometryType.A,
     index_receivers: bool = True,
 ) -> str:
