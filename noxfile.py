@@ -1,4 +1,6 @@
 """Nox sessions."""
+
+
 import os
 import shlex
 import shutil
@@ -132,7 +134,6 @@ def precommit(session: Session) -> None:
         "pre-commit",
         "pre-commit-hooks",
         "pyupgrade",
-        "pytest-dependency",
     )
     session.run("pre-commit", *args)
     if args and args[0] == "install":
@@ -162,7 +163,7 @@ def mypy(session: Session) -> None:
 def tests(session: Session) -> None:
     """Run the test suite."""
     session.install(".")
-    session.install("coverage[toml]", "pytest", "pygments")
+    session.install("coverage[toml]", "pytest", "pygments", "pytest-dependency")
     try:
         session.run("coverage", "run", "--parallel", "-m", "pytest", *session.posargs)
     finally:
