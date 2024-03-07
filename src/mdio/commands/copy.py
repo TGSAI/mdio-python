@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-from click import BOOL
 from click import STRING
 from click import argument
 from click import command
@@ -53,10 +52,8 @@ from click_params import JSON
 @option(
     "-overwrite",
     "--overwrite",
-    required=False,
-    default=False,
-    help="Flag to overwrite if MDIO file exists",
-    type=BOOL,
+    is_flag=True,
+    help="Flag to overwrite if mdio file if it exists",
     show_default=True,
 )
 def copy(
