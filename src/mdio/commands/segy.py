@@ -3,7 +3,6 @@
 
 from typing import Any
 
-import click_params
 from click import BOOL
 from click import FLOAT
 from click import STRING
@@ -12,6 +11,9 @@ from click import Group
 from click import Path
 from click import argument
 from click import option
+from click_params import JSON
+from click_params import IntListParamType
+from click_params import StringListParamType
 
 
 SEGY_HELP = """
@@ -72,28 +74,28 @@ cli = Group(name="segy", help=SEGY_HELP)
     "--header-locations",
     required=True,
     help="Byte locations of the index attributes in SEG-Y trace header.",
-    type=click_params.IntListParamType(),
+    type=IntListParamType(),
 )
 @option(
     "-types",
     "--header-types",
     required=False,
     help="Data types of the index attributes in SEG-Y trace header.",
-    type=click_params.StringListParamType(),
+    type=StringListParamType(),
 )
 @option(
     "-names",
     "--header-names",
     required=False,
     help="Names of the index attributes",
-    type=click_params.StringListParamType(),
+    type=StringListParamType(),
 )
 @option(
     "-chunks",
     "--chunk-size",
     required=False,
     help="Custom chunk size for bricked storage",
-    type=click_params.IntListParamType(),
+    type=IntListParamType(),
 )
 @option(
     "-endian",
@@ -128,7 +130,7 @@ cli = Group(name="segy", help=SEGY_HELP)
     "--storage-options",
     required=False,
     help="Custom storage options for cloud backends",
-    type=click_params.JSON,
+    type=JSON,
 )
 @option(
     "-overwrite",
@@ -144,7 +146,7 @@ cli = Group(name="segy", help=SEGY_HELP)
     "--grid-overrides",
     required=False,
     help="Option to add grid overrides.",
-    type=click_params.JSON,
+    type=JSON,
 )
 def segy_import(
     segy_path: str,
@@ -393,7 +395,7 @@ def segy_import(
     "--storage-options",
     required=False,
     help="Custom storage options for cloud backends.",
-    type=click_params.JSON,
+    type=JSON,
 )
 @option(
     "-endian",
