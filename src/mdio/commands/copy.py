@@ -10,8 +10,6 @@ from click import argument
 from click import command
 from click import option
 
-from mdio import MDIOReader
-
 
 @command(name="copy")
 @argument("source-mdio-path", type=str)
@@ -78,6 +76,8 @@ def copy(
     More documentation about `excludes` and `includes` can be found
     in Zarr's documentation in `zarr.convenience.copy_store`.
     """
+    from mdio import MDIOReader
+
     reader = MDIOReader(source_mdio_path, access_pattern=access_pattern)
 
     reader.copy(
