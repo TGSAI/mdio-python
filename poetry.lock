@@ -3922,4 +3922,4 @@ lossy = ["zfpy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "f37f8958d33532310f30f24a74c0d6be902a0c12a86a0c755e455154eb938d13"
+content-hash = "17b5182f23ab5c113220e3883f5a4ae591d92fa1b669a25387c4b7ec8a17409f"

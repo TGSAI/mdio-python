@@ -12,14 +12,20 @@ import click
 
 
 KNOWN_MODULES = ["segy.py"]
+KNOWN_MODULES = [
+    "segy.py",
+    "info.py",
+]
 
 
 class MyCLI(click.MultiCommand):
     """CLI generator via plugin design pattern.
 
     This class dynamically loads command modules from the specified
-    `plugin_folder`. Each command module should define a `cli` function
-    that implements the command logic.
+    `plugin_folder`. If the command us another CLI group, the command
+    module must define a `cli = click.Group(...)` and subsequent
+    commands must be added to this CLI. If it is a single utility it
+    must have a variable named `cli` for the command to be exposed.
 
     Args:
     - plugin_folder: Path to the directory containing command modules.
