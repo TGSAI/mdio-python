@@ -1,6 +1,8 @@
 """MDIO Dataset information command."""
 
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -76,7 +78,7 @@ def cast_stats(stats_dict: dict[str, Any]) -> dict[str, float]:
     return {k: float(v) for k, v in stats_dict.items()}
 
 
-def parse_grid(grid: "Grid") -> dict[str, dict[str, int | str]]:
+def parse_grid(grid: Grid) -> dict[str, dict[str, int | str]]:
     """Extract grid information per dimension."""
     grid_dict = {}
     for dim_name in grid.dim_names:
