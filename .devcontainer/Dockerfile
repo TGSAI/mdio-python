@@ -10,7 +10,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Poetry
-ARG POETRY_VERSION="1.6.1"
+ARG POETRY_VERSION="1.8.2"
 RUN if [ "${POETRY_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install poetry==${POETRY_VERSION}"; fi
 
 # Nox
