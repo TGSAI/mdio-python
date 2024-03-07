@@ -61,7 +61,13 @@ class StreamerShotGeometryType(Enum):
 
 
 class ShotGunGeometryType(Enum):
-    r"""Shot  geometry template types for multi-gun acquisition.
+    r"""Shot geometry template types for multi-gun acquisition.
+
+    For shot lines with multiple guns, we can have two configurations for 
+    numbering shot_point. The desired index is to have the shot point index
+    for a given gun to be dense and unique (configuration A). Typically the
+    shot_point is unique for the line and therefore is not dense for each 
+    gun (configuration B).
 
     Configuration A:
         Gun 1 ->         1------------------20
