@@ -10,20 +10,8 @@ import mdio
 
 
 @click.command(name="copy")
-@click.option(
-    "-i",
-    "--input-mdio-path",
-    required=True,
-    help="Input mdio path.",
-    type=click.Path(exists=True),
-)
-@click.option(
-    "-o",
-    "--output-mdio-path",
-    required=True,
-    help="Output path or URL to write the mdio dataset.",
-    type=click.STRING,
-)
+@click.argument("source-mdio-path", type=str)
+@click.argument("target-mdio-path", type=str)
 @click.option(
     "-access",
     "--access-pattern",
@@ -71,8 +59,8 @@ import mdio
     show_default=True,
 )
 def copy(
-    input_mdio_path: str,
-    output_mdio_path: str,
+    source_mdio_path: str,
+    target_mdio_path: str,
     access_pattern: str = "012",
     includes: str = "",
     excludes: str = "",
@@ -88,11 +76,11 @@ def copy(
     in Zarr's documentation in `zarr.convenience.copy_store`.
     """
     reader = mdio.MDIOReader(
-        input_mdio_path, access_pattern=access_pattern, return_metadata=True
+        source_mdio_path, access_pattern=access_pattern, return_metadata=True
     )
     mdio.copy_mdio(
         source=reader,
-        dest_path_or_buffer=output_mdio_path,
+        dest_path_or_buffer=target_mdio_path,
         excludes=excludes,
         includes=includes,
         storage_options=storage_options,
