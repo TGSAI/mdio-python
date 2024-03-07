@@ -1,14 +1,12 @@
-"""Dataset CLI Plugin."""
+"""MDIO Dataset copy command."""
 
-try:
-    from typing import Optional
 
-    import click
-    import click_params
+from typing import Optional
 
-    import mdio
-except SystemError:
-    pass
+import click
+import click_params
+
+import mdio
 
 
 @click.command(name="copy")
@@ -102,76 +100,4 @@ def copy(
     )
 
 
-@click.command(name="info")
-@click.option(
-    "-i",
-    "--input-mdio-file",
-    required=True,
-    help="Input path of the mdio file",
-    type=click.STRING,
-)
-@click.option(
-    "-access",
-    "--access-pattern",
-    required=False,
-    default="012",
-    help="Access pattern of the file",
-    type=click.STRING,
-    show_default=True,
-)
-@click.option(
-    "-format",
-    "--output-format",
-    required=False,
-    default="plain",
-    help="""Output format, plain is human readable.  JSON will output in json
-    format for easier passing. """,
-    type=click.Choice(["plain", "json"]),
-    show_default=True,
-    show_choices=True,
-)
-def info(
-    input_mdio_file,
-    output_format,
-    access_pattern,
-):
-    """Provide information on a MDIO dataset.
-
-    By default this returns human readable information about the grid and stats for
-    the dataset. If output-format is set to json then a json is returned to
-    facilitate parsing.
-    """
-    reader = mdio.MDIOReader(
-        input_mdio_file, access_pattern=access_pattern, return_metadata=True
-    )
-    mdio_dict = {}
-    mdio_dict["grid"] = {}
-    for axis in reader.grid.dim_names:
-        dim = reader.grid.select_dim(axis)
-        min = dim.coords[0]
-        max = dim.coords[-1]
-        size = dim.coords.shape[0]
-        axis_dict = {"name": axis, "min": min, "max": max, "size": size}
-        mdio_dict["grid"][axis] = axis_dict
-
-    if output_format == "plain":
-        click.echo("{:<10} {:<10} {:<10} {:<10}".format("NAME", "MIN", "MAX", "SIZE"))
-        click.echo("=" * 40)
-
-        for _, axis_dict in mdio_dict["grid"].items():
-            click.echo(
-                "{:<10} {:<10} {:<10} {:<10}".format(
-                    axis_dict["name"],
-                    axis_dict["min"],
-                    axis_dict["max"],
-                    axis_dict["size"],
-                )
-            )
-
-        click.echo("\n\n{:<10} {:<10}".format("STAT", "VALUE"))
-        click.echo("=" * 20)
-        for name, stat in reader.stats.items():
-            click.echo(f"{name:<10} {stat:<10}")
-    if output_format == "json":
-        mdio_dict["stats"] = reader.stats
-        click.echo(mdio_dict)
+cli = copy
