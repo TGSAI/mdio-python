@@ -1,4 +1,4 @@
-"""Dataset CLI Plugin."""
+"""MDIO Dataset information command."""
 
 
 from json import dumps as json_dumps
