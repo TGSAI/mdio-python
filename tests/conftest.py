@@ -33,6 +33,13 @@ def zarr_tmp(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
+def zarr_tmp2(tmp_path_factory):
+    """Make a temp file for the output MDIO."""
+    tmp_file = tmp_path_factory.mktemp(r"mdio2")
+    return tmp_file
+
+
+@pytest.fixture(scope="session")
 def segy_export_ibm_tmp(tmp_path_factory):
     """Make a temp file for the round-trip IBM SEG-Y."""
     tmp_dir = tmp_path_factory.mktemp("segy")

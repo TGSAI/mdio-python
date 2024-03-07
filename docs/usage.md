@@ -9,8 +9,8 @@ There are many more options, please see the [CLI Reference](#cli-reference).
 
 ```shell
 $ mdio segy import \
-    -i path_to_segy_file.segy \
-    -o path_to_mdio_file.mdio \
+    path_to_segy_file.segy \
+    path_to_mdio_file.mdio \
     -loc 181,185 \
     -names inline,crossline
 ```
@@ -20,8 +20,8 @@ should be executed.
 
 ```shell
 $ mdio segy export \
-    -i path_to_mdio_file.mdio \
-    -o path_to_segy_file.segy
+    path_to_mdio_file.mdio \
+    path_to_segy_file.segy
 ```
 
 ## Cloud Connection Strings
@@ -79,9 +79,9 @@ Using UNIX:
 
 ```shell
 mdio segy import \
-  --input-segy-path path/to/my.segy
-  --output-mdio-file s3://bucket/prefix/my.mdio
-  --header-locations 189,193
+  path/to/my.segy \
+  s3://bucket/prefix/my.mdio \
+  --header-locations 189,193 \
   --storage-options '{"key": "my_super_private_key", "secret": "my_super_private_secret"}'
 ```
 
@@ -89,9 +89,9 @@ Using Windows (note the extra escape characters `\`):
 
 ```console
 mdio segy import \
-  --input-segy-path path/to/my.segy
-  --output-mdio-file s3://bucket/prefix/my.mdio
-  --header-locations 189,193
+  path/to/my.segy \
+  s3://bucket/prefix/my.mdio \
+  --header-locations 189,193 \
   --storage-options "{\"key\": \"my_super_private_key\", \"secret\": \"my_super_private_secret\"}"
 ```
 
@@ -114,9 +114,9 @@ Using a service account:
 
 ```shell
 mdio segy import \
-  --input-segy-path path/to/my.segy
-  --output-mdio-file gs://bucket/prefix/my.mdio
-  --header-locations 189,193
+  path/to/my.segy \
+  gs://bucket/prefix/my.mdio \
+  --header-locations 189,193 \
   --storage-options '{"token": "~/.config/gcloud/application_default_credentials.json"}'
 ```
 
@@ -124,9 +124,9 @@ Using browser to populate authentication:
 
 ```shell
 mdio segy import \
-  --input-segy-path path/to/my.segy
-  --output-mdio-file gs://bucket/prefix/my.mdio
-  --header-locations 189,193
+  path/to/my.segy \
+  gs://bucket/prefix/my.mdio \
+  --header-locations 189,193 \
   --storage-options '{"token": "browser"}'
 ```
 
@@ -145,9 +145,9 @@ If ADL is not pre-authenticated, you need to pass `--storage-options`.
 
 ```shell
 mdio segy import \
-  --input-segy-path path/to/my.segy
-  --output-mdio-file az://bucket/prefix/my.mdio
-  --header-locations 189,193
+  path/to/my.segy \
+  az://bucket/prefix/my.mdio \
+  --header-locations 189,193 \
   --storage-options '{"account_name": "myaccount", "account_key": "my_super_private_key"}'
 ```
 
