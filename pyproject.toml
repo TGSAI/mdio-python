@@ -27,12 +27,12 @@ python = ">=3.9,<3.13"
 click = "^8.1.7"
 click-params = "^0.5.0"
 zarr = "^2.16.1"
-dask = "^2024.1.0"
+dask = ">=2024.1.0"
 tqdm = "^4.66.1"
 segyio = "^1.9.3"
 numba = "0.59.0"
 psutil = "^5.9.8"
-fsspec = "^2023.12.2"
+fsspec = ">=2023.12.2"
 pydantic = "^2.5.3"
 pint = "^0.23"
 rich = "^13.7.1"
@@ -51,7 +51,7 @@ cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.1.14"
+ruff = "^0.3.1"
 coverage = {version = "^7.4.0", extras = ["toml"]}
 darglint = "^1.8.1"
 mypy = "^1.8.0"
@@ -69,11 +69,11 @@ sphinx = "^7.2.6"
 sphinx-design = "^0.5.0"
 sphinx-click = "^5.1.0"
 sphinx-copybutton = "^0.5.2"
-furo = "^2023.9.10"
+furo = ">=2023.9.10"
 myst-nb = "^1.0.0"
 linkify-it-py = "^2.0.2"
 autodoc-pydantic = "^2.0.1"
-sphinx-autobuild = "^2021.3.14"
+sphinx-autobuild = ">=2021.3.14"
 
 [tool.poetry.scripts]
 mdio = "mdio.__main__:main"
@@ -81,6 +81,8 @@ mdio = "mdio.__main__:main"
 [tool.ruff]
 target-version = "py39"
 src = ["src"]
+
+[tool.ruff.lint]
 select = [
     "E",  # pycodestyle
     "F",   # pyflakes
@@ -112,24 +114,31 @@ select = [
 ]
 ignore = [
     "ANN101",  # Missing type annotation for `self`
+    "D107",  # Missing docstring in __init__ ; should be in class docstring
 ]
 
-
-[tool.ruff.per-file-ignores]
+[tool.ruff.lint.per-file-ignores]
 "tests/*" = ["S101"]
 
-[tool.ruff.flake8-annotations]
+[tool.ruff.lint.flake8-annotations]
 mypy-init-return = true
 
-[tool.ruff.pydocstyle]
+[tool.ruff.lint.pydocstyle]
 convention = "google"
-
-[tool.ruff.isort]
-force-single-line = true
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 100
 ignore-overlong-task-comments = true
+
+[tool.ruff.lint.isort]
+force-single-line = true
+lines-after-imports = 2
+
+[tool.pydoclint]
+style = "google"
+arg-type-hints-in-docstring = false
+check-return-types = false
+check-yield-types = false
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
@@ -142,24 +151,37 @@ source = ["mdio", "tests"]
 [tool.coverage.report]
 show_missing = true
 fail_under = 80
-
-[tool.isort]
-profile = "black"
-force_single_line = true
-lines_after_imports = 2
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
 
 [tool.mypy]
 strict = true
 warn_unreachable = true
+warn_redundant_casts = true
+warn_unused_ignores = true
 pretty = true
 show_column_numbers = true
 show_error_codes = true
 show_error_context = true
+plugins = ["pydantic.mypy", "numpy.typing.mypy_plugin"]
+
+# for strict mypy: (this is the tricky one)
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["fsspec.*", "numba.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [[tool.mypy.overrides]]
 module = ["segyio", "zarr"]
 ignore_missing_imports = true
-
 
 [build-system]
 requires = ["poetry-core", "fastentrypoints"]
