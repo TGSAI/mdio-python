@@ -1,6 +1,5 @@
 """Convenience APIs for working with MDIO files."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

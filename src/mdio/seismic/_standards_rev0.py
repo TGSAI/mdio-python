@@ -1,6 +1,5 @@
 """SEG-Y Rev 0 standard and its definitions."""
 
-
 from mdio.seismic.byte_utils import ByteOrder
 from mdio.seismic.byte_utils import Dtype
 from mdio.seismic.byte_utils import OrderedType

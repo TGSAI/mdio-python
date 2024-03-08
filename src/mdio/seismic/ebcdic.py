@@ -23,7 +23,6 @@ Examples:
 
 # ruff: noqa: E501
 
-
 import numpy as np
 
 # fmt: off

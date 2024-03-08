@@ -1,6 +1,5 @@
 """Dataset model for MDIO V0."""
 
-
 from typing import Optional
 
 from pydantic import AwareDatetime

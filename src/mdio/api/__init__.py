@@ -1,6 +1,5 @@
 """API Module."""
 
-
 from .accessor import MDIOReader
 from .accessor import MDIOWriter
 

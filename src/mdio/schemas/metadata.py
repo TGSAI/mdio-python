@@ -1,6 +1,5 @@
 """Metadata schemas and conventions."""
 
-
 from typing import Any
 
 from pydantic import Field

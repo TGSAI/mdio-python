@@ -1,6 +1,5 @@
 """Indexing logic."""
 
-
 import itertools
 from math import ceil
 

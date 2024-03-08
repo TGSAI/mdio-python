@@ -1,6 +1,5 @@
 """Common units for resource assessment data."""
 
-
 from enum import Enum
 from enum import unique
 

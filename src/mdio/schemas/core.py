@@ -1,6 +1,5 @@
 """This module implements the core components of the MDIO schemas."""
 
-
 from typing import Any
 from typing import get_type_hints
 

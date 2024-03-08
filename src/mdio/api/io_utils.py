@@ -1,6 +1,5 @@
 """Utilities related to API functions and classes."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

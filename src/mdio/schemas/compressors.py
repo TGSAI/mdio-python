@@ -5,7 +5,6 @@ Important Objects:
     - ZFP: Class that represents the ZFP compression model.
 """
 
-
 from enum import Enum
 from enum import StrEnum
 

@@ -1,6 +1,5 @@
 """Custom exceptions related to MDIO functionality."""
 
-
 from __future__ import annotations
 
 

@@ -1,6 +1,5 @@
 """Parsers for sections of SEG-Y files."""
 
-
 from __future__ import annotations
 
 from concurrent.futures import ProcessPoolExecutor

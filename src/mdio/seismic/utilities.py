@@ -1,6 +1,5 @@
 """More utilities for reading SEG-Ys."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING

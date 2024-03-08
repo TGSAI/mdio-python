@@ -1,6 +1,5 @@
 """Dimension schema."""
 
-
 from pydantic import Field
 
 from mdio.schemas.core import CamelCaseStrictModel

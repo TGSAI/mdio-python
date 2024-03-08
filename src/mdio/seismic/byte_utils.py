@@ -1,6 +1,5 @@
 """Module for custom struct abstraction utilities."""
 
-
 import sys
 from dataclasses import dataclass
 from enum import Enum

@@ -1,6 +1,5 @@
 """MDIO Dataset copy command."""
 
-
 from __future__ import annotations
 
 from click import STRING
@@ -56,7 +55,7 @@ from click_params import JSON
     help="Flag to overwrite if mdio file if it exists",
     show_default=True,
 )
-def copy(
+def copy(  # noqa: PLR0913
     source_mdio_path: str,
     target_mdio_path: str,
     access_pattern: str = "012",

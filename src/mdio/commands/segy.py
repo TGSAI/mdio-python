@@ -1,6 +1,5 @@
 """SEG-Y Import/Export CLI Plugin."""
 
-
 from typing import Any
 
 from click import BOOL

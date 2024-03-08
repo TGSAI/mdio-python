@@ -1,6 +1,5 @@
 """Low level workers for parsing and writing SEG-Y to Zarr."""
 
-
 from __future__ import annotations
 
 from pathlib import Path

@@ -1,15 +1,14 @@
 """Command-line interface."""
 
-
 from __future__ import annotations
 
 import importlib
 from importlib import metadata
 from pathlib import Path
+from typing import Any
 from typing import Callable
 
 import click
-
 
 KNOWN_MODULES = [
     "segy.py",
@@ -31,13 +30,13 @@ class MyCLI(click.MultiCommand):
     - plugin_folder: Path to the directory containing command modules.
     """
 
-    def __init__(self, plugin_folder: Path, *args, **kwargs):
+    def __init__(self, plugin_folder: Path, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
         """Initializer function."""
         super().__init__(*args, **kwargs)
         self.plugin_folder = plugin_folder
         self.known_modules = KNOWN_MODULES
 
-    def list_commands(self, ctx: click.Context) -> list[str]:
+    def list_commands(self, _ctx: click.Context) -> list[str]:
         """List commands available under `commands` module."""
         rv = []
         for filename in self.plugin_folder.iterdir():
@@ -48,7 +47,7 @@ class MyCLI(click.MultiCommand):
         rv.sort()
         return rv
 
-    def get_command(self, ctx: click.Context, name: str) -> Callable | None:
+    def get_command(self, _ctx: click.Context, name: str) -> Callable | None:
         """Get command implementation from `commands` module."""
         try:
             filepath = self.plugin_folder / f"{name}.py"

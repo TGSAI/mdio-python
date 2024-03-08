@@ -4,7 +4,6 @@ We take booleans, unsigned and signed integers, floats, and
 complex numbers from numpy data types and allow those.
 """
 
-
 from enum import StrEnum
 
 import numpy as np

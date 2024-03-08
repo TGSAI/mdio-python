@@ -1,6 +1,5 @@
 """Base models to subclass from."""
 
-
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic.json_schema import GenerateJsonSchema
