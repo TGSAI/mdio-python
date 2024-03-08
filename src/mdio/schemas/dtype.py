@@ -13,11 +13,11 @@ from mdio.schemas.core import CamelCaseStrictModel
 
 
 ALLOWED_TYPES = [
-    np.sctypes["others"][0].__name__,  # boolean
-    *[t.__name__ for t in np.sctypes["int"]],
-    *[t.__name__ for t in np.sctypes["uint"]],
-    *[t.__name__ for t in np.sctypes["float"]],
-    *[t.__name__ for t in np.sctypes["complex"]],
+    np.sctypes["others"][0].__name__,  # boolean # noqa: NPY201
+    *[t.__name__ for t in np.sctypes["int"]],  # noqa: NPY201
+    *[t.__name__ for t in np.sctypes["uint"]],  # noqa: NPY201
+    *[t.__name__ for t in np.sctypes["float"]],  # noqa: NPY201
+    *[t.__name__ for t in np.sctypes["complex"]],  # noqa: NPY201
 ]
 
 
