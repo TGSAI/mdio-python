@@ -1,13 +1,19 @@
 """SEG-Y Import/Export CLI Plugin."""
 
 
-try:
-    import click
-    import click_params
+from typing import Any
 
-    import mdio
-except SystemError:
-    pass
+from click import BOOL
+from click import FLOAT
+from click import STRING
+from click import Choice
+from click import Group
+from click import Path
+from click import argument
+from click import option
+from click_params import JSON
+from click_params import IntListParamType
+from click_params import StringListParamType
 
 
 SEGY_HELP = """
@@ -57,116 +63,102 @@ locations for indexing. However, the headers are stored as the SEG-Y Rev 1
 after ingestion.
 """
 
-cli = click.Group(name="segy", help=SEGY_HELP)
+cli = Group(name="segy", help=SEGY_HELP)
 
 
 @cli.command(name="import")
-@click.option(
-    "-i",
-    "--input-segy-path",
-    required=True,
-    help="Input SEG-Y file path.",
-    type=click.Path(exists=True),
-)
-@click.option(
-    "-o",
-    "--output-mdio-file",
-    required=True,
-    help="Output path or URL to write the mdio file.",
-    type=click.STRING,
-)
-@click.option(
+@argument("segy-path", type=Path(exists=True))
+@argument("mdio-path", type=STRING)
+@option(
     "-loc",
     "--header-locations",
     required=True,
     help="Byte locations of the index attributes in SEG-Y trace header.",
-    type=click_params.IntListParamType(),
+    type=IntListParamType(),
 )
-@click.option(
+@option(
     "-types",
     "--header-types",
     required=False,
     help="Data types of the index attributes in SEG-Y trace header.",
-    type=click_params.StringListParamType(),
+    type=StringListParamType(),
 )
-@click.option(
+@option(
     "-names",
     "--header-names",
     required=False,
     help="Names of the index attributes",
-    type=click_params.StringListParamType(),
+    type=StringListParamType(),
 )
-@click.option(
+@option(
     "-chunks",
     "--chunk-size",
     required=False,
     help="Custom chunk size for bricked storage",
-    type=click_params.IntListParamType(),
+    type=IntListParamType(),
 )
-@click.option(
+@option(
     "-endian",
     "--endian",
     required=False,
     default="big",
     help="Endianness of the SEG-Y file",
-    type=click.Choice(["little", "big"]),
+    type=Choice(["little", "big"]),
     show_default=True,
     show_choices=True,
 )
-@click.option(
+@option(
     "-lossless",
     "--lossless",
     required=False,
     default=True,
     help="Toggle lossless, and perceptually lossless compression",
-    type=click.BOOL,
+    type=BOOL,
     show_default=True,
 )
-@click.option(
+@option(
     "-tolerance",
     "--compression-tolerance",
     required=False,
     default=0.01,
     help="Lossy compression tolerance in ZFP.",
-    type=click.FLOAT,
+    type=FLOAT,
     show_default=True,
 )
-@click.option(
+@option(
     "-storage",
     "--storage-options",
     required=False,
     help="Custom storage options for cloud backends",
-    type=click_params.JSON,
+    type=JSON,
 )
-@click.option(
+@option(
     "-overwrite",
     "--overwrite",
-    required=False,
-    default=False,
+    is_flag=True,
     help="Flag to overwrite if mdio file if it exists",
-    type=click.BOOL,
     show_default=True,
 )
-@click.option(
+@option(
     "-grid-overrides",
     "--grid-overrides",
     required=False,
     help="Option to add grid overrides.",
-    type=click_params.JSON,
+    type=JSON,
 )
 def segy_import(
-    input_segy_path,
-    output_mdio_file,
-    header_locations,
-    header_types,
-    header_names,
-    chunk_size,
-    endian,
-    lossless,
-    compression_tolerance,
-    storage_options,
-    overwrite,
-    grid_overrides,
+    segy_path: str,
+    mdio_path: str,
+    header_locations: list[int],
+    header_types: list[str],
+    header_names: list[str],
+    chunk_size: list[int],
+    endian: str,
+    lossless: bool,
+    compression_tolerance: float,
+    storage_options: dict[str, Any],
+    overwrite: bool,
+    grid_overrides: dict[str, Any],
 ):
     """Ingest SEG-Y file to MDIO.
 
@@ -356,9 +348,11 @@ def segy_import(
         --chunk-size 8,2,256,512
         --grid-overrides '{"HasDuplicates": True}'
     """
-    mdio.segy_to_mdio(
-        segy_path=input_segy_path,
-        mdio_path_or_buffer=output_mdio_file,
+    from mdio import segy_to_mdio
+
+    segy_to_mdio(
+        segy_path=segy_path,
+        mdio_path_or_buffer=mdio_path,
         index_bytes=header_locations,
         index_types=header_types,
         index_names=header_names,
@@ -373,63 +367,51 @@ def segy_import(
 
 
 @cli.command(name="export")
-@click.option(
-    "-i",
-    "--input-mdio-file",
-    required=True,
-    help="Input path of the mdio file",
-    type=click.STRING,
-)
-@click.option(
-    "-o",
-    "--output-segy-path",
-    required=True,
-    help="Output SEG-Y file",
-    type=click.Path(exists=False),
-)
-@click.option(
+@argument("mdio-file", type=STRING)
+@argument("segy-path", type=Path(exists=False))
+@option(
     "-access",
     "--access-pattern",
     required=False,
     default="012",
     help="Access pattern of the file",
-    type=click.STRING,
+    type=STRING,
     show_default=True,
 )
-@click.option(
+@option(
     "-format",
     "--segy-format",
     required=False,
     default="ibm32",
     help="SEG-Y sample format",
-    type=click.Choice(["ibm32", "ieee32"]),
+    type=Choice(["ibm32", "ieee32"]),
     show_default=True,
     show_choices=True,
 )
-@click.option(
+@option(
     "-storage",
     "--storage-options",
     required=False,
     help="Custom storage options for cloud backends.",
-    type=click_params.JSON,
+    type=JSON,
 )
-@click.option(
+@option(
     "-endian",
     "--endian",
     required=False,
     default="big",
     help="Endianness of the SEG-Y file",
-    type=click.Choice(["little", "big"]),
+    type=Choice(["little", "big"]),
     show_default=True,
     show_choices=True,
 )
 def segy_export(
-    input_mdio_file,
-    output_segy_path,
-    access_pattern,
-    segy_format,
-    storage_options,
-    endian,
+    mdio_file: str,
+    segy_path: str,
+    access_pattern: str,
+    segy_format: str,
+    storage_options: dict[str, Any],
+    endian: str,
 ):
     """Export MDIO file to SEG-Y.
 
@@ -451,9 +433,11 @@ def segy_export(
     The input MDIO can be local or cloud based. However, the output SEG-Y
     will be generated locally.
     """
-    mdio.mdio_to_segy(
-        mdio_path_or_buffer=input_mdio_file,
-        output_segy_path=output_segy_path,
+    from mdio import mdio_to_segy
+
+    mdio_to_segy(
+        mdio_path_or_buffer=mdio_file,
+        output_segy_path=segy_path,
         access_pattern=access_pattern,
         out_sample_format=segy_format,
         storage_options=storage_options,

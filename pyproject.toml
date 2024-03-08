@@ -30,9 +30,10 @@ zarr = "^2.16.1"
 dask = ">=2023.10.0"
 tqdm = "^4.66.1"
 segyio = "^1.9.3"
-numba = "^0.59.0rc1"
+numba = "^0.59.0"
 psutil = "^5.9.5"
 fsspec = ">=2023.9.1"
+rich = "^13.7.1"
 urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
 
 # Extras
@@ -109,5 +110,5 @@ ignore_missing_imports = true
 
 
 [build-system]
-requires = ["poetry-core"]
+requires = ["poetry-core", "fastentrypoints"]
 build-backend = "poetry.core.masonry.api"
