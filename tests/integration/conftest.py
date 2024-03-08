@@ -57,11 +57,6 @@ def create_segy_mock_4d(
 
     shot_headers = np.hstack([np.repeat(shot, total_chan) for shot in shots])
 
-    # calculate gun
-    if guns is None:
-        guns = [
-            1,
-        ]
     gun_per_shot = []
     for shot in shots:
         gun_per_shot.append(guns[(shot % len(guns))])
