@@ -175,7 +175,7 @@ class TestImport4DSparse:
         from mdio.converters.exceptions import GridTraceSparsityError
 
         segy_path = segy_mock_4d_shots[chan_header_type]
-        os.environ["MDIO_GRID_SPARSITY_RATIO_LIMIT"] = "1.1"
+        os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "1.1"
 
         with pytest.raises(GridTraceSparsityError):
             segy_to_mdio(
