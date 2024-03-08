@@ -158,12 +158,13 @@ def create_trace_index(
     # Add index header
     index_headers["trace"] = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
 
-    idx = 0
     if depth == 0:
         return
 
-    for idx_values in zip(  # noqa: B905
-        *(index_headers[header_names[i]] for i in range(depth))
+    for idx, idx_values in enumerate(
+        zip(  # noqa: B905
+            *(index_headers[header_names[i]] for i in range(depth))
+        )
     ):
         if depth == 1:
             counter[idx_values[0]] += 1
@@ -174,8 +175,6 @@ def create_trace_index(
                 sub_counter = sub_counter[idx_value]
             sub_counter[idx_values[-1]] += 1
             index_headers["trace"][idx] = sub_counter[idx_values[-1]]
-
-        idx += 1
 
 
 def analyze_non_indexed_headers(
