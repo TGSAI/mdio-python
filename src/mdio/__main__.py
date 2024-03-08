@@ -10,6 +10,7 @@ from typing import Callable
 
 import click
 
+
 KNOWN_MODULES = [
     "segy.py",
     "copy.py",

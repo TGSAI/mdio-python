@@ -23,6 +23,7 @@ from mdio.seismic._workers import trace_worker
 from mdio.seismic.creation import concat_files
 from mdio.seismic.creation import write_to_segy_stack
 
+
 if TYPE_CHECKING:
     from pathlib import Path
 

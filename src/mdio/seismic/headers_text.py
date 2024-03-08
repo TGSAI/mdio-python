@@ -9,6 +9,7 @@ import numpy as np
 from mdio.seismic.ebcdic import ASCII_TO_EBCDIC
 from mdio.seismic.ebcdic import EBCDIC_TO_ASCII
 
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 

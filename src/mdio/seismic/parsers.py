@@ -16,6 +16,7 @@ from tqdm.auto import tqdm
 from mdio.core.dimension import Dimension
 from mdio.seismic._workers import header_scan_worker
 
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 

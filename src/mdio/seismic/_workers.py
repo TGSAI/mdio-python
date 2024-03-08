@@ -14,6 +14,7 @@ from mdio.seismic.byte_utils import ByteOrder
 from mdio.seismic.byte_utils import Dtype
 from mdio.seismic.ibm_float import ibm2ieee
 
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 

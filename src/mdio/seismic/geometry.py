@@ -18,6 +18,7 @@ from mdio.seismic.exceptions import GridOverrideKeysError
 from mdio.seismic.exceptions import GridOverrideMissingParameterError
 from mdio.seismic.exceptions import GridOverrideUnknownError
 
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 

@@ -21,6 +21,7 @@ from mdio.seismic.byte_utils import Dtype
 from mdio.seismic.byte_utils import get_byteorder
 from mdio.seismic.ibm_float import ieee2ibm
 
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 

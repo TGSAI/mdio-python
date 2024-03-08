@@ -28,6 +28,7 @@ from mdio.seismic.parsers import parse_binary_header
 from mdio.seismic.parsers import parse_text_header
 from mdio.seismic.utilities import get_grid_plan
 
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
     from pathlib import Path

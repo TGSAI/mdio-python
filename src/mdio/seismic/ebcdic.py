@@ -25,6 +25,7 @@ Examples:
 
 import numpy as np
 
+
 # fmt: off
 ASCII_TO_EBCDIC = np.asarray(
     [

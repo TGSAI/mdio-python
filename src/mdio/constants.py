@@ -2,6 +2,7 @@
 
 import numpy as np
 
+
 FLOAT16_MAX = np.finfo("float16").max
 FLOAT16_MIN = np.finfo("float16").min
 

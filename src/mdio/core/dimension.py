@@ -12,6 +12,7 @@ import numpy as np
 from mdio.core.serialization import Serializer
 from mdio.exceptions import ShapeError
 
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 

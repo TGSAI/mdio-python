@@ -13,6 +13,7 @@ from mdio.constants import UINT32_MAX
 from mdio.core.dimension import Dimension
 from mdio.core.serialization import Serializer
 
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 

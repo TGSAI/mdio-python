@@ -16,6 +16,7 @@ from mdio.core import Grid
 from mdio.core.exceptions import MDIONotFoundError
 from mdio.exceptions import ShapeError
 
+
 if TYPE_CHECKING:
     import dask.array as da
     from numpy.typing import NDArray

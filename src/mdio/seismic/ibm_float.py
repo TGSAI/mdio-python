@@ -5,6 +5,7 @@ import os
 import numba as nb
 import numpy as np
 
+
 # If Numba's JIT compilation is disabled, force vectorized
 # functions to Numba's Object Mode. This is only used when running
 # tests and we want a coverage report to JIT functions.

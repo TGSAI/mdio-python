@@ -12,6 +12,7 @@ from mdio.seismic.geometry import GridOverrider
 from mdio.seismic.parsers import parse_sample_axis
 from mdio.seismic.parsers import parse_trace_headers
 
+
 if TYPE_CHECKING:
     from collections.abc import Sequence
 

@@ -14,6 +14,7 @@ from click_params import JSON
 from click_params import IntListParamType
 from click_params import StringListParamType
 
+
 SEGY_HELP = """
 MDIO and SEG-Y conversion utilities. Below is general information
 about the SEG-Y format and MDIO features. For import or export

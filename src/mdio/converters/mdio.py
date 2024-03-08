@@ -16,6 +16,7 @@ from mdio.seismic.creation import concat_files
 from mdio.seismic.creation import mdio_spec_to_segy
 from mdio.seismic.utilities import segy_export_rechunker
 
+
 try:
     import distributed
 except ImportError:

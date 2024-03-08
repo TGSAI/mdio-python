@@ -11,6 +11,7 @@ from pydantic import Field
 
 from mdio.schemas.core import CamelCaseStrictModel
 
+
 ALLOWED_TYPES = [
     np.sctypes["others"][0].__name__,  # boolean
     *[t.__name__ for t in np.sctypes["int"]],
