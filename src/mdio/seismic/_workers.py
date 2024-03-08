@@ -44,9 +44,9 @@ def header_scan_worker(  # noqa: PLR0913
 
     Args:
         segy_path_or_handle: Path or handle to the input SEG-Y file
+        trace_range: Tuple consisting of the trace ranges to read
         byte_locs: Byte locations to return. It will be a subset of the headers.
         byte_types: Tuple consisting of the data types for the index attributes.
-        trace_range: Tuple consisting of the trace ranges to read
         index_names: Tuple of the names for the index attributes
         segy_endian: Endianness of the input SEG-Y. Rev.2 allows little endian
 

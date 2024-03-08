@@ -26,7 +26,6 @@ class ChunkIterator:
     """
 
     def __init__(self, array: Array, chunk_samples: bool = True):
-        """Initialize iterator."""
         self.arr_shape = array.shape
         self.len_chunks = array.chunks
 

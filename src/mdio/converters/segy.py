@@ -101,13 +101,12 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     logger.debug(f"Dimensions: {dims}")
     logger.debug(f"num_traces = {num_traces}")
 
-    grid_sparsity_ratio_limit = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", 10)
+    grid_sparsity_ratio_limit = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", "10")
     try:
         grid_sparsity_ratio_limit_ = float(grid_sparsity_ratio_limit)
     except ValueError:
-        raise EnvironmentFormatError(
-            "MDIO__GRID__SPARSITY_RATIO_LIMIT", "float"
-        ) from None
+        env_var, format_ = "MDIO__GRID__SPARSITY_RATIO_LIMIT", "float"
+        raise EnvironmentFormatError(env_var, format_) from None
 
     # Warning if we have above 50% sparsity.
     msg = ""
@@ -126,8 +125,8 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     # Extreme case where the grid is very sparse (usually user error)
     if grid_traces > grid_sparsity_ratio_limit_ * num_traces:
         logger.warning("WARNING: Sparse mdio grid detected!")
-        if os.getenv("MDIO__IGNORE_CHECKS", False):
-            # Do not raise an exception if MDIO_IGNORE_CHECK is False
+        if os.getenv("MDIO__IGNORE_CHECKS", "1"):
+            # Do not raise an exception if MDIO_IGNORE_CHECK is 1
             pass
         else:
             raise GridTraceSparsityError(grid.shape, num_traces, msg)
@@ -187,7 +186,7 @@ def segy_to_mdio(  # noqa: PLR0913
         index_types: Tuple of the data-types for the index attributes.
             Must be in {"int16, int32, float16, float32, ibm32"}
             Default is 4-byte integers for each index key.
-        chunksize : Override default chunk size, which is (64, 64, 64) if
+        chunksize: Override default chunk size, which is (64, 64, 64) if
             3D, and (512, 512) for 2D.
         endian: Endianness of the input SEG-Y. Rev.2 allows little endian.
             Default is 'big'. Must be in `{"big", "little"}`

@@ -18,15 +18,11 @@ class Serializer(ABC):
     Here we define the interface for any serializer implementation.
 
     Args:
-        stream_format: Format of the stream for serialization.
+        stream_format: Format of the stream for serialization. Must be
+            in {"JSON", "YAML"}.
     """
 
     def __init__(self, stream_format: str) -> None:
-        """Initialize serializer.
-
-        Args:
-            stream_format: Stream format. Must be in {"JSON", "YAML"}.
-        """
         self.format = stream_format
         self.serialize_func = get_serializer(stream_format)
         self.deserialize_func = get_deserializer(stream_format)

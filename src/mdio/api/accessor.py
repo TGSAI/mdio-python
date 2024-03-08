@@ -88,9 +88,6 @@ class MDIOAccessor:
             False, which turns off disk caching. See `simplecache` from
             `fsspec` documentation for more details.
 
-    Raises:
-        MDIONotFoundError: If the MDIO file can not be opened.
-
     Notes:
         The combination of the `Dask` backend and caching schemes are experimental.
         This configuration may cause unexpected memory usage and duplicate data
@@ -144,14 +141,12 @@ class MDIOAccessor:
         memory_cache_size: int,
         disk_cache: bool,
     ):
-        """Accessor initialization function."""
         # Set public attributes
         self.url = mdio_path_or_buffer
         self.mode = mode
         self.access_pattern = access_pattern
 
         # Set private attributes for public interface.
-        # Pep8 complains because they are defined outside __init__
         self._binary_header = None
         self._chunks = None
         self._live_mask = None
@@ -595,7 +590,6 @@ class MDIOReader(MDIOAccessor):
         memory_cache_size: int = 0,
         disk_cache: bool = False,
     ):  # Disabled all caching by default, sometimes causes performance issues
-        """Initialize super class with `r` permission."""
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
             mode="r",
@@ -651,7 +645,6 @@ class MDIOWriter(MDIOAccessor):
         memory_cache_size: int = 0,
         disk_cache: bool = False,
     ):  # Disabled all caching by default, sometimes causes performance issues
-        """Initialize super class with `r+` permission."""
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
             mode="r+",

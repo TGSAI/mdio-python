@@ -8,7 +8,13 @@ class MDIOError(Exception):
 
 
 class ShapeError(MDIOError):
-    """Raised when shapes of two or more things don't match."""
+    """Raised when shapes of two or more things don't match.
+
+    Args:
+        message: Message to show with the exception.
+        names: Names of the variables for the `message`.
+        shapes: Shapes of the variables for the `message`.
+    """
 
     def __init__(
         self,
@@ -16,13 +22,6 @@ class ShapeError(MDIOError):
         names: tuple[str, str] | None = None,
         shapes: tuple[int, int] | None = None,
     ):
-        """Construct shape error.
-
-        Args:
-            message: Message to show with the exception.
-            names: Names of the variables for the `message`.
-            shapes: Shapes of the variables for the `message`.
-        """
         if names is not None and shapes is not None:
             shape_dict = zip(names, shapes)
             extras = [f"{name}: {shape}" for name, shape in shape_dict]
@@ -34,16 +33,15 @@ class ShapeError(MDIOError):
 
 
 class WrongTypeError(MDIOError):
-    """Raised when types of two or things don't match."""
+    """Raised when types of two or things don't match.
+
+    Args:
+        message: Message to show with the exception.
+        name: String form of variable's type for the `message`.
+        expected: String form of expected type for the `message`.
+    """
 
     def __init__(self, message: str, name: str = None, expected: str = None):
-        """Construct type error.
-
-        Args:
-            message: Message to show with the exception.
-            name: String form of variable's type for the `message`.
-            expected: String form of expected type for the `message`.
-        """
         if name is not None and expected is not None:
             extras = f"Got: {name} Expected: {expected}"
 

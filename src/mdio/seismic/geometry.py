@@ -496,11 +496,12 @@ class GridOverrider:
     We support a certain type of grid overrides, and they have to be
     implemented following the ABC's in this module.
 
+    Define allowed overrides and parameters in the `__init__`.
+
     This class applies the grid overrides if needed.
     """
 
     def __init__(self) -> None:
-        """Define allowed overrides and parameters here."""
         self.commands = {
             "AutoChannelWrap": AutoChannelWrap(),
             "CalculateCable": CalculateCable(),
