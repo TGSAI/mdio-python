@@ -15,6 +15,7 @@ from mdio.converters import segy_to_mdio
 from mdio.core import Dimension
 from mdio.seismic.geometry import StreamerShotGeometryType
 
+
 dask.config.set(scheduler="synchronous")
 
 
@@ -158,17 +159,17 @@ class TestImport4D:
 class TestImport4DSparse:
     """Test for 4D segy import with grid overrides."""
 
-    def test_import_4d_segy(
+    def test_import_4d_segy(  # noqa: PLR0913
         self,
-        segy_mock_4d_shots,
-        zarr_tmp,
-        header_locations,
-        header_names,
-        header_types,
-        endian,
-        grid_overrides,
-        chan_header_type,
-    ):
+        segy_mock_4d_shots: dict[StreamerShotGeometryType, str],
+        zarr_tmp: Path,
+        header_locations: tuple[int, ...],
+        header_names: tuple[str, ...],
+        header_types: tuple[str, ...],
+        endian: str,
+        grid_overrides: dict[str, Any] | None,
+        chan_header_type: StreamerShotGeometryType,
+    ) -> None:
         """Test importing a SEG-Y file to MDIO."""
         import os
 

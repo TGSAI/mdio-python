@@ -1,6 +1,5 @@
 """Test configuration before everything runs."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -10,6 +9,7 @@ import pytest
 import segyio
 
 from mdio.seismic.geometry import StreamerShotGeometryType
+
 
 if TYPE_CHECKING:
     from pathlib import Path

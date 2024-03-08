@@ -1,6 +1,5 @@
 """Tests for lower level text header modules."""
 
-
 import random
 import string
 from binascii import hexlify

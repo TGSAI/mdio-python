@@ -1,6 +1,5 @@
 """Check grid overrides."""
 
-
 from __future__ import annotations
 
 from typing import Any
@@ -18,6 +17,7 @@ from mdio.seismic.exceptions import GridOverrideIncompatibleError
 from mdio.seismic.exceptions import GridOverrideMissingParameterError
 from mdio.seismic.exceptions import GridOverrideUnknownError
 from mdio.seismic.geometry import GridOverrider
+
 
 SHOTS = arange(100, 104, dtype="int32")
 CABLES = arange(11, 15, dtype="int32")

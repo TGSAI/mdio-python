@@ -1,6 +1,5 @@
 """Test for MDIO accessors."""
 
-
 from __future__ import annotations
 
 import shutil
@@ -16,6 +15,7 @@ from mdio.core.exceptions import MDIOAlreadyExistsError
 from mdio.core.exceptions import MDIONotFoundError
 from mdio.exceptions import ShapeError
 from mdio.seismic.helpers_segy import create_zarr_hierarchy
+
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray

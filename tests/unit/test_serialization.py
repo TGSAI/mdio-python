@@ -1,6 +1,5 @@
 """Check lower-level serialization functions."""
 
-
 from inspect import Parameter
 from inspect import Signature
 from typing import Any

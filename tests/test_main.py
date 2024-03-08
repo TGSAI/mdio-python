@@ -1,6 +1,5 @@
 """Test cases for the __main__ module."""
 
-
 from pathlib import Path
 
 import pytest
