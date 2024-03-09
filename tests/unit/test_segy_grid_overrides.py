@@ -1,6 +1,5 @@
 """Check grid overrides."""
 
-
 from __future__ import annotations
 
 from typing import Any
@@ -14,10 +13,10 @@ from numpy import unique
 from numpy.testing import assert_array_equal
 
 from mdio.core import Dimension
-from mdio.segy.exceptions import GridOverrideIncompatibleError
-from mdio.segy.exceptions import GridOverrideMissingParameterError
-from mdio.segy.exceptions import GridOverrideUnknownError
-from mdio.segy.geometry import GridOverrider
+from mdio.seismic.exceptions import GridOverrideIncompatibleError
+from mdio.seismic.exceptions import GridOverrideMissingParameterError
+from mdio.seismic.exceptions import GridOverrideUnknownError
+from mdio.seismic.geometry import GridOverrider
 
 
 SHOTS = arange(100, 104, dtype="int32")
@@ -46,7 +45,7 @@ def get_dims(headers: dict[str, npt.NDArray]) -> list[Dimension]:
     return dims
 
 
-@pytest.fixture
+@pytest.fixture()
 def mock_streamer_headers() -> dict[str, npt.NDArray]:
     """Generate dictionary of mocked streamer index headers."""
     grids = meshgrid(SHOTS, CABLES, RECEIVERS, indexing="ij")
@@ -57,13 +56,11 @@ def mock_streamer_headers() -> dict[str, npt.NDArray]:
         shot_mask = permutations[:, 0] == shot
         permutations[shot_mask, -1] = arange(1, len(CABLES) * len(RECEIVERS) + 1)
 
-    result = dict(
-        shot_point=permutations[:, 0],
-        cable=permutations[:, 1],
-        channel=permutations[:, 2],
-    )
-
-    return result
+    return {
+        "shot_point": permutations[:, 0],
+        "cable": permutations[:, 1],
+        "channel": permutations[:, 2],
+    }
 
 
 class TestAutoGridOverrides:

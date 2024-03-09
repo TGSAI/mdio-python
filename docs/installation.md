@@ -1,4 +1,4 @@
-# Install Instructions
+# Installation
 
 There are different ways to install MDIO:
 

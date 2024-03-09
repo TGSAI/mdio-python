@@ -1,6 +1,5 @@
 """Test cases for the __main__ module."""
 
-
 from pathlib import Path
 
 import pytest
@@ -18,7 +17,7 @@ def runner() -> CliRunner:
 @pytest.mark.dependency()
 def test_main_succeeds(runner: CliRunner, segy_input: str, zarr_tmp: Path) -> None:
     """It exits with a status code of zero."""
-    cli_args = ["segy", "import", segy_input, str(zarr_tmp)]
+    cli_args = ["segy", "import", str(segy_input), str(zarr_tmp)]
     cli_args.extend(["-loc", "181,185"])
     cli_args.extend(["-names", "inline,crossline"])
 

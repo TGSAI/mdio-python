@@ -1,6 +1,5 @@
 """MDIO library."""
 
-
 from importlib import metadata
 
 from mdio.api import MDIOReader
