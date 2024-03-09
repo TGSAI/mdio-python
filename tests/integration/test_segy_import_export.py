@@ -1,6 +1,8 @@
 """End to end testing for SEG-Y to MDIO conversion and back."""
 
-from pathlib import Path
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 from typing import Any
 
 import dask
@@ -15,6 +17,9 @@ from mdio.converters import segy_to_mdio
 from mdio.core import Dimension
 from mdio.seismic.geometry import StreamerShotGeometryType
 
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 dask.config.set(scheduler="synchronous")
 
