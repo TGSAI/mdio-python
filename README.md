@@ -44,6 +44,8 @@ machine learning, and data processing workflows.
 
 See the [documentation][read the docs] for more information.
 
+This is not an official TGS product.
+
 # Features
 
 **Shared Features**
