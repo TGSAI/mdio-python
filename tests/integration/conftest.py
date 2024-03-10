@@ -18,6 +18,7 @@ def create_segy_mock_4d(
     shots: list,
     cables: list,
     receivers_per_cable: list,
+    guns: list | None = None,
     chan_header_type: StreamerShotGeometryType = StreamerShotGeometryType.A,
     index_receivers: bool = True,
 ) -> str:
@@ -55,20 +56,30 @@ def create_segy_mock_4d(
         index_receivers = False
 
     shot_headers = np.hstack([np.repeat(shot, total_chan) for shot in shots])
+
+    gun_per_shot = []
+    for shot in shots:
+        gun_per_shot.append(guns[(shot % len(guns))])
+    gun_headers = np.hstack([np.repeat(gun, total_chan) for gun in gun_per_shot])
+
     cable_headers = np.tile(cable_headers, shot_count)
     channel_headers = np.tile(channel_headers, shot_count)
 
     with segyio.create(segy_file, spec) as f:
         for trc_idx in range(trace_count):
             shot = shot_headers[trc_idx]
+            gun = gun_headers[trc_idx]
             cable = cable_headers[trc_idx]
             channel = channel_headers[trc_idx]
+            source_line = 1
 
             # offset is byte location 37 - offset 4 bytes
             # fldr is byte location 9 - shot 4 byte
             # ep is byte location 17 - shot 4 byte
             # stae is byte location 137 - cable 2 byte
             # tracf is byte location 13 - channel 4 byte
+            # grnors is byte location 171 - gun 2 bytes
+            # styp is byte location 133 - source_line 2 bytes
 
             if index_receivers:
                 f.header[trc_idx].update(
@@ -77,6 +88,8 @@ def create_segy_mock_4d(
                     ep=shot,
                     stae=cable,
                     tracf=channel,
+                    grnors=gun,
+                    styp=source_line,
                 )
             else:
                 f.header[trc_idx].update(
@@ -98,7 +111,8 @@ def create_segy_mock_4d(
 def segy_mock_4d_shots(fake_segy_tmp: str) -> dict[StreamerShotGeometryType, str]:
     """Generate mock 4D shot SEG-Y files."""
     num_samples = 25
-    shots = [2, 3, 5]
+    shots = [2, 3, 5, 6, 7, 8, 9]
+    guns = [1, 2]
     cables = [0, 101, 201, 301]
     receivers_per_cable = [1, 5, 7, 5]
 
@@ -112,6 +126,7 @@ def segy_mock_4d_shots(fake_segy_tmp: str) -> dict[StreamerShotGeometryType, str
             cables=cables,
             receivers_per_cable=receivers_per_cable,
             chan_header_type=chan_header_type,
+            guns=guns,
         )
 
     return segy_paths

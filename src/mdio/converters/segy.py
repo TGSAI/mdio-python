@@ -90,6 +90,8 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
     logger.debug(f"Dimensions: {dims}")
     logger.debug(f"num_traces = {num_traces}")
+    logger.debug(f"grid_traces = {grid_traces}")
+    logger.debug(f"sparsity = {grid_traces / num_traces}")
 
     grid_sparsity_ratio_limit = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", 10)
     try:
@@ -270,7 +272,7 @@ def segy_to_mdio(
         ...     mdio_path_or_buffer="s3://bucket/shot_file.mdio",
         ...     index_bytes=(17, 137, 13),
         ...     index_lengths=(4, 2, 4),
-        ...     index_names=("shot", "cable", "channel"),
+        ...     index_names=("shot_point", "cable", "channel"),
         ...     chunksize=(8, 2, 128, 1024),
         ...     grid_overrides={"ChannelWrap": True, "ChannelsPerCable": 800},
         ... )
@@ -282,6 +284,31 @@ def segy_to_mdio(
         channels but desires to store with wrapped channel index use:
         >>>    grid_overrides={"AutoChannelWrap": True,
                                "AutoChannelTraceQC":  1000000}
+
+        For ingestion of pre-stack streamer data where the user needs to
+        access/index *common-channel gathers* (single gun) then the following
+        strategy can be used to densely ingest while indexing on gun number:
+
+        >>> segy_to_mdio(
+        ...     segy_path="prefix/shot_file.segy",
+        ...     mdio_path_or_buffer="s3://bucket/shot_file.mdio",
+        ...     index_bytes=(133, 171, 17, 137, 13),
+        ...     index_lengths=(2, 2, 4, 2, 4),
+        ...     index_names=("shot_line", "gun", "shot_point", "cable", "channel"),
+        ...     chunksize=(1, 1, 8, 1, 128, 1024),
+        ...     grid_overrides={
+        ...         "AutoShotWrap": True,
+        ...         "AutoChannelWrap": True,
+        ...         "AutoChannelTraceQC":  1000000
+        ...     },
+        ... )
+
+        For AutoShotWrap and AutoChannelWrap to work, the user must provide
+        "shot_line", "gun", "shot_point", "cable", "channel". For improved
+        common-channel performance consider modifying the chunksize to be
+        (1, 1, 32, 1, 32, 2048) for good common-shot and common-channel
+        performance or (1, 1, 128, 1, 1, 2048) for common-channel
+        performance.
 
         For cases with no well-defined trace header for indexing a NonBinned
         grid override is provided.This creates the index and attributes an
