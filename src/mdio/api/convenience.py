@@ -91,6 +91,7 @@ CREATE_KW = {
     "dimension_separator": "/",
     "write_empty_chunks": False,
 }
+MAX_BUFFER = 512
 
 
 def create_rechunk_plan(
@@ -101,6 +102,10 @@ def create_rechunk_plan(
     overwrite: bool = False,
 ) -> tuple[[list[Array]], list[Array], NDArray, ChunkIterator]:
     """Create rechunk plan based on source and user input.
+
+    It will buffer 512 x n-dimensions in memory. Approximately
+    128MB. However, if you need to adjust the buffer size, change
+    the `MAX_BUFFER` variable in this module.
 
     Args:
         source: MDIO accessor instance. Data will be copied from here.
@@ -159,7 +164,8 @@ def create_rechunk_plan(
             )
         )
 
-    dummy_array = zarr.empty_like(data_array, chunks=(512, 512, 512))
+    n_dimension = len(data_array.shape)
+    dummy_array = zarr.empty_like(data_array, chunks=(MAX_BUFFER,) * n_dimension)
     iterator = ChunkIterator(dummy_array)
 
     return metadata_arrs, data_arrs, live_mask, iterator
