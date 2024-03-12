@@ -6,12 +6,14 @@ from typing import TYPE_CHECKING
 
 import zarr
 from tqdm.auto import tqdm
+from zarr import Blosc
 
 from mdio.api.io_utils import process_url
 from mdio.core.indexing import ChunkIterator
 
 
 if TYPE_CHECKING:
+    from numcodecs.abc import Codec
     from numpy.typing import NDArray
     from zarr import Array
 
@@ -95,6 +97,7 @@ def create_rechunk_plan(
     source: MDIOAccessor,
     chunks_list: list[tuple[int, ...]],
     suffix_list: list[str],
+    compressor: Codec | None = None,
     overwrite: bool = False,
 ) -> tuple[[list[Array]], list[Array], NDArray, ChunkIterator]:
     """Create rechunk plan based on source and user input.
@@ -103,6 +106,7 @@ def create_rechunk_plan(
         source: MDIO accessor instance. Data will be copied from here.
         chunks_list: List of tuples containing new chunk sizes.
         suffix_list: List of suffixes to append to new chunk sizes.
+        compressor: Data compressor to use, optional. Default is Blosc('zstd').
         overwrite: Overwrite destination or not.
 
     Returns:
@@ -121,6 +125,9 @@ def create_rechunk_plan(
     metadata_arrs = []
     data_arrs = []
 
+    header_compressor = Blosc("zstd")
+    trace_compressor = Blosc("zstd") if compressor is None else compressor
+
     for chunks, suffix in zip(chunks_list, suffix_list):  # noqa: B905
         norm_chunks = [
             min(chunk, size) for chunk, size in zip(chunks, source.shape)  # noqa: B905
@@ -135,6 +142,7 @@ def create_rechunk_plan(
                 name=f"chunked_{suffix}_trace_headers",
                 data=metadata_array,
                 chunks=norm_chunks[:-1],
+                compressor=header_compressor,
                 overwrite=overwrite,
                 **CREATE_KW,
             )
@@ -145,6 +153,7 @@ def create_rechunk_plan(
                 name=f"chunked_{suffix}",
                 data=data_array,
                 chunks=norm_chunks,
+                compressor=trace_compressor,
                 overwrite=overwrite,
                 **CREATE_KW,
             )
@@ -194,6 +203,7 @@ def rechunk_batch(
     source: MDIOAccessor,
     chunks_list: list[tuple[int, ...]],
     suffix_list: list[str],
+    compressor: Codec | None = None,
     overwrite: bool = False,
 ) -> None:
     """Rechunk MDIO file to multiple variables, reading it once.
@@ -202,6 +212,7 @@ def rechunk_batch(
         source: MDIO accessor instance. Data will be copied from here.
         chunks_list: List of tuples containing new chunk sizes.
         suffix_list: List of suffixes to append to new chunk sizes.
+        compressor: Data compressor to use, optional. Default is Blosc('zstd').
         overwrite: Overwrite destination or not.
 
     Examples:
@@ -218,6 +229,7 @@ def rechunk_batch(
         source,
         chunks_list=chunks_list,
         suffix_list=suffix_list,
+        compressor=compressor,
         overwrite=overwrite,
     )
 
@@ -228,6 +240,7 @@ def rechunk(
     source: MDIOAccessor,
     chunks: tuple[int, ...],
     suffix: str,
+    compressor: Codec | None = None,
     overwrite: bool = False,
 ) -> None:
     """Rechunk MDIO file adding a new variable.
@@ -236,6 +249,7 @@ def rechunk(
         source: MDIO accessor instance. Data will be copied from here.
         chunks: Tuple containing chunk sizes for new rechunked array.
         suffix: Suffix to append to new rechunked array.
+        compressor: Data compressor to use, optional. Default is Blosc('zstd').
         overwrite: Overwrite destination or not.
 
     Examples:
@@ -244,4 +258,4 @@ def rechunk(
         >>> accessor = MDIOAccessor(...)
         >>> rechunk(accessor, (1, 1024, 1024), suffix="fast_il")
     """
-    rechunk_batch(source, [chunks], [suffix], overwrite)
+    rechunk_batch(source, [chunks], [suffix], compressor, overwrite)
