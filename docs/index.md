@@ -18,6 +18,7 @@ maxdepth: 1
 installation
 notebooks/quickstart
 notebooks/compression
+notebooks/rechunking
 usage
 reference
 contributing
