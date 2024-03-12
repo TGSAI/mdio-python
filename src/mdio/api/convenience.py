@@ -203,6 +203,16 @@ def rechunk_batch(
         chunks_list: List of tuples containing new chunk sizes.
         suffix_list: List of suffixes to append to new chunk sizes.
         overwrite: Overwrite destination or not.
+
+    Examples:
+        To rechunk multiple variables we can do things like:
+
+        >>> accessor = MDIOAccessor(...)
+        >>> rechunk_batch(
+        >>>     accessor,
+        >>>     chunks_list=[(1, 1024, 1024), (1024, 1, 1024), (1024, 1024, 1)],
+        >>>     suffix_list=["fast_il", "fast_xl", "fast_z"],
+        >>> )
     """
     plan = create_rechunk_plan(
         source,
@@ -227,5 +237,11 @@ def rechunk(
         chunks: Tuple containing chunk sizes for new rechunked array.
         suffix: Suffix to append to new rechunked array.
         overwrite: Overwrite destination or not.
+
+    Examples:
+        To rechunk a single variable we can do this
+
+        >>> accessor = MDIOAccessor(...)
+        >>> rechunk(accessor, (1, 1024, 1024), suffix="fast_il")
     """
     rechunk_batch(source, [chunks], [suffix], overwrite)
