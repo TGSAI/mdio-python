@@ -258,4 +258,6 @@ def rechunk(
         >>> accessor = MDIOAccessor(...)
         >>> rechunk(accessor, (1, 1024, 1024), suffix="fast_il")
     """
+    # TODO(Anyone): Write tests for rechunking functions
+    # https://github.com/TGSAI/mdio-python/issues/369
     rechunk_batch(source, [chunks], [suffix], compressor, overwrite)
