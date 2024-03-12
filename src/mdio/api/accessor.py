@@ -1,6 +1,5 @@
 """MDIO accessor APIs."""
 
-
 from __future__ import annotations
 
 import dask.array as da
@@ -61,7 +60,9 @@ class MDIOAccessor:
         mdio_path_or_buffer: Store URL for MDIO file. This can be either on
             a local disk, or a cloud object store.
         mode: Read or read/write mode. The file must exist. Options are
-            in {'r', 'r+'}.
+            in {'r', 'r+', 'w'}. 'r' is read only, 'r+' is append mode where
+            only existing arrays can be modified, 'w' is similar to 'r+'
+            but rechunking or other file-wide operations are allowed.
         access_pattern: Chunk access pattern, optional. Default is "012".
             Examples: '012', '01', '01234'.
         storage_options: Options for the storage backend. By default,
@@ -133,9 +134,9 @@ class MDIOAccessor:
         mdio_path_or_buffer: str,
         mode: str,
         access_pattern: str,
-        storage_options: dict,
+        storage_options: dict | None,
         return_metadata: bool,
-        new_chunks: tuple[int, ...],
+        new_chunks: tuple[int, ...] | None,
         backend: str,
         memory_cache_size: int,
         disk_cache: bool,
@@ -191,10 +192,13 @@ class MDIOAccessor:
     def _connect(self):
         """Open the zarr root."""
         try:
-            self.root = zarr.open_consolidated(
-                store=self.store,
-                mode=self.mode,
-            )
+            if self.mode in {"r", "r+"}:
+                self.root = zarr.open_consolidated(store=self.store, mode=self.mode)
+            elif self.mode == "w":
+                self.root = zarr.open(store=self.store, mode="r+")
+            else:
+                msg = f"Invalid mode: {self.mode}"
+                raise ValueError(msg)
         except KeyError as e:
             msg = (
                 f"MDIO file not found or corrupt at {self.store.path}. "
@@ -377,7 +381,7 @@ class MDIOAccessor:
     def __getitem__(self, item: int | tuple) -> npt.ArrayLike | da.Array | tuple:
         """Data getter."""
         if self._return_metadata is True:
-            if isinstance(item, int) or isinstance(item, slice):
+            if isinstance(item, (int, slice)):
                 meta_index = item
             elif len(item) == len(self.shape):
                 meta_index = tuple(dim for dim in item[:-1])
@@ -400,7 +404,7 @@ class MDIOAccessor:
         self,
         *args,
         dimensions: str | list[str] | None = None,
-    ) -> tuple[NDArray[np.int], ...]:
+    ) -> tuple[NDArray[int], ...]:
         """Convert dimension coordinate to zero-based index.
 
         The coordinate labels of the array dimensions are converted to
@@ -576,8 +580,8 @@ class MDIOReader(MDIOAccessor):
         return_metadata: bool = False,
         new_chunks: tuple[int, ...] = None,
         backend: str = "zarr",
-        memory_cache_size=0,
-        disk_cache=False,
+        memory_cache_size: int = 0,
+        disk_cache: bool = False,
     ):  # TODO: Disabled all caching by default, sometimes causes performance issues
         """Initialize super class with `r` permission."""
         super().__init__(
@@ -632,8 +636,8 @@ class MDIOWriter(MDIOAccessor):
         return_metadata: bool = False,
         new_chunks: tuple[int, ...] = None,
         backend: str = "zarr",
-        memory_cache_size=0,
-        disk_cache=False,
+        memory_cache_size: int = 0,
+        disk_cache: bool = False,
     ):  # TODO: Disabled all caching by default, sometimes causes performance issues
         """Initialize super class with `r+` permission."""
         super().__init__(
