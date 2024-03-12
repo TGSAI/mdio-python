@@ -1,6 +1,5 @@
 """MDIO Dataset information command."""
 
-
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -14,6 +13,7 @@ from click import option
 
 
 if TYPE_CHECKING:
+    from mdio import MDIOReader
     from mdio.core import Grid
 
 
@@ -59,11 +59,13 @@ def info(
 
     grid_dict = parse_grid(reader.grid)
     stats_dict = cast_stats(reader.stats)
+    access_pattern_dict = parse_access_patterns(reader)
 
     mdio_info = {
         "path": mdio_path,
         "stats": stats_dict,
         "grid": grid_dict,
+        "access_patterns": access_pattern_dict,
     }
 
     if output_format == "pretty":
@@ -88,6 +90,23 @@ def parse_grid(grid: Grid) -> dict[str, dict[str, int | str]]:
         size = str(dim.coords.shape[0])
         grid_dict[dim_name] = {"name": dim_name, "min": min_, "max": max_, "size": size}
     return grid_dict
+
+
+def parse_access_patterns(reader: MDIOReader) -> dict[str, Any]:
+    """Extract access patterns and their info."""
+    access_pattern_dict = {}
+    for name, array in reader._data_group.items():
+        pattern = name.replace("chunked_", "")
+        chunks = str(array.chunks)
+        format_ = str(array.dtype)
+        compressor = str(array.compressor)
+        access_pattern_dict[pattern] = {
+            "chunks": chunks,
+            "format": format_,
+            "compressor": compressor,
+        }
+
+    return access_pattern_dict
 
 
 def json_print(mdio_info: dict[str, Any]) -> None:
@@ -123,10 +142,23 @@ def pretty_print(mdio_info: dict[str, Any]) -> None:
     for stat, value in mdio_info["stats"].items():
         stat_table.add_row(stat, f"{value:.4f}")
 
+    access_patter_table = Table(show_edge=False)
+    access_patter_table.add_column(
+        "Pattern", justify="right", style="cyan", no_wrap=True
+    )
+    access_patter_table.add_column("Chunks", justify="left", style="magenta")
+    access_patter_table.add_column("Format", justify="left", style="magenta")
+    access_patter_table.add_column("Compressor", justify="left", style="magenta")
+
+    for name, pattern_info in mdio_info["access_patterns"].items():
+        chunks, format_, compressor = pattern_info.values()
+        access_patter_table.add_row(name, chunks, format_, compressor)
+
     master_table = Table(title=f"File Information for {mdio_info['path']}")
-    master_table.add_column("MDIO Grid", justify="center")
-    master_table.add_column("MDIO Statistics", justify="center")
-    master_table.add_row(grid_table, stat_table)
+    master_table.add_column("Grid", justify="center")
+    master_table.add_column("Statistics", justify="center")
+    master_table.add_column("Access Patterns", justify="center")
+    master_table.add_row(grid_table, stat_table, access_patter_table)
 
     console.print(master_table)
 
