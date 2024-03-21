@@ -2,28 +2,26 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import TYPE_CHECKING
 
 import numpy as np
 from dask.array.core import auto_chunks
-from numpy.typing import DTypeLike
-from numpy.typing import NDArray
 
 from mdio.core import Dimension
-from mdio.segy.byte_utils import Dtype
 from mdio.segy.geometry import GridOverrider
-from mdio.segy.parsers import parse_sample_axis
 from mdio.segy.parsers import parse_trace_headers
 
 
+if TYPE_CHECKING:
+    from numpy.typing import DTypeLike
+    from numpy.typing import NDArray
+    from segy import SegyFile
+
+
 def get_grid_plan(  # noqa:  C901
-    segy_path: str,
-    segy_endian: str,
-    index_bytes: Sequence[int],
-    index_names: Sequence[str],
-    index_types: Sequence[Dtype],
-    chunksize: Sequence[int],
-    binary_header: dict,
+    segy_file: SegyFile,
+    index_names: list[str],
+    chunksize: list[int],
     return_headers: bool = False,
     grid_overrides: dict | None = None,
 ) -> (
@@ -39,13 +37,9 @@ def get_grid_plan(  # noqa:  C901
     4. Create `Dimension` for sample axis using binary header.
 
     Args:
-        segy_path: Path to the input SEG-Y file
-        segy_endian: Endianness of the input SEG-Y.
-        index_bytes: Tuple of the byte location for the index attributes
+        segy_file: SegyFile instance.
         index_names: Tuple of the names for the index attributes
-        index_types: Tuple of the data types for the index attributes.
         chunksize:  Chunk sizes to be used in grid plan.
-        binary_header: Dictionary containing binary header key, value pairs.
         return_headers: Option to return parsed headers with `Dimension` objects.
             Default is False.
         grid_overrides: Option to add grid overrides. See main documentation.
@@ -57,16 +51,8 @@ def get_grid_plan(  # noqa:  C901
     if grid_overrides is None:
         grid_overrides = {}
 
-    index_dim = len(index_bytes)
-
-    if index_names is None:
-        index_names = [f"index_{dim}" for dim in range(index_dim)]
-
     index_headers = parse_trace_headers(
-        segy_path=segy_path,
-        segy_endian=segy_endian,
-        byte_locs=index_bytes,
-        byte_types=index_types,
+        segy_file=segy_file,
         index_names=index_names,
     )
 
@@ -85,7 +71,12 @@ def get_grid_plan(  # noqa:  C901
         dim_unique = np.unique(index_headers[index_name])
         dims.append(Dimension(coords=dim_unique, name=index_name))
 
-    sample_dim = parse_sample_axis(binary_header=binary_header)
+    sample_labels = segy_file.sample_labels / 1000  # normalize
+
+    if all(sample_labels.astype("int64") == sample_labels):
+        sample_labels = sample_labels.astype("int64")
+
+    sample_dim = Dimension(coords=sample_labels, name="sample")
 
     dims.append(sample_dim)
 
