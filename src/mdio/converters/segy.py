@@ -8,11 +8,10 @@ from datetime import datetime
 from datetime import timezone
 from importlib import metadata
 from typing import Any
-from typing import Sequence
 
 import numpy as np
-import segyio
 import zarr
+from segy import SegyFile
 
 from mdio.api.io_utils import process_url
 from mdio.converters.exceptions import EnvironmentFormatError
@@ -21,10 +20,7 @@ from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
 from mdio.segy import blocked_io
-from mdio.segy.byte_utils import Dtype
 from mdio.segy.helpers_segy import create_zarr_hierarchy
-from mdio.segy.parsers import parse_binary_header
-from mdio.segy.parsers import parse_text_header
 from mdio.segy.utilities import get_grid_plan
 
 
@@ -36,25 +32,6 @@ except metadata.PackageNotFoundError:
     API_VERSION = "unknown"
 
 BACKENDS = ["s3", "gcs", "gs", "az", "abfs"]
-
-
-def parse_index_types(
-    str_types: Sequence[str] | None, num_index: int
-) -> Sequence[Dtype]:
-    """Convert string type keys to Dtype enums."""
-    if str_types is None:
-        parsed_types = [Dtype.INT32] * num_index
-    else:
-        try:
-            parsed_types = [Dtype[_type.upper()] for _type in str_types]
-        except KeyError as exc:
-            msg = (
-                "Unsupported header data-type. 'index_types' must be in "
-                f"{list(Dtype.__members__.keys())}"
-            )
-            raise KeyError(msg) from exc
-
-    return parsed_types
 
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
@@ -124,19 +101,17 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
             raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
-def segy_to_mdio(
+def segy_to_mdio(  # noqa: C901
     segy_path: str,
     mdio_path_or_buffer: str,
-    index_bytes: Sequence[int],
-    index_names: Sequence[str] | None = None,
-    index_types: Sequence[str] | None = None,
-    chunksize: Sequence[int] | None = None,
-    endian: str = "big",
+    index_names: list[str],
+    chunksize: list[int] | None = None,
     lossless: bool = True,
     compression_tolerance: float = 0.01,
     storage_options: dict[str, Any] | None = None,
     overwrite: bool = False,
     grid_overrides: dict | None = None,
+    segy_kwargs: dict[str, Any] | None = None,
 ) -> None:
     """Convert SEG-Y file to MDIO format.
 
@@ -173,15 +148,9 @@ def segy_to_mdio(
     Args:
         segy_path: Path to the input SEG-Y file
         mdio_path_or_buffer: Output path for MDIO file
-        index_bytes: Tuple of the byte location for the index attributes
         index_names: Tuple of the index names for the index attributes
-        index_types: Tuple of the data-types for the index attributes.
-            Must be in {"int16, int32, float16, float32, ibm32"}
-            Default is 4-byte integers for each index key.
         chunksize : Override default chunk size, which is (64, 64, 64) if
             3D, and (512, 512) for 2D.
-        endian: Endianness of the input SEG-Y. Rev.2 allows little endian.
-            Default is 'big'. Must be in `{"big", "little"}`
         lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
         compression_tolerance: Tolerance ZFP compression, optional. The fixed
             accuracy mode in ZFP guarantees there won't be any errors larger
@@ -191,6 +160,7 @@ def segy_to_mdio(
             Default is `None` (will assume anonymous)
         overwrite: Toggle for overwriting existing store
         grid_overrides: Option to add grid overrides. See examples.
+        segy_kwargs: Dictionary of keyword arguments to pass to `SegyFile`.
 
     Raises:
         GridTraceCountError: Raised if grid won't hold all traces in the
@@ -364,18 +334,19 @@ def segy_to_mdio(
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
-    num_index = len(index_bytes)
-
     if chunksize is not None:
-        if len(chunksize) != len(index_bytes) + 1:
+        if len(chunksize) != len(index_names) + 1:
             message = (
                 f"Length of chunks={len(chunksize)} must be ",
-                f"equal to array dimensions={len(index_bytes) + 1}",
+                f"equal to array dimensions={len(index_names) + 1}",
             )
             raise ValueError(message)
 
     if storage_options is None:
         storage_options = {}
+
+    if segy_kwargs is None:
+        segy_kwargs = {}
 
     store = process_url(
         url=mdio_path_or_buffer,
@@ -386,22 +357,14 @@ def segy_to_mdio(
     )
 
     # Read file specific metadata, build grid, and live trace mask.
-    with segyio.open(
-        filename=segy_path, mode="r", ignore_geometry=True, endian=endian
-    ) as segy_handle:
-        text_header = parse_text_header(segy_handle)
-        binary_header = parse_binary_header(segy_handle)
-        num_traces = segy_handle.tracecount
-
-    index_types = parse_index_types(index_types, num_index)
+    segy_file = SegyFile(url=segy_path, **segy_kwargs)
+    text_header = segy_file.text_header
+    binary_header = segy_file.binary_header
+    num_traces = segy_file.num_traces
 
     dimensions, chunksize, index_headers = get_grid_plan(
-        segy_path=segy_path,
-        segy_endian=endian,
-        index_bytes=index_bytes,
+        segy_file=segy_file,
         index_names=index_names,
-        index_types=index_types,
-        binary_header=binary_header,
         return_headers=True,
         chunksize=chunksize,
         grid_overrides=grid_overrides,
@@ -458,11 +421,11 @@ def segy_to_mdio(
     write_attribute(
         name="binary_header",
         zarr_group=zarr_root["metadata"],
-        attribute=binary_header,
+        attribute=binary_header.to_dict(),
     )
 
     if chunksize is None:
-        dim_count = len(index_headers) + 1
+        dim_count = len(index_names) + 1
         if dim_count == 2:
             chunksize = (512,) * 2
 
@@ -484,8 +447,7 @@ def segy_to_mdio(
         suffix = "".join(suffix)
 
     stats = blocked_io.to_zarr(
-        segy_path=segy_path,
-        segy_endian=endian,
+        segy_file=segy_file,
         grid=grid,
         data_root=zarr_root["data"],
         metadata_root=zarr_root["metadata"],
