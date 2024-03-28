@@ -1,18 +1,17 @@
 """Conversion from to MDIO various other formats."""
 
-
 from __future__ import annotations
 
 from os import path
 from tempfile import TemporaryDirectory
 
 import numpy as np
+from segy.schema.data_type import Endianness
+from segy.schema.data_type import ScalarType
 from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader
 from mdio.segy.blocked_io import to_segy
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
 from mdio.segy.utilities import segy_export_rechunker
@@ -117,7 +116,6 @@ def mdio_to_segy(  # noqa: C901
         out_sample_format,
         storage_options,
         new_chunks,
-        selection_mask,
         backend,
     ]
 
@@ -159,8 +157,8 @@ def mdio_to_segy(  # noqa: C901
         live_mask = live_mask & selection_mask
 
     # Parse output type and byte order
-    out_dtype = Dtype[out_sample_format.upper()]
-    out_byteorder = ByteOrder[endian.upper()]
+    out_dtype = ScalarType[out_sample_format.upper()]
+    out_byteorder = Endianness[endian.upper()]
 
     # tmp file root
     out_dir = path.dirname(output_segy_path)

@@ -10,7 +10,7 @@ import numpy as np
 
 if TYPE_CHECKING:
     from segy import SegyFile
-    from segy.header import HeaderAccessor
+    from segy.arrays import HeaderArray
     from zarr import Array
 
     from mdio.core import Grid
@@ -19,8 +19,7 @@ if TYPE_CHECKING:
 def header_scan_worker(
     segy_file: SegyFile,
     trace_range: tuple[int, int],
-    index_names: list[str],
-) -> HeaderAccessor:
+) -> HeaderArray:
     """Header scan worker.
 
     Can accept file path or segyio.SegyFile.
@@ -44,8 +43,7 @@ def header_scan_worker(
     Raises:
         TypeError: if segy_path_or_handle is incorrect / unsupported.
     """
-    block_headers = segy_file.header[slice(*trace_range)]
-    return block_headers[index_names][:]
+    return segy_file.header[slice(*trace_range)]
 
 
 def trace_worker(
@@ -92,9 +90,7 @@ def trace_worker(
         seq_trace_indices.shape + (grid.shape[-1],), dtype=data_array.dtype
     )
 
-    tmp_metadata = np.zeros(
-        seq_trace_indices.shape, dtype=metadata_array.dtype.newbyteorder()
-    )
+    tmp_metadata = np.zeros(seq_trace_indices.shape, dtype=metadata_array.dtype)
 
     del grid  # To save some memory
 
@@ -102,7 +98,7 @@ def trace_worker(
     valid_indices = seq_trace_indices[live_subset]
 
     traces = segy_file.trace[valid_indices.tolist()]
-    headers, samples = traces["header"], traces["data"]
+    headers, samples = traces["header"], traces["sample"]
 
     if np.count_nonzero(samples) == 0:
         return None
