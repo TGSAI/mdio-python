@@ -6,20 +6,22 @@ import os
 from os import path
 from shutil import copyfileobj
 from time import sleep
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
-import segyio
-from numpy.typing import NDArray
-from segyio.binfield import keys as bfkeys
+from segy.factory import SegyFactory
+from segy.schema.data_type import Endianness
+from segy.schema.data_type import ScalarType
+from segy.standards.rev0 import rev0_segy
 from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
-from mdio.segy._standards_common import SegyFloatFormat
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
 from mdio.segy.byte_utils import get_byteorder
-from mdio.segy.ibm_float import ieee2ibm
+
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 def mdio_spec_to_segy(
@@ -30,7 +32,6 @@ def mdio_spec_to_segy(
     out_sample_format,
     storage_options,
     new_chunks,
-    selection_mask,
     backend,
 ):
     """Create SEG-Y file without any traces given MDIO specification.
@@ -77,14 +78,7 @@ def mdio_spec_to_segy(
 
     # Get grid, tracecount, and sample dimension
     grid = mdio.grid
-    tracecount = mdio.trace_count  # Only LIVE
-    if selection_mask is not None:
-        tracecount = (grid.live_mask & selection_mask).sum()
     sample_dim = grid.select_dim("sample")  # Last axis is samples
-
-    # Convert text header to bytearray. First merge all lines, and then encode.
-    text_header = "".join(mdio.text_header)
-    text_header = text_header.encode()
 
     # Get binary header dictionary
     binary_header = mdio.binary_header
@@ -92,27 +86,29 @@ def mdio_spec_to_segy(
     # Check and set output sample format.
     # This is only executed if the user parameter
     # doesn't match the original SEG-Y that was ingested.
-    out_sample_format = SegyFloatFormat[out_sample_format.upper()]
+    out_sample_format = ScalarType[out_sample_format.upper()]
     if out_sample_format != binary_header["Format"]:
         binary_header["Format"] = out_sample_format
 
-    # Make sure binary header for format is in sync
-    sample_format = binary_header["Format"]
+    # Use `segy` to create file and write initial metadata
+    segy_spec = rev0_segy
+    segy_spec.endianness = Endianness[endian.upper()]
+    sample_interval = sample_dim[1] - sample_dim[0]
 
-    # Use `segyio` to create file and write initial metadata
-    segy_spec = segyio.spec()
-    segy_spec.samples = sample_dim
-    segy_spec.endian = endian
-    segy_spec.tracecount = tracecount
-    segy_spec.format = sample_format
+    factory = SegyFactory(
+        spec=segy_spec,
+        sample_interval=sample_interval,
+        samples_per_trace=len(sample_dim),
+    )
 
-    with segyio.create(output_segy_path, segy_spec) as output_segy_file:
+    text_bytes = factory.create_textual_header(mdio.text_header)
+    bin_hdr_bytes = factory.create_binary_header()
+
+    with open(output_segy_path, mode="wb") as fp:
         # Write text and binary headers.
         # For binary header, we use the key mappings (str -> byte loc) from segyio
-        output_segy_file.text[0] = text_header
-        output_segy_file.bin = [
-            (bfkeys[key], binary_header[key]) for key in binary_header
-        ]
+        fp.write(text_bytes)
+        fp.write(bin_hdr_bytes)
 
     return mdio, out_sample_format
 
@@ -121,9 +117,8 @@ def write_to_segy_stack(
     samples: NDArray,
     headers: NDArray,
     live: NDArray,
-    out_dtype: Dtype,
-    out_byteorder: ByteOrder,
     file_root: str,
+    segy_factory: SegyFactory,
 ) -> NDArray:
     """Pre-process seismic data for SEG-Y and write partial blocks.
 
@@ -163,21 +158,6 @@ def write_to_segy_stack(
     if np.count_nonzero(live) == 0:
         return part_segy_paths
 
-    samples = cast_sample_format(samples, out_dtype)
-    samples = check_byteswap(samples, out_byteorder)
-    headers = check_byteswap(headers, out_byteorder)
-
-    trace_dtype = np.dtype(
-        {
-            "names": ("header", "pad", "trace"),
-            "formats": [
-                headers.dtype,
-                np.dtype("int64"),
-                samples.shape[-1] * samples.dtype,
-            ],
-        },
-    )
-
     # Iterate on N-1 axes of live mask. Last axis can be written
     # without worrying about order because it is sequential.
     for index in np.ndindex(live.shape[:-1]):
@@ -191,19 +171,19 @@ def write_to_segy_stack(
         file_path = path.join(file_root, uuid4().hex)
         part_segy_paths[index] = file_path
 
-        # Interleave samples and headers
-        part_traces = np.empty(num_live, dtype=trace_dtype)
-        part_traces["header"] = headers[index][part_live]
-        part_traces["trace"] = samples[index][part_live]
-        part_traces["pad"] = 0
+        # Create traces bytes
+        trace_bytes = segy_factory.create_traces(
+            headers=headers[index][part_live],
+            samples=samples[index][part_live],
+        )
 
         with open(file_path, mode="wb") as fp:
-            part_traces.tofile(fp)
+            fp.write(trace_bytes)
 
     return part_segy_paths
 
 
-def check_byteswap(array: NDArray, out_byteorder: ByteOrder) -> NDArray:
+def check_byteswap(array: NDArray, out_byteorder: Endianness) -> NDArray:
     """Check input byteorder and swap if user wants the other.
 
     Args:
@@ -220,28 +200,6 @@ def check_byteswap(array: NDArray, out_byteorder: ByteOrder) -> NDArray:
         array = array.newbyteorder()
 
     return array
-
-
-def cast_sample_format(
-    samples: NDArray,
-    out_dtype: Dtype,
-) -> NDArray:
-    """Cast sample format (dtype).
-
-    Args:
-        samples: Array containing the trace samples.
-        out_dtype: Desired output data type.
-
-    Returns:
-        New structured array with pre-processing applied.
-    """
-    if out_dtype == Dtype.IBM32:
-        samples = samples.astype("float32", copy=False)
-        samples = ieee2ibm(samples)
-    else:
-        samples = samples.astype(out_dtype.numpy_dtype, copy=False)
-
-    return samples
 
 
 # TODO: Abstract this to support various implementations by

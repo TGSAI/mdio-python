@@ -9,7 +9,7 @@ from dask.array.core import auto_chunks
 
 from mdio.core import Dimension
 from mdio.segy.geometry import GridOverrider
-from mdio.segy.parsers import parse_trace_headers
+from mdio.segy.parsers import parse_index_headers
 
 
 if TYPE_CHECKING:
@@ -51,10 +51,7 @@ def get_grid_plan(  # noqa:  C901
     if grid_overrides is None:
         grid_overrides = {}
 
-    index_headers = parse_trace_headers(
-        segy_file=segy_file,
-        index_names=index_names,
-    )
+    index_headers = parse_index_headers(segy_file=segy_file)
 
     dims = []
 

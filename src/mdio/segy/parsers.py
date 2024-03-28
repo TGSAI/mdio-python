@@ -19,19 +19,18 @@ if TYPE_CHECKING:
     from segy import SegyFile
 
 NUM_CORES = cpu_count(logical=True)
+MP_CHUNKSIZE = 2
 
 
-def parse_trace_headers(
+def parse_index_headers(
     segy_file: SegyFile,
-    index_names: list[str],
-    block_size: int = 50000,
+    block_size: int = 10000,
     progress_bar: bool = True,
 ) -> NDArray:
     """Read and parse given `byte_locations` from SEG-Y file.
 
     Args:
         segy_file: SegyFile instance.
-        index_names: Tuple of the names for the index attributes.
         block_size: Number of traces to read for each block.
         progress_bar: Enable or disable progress bar. Default is True.
 
@@ -52,7 +51,7 @@ def parse_trace_headers(
 
         trace_ranges.append((start, stop))
 
-    num_workers = min(n_blocks, NUM_CORES)
+    num_workers = min(MP_CHUNKSIZE // MP_CHUNKSIZE, NUM_CORES)
 
     tqdm_kw = dict(unit="block", dynamic_ncols=True)
     with ProcessPoolExecutor(num_workers) as executor:
@@ -61,8 +60,7 @@ def parse_trace_headers(
             header_scan_worker,  # fn
             repeat(segy_file),
             trace_ranges,
-            repeat(index_names),
-            chunksize=2,  # Not array chunks. This is for `multiprocessing`
+            chunksize=MP_CHUNKSIZE,  # Not array chunks. This is for `multiprocessing`
         )
 
         if progress_bar is True:
