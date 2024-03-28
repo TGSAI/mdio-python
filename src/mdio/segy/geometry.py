@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 from typing import Sequence
 
 import numpy as np
+from numpy.lib import recfunctions as rfn
 
 from mdio.segy.exceptions import GridOverrideIncompatibleError
 from mdio.segy.exceptions import GridOverrideKeysError
@@ -233,11 +234,13 @@ def create_trace_index(
 ):
     """Update dictionary counter tree for counting trace key for auto index."""
     # Add index header
-    index_headers["trace"] = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
-
+    trace_no_hdr = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
+    index_headers = rfn.append_fields(
+        index_headers, "trace", trace_no_hdr, usemask=False
+    )
     idx = 0
     if depth == 0:
-        return
+        return None
 
     for idx_values in zip(  # noqa: B905
         *(index_headers[header_names[i]] for i in range(depth))
@@ -253,6 +256,8 @@ def create_trace_index(
             index_headers["trace"][idx] = sub_counter[idx_values[-1]]
 
         idx += 1
+
+    return index_headers
 
 
 def analyze_non_indexed_headers(index_headers: NDArray, dtype=np.int16) -> NDArray:
@@ -282,7 +287,9 @@ def analyze_non_indexed_headers(index_headers: NDArray, dtype=np.int16) -> NDArr
 
     counter = create_counter(0, total_depth, unique_headers, header_names)
 
-    create_trace_index(total_depth, counter, index_headers, header_names, dtype=dtype)
+    index_headers = create_trace_index(
+        total_depth, counter, index_headers, header_names, dtype=dtype
+    )
 
     t_stop = time.perf_counter()
     logger.debug(f"Time spent generating trace index: {t_start - t_stop:.4f} s")
