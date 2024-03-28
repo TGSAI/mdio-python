@@ -6,9 +6,17 @@ import os
 
 import numpy as np
 import pytest
-import segyio
+from segy.factory import SegyFactory
+from segy.schema import ScalarType
+from segy.schema import StructuredFieldDescriptor
+from segy.standards import SegyStandard
+from segy.standards.rev1 import rev1_segy
 
 from mdio.segy.geometry import StreamerShotGeometryType
+
+
+Int32 = ScalarType.INT32
+Int16 = ScalarType.INT16
 
 
 def create_segy_mock_4d(
@@ -22,17 +30,11 @@ def create_segy_mock_4d(
     index_receivers: bool = True,
 ) -> str:
     """Dummy 4D SEG-Y file for use in tests."""
-    spec = segyio.spec()
-    segy_file = os.path.join(fake_segy_tmp, f"4d_type_{chan_header_type}.sgy")
+    segy_path = os.path.join(fake_segy_tmp, f"4d_type_{chan_header_type}.sgy")
 
     shot_count = len(shots)
     total_chan = np.sum(receivers_per_cable)
     trace_count = shot_count * total_chan
-
-    spec.format = 1
-    spec.samples = range(num_samples)
-    spec.tracecount = trace_count
-    spec.endian = "big"
 
     # Calculate shot, cable, channel/receiver numbers and header values
     cable_headers = []
@@ -64,46 +66,55 @@ def create_segy_mock_4d(
     cable_headers = np.tile(cable_headers, shot_count)
     channel_headers = np.tile(channel_headers, shot_count)
 
-    with segyio.create(segy_file, spec) as f:
-        for trc_idx in range(trace_count):
-            shot = shot_headers[trc_idx]
-            gun = gun_headers[trc_idx]
-            cable = cable_headers[trc_idx]
-            channel = channel_headers[trc_idx]
-            source_line = 1
+    trc_hdrs = [
+        StructuredFieldDescriptor(name="field_rec_no", offset=8, format=Int32),
+        StructuredFieldDescriptor(name="channel", offset=12, format=Int32),
+        StructuredFieldDescriptor(name="shot_point", offset=16, format=Int32),
+        StructuredFieldDescriptor(name="offset", offset=36, format=Int32),
+        StructuredFieldDescriptor(name="samples_per_trace", offset=114, format=Int32),
+        StructuredFieldDescriptor(name="sample_interval", offset=116, format=Int32),
+        StructuredFieldDescriptor(name="shot_line", offset=132, format=Int16),
+        StructuredFieldDescriptor(name="cable", offset=136, format=Int16),
+        StructuredFieldDescriptor(name="gun", offset=170, format=Int16),
+    ]
 
-            # offset is byte location 37 - offset 4 bytes
-            # fldr is byte location 9 - shot 4 byte
-            # ep is byte location 17 - shot 4 byte
-            # stae is byte location 137 - cable 2 byte
-            # tracf is byte location 13 - channel 4 byte
-            # grnors is byte location 171 - gun 2 bytes
-            # styp is byte location 133 - source_line 2 bytes
+    spec = rev1_segy.customize(trace_header_fields=trc_hdrs)
+    spec.segy_standard = SegyStandard.REV1
+    factory = SegyFactory(
+        spec=spec,
+        sample_interval=1000,
+        samples_per_trace=num_samples,
+    )
 
-            if index_receivers:
-                f.header[trc_idx].update(
-                    offset=0,
-                    fldr=shot,
-                    ep=shot,
-                    stae=cable,
-                    tracf=channel,
-                    grnors=gun,
-                    styp=source_line,
-                )
-            else:
-                f.header[trc_idx].update(
-                    offset=0,
-                    fldr=shot,
-                    ep=shot,
-                    stae=cable,
-                )
+    headers = factory.create_trace_header_template(trace_count)
+    samples = factory.create_trace_data_template(trace_count)
 
-            samples = np.linspace(start=shot, stop=shot + 1, num=num_samples)
-            f.trace[trc_idx] = samples.astype("float32")
+    for trc_idx in range(trace_count):
+        shot = shot_headers[trc_idx]
+        gun = gun_headers[trc_idx]
+        cable = cable_headers[trc_idx]
+        channel = channel_headers[trc_idx]
+        shot_line = 1
+        offset = 0
 
-        f.bin.update()
+        if index_receivers is False:
+            channel, gun, shot_line = 0, 0, 0
 
-    return segy_file
+        header_data = (shot, channel, shot, offset, shot_line, cable, gun)
+
+        fields = list(headers.dtype.names)
+        fields.remove("samples_per_trace")
+        fields.remove("sample_interval")
+
+        headers[fields][trc_idx] = header_data
+        samples[trc_idx] = np.linspace(start=shot, stop=shot + 1, num=num_samples)
+
+    with open(segy_path, mode="wb") as fp:
+        fp.write(factory.create_textual_header())
+        fp.write(factory.create_binary_header())
+        fp.write(factory.create_traces(headers, samples))
+
+    return segy_path
 
 
 @pytest.fixture(scope="module")
