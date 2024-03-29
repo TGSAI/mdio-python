@@ -5,15 +5,12 @@ from __future__ import annotations
 import os
 from os import path
 from shutil import copyfileobj
-from time import sleep
 from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
 from segy.factory import SegyFactory
 from segy.schema.data_type import Endianness
-from segy.schema.data_type import ScalarType
-from segy.standards.rev0 import rev0_segy
 from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
@@ -27,10 +24,9 @@ if TYPE_CHECKING:
 def mdio_spec_to_segy(
     mdio_path_or_buffer,
     output_segy_path,
-    endian,
     access_pattern,
-    out_sample_format,
     storage_options,
+    segy_kwargs,
     new_chunks,
     backend,
 ):
@@ -48,20 +44,16 @@ def mdio_spec_to_segy(
     Args:
         mdio_path_or_buffer: Input path where the MDIO is located.
         output_segy_path: Path to the output SEG-Y file.
-        endian: Endianness of the input SEG-Y. Rev.2 allows little endian.
-            Default is 'big'. Must be in {"big", "little"}.
         access_pattern: This specificies the chunk access pattern.
             Underlying zarr.Array must exist. Examples: '012', '01'.
-        out_sample_format: Output sample format. Currently support:
-            {'ibm', 'ieee'}. Default is 'ibm'.
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous)
+        segy_kwargs: Dictionary of keyword arguments to pass to `SegyFile`.
         new_chunks: Set manual chunksize. For development purposes only.
-        selection_mask: Array that lists the subset of traces to be written
         backend: Eager (zarr) or lazy but more flexible 'dask' backend.
 
     Returns:
-        Initialized MDIOReader for MDIO file and sample format parsed as integer
+        Initialized MDIOReader for MDIO file and return SegyFactory
     """
     mdio = MDIOReader(
         mdio_path_or_buffer=mdio_path_or_buffer,
@@ -74,31 +66,17 @@ def mdio_spec_to_segy(
         disk_cache=False,  # Making sure disk caching is disabled
     )
 
-    sleep(0.5)  # So the connection message prints before tqdm
-
     # Get grid, tracecount, and sample dimension
     grid = mdio.grid
     sample_dim = grid.select_dim("sample")  # Last axis is samples
 
-    # Get binary header dictionary
-    binary_header = mdio.binary_header
-
-    # Check and set output sample format.
-    # This is only executed if the user parameter
-    # doesn't match the original SEG-Y that was ingested.
-    out_sample_format = ScalarType[out_sample_format.upper()]
-    if out_sample_format != binary_header["Format"]:
-        binary_header["Format"] = out_sample_format
-
     # Use `segy` to create file and write initial metadata
-    segy_spec = rev0_segy
-    segy_spec.endianness = Endianness[endian.upper()]
     sample_interval = sample_dim[1] - sample_dim[0]
 
     factory = SegyFactory(
-        spec=segy_spec,
-        sample_interval=sample_interval,
+        sample_interval=sample_interval * 1000,
         samples_per_trace=len(sample_dim),
+        **segy_kwargs,
     )
 
     text_bytes = factory.create_textual_header(mdio.text_header)
@@ -110,7 +88,7 @@ def mdio_spec_to_segy(
         fp.write(text_bytes)
         fp.write(bin_hdr_bytes)
 
-    return mdio, out_sample_format
+    return mdio, factory
 
 
 def write_to_segy_stack(
@@ -172,8 +150,10 @@ def write_to_segy_stack(
         part_segy_paths[index] = file_path
 
         # Create traces bytes
+        mock_header = segy_factory.create_trace_header_template(1)
+        out_dtype = mock_header.dtype
         trace_bytes = segy_factory.create_traces(
-            headers=headers[index][part_live],
+            headers=headers[index][part_live].view(out_dtype),
             samples=samples[index][part_live],
         )
 

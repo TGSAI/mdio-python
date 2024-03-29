@@ -325,7 +325,7 @@ class MDIOAccessor:
         self._trace_count = value
 
     @property
-    def text_header(self) -> list:
+    def text_header(self) -> str:
         """Get seismic text header."""
         return self._text_header
 

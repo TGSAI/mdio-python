@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 from os import path
 from tempfile import TemporaryDirectory
+from typing import Any
 
 import numpy as np
 from psutil import cpu_count
@@ -32,10 +33,9 @@ NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 def mdio_to_segy(  # noqa: C901
     mdio_path_or_buffer: str,
     output_segy_path: str,
-    endian: str = "big",
     access_pattern: str = "012",
-    out_sample_format: str = "ibm32",
     storage_options: dict = None,
+    segy_kwargs: dict[str, Any] = None,
     new_chunks: tuple[int, ...] = None,
     selection_mask: np.ndarray = None,
     client: distributed.Client = None,
@@ -61,14 +61,11 @@ def mdio_to_segy(  # noqa: C901
     Args:
         mdio_path_or_buffer: Input path where the MDIO is located
         output_segy_path: Path to the output SEG-Y file
-        endian: Endianness of the input SEG-Y. Rev.2 allows little
-            endian. Default is 'big'.
         access_pattern: This specificies the chunk access pattern. Underlying
             zarr.Array must exist. Examples: '012', '01'
-        out_sample_format: Output sample format.
-            Currently support: {'ibm32', 'float32'}. Default is 'ibm32'.
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous access)
+        segy_kwargs: Dictionary of keyword arguments to pass to `SegyFile`.
         new_chunks: Set manual chunksize. For development purposes only.
         selection_mask: Array that lists the subset of traces
         client: Dask client. If `None` we will use local threaded scheduler.
@@ -117,10 +114,9 @@ def mdio_to_segy(  # noqa: C901
     creation_args = [
         mdio_path_or_buffer,
         output_segy_path,
-        endian,
         access_pattern,
-        out_sample_format,
         storage_options,
+        segy_kwargs,
         new_chunks,
         backend,
     ]
@@ -129,12 +125,12 @@ def mdio_to_segy(  # noqa: C901
         if distributed is not None:
             # This is in case we work with big data
             feature = client.submit(mdio_spec_to_segy, *creation_args)
-            mdio, sample_format = feature.result()
+            mdio, segy_factory = feature.result()
         else:
             msg = "Distributed client was provided, but `distributed` is not installed"
             raise ImportError(msg)
     else:
-        mdio, sample_format = mdio_spec_to_segy(*creation_args)
+        mdio, segy_factory = mdio_spec_to_segy(*creation_args)
 
     live_mask = mdio.live_mask.compute()
 
@@ -162,10 +158,6 @@ def mdio_to_segy(  # noqa: C901
         selection_mask = selection_mask[dim_slices]
         live_mask = live_mask & selection_mask
 
-    # Parse output type and byte order
-    out_dtype = ScalarType[out_sample_format.upper()]
-    out_byteorder = Endianness[endian.upper()]
-
     # tmp file root
     out_dir = path.dirname(output_segy_path)
     tmp_dir = TemporaryDirectory(dir=out_dir)
@@ -176,8 +168,7 @@ def mdio_to_segy(  # noqa: C901
                 samples=samples,
                 headers=headers,
                 live_mask=live_mask,
-                out_dtype=out_dtype,
-                out_byteorder=out_byteorder,
+                segy_factory=segy_factory,
                 file_root=tmp_dir.name,
                 axis=tuple(range(1, samples.ndim)),
             )
