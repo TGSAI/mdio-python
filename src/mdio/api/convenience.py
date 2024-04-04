@@ -164,6 +164,8 @@ def create_rechunk_plan(
             )
         )
 
+    zarr.consolidate_metadata(source.store)
+
     n_dimension = len(data_array.shape)
     dummy_array = zarr.empty_like(data_array, chunks=(MAX_BUFFER,) * n_dimension)
     iterator = ChunkIterator(dummy_array)
@@ -201,8 +203,6 @@ def write_rechunked_values(  # noqa: PLR0913
 
         for array in data_arrs_out:
             array[slice_] = source._traces[slice_]
-
-        zarr.consolidate_metadata(source.store)
 
 
 def rechunk_batch(
