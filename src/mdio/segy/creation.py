@@ -10,7 +10,10 @@ from uuid import uuid4
 
 import numpy as np
 from segy.factory import SegyFactory
-from segy.schema.data_type import Endianness
+from segy.schema import Endianness
+from segy.schema import ScalarType
+from segy.schema import SegyStandard
+from segy.standards import registry as segy_registry
 from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
@@ -19,6 +22,31 @@ from mdio.segy.byte_utils import get_byteorder
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
+
+def make_segy_factory(
+    mdio: MDIOReader,
+    endianness: Endianness,
+    sample_format: ScalarType,
+) -> SegyFactory:
+    """Generate SEG-Y factory from MDIO metadata."""
+    rev1_spec = segy_registry.get_spec(SegyStandard.REV1)
+    new_segy_spec = rev1_spec.customize(trace_header_fields=[])
+    new_segy_spec.segy_standard = 0
+
+    rev1_spec.endianness = endianness
+    rev1_spec.trace.sample_descriptor.format = sample_format
+
+    grid = mdio.grid
+    sample_dim = grid.select_dim("sample")
+    sample_interval = sample_dim[1] - sample_dim[0]
+    samples_per_trace = len(sample_dim)
+
+    return SegyFactory(
+        spec=new_segy_spec,
+        sample_interval=sample_interval,
+        samples_per_trace=samples_per_trace,
+    )
 
 
 def mdio_spec_to_segy(
@@ -48,7 +76,7 @@ def mdio_spec_to_segy(
             Underlying zarr.Array must exist. Examples: '012', '01'.
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous)
-        segy_kwargs: Dictionary of keyword arguments to pass to `SegyFile`.
+        segy_kwargs: Dictionary of keyword arguments to pass to `SegyFactory`.
         new_chunks: Set manual chunksize. For development purposes only.
         backend: Eager (zarr) or lazy but more flexible 'dask' backend.
 
@@ -65,26 +93,12 @@ def mdio_spec_to_segy(
         memory_cache_size=0,  # Making sure disk caching is disabled
         disk_cache=False,  # Making sure disk caching is disabled
     )
-
-    # Get grid, tracecount, and sample dimension
-    grid = mdio.grid
-    sample_dim = grid.select_dim("sample")  # Last axis is samples
-
-    # Use `segy` to create file and write initial metadata
-    sample_interval = sample_dim[1] - sample_dim[0]
-
-    factory = SegyFactory(
-        sample_interval=sample_interval * 1000,
-        samples_per_trace=len(sample_dim),
-        **segy_kwargs,
-    )
+    factory = make_segy_factory(mdio, **segy_kwargs)
 
     text_bytes = factory.create_textual_header(mdio.text_header)
     bin_hdr_bytes = factory.create_binary_header()
 
     with open(output_segy_path, mode="wb") as fp:
-        # Write text and binary headers.
-        # For binary header, we use the key mappings (str -> byte loc) from segyio
         fp.write(text_bytes)
         fp.write(bin_hdr_bytes)
 
