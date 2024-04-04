@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "multidimio"
-version = "0.7.2"
+version = "0.7.3"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = ["TGS <sys-opensource@tgs.com>"]
 maintainers = [
@@ -30,7 +30,7 @@ zarr = "^2.16.1"
 dask = ">=2023.10.0"
 tqdm = "^4.66.1"
 segyio = "^1.9.3"
-numba = "^0.59.0"
+numba = "^0.59.1"
 psutil = "^5.9.5"
 fsspec = ">=2023.9.1"
 rich = "^13.7.1"
