@@ -33,7 +33,7 @@ psutil = "^5.9.5"
 fsspec = ">=2023.9.1"
 rich = "^13.7.1"
 urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
-segy = "^0.0.14"
+segy = "^0.0.15"
 
 # Extras
 distributed = {version = ">=2023.10.0", optional = true}
