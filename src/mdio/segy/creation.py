@@ -44,7 +44,7 @@ def make_segy_factory(
 
     return SegyFactory(
         spec=new_segy_spec,
-        sample_interval=sample_interval,
+        sample_interval=sample_interval * 1000,
         samples_per_trace=samples_per_trace,
     )
 
