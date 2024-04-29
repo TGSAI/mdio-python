@@ -1,11 +1,11 @@
 """Command-line interface."""
 
-
 from __future__ import annotations
 
 import importlib
 from importlib import metadata
 from pathlib import Path
+from typing import Any
 from typing import Callable
 
 import click
@@ -28,16 +28,17 @@ class MyCLI(click.MultiCommand):
     must have a variable named `cli` for the command to be exposed.
 
     Args:
-    - plugin_folder: Path to the directory containing command modules.
+        plugin_folder: Path to the directory containing command modules.
+        *args: Variable length argument list passed to click.MultiCommand.
+        **kwargs: Variable length keyword argument passed to click.MultiCommand.
     """
 
-    def __init__(self, plugin_folder: Path, *args, **kwargs):
-        """Initializer function."""
+    def __init__(self, plugin_folder: Path, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
         super().__init__(*args, **kwargs)
         self.plugin_folder = plugin_folder
         self.known_modules = KNOWN_MODULES
 
-    def list_commands(self, ctx: click.Context) -> list[str]:
+    def list_commands(self, _ctx: click.Context) -> list[str]:
         """List commands available under `commands` module."""
         rv = []
         for filename in self.plugin_folder.iterdir():
@@ -48,7 +49,7 @@ class MyCLI(click.MultiCommand):
         rv.sort()
         return rv
 
-    def get_command(self, ctx: click.Context, name: str) -> Callable | None:
+    def get_command(self, _ctx: click.Context, name: str) -> Callable | None:
         """Get command implementation from `commands` module."""
         try:
             filepath = self.plugin_folder / f"{name}.py"

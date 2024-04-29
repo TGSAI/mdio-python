@@ -1,15 +1,15 @@
 """Conversion from SEG-Y to MDIO."""
 
-
 from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Sequence
 from datetime import datetime
 from datetime import timezone
 from importlib import metadata
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Sequence
 
 import numpy as np
 import segyio
@@ -21,13 +21,17 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
-from mdio.segy import blocked_io
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.helpers_segy import create_zarr_hierarchy
-from mdio.segy.parsers import parse_binary_header
-from mdio.segy.parsers import parse_text_header
-from mdio.segy.utilities import get_grid_plan
+from mdio.seismic import blocked_io
+from mdio.seismic.byte_utils import Dtype
+from mdio.seismic.helpers_segy import create_zarr_hierarchy
+from mdio.seismic.parsers import parse_binary_header
+from mdio.seismic.parsers import parse_text_header
+from mdio.seismic.utilities import get_grid_plan
 
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +41,12 @@ except metadata.PackageNotFoundError:
     API_VERSION = "unknown"
 
 BACKENDS = ["s3", "gcs", "gs", "az", "abfs"]
+
+# key: n-dimensions, value: chunksize
+DEFAULT_CHUNKS = {
+    2: (512, 512),
+    3: (64, 64, 64),
+}
 
 
 def parse_index_types(
@@ -86,20 +96,19 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
             MDIO__GRID__SPARSITY_RATIO_LIMIT is not a float.
     """
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)  # Exclude sample
-    dims = {k: v for k, v in zip(grid.dim_names, grid.shape)}  # noqa: B905
+    dims = dict(zip(grid.dim_names, grid.shape))
 
     logger.debug(f"Dimensions: {dims}")
     logger.debug(f"num_traces = {num_traces}")
     logger.debug(f"grid_traces = {grid_traces}")
     logger.debug(f"sparsity = {grid_traces / num_traces}")
 
-    grid_sparsity_ratio_limit = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", 10)
+    grid_sparsity_ratio_limit = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", "10")
     try:
         grid_sparsity_ratio_limit_ = float(grid_sparsity_ratio_limit)
     except ValueError:
-        raise EnvironmentFormatError(
-            "MDIO__GRID__SPARSITY_RATIO_LIMIT", "float"
-        ) from None
+        env_var, format_ = "MDIO__GRID__SPARSITY_RATIO_LIMIT", "float"
+        raise EnvironmentFormatError(env_var, format_) from None
 
     # Warning if we have above 50% sparsity.
     msg = ""
@@ -118,20 +127,21 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     # Extreme case where the grid is very sparse (usually user error)
     if grid_traces > grid_sparsity_ratio_limit_ * num_traces:
         logger.warning("WARNING: Sparse mdio grid detected!")
-        if os.getenv("MDIO__IGNORE_CHECKS", False):
-            # Do not raise an exception if MDIO_IGNORE_CHECK is False
+        ignore_checks = os.getenv("MDIO__IGNORE_CHECKS", "0") == "1"
+        if ignore_checks:
+            # Do not raise an exception if MDIO_IGNORE_CHECK is 1
             pass
         else:
             raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
-def segy_to_mdio(
-    segy_path: str,
-    mdio_path_or_buffer: str,
-    index_bytes: Sequence[int],
-    index_names: Sequence[str] | None = None,
-    index_types: Sequence[str] | None = None,
-    chunksize: Sequence[int] | None = None,
+def segy_to_mdio(  # noqa: PLR0913
+    segy_path: str | Path,
+    mdio_path_or_buffer: str | Path,
+    index_bytes: tuple[int, ...],
+    index_names: tuple[str, ...] | None = None,
+    index_types: tuple[str, ...] | None = None,
+    chunksize: tuple[int, ...] | None = None,
     endian: str = "big",
     lossless: bool = True,
     compression_tolerance: float = 0.01,
@@ -179,7 +189,7 @@ def segy_to_mdio(
         index_types: Tuple of the data-types for the index attributes.
             Must be in {"int16, int32, float16, float32, ibm32"}
             Default is 4-byte integers for each index key.
-        chunksize : Override default chunk size, which is (64, 64, 64) if
+        chunksize: Override default chunk size, which is (64, 64, 64) if
             3D, and (512, 512) for 2D.
         endian: Endianness of the input SEG-Y. Rev.2 allows little endian.
             Default is 'big'. Must be in `{"big", "little"}`
@@ -282,8 +292,10 @@ def segy_to_mdio(
 
         In cases where the user does not know if the input has unwrapped
         channels but desires to store with wrapped channel index use:
-        >>>    grid_overrides={"AutoChannelWrap": True,
-                               "AutoChannelTraceQC":  1000000}
+        >>> grid_overrides = {
+        >>>     "AutoChannelWrap": True,
+        >>>     "AutoChannelTraceQC": 1000000,
+        >>> }
 
         For ingestion of pre-stack streamer data where the user needs to
         access/index *common-channel gathers* (single gun) then the following
@@ -367,13 +379,12 @@ def segy_to_mdio(
     """
     num_index = len(index_bytes)
 
-    if chunksize is not None:
-        if len(chunksize) != len(index_bytes) + 1:
-            message = (
-                f"Length of chunks={len(chunksize)} must be ",
-                f"equal to array dimensions={len(index_bytes) + 1}",
-            )
-            raise ValueError(message)
+    if chunksize is not None and len(chunksize) != len(index_bytes) + 1:
+        message = (
+            f"Length of chunks={len(chunksize)} must be ",
+            f"equal to array dimensions={len(index_bytes) + 1}",
+        )
+        raise ValueError(message)
 
     if storage_options is None:
         storage_options = {}
@@ -464,18 +475,16 @@ def segy_to_mdio(
 
     if chunksize is None:
         dim_count = len(index_headers) + 1
-        if dim_count == 2:
-            chunksize = (512,) * 2
 
-        elif dim_count == 3:
-            chunksize = (64,) * 3
+        try:
+            chunksize = DEFAULT_CHUNKS[dim_count]
 
-        else:
+        except KeyError as exc:
             msg = (
                 f"Default chunking for {dim_count}-D seismic data is "
-                "not implemented yet. Please explicity define chunk sizes."
+                "not implemented yet. Please explicitly define chunk sizes."
             )
-            raise NotImplementedError(msg)
+            raise NotImplementedError(msg) from exc
 
         suffix = [str(x) for x in range(dim_count)]
         suffix = "".join(suffix)
@@ -490,7 +499,7 @@ def segy_to_mdio(
         grid=grid,
         data_root=zarr_root["data"],
         metadata_root=zarr_root["metadata"],
-        name="_".join(["chunked", suffix]),
+        name=f"chunked_{suffix}",
         dtype="float32",
         chunks=chunksize,
         lossless=lossless,

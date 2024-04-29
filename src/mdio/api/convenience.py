@@ -13,20 +13,22 @@ from mdio.core.indexing import ChunkIterator
 
 
 if TYPE_CHECKING:
+    from pathlib import Path
+    from typing import Any
+
     from numcodecs.abc import Codec
     from numpy.typing import NDArray
     from zarr import Array
 
-    from mdio import MDIOAccessor
-    from mdio import MDIOReader
+    from mdio.api.accessor import MDIOAccessor
 
 
 def copy_mdio(  # noqa: PLR0913
-    source: MDIOReader,
-    dest_path_or_buffer: str,
+    source: MDIOAccessor,
+    dest_path_or_buffer: str | Path,
     excludes: str = "",
     includes: str = "",
-    storage_options: dict | None = None,
+    storage_options: dict[str, Any] | None = None,
     overwrite: bool = False,
 ) -> None:
     """Copy MDIO file.
@@ -135,7 +137,8 @@ def create_rechunk_plan(
 
     for chunks, suffix in zip(chunks_list, suffix_list):  # noqa: B905
         norm_chunks = [
-            min(chunk, size) for chunk, size in zip(chunks, source.shape)  # noqa: B905
+            min(chunk, size)
+            for chunk, size in zip(chunks, source.shape)  # noqa: B905
         ]
 
         if suffix == source.access_pattern:
