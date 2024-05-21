@@ -1,6 +1,5 @@
 """Conversion from SEG-Y to MDIO."""
 
-
 from __future__ import annotations
 
 import logging

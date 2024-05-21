@@ -1,6 +1,5 @@
 """Conversion from to MDIO various other formats."""
 
-
 from __future__ import annotations
 
 import os

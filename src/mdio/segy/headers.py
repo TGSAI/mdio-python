@@ -1,6 +1,5 @@
 """SEG-Y header abstractions."""
 
-
 from collections import abc
 from dataclasses import dataclass
 from dataclasses import field

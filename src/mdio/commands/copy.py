@@ -1,6 +1,5 @@
 """MDIO Dataset copy command."""
 
-
 from __future__ import annotations
 
 from click import STRING

@@ -1,6 +1,5 @@
 """SEG-Y geometry handling functions."""
 
-
 from __future__ import annotations
 
 import logging
@@ -78,6 +77,7 @@ class ShotGunGeometryType(Enum):
         Gun 2 ->         2------------------40
 
     """
+
     A = auto()
     B = auto()
 

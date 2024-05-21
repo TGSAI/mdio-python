@@ -1,6 +1,5 @@
 """Grid abstraction with serializers."""
 
-
 from __future__ import annotations
 
 import inspect

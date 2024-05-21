@@ -1,6 +1,5 @@
 """Custom exceptions for SEG-Y."""
 
-
 from mdio.exceptions import MDIOError
 
 

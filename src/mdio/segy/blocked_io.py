@@ -1,6 +1,5 @@
 """Functions for doing blocked I/O from SEG-Y."""
 
-
 from __future__ import annotations
 
 import multiprocessing as mp

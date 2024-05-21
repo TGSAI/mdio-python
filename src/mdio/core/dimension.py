@@ -1,6 +1,5 @@
 """Dimension (grid) abstraction and serializers."""
 
-
 from __future__ import annotations
 
 import inspect
