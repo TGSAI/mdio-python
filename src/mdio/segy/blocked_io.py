@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import multiprocessing as mp
+import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 
@@ -35,8 +36,8 @@ except ImportError:
     ZFPY = None
     zfpy = None
 
-# Globals
-NUM_CORES = cpu_count(logical=False)
+default_cpus = cpu_count(logical=True)
+NUM_CPUS = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
 
 
 def to_zarr(
@@ -136,7 +137,7 @@ def to_zarr(
     # For Unix async writes with s3fs/fsspec & multiprocessing,
     # use 'spawn' instead of default 'fork' to avoid deadlocks
     # on cloud stores. Slower but necessary. Default on Windows.
-    num_workers = min(num_chunks, NUM_CORES)
+    num_workers = min(num_chunks, NUM_CPUS)
     context = mp.get_context("spawn")
     executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
 

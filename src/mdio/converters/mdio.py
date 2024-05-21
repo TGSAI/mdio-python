@@ -3,10 +3,12 @@
 
 from __future__ import annotations
 
+import os
 from os import path
 from tempfile import TemporaryDirectory
 
 import numpy as np
+from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader
@@ -22,6 +24,10 @@ try:
     import distributed
 except ImportError:
     distributed = None
+
+
+default_cpus = cpu_count(logical=True)
+NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 
 
 def mdio_to_segy(  # noqa: C901
@@ -176,7 +182,12 @@ def mdio_to_segy(  # noqa: C901
                 out_byteorder=out_byteorder,
                 file_root=tmp_dir.name,
                 axis=tuple(range(1, samples.ndim)),
-            ).compute()
+            )
+
+            if client is not None:
+                flat_files = flat_files.compute()
+            else:
+                flat_files = flat_files.compute(num_workers=NUM_CPUS)
 
         # If whole blocks are missing, remove them from the list.
         missing_mask = flat_files == "missing"
