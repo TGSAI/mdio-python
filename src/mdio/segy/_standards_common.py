@@ -1,6 +1,5 @@
 """Common elements for SEG-Y standards datasets."""
 
-
 from enum import IntEnum
 
 

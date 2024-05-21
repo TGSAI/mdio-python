@@ -1,6 +1,5 @@
 """SEG-Y Rev 0 standard and its definitions."""
 
-
 from mdio.segy.byte_utils import ByteOrder
 from mdio.segy.byte_utils import Dtype
 from mdio.segy.byte_utils import OrderedType

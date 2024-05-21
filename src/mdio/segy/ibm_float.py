@@ -1,6 +1,5 @@
 """Low-level floating point conversion operations."""
 
-
 import os
 
 import numba as nb

@@ -3,7 +3,6 @@
 Current support for JSON and YAML.
 """
 
-
 import json
 from abc import ABC
 from abc import abstractmethod

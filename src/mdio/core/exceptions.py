@@ -1,6 +1,5 @@
 """Core exceptions for MDIO."""
 
-
 from mdio.exceptions import MDIOError
 
 
