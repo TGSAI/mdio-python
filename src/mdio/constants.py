@@ -1,6 +1,5 @@
 """Constant values used across MDIO."""
 
-
 import numpy as np
 
 

@@ -50,7 +50,7 @@ cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
-black = "^23.12.1"
+black = "^24.4.2"
 coverage = {version = "^7.4.0", extras = ["toml"]}
 darglint = "^1.8.1"
 flake8 = "^7.0.0"

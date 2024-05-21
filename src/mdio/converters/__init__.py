@@ -1,6 +1,5 @@
 """MDIO Data conversion API."""
 
-
 from .mdio import mdio_to_segy
 from .segy import segy_to_mdio
 

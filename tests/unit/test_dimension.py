@@ -1,6 +1,5 @@
 """Dimension tests."""
 
-
 import pytest
 
 from mdio.core import Dimension

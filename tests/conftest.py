@@ -1,6 +1,5 @@
 """Test configuration before everything runs."""
 
-
 from os import path
 from urllib.request import urlretrieve
 

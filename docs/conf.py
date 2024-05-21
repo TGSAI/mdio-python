@@ -1,4 +1,5 @@
 """Sphinx configuration."""
+
 project = "MDIO"
 author = "TGS"
 copyright = "2023, TGS"

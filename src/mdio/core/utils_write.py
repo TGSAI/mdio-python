@@ -1,6 +1,5 @@
 """Convenience utilities for writing to Zarr."""
 
-
 from typing import Any
 
 import zarr
