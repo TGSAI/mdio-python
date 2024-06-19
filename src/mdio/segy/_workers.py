@@ -92,7 +92,7 @@ def trace_worker(
     valid_indices = seq_trace_indices[live_subset]
 
     traces = segy_file.trace[valid_indices.tolist()]
-    headers, samples = traces["header"], traces["sample"]
+    headers, samples = traces["header"], traces["data"]
 
     if np.count_nonzero(samples) == 0:
         return None
