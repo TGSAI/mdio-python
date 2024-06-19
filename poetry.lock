@@ -3482,7 +3482,7 @@ cloud = ["adlfs (>=2024.4.1)", "gcsfs (>=2024.6.0)", "s3fs (>=2024.6.0)"]
 
 [package.source]
 type = "git"
-url = "git@github.com:TGSAI/segy.git"
+url = "https://github.com/TGSAI/segy.git"
 reference = "HEAD"
 resolved_reference = "e0bca876185768295164960961bd73628d517de9"
 
@@ -4504,4 +4504,4 @@ lossy = ["zfpy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "1094c4bfa9d992306c7ec1300b5336a6688c4fb292c8ebfe314f148bb7e8901c"
+content-hash = "7204f147eb8e84b44e9042cd54860ebad67d310b459781a8f10997dec705db8e"
