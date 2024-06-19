@@ -9,6 +9,7 @@ import pytest
 from segy import SegyFile
 from segy.schema import HeaderField
 from segy.schema import ScalarType
+from segy.standards import SegyStandard
 from segy.standards import get_segy_standard
 
 from mdio import MDIOReader
@@ -356,7 +357,7 @@ class TestExport:
                 HeaderField(name="crossline", byte=185, format=Int32),
             ]
         )
-        segy_spec.segy_standard = 0.0
+        segy_spec.segy_standard = SegyStandard.REV0
 
         mdio_to_segy(
             mdio_path_or_buffer=zarr_tmp.__str__(),
