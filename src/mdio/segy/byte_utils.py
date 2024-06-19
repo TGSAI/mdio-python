@@ -3,7 +3,7 @@
 import sys
 
 from numpy.typing import NDArray
-from segy.schema.data_type import Endianness
+from segy.schema import Endianness
 
 
 SYS_BYTEORDER = Endianness[sys.byteorder.upper()]
