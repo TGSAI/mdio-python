@@ -7,6 +7,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 from segy import SegyFile
+from segy.schema import Endianness
 from segy.schema import HeaderField
 from segy.schema import ScalarType
 from segy.standards import SegyStandard
@@ -358,6 +359,7 @@ class TestExport:
             ]
         )
         segy_spec.segy_standard = SegyStandard.REV0
+        segy_spec.endianness = Endianness.BIG
 
         mdio_to_segy(
             mdio_path_or_buffer=zarr_tmp.__str__(),
@@ -387,8 +389,6 @@ class TestExport:
 
         in_traces = in_segy.trace[random_indices]
         out_traces = out_segy.trace[random_indices]
-
-        print(in_segy.binary_header.item(), out_segy.binary_header.item())
 
         assert in_segy.num_traces == out_segy.num_traces
         assert in_segy.text_header == out_segy.text_header

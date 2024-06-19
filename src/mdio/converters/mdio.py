@@ -9,6 +9,9 @@ from typing import Any
 
 import numpy as np
 from psutil import cpu_count
+from segy.schema import Endianness
+from segy.standards import get_segy_standard
+from segy.standards.mapping import SEGY_FORMAT_MAP
 from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader
@@ -111,8 +114,15 @@ def mdio_to_segy(  # noqa: C901
     if new_chunks is None:
         new_chunks = segy_export_rechunker(mdio.chunks, mdio.shape, mdio._traces.dtype)
 
-    segy_kwargs = {} if segy_kwargs is None else segy_kwargs
-    segy_kwargs["endianness"] = output_endian
+    if segy_kwargs is None:
+        sample_format_code = mdio.binary_header["data_sample_format"]
+        sample_format = SEGY_FORMAT_MAP.inverse[sample_format_code]
+
+        spec = get_segy_standard(1.0)
+        spec.endianness = Endianness[output_endian.upper()]
+        spec.trace.data.format = sample_format
+
+        segy_kwargs = {"spec": spec}
 
     creation_args = [
         mdio_path_or_buffer,
