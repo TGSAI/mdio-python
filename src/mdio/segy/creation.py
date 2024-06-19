@@ -130,9 +130,8 @@ def write_to_segy_stack(
         samples: Array containing the trace samples.
         headers: Array containing the trace headers.
         live: Array containing the trace live mask.
-        out_dtype: Desired output data type.
-        out_byteorder: Desired output data byte order.
         file_root: Root directory to write partial SEG-Y files.
+        segy_factory: A SEG-Y factory configured to write out with user params.
 
     Returns:
         Array containing file names for partial data. None means

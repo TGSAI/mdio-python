@@ -55,8 +55,7 @@ def to_zarr(
     """Blocked I/O from SEG-Y to chunked `zarr.core.Array`.
 
     Args:
-        segy_path: Path to the input SEG-Y file
-        segy_endian: Endianness of the input SEG-Y.
+        segy_file: SEG-Y file instance.
         grid: mdio.Grid instance
         data_root: Handle for zarr.core.Group we are writing traces
         metadata_root: Handle for zarr.core.Group we are writing trace headers
@@ -277,8 +276,7 @@ def to_segy(
         samples: Sample array.
         headers: Header array.
         live_mask: Live mask array.
-        out_dtype: Desired type of output samples.
-        out_byteorder: Desired output data byte order.
+        segy_factory: A SEG-Y factory configured to write out with user params.
         file_root: Root directory to write partial SEG-Y files.
         axis: Which axes to merge on. Excluding sample axis.
 

@@ -9,8 +9,6 @@ from typing import Any
 
 import numpy as np
 from psutil import cpu_count
-from segy.schema.data_type import Endianness
-from segy.schema.data_type import ScalarType
 from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader

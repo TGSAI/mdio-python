@@ -33,15 +33,9 @@ def header_scan_worker(
     Args:
         segy_file: SegyFile instance.
         trace_range: Tuple consisting of the trace ranges to read.
-        index_names: Names of indices.
 
     Returns:
-        dictionary with headers:  keys are the index names, values are numpy
-            arrays of parsed headers for the current block. Array is of type
-            byte_type except IBM32 which is mapped to FLOAT32.
-
-    Raises:
-        TypeError: if segy_path_or_handle is incorrect / unsupported.
+        HeaderArray parsed from SEG-Y library.
     """
     return segy_file.header[slice(*trace_range)]
 
