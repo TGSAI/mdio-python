@@ -26,21 +26,21 @@ Changelog = "https://github.com/TGSAI/mdio-python/releases"
 python = ">=3.9,<3.13"
 click = "^8.1.7"
 click-params = "^0.5.0"
-zarr = "^2.16.1"
-dask = ">=2023.10.0"
-tqdm = "^4.66.1"
-psutil = "^5.9.5"
-fsspec = ">=2023.9.1"
+zarr = "^2.18.2"
+dask = ">=2024.6.1"
+tqdm = "^4.66.4"
+psutil = "^6.0.0"
+fsspec = ">=2024.6.0"
 rich = "^13.7.1"
 urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
-segy = "^0.0.15"
+segy = "^0.1.1"
 
 # Extras
-distributed = {version = ">=2023.10.0", optional = true}
-bokeh = {version = "^3.2.2", optional = true}
-s3fs = {version = ">=2023.5.0", optional = true}
-gcsfs = {version = ">=2023.5.0", optional = true}
-adlfs = {version = ">=2023.4.0", optional = true}
+distributed = {version = ">=2024.6.1", optional = true}
+bokeh = {version = "^3.4.1", optional = true}
+s3fs = {version = ">=2024.6.0", optional = true}
+gcsfs = {version = ">=2024.6.0", optional = true}
+adlfs = {version = ">=2024.4.1", optional = true}
 zfpy = {version = "^0.5.5", optional = true}
 
 [tool.poetry.extras]
@@ -50,30 +50,30 @@ lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
-coverage = {version = "^7.4.0", extras = ["toml"]}
+coverage = {version = "^7.5.3", extras = ["toml"]}
 darglint = "^1.8.1"
-flake8 = "^7.0.0"
+flake8 = "^7.1.0"
 flake8-bandit = "^4.1.1"
-flake8-bugbear = "^23.12.2"
+flake8-bugbear = "^24.4.26"
 flake8-docstrings = "^1.7.0"
 flake8-rst-docstrings = "^0.3.0"
-furo = ">=2023.9.10"
+furo = ">=2024.5.6"
 isort = "^5.13.2"
-mypy = "^1.8.0"
-pep8-naming = "^0.13.3"
-pre-commit = "^3.6.0"
-pre-commit-hooks = "^4.5.0"
-pytest = "^7.4.4"
-pyupgrade = "^3.15.0"
-safety = "^2.3.5"
-sphinx-autobuild = "^2021.3.14"
-sphinx-click = "^5.1.0"
+mypy = "^1.10.0"
+pep8-naming = "^0.14.1"
+pre-commit = "^3.7.1"
+pre-commit-hooks = "^4.6.0"
+pytest = "^8.2.2"
+pyupgrade = "^3.16.0"
+safety = "^3.2.3"
+sphinx-autobuild = ">=2024.4.16"
+sphinx-click = "^6.0.0"
 sphinx-copybutton = "^0.5.2"
-typeguard = "^4.1.5"
-xdoctest = {version = "^1.1.2", extras = ["colors"]}
-myst-parser = "^2.0.0"
-Pygments = "^2.17.2"
-Sphinx = "^7.2.6"
+typeguard = "^4.3.0"
+xdoctest = {version = "^1.1.5", extras = ["colors"]}
+myst-parser = "^3.0.1"
+Pygments = "^2.18.0"
+Sphinx = "^7.3.7"
 
 [tool.poetry.scripts]
 mdio = "mdio.__main__:main"
