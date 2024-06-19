@@ -31,6 +31,7 @@ NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 def mdio_to_segy(  # noqa: C901
     mdio_path_or_buffer: str,
     output_segy_path: str,
+    output_endian: str = "big",
     access_pattern: str = "012",
     storage_options: dict = None,
     segy_kwargs: dict[str, Any] = None,
@@ -59,6 +60,8 @@ def mdio_to_segy(  # noqa: C901
     Args:
         mdio_path_or_buffer: Input path where the MDIO is located
         output_segy_path: Path to the output SEG-Y file
+        output_endian: Endianness of the input SEG-Y. Rev.2 allows little
+            endian. Default is 'big'.
         access_pattern: This specificies the chunk access pattern. Underlying
             zarr.Array must exist. Examples: '012', '01'
         storage_options: Storage options for the cloud storage backend.
@@ -94,7 +97,6 @@ def mdio_to_segy(  # noqa: C901
         ...     mdio_path_or_buffer="prefix2/file.mdio",
         ...     output_segy_path="prefix/file.segy",
         ...     selection_mask=boolean_mask,
-        ...     out_sample_format="float32",
         ... )
 
     """
@@ -108,6 +110,9 @@ def mdio_to_segy(  # noqa: C901
 
     if new_chunks is None:
         new_chunks = segy_export_rechunker(mdio.chunks, mdio.shape, mdio._traces.dtype)
+
+    segy_kwargs = {} if segy_kwargs is None else segy_kwargs
+    segy_kwargs["endianness"] = output_endian
 
     creation_args = [
         mdio_path_or_buffer,
