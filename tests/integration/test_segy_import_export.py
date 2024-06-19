@@ -7,10 +7,9 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 from segy import SegyFile
+from segy.schema import HeaderField
 from segy.schema import ScalarType
-from segy.schema import StructuredFieldDescriptor
-from segy.standards import SegyStandard
-from segy.standards import rev1_segy
+from segy.standards import get_segy_standard
 
 from mdio import MDIOReader
 from mdio import mdio_to_segy
@@ -274,10 +273,11 @@ class TestImport:
 
     def test_3d_import(self, segy_input, zarr_tmp, header_names):
         """Test importing a SEG-Y file to MDIO."""
-        segy_spec = rev1_segy.customize(
+        rev1_spec = get_segy_standard(1.0)
+        segy_spec = rev1_spec.customize(
             trace_header_fields=[
-                StructuredFieldDescriptor(name="inline", offset=180, format=Int32),
-                StructuredFieldDescriptor(name="crossline", offset=184, format=Int32),
+                HeaderField(name="inline", byte=181, format=Int32),
+                HeaderField(name="crossline", byte=185, format=Int32),
             ]
         )
         segy_to_mdio(
@@ -349,13 +349,14 @@ class TestExport:
 
     def test_3d_export(self, zarr_tmp, segy_export_tmp):
         """Test 3D export to IBM and IEEE."""
-        segy_spec = rev1_segy.customize(
+        rev1_spec = get_segy_standard(1.0)
+        segy_spec = rev1_spec.customize(
             trace_header_fields=[
-                StructuredFieldDescriptor(name="inline", offset=180, format=Int32),
-                StructuredFieldDescriptor(name="crossline", offset=184, format=Int32),
+                HeaderField(name="inline", byte=181, format=Int32),
+                HeaderField(name="crossline", byte=185, format=Int32),
             ]
         )
-        segy_spec.segy_standard = SegyStandard.REV0
+        segy_spec.segy_standard = 0.0
 
         mdio_to_segy(
             mdio_path_or_buffer=zarr_tmp.__str__(),
@@ -369,10 +370,11 @@ class TestExport:
 
     def test_rand_equal(self, segy_input, segy_export_tmp):
         """IBM. Is random original traces and headers match round-trip file?"""
-        segy_spec = rev1_segy.customize(
+        rev1_spec = get_segy_standard(1.0)
+        segy_spec = rev1_spec.customize(
             trace_header_fields=[
-                StructuredFieldDescriptor(name="inline", offset=180, format=Int32),
-                StructuredFieldDescriptor(name="crossline", offset=184, format=Int32),
+                HeaderField(name="inline", byte=181, format=Int32),
+                HeaderField(name="crossline", byte=185, format=Int32),
             ]
         )
 
