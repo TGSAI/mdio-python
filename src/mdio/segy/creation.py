@@ -12,8 +12,8 @@ import numpy as np
 from segy.factory import SegyFactory
 from segy.schema import Endianness
 from segy.schema import ScalarType
-from segy.schema import SegyStandard
-from segy.standards import registry as segy_registry
+from segy.standards import get_segy_standard
+from segy.standards.mapping import SEGY_FORMAT_MAP
 from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
@@ -30,12 +30,10 @@ def make_segy_factory(
     sample_format: ScalarType,
 ) -> SegyFactory:
     """Generate SEG-Y factory from MDIO metadata."""
-    rev1_spec = segy_registry.get_spec(SegyStandard.REV1)
-    new_segy_spec = rev1_spec.customize(trace_header_fields=[])
-    new_segy_spec.segy_standard = 0
+    rev1_spec = get_segy_standard(1.0)
 
     rev1_spec.endianness = endianness
-    rev1_spec.trace.sample_descriptor.format = sample_format
+    rev1_spec.trace.data.format = sample_format
 
     grid = mdio.grid
     sample_dim = grid.select_dim("sample")
@@ -43,7 +41,7 @@ def make_segy_factory(
     samples_per_trace = len(sample_dim)
 
     return SegyFactory(
-        spec=new_segy_spec,
+        spec=rev1_spec,
         sample_interval=sample_interval * 1000,
         samples_per_trace=samples_per_trace,
     )
@@ -93,10 +91,14 @@ def mdio_spec_to_segy(
         memory_cache_size=0,  # Making sure disk caching is disabled
         disk_cache=False,  # Making sure disk caching is disabled
     )
+
+    sample_format_code = mdio.binary_header["data_sample_format"]
+    segy_kwargs["sample_format"] = SEGY_FORMAT_MAP.inverse[sample_format_code]
+
     factory = make_segy_factory(mdio, **segy_kwargs)
 
     text_bytes = factory.create_textual_header(mdio.text_header)
-    bin_hdr_bytes = factory.create_binary_header()
+    bin_hdr_bytes = factory.create_binary_header(mdio.binary_header)
 
     with open(output_segy_path, mode="wb") as fp:
         fp.write(text_bytes)
