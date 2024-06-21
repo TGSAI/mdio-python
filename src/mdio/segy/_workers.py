@@ -94,9 +94,6 @@ def trace_worker(
     traces = segy_file.trace[valid_indices.tolist()]
     headers, samples = traces["header"], traces["data"]
 
-    if np.count_nonzero(samples) == 0:
-        return None
-
     tmp_metadata[live_subset] = headers.view(tmp_metadata.dtype)
     tmp_data[live_subset] = samples
 
@@ -106,19 +103,22 @@ def trace_worker(
         value=tmp_metadata,
     )
 
+    nonzero_mask = samples != 0
+    nonzero_count = nonzero_mask.sum(dtype="uint32")
+
+    if nonzero_count == 0:
+        return None
+
     data_array.set_basic_selection(
         selection=chunk_indices,
         value=tmp_data,
     )
 
     # Calculate statistics
-    nonzero_mask = samples != 0
-    count = nonzero_mask.sum(dtype="uint32")
-
     tmp_data = samples[nonzero_mask]
     chunk_sum = tmp_data.sum(dtype="float64")
     chunk_sum_squares = np.square(tmp_data, dtype="float64").sum()
     min_val = tmp_data.min()
     max_val = tmp_data.max()
 
-    return count, chunk_sum, chunk_sum_squares, min_val, max_val
+    return nonzero_count, chunk_sum, chunk_sum_squares, min_val, max_val
