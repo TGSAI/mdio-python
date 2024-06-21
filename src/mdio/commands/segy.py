@@ -416,5 +416,5 @@ def segy_export(
         output_segy_path=segy_path,
         access_pattern=access_pattern,
         storage_options=storage_options,
-        output_endian=endian,
+        endian=endian,
     )
