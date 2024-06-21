@@ -15,7 +15,6 @@ from segy.schema import SegySpec
 from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
-from mdio.segy.byte_utils import get_byteorder
 from mdio.segy.compat import mdio_segyio_spec
 
 
@@ -168,25 +167,6 @@ def write_to_segy_stack(
             fp.write(trace_bytes)
 
     return part_segy_paths
-
-
-def check_byteswap(array: NDArray, out_byteorder: Endianness) -> NDArray:
-    """Check input byteorder and swap if user wants the other.
-
-    Args:
-        array: Array containing the data.
-        out_byteorder: Desired output data byte order.
-
-    Returns:
-        Original or byte-order swapped array.
-    """
-    in_byteorder = get_byteorder(array)
-
-    if in_byteorder != out_byteorder:
-        array.byteswap(inplace=True)
-        array = array.newbyteorder()
-
-    return array
 
 
 # TODO: Abstract this to support various implementations by
