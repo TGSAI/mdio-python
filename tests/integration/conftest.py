@@ -8,15 +8,10 @@ import numpy as np
 import pytest
 from segy.factory import SegyFactory
 from segy.schema import HeaderField
-from segy.schema import ScalarType
 from segy.standards import SegyStandard
 from segy.standards import get_segy_standard
 
 from mdio.segy.geometry import StreamerShotGeometryType
-
-
-Int32 = ScalarType.INT32
-Int16 = ScalarType.INT16
 
 
 def create_segy_mock_4d(
@@ -66,20 +61,20 @@ def create_segy_mock_4d(
     cable_headers = np.tile(cable_headers, shot_count)
     channel_headers = np.tile(channel_headers, shot_count)
 
-    trc_hdrs = [
-        HeaderField(name="field_rec_no", byte=9, format=Int32),
-        HeaderField(name="channel", byte=13, format=Int32),
-        HeaderField(name="shot_point", byte=17, format=Int32),
-        HeaderField(name="offset", byte=37, format=Int32),
-        HeaderField(name="samples_per_trace", byte=115, format=Int32),
-        HeaderField(name="sample_interval", byte=117, format=Int32),
-        HeaderField(name="shot_line", byte=133, format=Int16),
-        HeaderField(name="cable", byte=137, format=Int16),
-        HeaderField(name="gun", byte=171, format=Int16),
+    trace_header_fields = [
+        HeaderField(name="field_rec_no", byte=9, format="int32"),
+        HeaderField(name="channel", byte=13, format="int32"),
+        HeaderField(name="shot_point", byte=17, format="int32"),
+        HeaderField(name="offset", byte=37, format="int32"),
+        HeaderField(name="samples_per_trace", byte=115, format="int32"),
+        HeaderField(name="sample_interval", byte=117, format="int32"),
+        HeaderField(name="shot_line", byte=133, format="int16"),
+        HeaderField(name="cable", byte=137, format="int16"),
+        HeaderField(name="gun", byte=171, format="int16"),
     ]
 
     rev1_spec = get_segy_standard(1.0)
-    spec = rev1_spec.customize(trace_header_fields=trc_hdrs)
+    spec = rev1_spec.customize(trace_header_fields=trace_header_fields)
     spec.segy_standard = SegyStandard.REV1
     factory = SegyFactory(
         spec=spec,
