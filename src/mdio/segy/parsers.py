@@ -9,13 +9,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from psutil import cpu_count
+from segy.arrays import HeaderArray
 from tqdm.auto import tqdm
 
 from mdio.segy._workers import header_scan_worker
 
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
     from segy import SegyFile
 
 NUM_CORES = cpu_count(logical=True)
@@ -26,7 +26,7 @@ def parse_index_headers(
     segy_file: SegyFile,
     block_size: int = 10000,
     progress_bar: bool = True,
-) -> NDArray:
+) -> HeaderArray:
     """Read and parse given `byte_locations` from SEG-Y file.
 
     Args:
@@ -71,7 +71,7 @@ def parse_index_headers(
             )
 
         # This executes the lazy work.
-        headers = list(lazy_work)
+        headers: list[HeaderArray] = list(lazy_work)
 
     # Merge blocks before return
     return np.concatenate(headers)
