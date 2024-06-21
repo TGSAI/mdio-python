@@ -97,16 +97,6 @@ cli = Group(name="segy", help=SEGY_HELP)
     type=IntListParamType(),
 )
 @option(
-    "-endian",
-    "--endian",
-    required=False,
-    default="big",
-    help="Endianness of the SEG-Y file",
-    type=Choice(["little", "big"]),
-    show_default=True,
-    show_choices=True,
-)
-@option(
     "-lossless",
     "--lossless",
     required=False,
@@ -152,7 +142,6 @@ def segy_import(
     header_types: list[str],
     header_names: list[str],
     chunk_size: list[int],
-    endian: str,
     lossless: bool,
     compression_tolerance: float,
     storage_options: dict[str, Any],
@@ -356,7 +345,6 @@ def segy_import(
         index_types=header_types,
         index_names=header_names,
         chunksize=chunk_size,
-        endian=endian,
         lossless=lossless,
         compression_tolerance=compression_tolerance,
         storage_options=storage_options,
