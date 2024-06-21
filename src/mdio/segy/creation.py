@@ -16,6 +16,7 @@ from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
 from mdio.segy.byte_utils import get_byteorder
+from mdio.segy.compat import mdio_segyio_spec
 
 
 if TYPE_CHECKING:
@@ -43,8 +44,8 @@ def mdio_spec_to_segy(
     mdio_path_or_buffer,
     output_segy_path,
     access_pattern,
+    output_endian,
     storage_options,
-    segy_kwargs,
     new_chunks,
     backend,
 ):
@@ -64,9 +65,9 @@ def mdio_spec_to_segy(
         output_segy_path: Path to the output SEG-Y file.
         access_pattern: This specificies the chunk access pattern.
             Underlying zarr.Array must exist. Examples: '012', '01'.
+        output_endian: Endianness of the output file.
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous)
-        segy_kwargs: Dictionary of keyword arguments to pass to `SegyFactory`.
         new_chunks: Set manual chunksize. For development purposes only.
         backend: Eager (zarr) or lazy but more flexible 'dask' backend.
 
@@ -83,7 +84,10 @@ def mdio_spec_to_segy(
         memory_cache_size=0,  # Making sure disk caching is disabled
         disk_cache=False,  # Making sure disk caching is disabled
     )
-    factory = make_segy_factory(mdio, **segy_kwargs)
+
+    spec = mdio_segyio_spec.model_copy(deep=True)
+    spec.endianness = Endianness(output_endian)
+    factory = make_segy_factory(mdio, spec=mdio_segyio_spec)
 
     text_bytes = factory.create_textual_header(mdio.text_header)
     bin_hdr_bytes = factory.create_binary_header(mdio.binary_header)
