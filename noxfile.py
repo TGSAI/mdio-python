@@ -145,13 +145,13 @@ def safety(session: Session) -> None:
     requirements = session.poetry.export_requirements()
     session.install("safety")
     # TODO(Altay): Remove the CVE ignore once its resolved. Its not critical, so ignoring now.
-    ignore = [70612]
+    ignore = ["70612"]
     session.run(
         "safety",
         "check",
         "--full-report",
         f"--file={requirements}",
-        f"--ignore={ignore}",
+        f"--ignore={','.join(ignore)}",
     )
 
 
