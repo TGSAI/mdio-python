@@ -944,13 +944,13 @@ files = [
 
 [[package]]
 name = "dask"
-version = "2024.6.1"
+version = "2024.6.2"
 description = "Parallel PyData with Task Scheduling"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "dask-2024.6.1-py3-none-any.whl", hash = "sha256:3560c2cebd4ebfe3f51d0eaee51adc080a72f8a4d0c58ba97ded139c0fc158c5"},
-    {file = "dask-2024.6.1.tar.gz", hash = "sha256:30f074860e9855cacbe67d7abe7fcd3c863d3f82e5469a0ef46d7512caeede07"},
+    {file = "dask-2024.6.2-py3-none-any.whl", hash = "sha256:81b80ee015b2e057b93bb2d1bf13a866136e762e2b24bf54b6b621e8b86b7708"},
+    {file = "dask-2024.6.2.tar.gz", hash = "sha256:d429d6b19e85fd1306ac37c188aaf99d03bbe69a6fe59d2b42882b2ac188686f"},
 ]
 
 [package.dependencies]
@@ -968,7 +968,7 @@ array = ["numpy (>=1.21)"]
 complete = ["dask[array,dataframe,diagnostics,distributed]", "lz4 (>=4.3.2)", "pyarrow (>=7.0)", "pyarrow-hotfix"]
 dataframe = ["dask-expr (>=1.1,<1.2)", "dask[array]", "pandas (>=1.3)"]
 diagnostics = ["bokeh (>=2.4.2)", "jinja2 (>=2.10.3)"]
-distributed = ["distributed (==2024.6.1)"]
+distributed = ["distributed (==2024.6.2)"]
 test = ["pandas[test]", "pre-commit", "pytest", "pytest-cov", "pytest-rerunfailures", "pytest-timeout", "pytest-xdist"]
 
 [[package]]
@@ -1012,19 +1012,19 @@ files = [
 
 [[package]]
 name = "distributed"
-version = "2024.6.1"
+version = "2024.6.2"
 description = "Distributed scheduler for Dask"
 optional = true
 python-versions = ">=3.9"
 files = [
-    {file = "distributed-2024.6.1-py3-none-any.whl", hash = "sha256:801989bb401f4657e48d3e7bf2efab6f3954e33f0a2a39bf49f30a4e1d2a0455"},
-    {file = "distributed-2024.6.1.tar.gz", hash = "sha256:785485b647648268c8e37cc6267136068e58d3ab3b0250fb56d5d03b0bc118a7"},
+    {file = "distributed-2024.6.2-py3-none-any.whl", hash = "sha256:0c1f8ccb1da71273ad8c53c598147dc37e60bef17142fd466cb72618a521880f"},
+    {file = "distributed-2024.6.2.tar.gz", hash = "sha256:bb43b766ada860b163956607c80f99871d823c645e326c2b5e35f020351adc55"},
 ]
 
 [package.dependencies]
 click = ">=8.0"
 cloudpickle = ">=1.5.0"
-dask = "2024.6.1"
+dask = "2024.6.2"
 jinja2 = ">=2.10.3"
 locket = ">=1.0.0"
 msgpack = ">=1.0.0"
@@ -1642,22 +1642,22 @@ files = [
 
 [[package]]
 name = "importlib-metadata"
-version = "7.1.0"
+version = "7.2.0"
 description = "Read metadata from Python packages"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "importlib_metadata-7.1.0-py3-none-any.whl", hash = "sha256:30962b96c0c223483ed6cc7280e7f0199feb01a0e40cfae4d4450fc6fab1f570"},
-    {file = "importlib_metadata-7.1.0.tar.gz", hash = "sha256:b78938b926ee8d5f020fc4772d487045805a55ddbad2ecf21c6d60938dc7fcd2"},
+    {file = "importlib_metadata-7.2.0-py3-none-any.whl", hash = "sha256:04e4aad329b8b948a5711d394fa8759cb80f009225441b4f2a02bd4d8e5f426c"},
+    {file = "importlib_metadata-7.2.0.tar.gz", hash = "sha256:3ff4519071ed42740522d494d04819b666541b9752c43012f85afb2cc220fcc6"},
 ]
 
 [package.dependencies]
 zipp = ">=0.5"
 
 [package.extras]
-docs = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
+doc = ["furo", "jaraco.packaging (>=9.3)", "jaraco.tidelift (>=1.4)", "rst.linker (>=1.9)", "sphinx (>=3.5)", "sphinx-lint"]
 perf = ["ipython"]
-testing = ["flufl.flake8", "importlib-resources (>=1.3)", "jaraco.test (>=5.4)", "packaging", "pyfakefs", "pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy", "pytest-perf (>=0.9.2)", "pytest-ruff (>=0.2.1)"]
+test = ["flufl.flake8", "importlib-resources (>=1.3)", "jaraco.test (>=5.4)", "packaging", "pyfakefs", "pytest (>=6,!=8.1.*)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=2.2)", "pytest-mypy", "pytest-perf (>=0.9.2)", "pytest-ruff (>=0.2.1)"]
 
 [[package]]
 name = "iniconfig"
@@ -2985,6 +2985,20 @@ tomli = {version = ">=1", markers = "python_version < \"3.11\""}
 dev = ["argcomplete", "attrs (>=19.2)", "hypothesis (>=3.56)", "mock", "pygments (>=2.7.2)", "requests", "setuptools", "xmlschema"]
 
 [[package]]
+name = "pytest-dependency"
+version = "0.6.0"
+description = "Manage dependencies of tests"
+optional = false
+python-versions = ">=3.4"
+files = [
+    {file = "pytest-dependency-0.6.0.tar.gz", hash = "sha256:934b0e6a39d95995062c193f7eaeed8a8ffa06ff1bcef4b62b0dc74a708bacc1"},
+]
+
+[package.dependencies]
+pytest = ">=3.7.0"
+setuptools = "*"
+
+[[package]]
 name = "python-dateutil"
 version = "2.9.0.post0"
 description = "Extensions to the standard Python datetime module"
@@ -3458,7 +3472,7 @@ typing-extensions = ">=4.7.1"
 
 [[package]]
 name = "segy"
-version = "0.1.1"
+version = "0.1.3"
 description = "The Ultimate Python SEG-Y I/O with Cloud Support and Schemas"
 optional = false
 python-versions = ">=3.9, <3.13"
@@ -3484,7 +3498,7 @@ cloud = ["adlfs (>=2024.4.1)", "gcsfs (>=2024.6.0)", "s3fs (>=2024.6.0)"]
 type = "git"
 url = "https://github.com/TGSAI/segy.git"
 reference = "HEAD"
-resolved_reference = "e0bca876185768295164960961bd73628d517de9"
+resolved_reference = "48b5c4292dc8ca62629ac4f66aa208ee8f03e075"
 
 [[package]]
 name = "setuptools"
@@ -4504,4 +4518,4 @@ lossy = ["zfpy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.13"
-content-hash = "7204f147eb8e84b44e9042cd54860ebad67d310b459781a8f10997dec705db8e"
+content-hash = "4341608e23bfa431ec7bc266100fcfec5f2b5bb9621cfc5207de9573e8224e86"
