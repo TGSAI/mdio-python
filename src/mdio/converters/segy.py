@@ -110,7 +110,7 @@ def segy_to_mdio(  # noqa: C901
     index_bytes: Sequence[int],
     index_names: Sequence[str] | None = None,
     index_types: Sequence[str] | None = None,
-    chunksize: list[int] | None = None,
+    chunksize: Sequence[int] | None = None,
     lossless: bool = True,
     compression_tolerance: float = 0.01,
     storage_options: dict[str, Any] | None = None,
@@ -341,6 +341,12 @@ def segy_to_mdio(  # noqa: C901
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
+    if index_names is None:
+        index_names = [f"dim_{i}" for i in range(len(index_bytes))]
+
+    if index_types is None:
+        index_types = ["int32"] * len(index_bytes)
+
     if chunksize is not None:
         if len(chunksize) != len(index_bytes) + 1:
             message = (
@@ -360,27 +366,25 @@ def segy_to_mdio(  # noqa: C901
         disk_cache=False,  # Making sure disk caching is disabled
     )
 
-    # Read file specific metadata, build grid, and live trace mask.
+    # Infer endianness from spec by opening without spec.
     inferred_spec = SegyFile(url=segy_path).spec
 
-    mdio_spec = mdio_segyio_spec
+    # Build hard coded MDIO spec, with the inferred endianness and open file
+    mdio_spec = mdio_segyio_spec.model_copy(deep=True)
     mdio_spec.endianness = inferred_spec.endianness
     segy = SegyFile(url=segy_path, spec=mdio_spec)
-
-    if index_types is None:
-        index_types = ["int32"] * len(index_names)
-
-    index_fields = []
-    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-    for name, byte, format_ in zip(index_names, index_bytes, index_types):  # noqa: B905
-        index_fields.append(HeaderField(name=name, byte=byte, format=format_))
-
-    mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
-    segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid)
 
     text_header = segy.text_header
     binary_header = segy.binary_header
     num_traces = segy.num_traces
+
+    # Index the dataset using a spec that interprets the user provided index headers.
+    index_fields = []
+    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+    for name, byte, format_ in zip(index_names, index_bytes, index_types):  # noqa: B905
+        index_fields.append(HeaderField(name=name, byte=byte, format=format_))
+    mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
+    segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid)
 
     dimensions, chunksize, index_headers = get_grid_plan(
         segy_file=segy_grid,
@@ -388,12 +392,8 @@ def segy_to_mdio(  # noqa: C901
         chunksize=chunksize,
         grid_overrides=grid_overrides,
     )
-
-    # Make grid and build global live trace mask
     grid = Grid(dims=dimensions)
-
     grid_density_qc(grid, num_traces)
-
     grid.build_map(index_headers)
 
     # Check grid validity by comparing trace numbers
@@ -444,7 +444,7 @@ def segy_to_mdio(  # noqa: C901
     )
 
     if chunksize is None:
-        dim_count = len(index_fields) + 1
+        dim_count = len(index_headers) + 1
         if dim_count == 2:
             chunksize = (512,) * 2
 
