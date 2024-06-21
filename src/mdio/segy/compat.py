@@ -17,23 +17,16 @@ from segy.schema import TraceDataSpec
 from segy.schema import TraceSpec
 
 
-binary_header_fields = []
-for name, (byte, format_) in SEGYIO_BIN_FIELD_MAP.items():
-    field = HeaderField(name=name, byte=byte, format=format_)
-    binary_header_fields.append(field)
+binary_fields = [field.model for field in SEGYIO_BIN_FIELD_MAP.values()]
+trace_fields = [field.model for field in SEGYIO_TRACE_FIELD_MAP.values()]
+trace_fields.append(HeaderField(name="unassigned", byte=233, format="int64"))
 
-trace_header_fields = []
-for _, (byte, format_) in SEGYIO_TRACE_FIELD_MAP.items():
-    field = HeaderField(name=str(byte), byte=byte, format=format_)
-    trace_header_fields.append(field)
-
-
-mdio_segy_spec = SegySpec(
+mdio_segyio_spec = SegySpec(
     segy_standard=None,
     text_header=TextHeaderSpec(),  # default EBCDIC
-    binary_header=HeaderSpec(fields=binary_header_fields, item_size=400),
+    binary_header=HeaderSpec(fields=binary_fields, item_size=400, offset=3200),
     trace=TraceSpec(
-        header=HeaderSpec(fields=trace_header_fields, item_size=240),
+        header=HeaderSpec(fields=trace_fields, item_size=240),
         data=TraceDataSpec(format=ScalarType.IBM32),  # placeholder
     ),
 )
