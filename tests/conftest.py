@@ -24,14 +24,14 @@ def segy_input(tmp_path_factory):
     return tmp_file
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def zarr_tmp(tmp_path_factory):
     """Make a temp file for the output MDIO."""
     tmp_file = tmp_path_factory.mktemp(r"mdio")
     return tmp_file
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def zarr_tmp2(tmp_path_factory):
     """Make a temp file for the output MDIO."""
     tmp_file = tmp_path_factory.mktemp(r"mdio2")
