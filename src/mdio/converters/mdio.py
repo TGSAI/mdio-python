@@ -5,13 +5,9 @@ from __future__ import annotations
 import os
 from os import path
 from tempfile import TemporaryDirectory
-from typing import Any
 
 import numpy as np
 from psutil import cpu_count
-from segy.schema import Endianness
-from segy.standards import get_segy_standard
-from segy.standards.mapping import SEGY_FORMAT_MAP
 from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader
@@ -37,7 +33,6 @@ def mdio_to_segy(  # noqa: C901
     output_endian: str = "big",
     access_pattern: str = "012",
     storage_options: dict = None,
-    segy_kwargs: dict[str, Any] = None,
     new_chunks: tuple[int, ...] = None,
     selection_mask: np.ndarray = None,
     client: distributed.Client = None,
@@ -69,7 +64,6 @@ def mdio_to_segy(  # noqa: C901
             zarr.Array must exist. Examples: '012', '01'
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous access)
-        segy_kwargs: Dictionary of keyword arguments to pass to `SegyFile`.
         new_chunks: Set manual chunksize. For development purposes only.
         selection_mask: Array that lists the subset of traces
         client: Dask client. If `None` we will use local threaded scheduler.
@@ -114,22 +108,12 @@ def mdio_to_segy(  # noqa: C901
     if new_chunks is None:
         new_chunks = segy_export_rechunker(mdio.chunks, mdio.shape, mdio._traces.dtype)
 
-    if segy_kwargs is None:
-        sample_format_code = mdio.binary_header["data_sample_format"]
-        sample_format = SEGY_FORMAT_MAP.inverse[sample_format_code]
-
-        spec = get_segy_standard(1.0)
-        spec.endianness = Endianness[output_endian.upper()]
-        spec.trace.data.format = sample_format
-
-        segy_kwargs = {"spec": spec}
-
     creation_args = [
         mdio_path_or_buffer,
         output_segy_path,
         access_pattern,
+        output_endian,
         storage_options,
-        segy_kwargs,
         new_chunks,
         backend,
     ]
