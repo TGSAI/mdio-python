@@ -14,19 +14,18 @@ from mdio.segy.parsers import parse_index_headers
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
-    from numpy.typing import NDArray
     from segy import SegyFile
+    from segy.arrays import HeaderArray
 
 
 def get_grid_plan(  # noqa:  C901
     segy_file: SegyFile,
-    index_names: list[str],
     chunksize: list[int],
     return_headers: bool = False,
     grid_overrides: dict | None = None,
 ) -> (
-    tuple[list[Dimension], tuple[int]]
-    | tuple[list[Dimension], tuple[int], dict[str, NDArray]]
+    tuple[list[Dimension], tuple[int, ...]]
+    | tuple[list[Dimension], tuple[int, ...], HeaderArray]
 ):
     """Infer dimension ranges, and increments.
 
@@ -38,7 +37,6 @@ def get_grid_plan(  # noqa:  C901
 
     Args:
         segy_file: SegyFile instance.
-        index_names: Tuple of the names for the index attributes
         chunksize:  Chunk sizes to be used in grid plan.
         return_headers: Option to return parsed headers with `Dimension` objects.
             Default is False.
@@ -52,6 +50,7 @@ def get_grid_plan(  # noqa:  C901
         grid_overrides = {}
 
     index_headers = parse_index_headers(segy_file=segy_file)
+    index_names = [name for name in index_headers.dtype.names]
 
     dims = []
 
