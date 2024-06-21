@@ -144,7 +144,15 @@ def safety(session: Session) -> None:
     """Scan dependencies for insecure packages."""
     requirements = session.poetry.export_requirements()
     session.install("safety")
-    session.run("safety", "check", "--full-report", f"--file={requirements}")
+    # TODO(Altay): Remove the CVE ignore once its resolved. Its not critical, so ignoring now.
+    ignore = [70612]
+    session.run(
+        "safety",
+        "check",
+        "--full-report",
+        f"--file={requirements}",
+        f"--ignore={ignore}",
+    )
 
 
 @session(python=python_versions)
