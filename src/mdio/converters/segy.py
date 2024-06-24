@@ -444,7 +444,7 @@ def segy_to_mdio(  # noqa: C901
     )
 
     if chunksize is None:
-        dim_count = len(index_headers) + 1
+        dim_count = len(index_names) + 1
         if dim_count == 2:
             chunksize = (512,) * 2
 
