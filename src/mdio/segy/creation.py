@@ -155,11 +155,9 @@ def write_to_segy_stack(
         file_path = path.join(file_root, uuid4().hex)
         part_segy_paths[index] = file_path
 
-        # Create traces bytes
-        mock_header = segy_factory.create_trace_header_template(1)
-        out_dtype = mock_header.dtype
+        # Create traces in bytes
         trace_bytes = segy_factory.create_traces(
-            headers=headers[index][part_live].view(out_dtype),
+            headers=headers[index][part_live],
             samples=samples[index][part_live],
         )
 
