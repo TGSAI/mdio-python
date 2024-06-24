@@ -430,7 +430,7 @@ def segy_to_mdio(  # noqa: C901
     write_attribute(
         name="text_header",
         zarr_group=zarr_root["metadata"],
-        attribute=text_header,
+        attribute=text_header.split("\n"),
     )
 
     write_attribute(

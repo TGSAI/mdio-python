@@ -325,13 +325,15 @@ class MDIOAccessor:
         self._trace_count = value
 
     @property
-    def text_header(self) -> str:
+    def text_header(self) -> list:
         """Get seismic text header."""
         return self._text_header
 
     @text_header.setter
-    def text_header(self, value: str) -> None:
+    def text_header(self, value: list) -> None:
         """Validate and set seismic text header."""
+        if not isinstance(value, list):
+            raise AttributeError("Text header must be a list of str with 40 elements")
         self._text_header = value
 
     @property

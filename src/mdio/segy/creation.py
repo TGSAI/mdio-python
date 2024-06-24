@@ -88,7 +88,8 @@ def mdio_spec_to_segy(
     spec.endianness = Endianness(output_endian)
     factory = make_segy_factory(mdio, spec=spec)
 
-    text_bytes = factory.create_textual_header(mdio.text_header)
+    text_str = "\n".join(mdio.text_header)
+    text_bytes = factory.create_textual_header(text_str)
     bin_hdr_bytes = factory.create_binary_header(mdio.binary_header)
 
     with open(output_segy_path, mode="wb") as fp:
