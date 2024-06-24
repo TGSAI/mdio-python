@@ -100,7 +100,8 @@ def to_zarr(
         **kwargs,
     )
 
-    header_dtype = segy_file.header[0].dtype
+    # Get header dtype in native order (little-endian 99.9% of the time)
+    header_dtype = segy_file.spec.trace.header.dtype.newbyteorder("=")
     header_array = metadata_root.create_dataset(
         name="_".join([name, "trace_headers"]),
         shape=grid.shape[:-1],  # Same spatial shape as data
