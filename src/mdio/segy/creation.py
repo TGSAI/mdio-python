@@ -86,7 +86,7 @@ def mdio_spec_to_segy(
 
     spec = mdio_segyio_spec.model_copy(deep=True)
     spec.endianness = Endianness(output_endian)
-    factory = make_segy_factory(mdio, spec=mdio_segyio_spec)
+    factory = make_segy_factory(mdio, spec=spec)
 
     text_bytes = factory.create_textual_header(mdio.text_header)
     bin_hdr_bytes = factory.create_binary_header(mdio.binary_header)
