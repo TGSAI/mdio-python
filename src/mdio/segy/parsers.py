@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from math import ceil
@@ -18,8 +19,8 @@ from mdio.segy._workers import header_scan_worker
 if TYPE_CHECKING:
     from segy import SegyFile
 
-NUM_CORES = cpu_count(logical=True)
-MP_CHUNKSIZE = 2
+default_cpus = cpu_count(logical=True)
+NUM_CPUS = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
 
 
 def parse_index_headers(
@@ -50,7 +51,7 @@ def parse_index_headers(
 
         trace_ranges.append((start, stop))
 
-    num_workers = min(MP_CHUNKSIZE // MP_CHUNKSIZE, NUM_CORES)
+    num_workers = min(n_blocks, NUM_CPUS)
 
     tqdm_kw = dict(unit="block", dynamic_ncols=True)
     with ProcessPoolExecutor(num_workers) as executor:
@@ -59,7 +60,6 @@ def parse_index_headers(
             header_scan_worker,  # fn
             repeat(segy_file),
             trace_ranges,
-            chunksize=MP_CHUNKSIZE,  # Not array chunks. This is for `multiprocessing`
         )
 
         if progress_bar is True:
