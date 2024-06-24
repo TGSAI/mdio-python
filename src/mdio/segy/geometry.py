@@ -186,7 +186,6 @@ def analyze_shotlines_for_guns(
 
         unique_guns_sl = np.sort(np.unique(gun_current_sl))
         num_guns_sl = unique_guns_sl.shape[0]
-        # unique_guns_in_shot_line[idx] = list(unique_guns_sl)
         unique_guns_in_shot_line[str(shot_line)] = list(unique_guns_sl)
 
         for gun in unique_guns_sl:
