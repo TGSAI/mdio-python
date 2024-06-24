@@ -366,12 +366,8 @@ def segy_to_mdio(  # noqa: C901
         disk_cache=False,  # Making sure disk caching is disabled
     )
 
-    # Infer endianness from spec by opening without spec.
-    inferred_spec = SegyFile(url=segy_path).spec
-
-    # Build hard coded MDIO spec, with the inferred endianness and open file
+    # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
     mdio_spec = mdio_segyio_spec.model_copy(deep=True)
-    mdio_spec.endianness = inferred_spec.endianness
     segy = SegyFile(url=segy_path, spec=mdio_spec)
 
     text_header = segy.text_header
