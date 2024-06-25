@@ -12,8 +12,6 @@ from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader
 from mdio.segy.blocked_io import to_segy
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
 from mdio.segy.utilities import segy_export_rechunker
@@ -34,7 +32,6 @@ def mdio_to_segy(  # noqa: C901
     output_segy_path: str,
     endian: str = "big",
     access_pattern: str = "012",
-    out_sample_format: str = "ibm32",
     storage_options: dict = None,
     new_chunks: tuple[int, ...] = None,
     selection_mask: np.ndarray = None,
@@ -65,8 +62,6 @@ def mdio_to_segy(  # noqa: C901
             endian. Default is 'big'.
         access_pattern: This specificies the chunk access pattern. Underlying
             zarr.Array must exist. Examples: '012', '01'
-        out_sample_format: Output sample format.
-            Currently support: {'ibm32', 'float32'}. Default is 'ibm32'.
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous access)
         new_chunks: Set manual chunksize. For development purposes only.
@@ -99,7 +94,6 @@ def mdio_to_segy(  # noqa: C901
         ...     mdio_path_or_buffer="prefix2/file.mdio",
         ...     output_segy_path="prefix/file.segy",
         ...     selection_mask=boolean_mask,
-        ...     out_sample_format="float32",
         ... )
 
     """
@@ -117,12 +111,10 @@ def mdio_to_segy(  # noqa: C901
     creation_args = [
         mdio_path_or_buffer,
         output_segy_path,
-        endian,
         access_pattern,
-        out_sample_format,
+        endian,
         storage_options,
         new_chunks,
-        selection_mask,
         backend,
     ]
 
@@ -130,12 +122,12 @@ def mdio_to_segy(  # noqa: C901
         if distributed is not None:
             # This is in case we work with big data
             feature = client.submit(mdio_spec_to_segy, *creation_args)
-            mdio, sample_format = feature.result()
+            mdio, segy_factory = feature.result()
         else:
             msg = "Distributed client was provided, but `distributed` is not installed"
             raise ImportError(msg)
     else:
-        mdio, sample_format = mdio_spec_to_segy(*creation_args)
+        mdio, segy_factory = mdio_spec_to_segy(*creation_args)
 
     live_mask = mdio.live_mask.compute()
 
@@ -163,10 +155,6 @@ def mdio_to_segy(  # noqa: C901
         selection_mask = selection_mask[dim_slices]
         live_mask = live_mask & selection_mask
 
-    # Parse output type and byte order
-    out_dtype = Dtype[out_sample_format.upper()]
-    out_byteorder = ByteOrder[endian.upper()]
-
     # tmp file root
     out_dir = path.dirname(output_segy_path)
     tmp_dir = TemporaryDirectory(dir=out_dir)
@@ -177,8 +165,7 @@ def mdio_to_segy(  # noqa: C901
                 samples=samples,
                 headers=headers,
                 live_mask=live_mask,
-                out_dtype=out_dtype,
-                out_byteorder=out_byteorder,
+                segy_factory=segy_factory,
                 file_root=tmp_dir.name,
                 axis=tuple(range(1, samples.ndim)),
             )

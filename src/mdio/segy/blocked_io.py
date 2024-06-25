@@ -6,14 +6,13 @@ import multiprocessing as mp
 import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
+from typing import TYPE_CHECKING
 
 import numpy as np
 from dask.array import Array
 from dask.array import blockwise
 from dask.array.reductions import _tree_reduce
-from numpy.typing import NDArray
 from psutil import cpu_count
-from segyio.tracefield import keys as segy_hdr_keys
 from tqdm.auto import tqdm
 from zarr import Blosc
 from zarr import Group
@@ -21,11 +20,14 @@ from zarr import Group
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import write_to_segy_stack
 
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+    from segy import SegyFactory
+    from segy import SegyFile
 
 try:
     import zfpy  # Base library
@@ -40,8 +42,7 @@ NUM_CPUS = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
 
 
 def to_zarr(
-    segy_path: str,
-    segy_endian: str,
+    segy_file: SegyFile,
     grid: Grid,
     data_root: Group,
     metadata_root: Group,
@@ -54,8 +55,7 @@ def to_zarr(
     """Blocked I/O from SEG-Y to chunked `zarr.core.Array`.
 
     Args:
-        segy_path: Path to the input SEG-Y file
-        segy_endian: Endianness of the input SEG-Y.
+        segy_file: SEG-Y file instance.
         grid: mdio.Grid instance
         data_root: Handle for zarr.core.Group we are writing traces
         metadata_root: Handle for zarr.core.Group we are writing trace headers
@@ -96,30 +96,12 @@ def to_zarr(
         compressor=trace_compressor,
         chunks=chunks,
         dimension_separator="/",
+        write_empty_chunks=False,
         **kwargs,
     )
 
-    # Here we read the byte locations of the rev.1 SEG-Y standard as defined in segyio
-    # We skip the last two, because segyio doesn't read it when we ask for traces
-    rev1_bytes = list(segy_hdr_keys.values())[:-2]
-
-    # Then we diff the byte locations to get lengths of headers. Last one has to be
-    # manually added because it is forward diff.
-    header_byte_loc = list(map(str, rev1_bytes))
-    header_byte_len = [
-        rev1_bytes[idx + 1] - rev1_bytes[idx] for idx in range(len(header_byte_loc) - 1)
-    ]
-    header_byte_len += [2]  # Length of last TraceField (SourceMeasurementUnit)
-
-    # Make numpy.dtype
-    # We assume either 16-bit or 32-bit signed integers (per SEG-Y standard).
-    # In numpy these are 'i2' (aka 'int16') or 'i4' (aka 'int32')
-    header_dtype = {
-        "names": header_byte_loc,
-        "formats": [f"i{length}" for length in header_byte_len],
-    }
-    header_dtype = np.dtype(header_dtype)
-
+    # Get header dtype in native order (little-endian 99.9% of the time)
+    header_dtype = segy_file.spec.trace.header.dtype.newbyteorder("=")
     header_array = metadata_root.create_dataset(
         name="_".join([name, "trace_headers"]),
         shape=grid.shape[:-1],  # Same spatial shape as data
@@ -127,6 +109,7 @@ def to_zarr(
         compressor=header_compressor,
         dtype=header_dtype,
         dimension_separator="/",
+        write_empty_chunks=False,
     )
 
     # Initialize chunk iterator (returns next chunk slice indices each iteration)
@@ -148,12 +131,11 @@ def to_zarr(
     with executor:
         lazy_work = executor.map(
             trace_worker,  # fn
-            repeat(segy_path),
+            repeat(segy_file),
             repeat(trace_array),
             repeat(header_array),
             repeat(grid),
             chunker,
-            repeat(segy_endian),
             chunksize=pool_chunksize,
         )
 
@@ -252,8 +234,7 @@ def to_segy(
     samples: Array,
     headers: Array,
     live_mask: Array,
-    out_dtype: Dtype,
-    out_byteorder: ByteOrder,
+    segy_factory: SegyFactory,
     file_root: str,
     axis: tuple[int] | None = None,
 ) -> Array:
@@ -296,8 +277,7 @@ def to_segy(
         samples: Sample array.
         headers: Header array.
         live_mask: Live mask array.
-        out_dtype: Desired type of output samples.
-        out_byteorder: Desired output data byte order.
+        segy_factory: A SEG-Y factory configured to write out with user params.
         file_root: Root directory to write partial SEG-Y files.
         axis: Which axes to merge on. Excluding sample axis.
 
@@ -319,8 +299,7 @@ def to_segy(
         meta_inds,
         *args,
         file_root=file_root,
-        out_dtype=out_dtype,
-        out_byteorder=out_byteorder,
+        segy_factory=segy_factory,
         concatenate=True,
     )
 

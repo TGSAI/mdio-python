@@ -24,14 +24,14 @@ def segy_input(tmp_path_factory):
     return tmp_file
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def zarr_tmp(tmp_path_factory):
     """Make a temp file for the output MDIO."""
     tmp_file = tmp_path_factory.mktemp(r"mdio")
     return tmp_file
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="module")
 def zarr_tmp2(tmp_path_factory):
     """Make a temp file for the output MDIO."""
     tmp_file = tmp_path_factory.mktemp(r"mdio2")
@@ -39,18 +39,9 @@ def zarr_tmp2(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
-def segy_export_ibm_tmp(tmp_path_factory):
+def segy_export_tmp(tmp_path_factory):
     """Make a temp file for the round-trip IBM SEG-Y."""
     tmp_dir = tmp_path_factory.mktemp("segy")
-    tmp_file = path.join(tmp_dir, "teapot_roundtrip_ibm.segy")
-
-    return tmp_file
-
-
-@pytest.fixture(scope="session")
-def segy_export_ieee_tmp(tmp_path_factory):
-    """Make a temp file for the round-trip IEEE SEG-Y."""
-    tmp_dir = tmp_path_factory.mktemp("segy")
-    tmp_file = path.join(tmp_dir, "teapot_roundtrip_ieee.segy")
+    tmp_file = path.join(tmp_dir, "teapot_roundtrip.segy")
 
     return tmp_file

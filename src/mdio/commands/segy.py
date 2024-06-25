@@ -97,16 +97,6 @@ cli = Group(name="segy", help=SEGY_HELP)
     type=IntListParamType(),
 )
 @option(
-    "-endian",
-    "--endian",
-    required=False,
-    default="big",
-    help="Endianness of the SEG-Y file",
-    type=Choice(["little", "big"]),
-    show_default=True,
-    show_choices=True,
-)
-@option(
     "-lossless",
     "--lossless",
     required=False,
@@ -152,7 +142,6 @@ def segy_import(
     header_types: list[str],
     header_names: list[str],
     chunk_size: list[int],
-    endian: str,
     lossless: bool,
     compression_tolerance: float,
     storage_options: dict[str, Any],
@@ -356,7 +345,6 @@ def segy_import(
         index_types=header_types,
         index_names=header_names,
         chunksize=chunk_size,
-        endian=endian,
         lossless=lossless,
         compression_tolerance=compression_tolerance,
         storage_options=storage_options,
@@ -376,16 +364,6 @@ def segy_import(
     help="Access pattern of the file",
     type=STRING,
     show_default=True,
-)
-@option(
-    "-format",
-    "--segy-format",
-    required=False,
-    default="ibm32",
-    help="SEG-Y sample format",
-    type=Choice(["ibm32", "ieee32"]),
-    show_default=True,
-    show_choices=True,
 )
 @option(
     "-storage",
@@ -408,7 +386,6 @@ def segy_export(
     mdio_file: str,
     segy_path: str,
     access_pattern: str,
-    segy_format: str,
     storage_options: dict[str, Any],
     endian: str,
 ):
@@ -438,7 +415,6 @@ def segy_export(
         mdio_path_or_buffer=mdio_file,
         output_segy_path=segy_path,
         access_pattern=access_pattern,
-        out_sample_format=segy_format,
         storage_options=storage_options,
         endian=endian,
     )

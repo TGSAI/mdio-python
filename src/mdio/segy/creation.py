@@ -5,32 +5,47 @@ from __future__ import annotations
 import os
 from os import path
 from shutil import copyfileobj
-from time import sleep
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 import numpy as np
-import segyio
-from numpy.typing import NDArray
-from segyio.binfield import keys as bfkeys
+from segy.factory import SegyFactory
+from segy.schema import Endianness
+from segy.schema import SegySpec
 from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
-from mdio.segy._standards_common import SegyFloatFormat
-from mdio.segy.byte_utils import ByteOrder
-from mdio.segy.byte_utils import Dtype
-from mdio.segy.byte_utils import get_byteorder
-from mdio.segy.ibm_float import ieee2ibm
+from mdio.segy.compat import mdio_segy_spec
+
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+
+def make_segy_factory(
+    mdio: MDIOReader,
+    spec: SegySpec,
+) -> SegyFactory:
+    """Generate SEG-Y factory from MDIO metadata."""
+    grid = mdio.grid
+    sample_dim = grid.select_dim("sample")
+    sample_interval = sample_dim[1] - sample_dim[0]
+    samples_per_trace = len(sample_dim)
+
+    return SegyFactory(
+        spec=spec,
+        sample_interval=sample_interval * 1000,
+        samples_per_trace=samples_per_trace,
+    )
 
 
 def mdio_spec_to_segy(
     mdio_path_or_buffer,
     output_segy_path,
-    endian,
     access_pattern,
-    out_sample_format,
+    output_endian,
     storage_options,
     new_chunks,
-    selection_mask,
     backend,
 ):
     """Create SEG-Y file without any traces given MDIO specification.
@@ -47,20 +62,16 @@ def mdio_spec_to_segy(
     Args:
         mdio_path_or_buffer: Input path where the MDIO is located.
         output_segy_path: Path to the output SEG-Y file.
-        endian: Endianness of the input SEG-Y. Rev.2 allows little endian.
-            Default is 'big'. Must be in {"big", "little"}.
         access_pattern: This specificies the chunk access pattern.
             Underlying zarr.Array must exist. Examples: '012', '01'.
-        out_sample_format: Output sample format. Currently support:
-            {'ibm', 'ieee'}. Default is 'ibm'.
+        output_endian: Endianness of the output file.
         storage_options: Storage options for the cloud storage backend.
             Default: None (will assume anonymous)
         new_chunks: Set manual chunksize. For development purposes only.
-        selection_mask: Array that lists the subset of traces to be written
         backend: Eager (zarr) or lazy but more flexible 'dask' backend.
 
     Returns:
-        Initialized MDIOReader for MDIO file and sample format parsed as integer
+        Initialized MDIOReader for MDIO file and return SegyFactory
     """
     mdio = MDIOReader(
         mdio_path_or_buffer=mdio_path_or_buffer,
@@ -73,57 +84,28 @@ def mdio_spec_to_segy(
         disk_cache=False,  # Making sure disk caching is disabled
     )
 
-    sleep(0.5)  # So the connection message prints before tqdm
+    mdio_file_version = mdio.root.attrs["api_version"]
+    spec = mdio_segy_spec(mdio_file_version)
+    spec.endianness = Endianness(output_endian)
+    factory = make_segy_factory(mdio, spec=spec)
 
-    # Get grid, tracecount, and sample dimension
-    grid = mdio.grid
-    tracecount = mdio.trace_count  # Only LIVE
-    if selection_mask is not None:
-        tracecount = (grid.live_mask & selection_mask).sum()
-    sample_dim = grid.select_dim("sample")  # Last axis is samples
+    text_str = "\n".join(mdio.text_header)
+    text_bytes = factory.create_textual_header(text_str)
+    bin_hdr_bytes = factory.create_binary_header(mdio.binary_header)
 
-    # Convert text header to bytearray. First merge all lines, and then encode.
-    text_header = "".join(mdio.text_header)
-    text_header = text_header.encode()
+    with open(output_segy_path, mode="wb") as fp:
+        fp.write(text_bytes)
+        fp.write(bin_hdr_bytes)
 
-    # Get binary header dictionary
-    binary_header = mdio.binary_header
-
-    # Check and set output sample format.
-    # This is only executed if the user parameter
-    # doesn't match the original SEG-Y that was ingested.
-    out_sample_format = SegyFloatFormat[out_sample_format.upper()]
-    if out_sample_format != binary_header["Format"]:
-        binary_header["Format"] = out_sample_format
-
-    # Make sure binary header for format is in sync
-    sample_format = binary_header["Format"]
-
-    # Use `segyio` to create file and write initial metadata
-    segy_spec = segyio.spec()
-    segy_spec.samples = sample_dim
-    segy_spec.endian = endian
-    segy_spec.tracecount = tracecount
-    segy_spec.format = sample_format
-
-    with segyio.create(output_segy_path, segy_spec) as output_segy_file:
-        # Write text and binary headers.
-        # For binary header, we use the key mappings (str -> byte loc) from segyio
-        output_segy_file.text[0] = text_header
-        output_segy_file.bin = [
-            (bfkeys[key], binary_header[key]) for key in binary_header
-        ]
-
-    return mdio, out_sample_format
+    return mdio, factory
 
 
 def write_to_segy_stack(
     samples: NDArray,
     headers: NDArray,
     live: NDArray,
-    out_dtype: Dtype,
-    out_byteorder: ByteOrder,
     file_root: str,
+    segy_factory: SegyFactory,
 ) -> NDArray:
     """Pre-process seismic data for SEG-Y and write partial blocks.
 
@@ -143,9 +125,8 @@ def write_to_segy_stack(
         samples: Array containing the trace samples.
         headers: Array containing the trace headers.
         live: Array containing the trace live mask.
-        out_dtype: Desired output data type.
-        out_byteorder: Desired output data byte order.
         file_root: Root directory to write partial SEG-Y files.
+        segy_factory: A SEG-Y factory configured to write out with user params.
 
     Returns:
         Array containing file names for partial data. None means
@@ -163,21 +144,6 @@ def write_to_segy_stack(
     if np.count_nonzero(live) == 0:
         return part_segy_paths
 
-    samples = cast_sample_format(samples, out_dtype)
-    samples = check_byteswap(samples, out_byteorder)
-    headers = check_byteswap(headers, out_byteorder)
-
-    trace_dtype = np.dtype(
-        {
-            "names": ("header", "pad", "trace"),
-            "formats": [
-                headers.dtype,
-                np.dtype("int64"),
-                samples.shape[-1] * samples.dtype,
-            ],
-        },
-    )
-
     # Iterate on N-1 axes of live mask. Last axis can be written
     # without worrying about order because it is sequential.
     for index in np.ndindex(live.shape[:-1]):
@@ -191,57 +157,16 @@ def write_to_segy_stack(
         file_path = path.join(file_root, uuid4().hex)
         part_segy_paths[index] = file_path
 
-        # Interleave samples and headers
-        part_traces = np.empty(num_live, dtype=trace_dtype)
-        part_traces["header"] = headers[index][part_live]
-        part_traces["trace"] = samples[index][part_live]
-        part_traces["pad"] = 0
+        # Create traces in bytes
+        trace_bytes = segy_factory.create_traces(
+            headers=headers[index][part_live],
+            samples=samples[index][part_live],
+        )
 
         with open(file_path, mode="wb") as fp:
-            part_traces.tofile(fp)
+            fp.write(trace_bytes)
 
     return part_segy_paths
-
-
-def check_byteswap(array: NDArray, out_byteorder: ByteOrder) -> NDArray:
-    """Check input byteorder and swap if user wants the other.
-
-    Args:
-        array: Array containing the data.
-        out_byteorder: Desired output data byte order.
-
-    Returns:
-        Original or byte-order swapped array.
-    """
-    in_byteorder = get_byteorder(array)
-
-    if in_byteorder != out_byteorder:
-        array.byteswap(inplace=True)
-        array = array.newbyteorder()
-
-    return array
-
-
-def cast_sample_format(
-    samples: NDArray,
-    out_dtype: Dtype,
-) -> NDArray:
-    """Cast sample format (dtype).
-
-    Args:
-        samples: Array containing the trace samples.
-        out_dtype: Desired output data type.
-
-    Returns:
-        New structured array with pre-processing applied.
-    """
-    if out_dtype == Dtype.IBM32:
-        samples = samples.astype("float32", copy=False)
-        samples = ieee2ibm(samples)
-    else:
-        samples = samples.astype(out_dtype.numpy_dtype, copy=False)
-
-    return samples
 
 
 # TODO: Abstract this to support various implementations by

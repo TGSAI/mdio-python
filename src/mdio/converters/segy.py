@@ -11,8 +11,9 @@ from typing import Any
 from typing import Sequence
 
 import numpy as np
-import segyio
 import zarr
+from segy import SegyFile
+from segy.schema import HeaderField
 
 from mdio.api.io_utils import process_url
 from mdio.converters.exceptions import EnvironmentFormatError
@@ -21,10 +22,8 @@ from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
 from mdio.segy import blocked_io
-from mdio.segy.byte_utils import Dtype
+from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.helpers_segy import create_zarr_hierarchy
-from mdio.segy.parsers import parse_binary_header
-from mdio.segy.parsers import parse_text_header
 from mdio.segy.utilities import get_grid_plan
 
 
@@ -36,25 +35,6 @@ except metadata.PackageNotFoundError:
     API_VERSION = "unknown"
 
 BACKENDS = ["s3", "gcs", "gs", "az", "abfs"]
-
-
-def parse_index_types(
-    str_types: Sequence[str] | None, num_index: int
-) -> Sequence[Dtype]:
-    """Convert string type keys to Dtype enums."""
-    if str_types is None:
-        parsed_types = [Dtype.INT32] * num_index
-    else:
-        try:
-            parsed_types = [Dtype[_type.upper()] for _type in str_types]
-        except KeyError as exc:
-            msg = (
-                "Unsupported header data-type. 'index_types' must be in "
-                f"{list(Dtype.__members__.keys())}"
-            )
-            raise KeyError(msg) from exc
-
-    return parsed_types
 
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
@@ -124,14 +104,13 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
             raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
-def segy_to_mdio(
+def segy_to_mdio(  # noqa: C901
     segy_path: str,
     mdio_path_or_buffer: str,
     index_bytes: Sequence[int],
     index_names: Sequence[str] | None = None,
     index_types: Sequence[str] | None = None,
     chunksize: Sequence[int] | None = None,
-    endian: str = "big",
     lossless: bool = True,
     compression_tolerance: float = 0.01,
     storage_options: dict[str, Any] | None = None,
@@ -180,8 +159,6 @@ def segy_to_mdio(
             Default is 4-byte integers for each index key.
         chunksize : Override default chunk size, which is (64, 64, 64) if
             3D, and (512, 512) for 2D.
-        endian: Endianness of the input SEG-Y. Rev.2 allows little endian.
-            Default is 'big'. Must be in `{"big", "little"}`
         lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
         compression_tolerance: Tolerance ZFP compression, optional. The fixed
             accuracy mode in ZFP guarantees there won't be any errors larger
@@ -364,7 +341,11 @@ def segy_to_mdio(
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
-    num_index = len(index_bytes)
+    if index_names is None:
+        index_names = [f"dim_{i}" for i in range(len(index_bytes))]
+
+    if index_types is None:
+        index_types = ["int32"] * len(index_bytes)
 
     if chunksize is not None:
         if len(chunksize) != len(index_bytes) + 1:
@@ -385,33 +366,30 @@ def segy_to_mdio(
         disk_cache=False,  # Making sure disk caching is disabled
     )
 
-    # Read file specific metadata, build grid, and live trace mask.
-    with segyio.open(
-        filename=segy_path, mode="r", ignore_geometry=True, endian=endian
-    ) as segy_handle:
-        text_header = parse_text_header(segy_handle)
-        binary_header = parse_binary_header(segy_handle)
-        num_traces = segy_handle.tracecount
+    # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
+    mdio_spec = mdio_segy_spec()
+    segy = SegyFile(url=segy_path, spec=mdio_spec)
 
-    index_types = parse_index_types(index_types, num_index)
+    text_header = segy.text_header
+    binary_header = segy.binary_header
+    num_traces = segy.num_traces
+
+    # Index the dataset using a spec that interprets the user provided index headers.
+    index_fields = []
+    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
+    for name, byte, format_ in zip(index_names, index_bytes, index_types):  # noqa: B905
+        index_fields.append(HeaderField(name=name, byte=byte, format=format_))
+    mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
+    segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid)
 
     dimensions, chunksize, index_headers = get_grid_plan(
-        segy_path=segy_path,
-        segy_endian=endian,
-        index_bytes=index_bytes,
-        index_names=index_names,
-        index_types=index_types,
-        binary_header=binary_header,
+        segy_file=segy_grid,
         return_headers=True,
         chunksize=chunksize,
         grid_overrides=grid_overrides,
     )
-
-    # Make grid and build global live trace mask
     grid = Grid(dims=dimensions)
-
     grid_density_qc(grid, num_traces)
-
     grid.build_map(index_headers)
 
     # Check grid validity by comparing trace numbers
@@ -452,17 +430,17 @@ def segy_to_mdio(
     write_attribute(
         name="text_header",
         zarr_group=zarr_root["metadata"],
-        attribute=text_header,
+        attribute=text_header.split("\n"),
     )
 
     write_attribute(
         name="binary_header",
         zarr_group=zarr_root["metadata"],
-        attribute=binary_header,
+        attribute=binary_header.to_dict(),
     )
 
     if chunksize is None:
-        dim_count = len(index_headers) + 1
+        dim_count = len(index_names) + 1
         if dim_count == 2:
             chunksize = (512,) * 2
 
@@ -484,8 +462,7 @@ def segy_to_mdio(
         suffix = "".join(suffix)
 
     stats = blocked_io.to_zarr(
-        segy_path=segy_path,
-        segy_endian=endian,
+        segy_file=segy,
         grid=grid,
         data_root=zarr_root["data"],
         metadata_root=zarr_root["metadata"],
