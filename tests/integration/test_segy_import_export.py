@@ -12,7 +12,7 @@ from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.converters import segy_to_mdio
 from mdio.core import Dimension
-from mdio.segy.compat import mdio_segyio_spec
+from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.geometry import StreamerShotGeometryType
 
 
@@ -339,7 +339,7 @@ class TestExport:
 
     def test_rand_equal(self, segy_input, segy_export_tmp):
         """IBM. Is random original traces and headers match round-trip file?"""
-        spec = mdio_segyio_spec
+        spec = mdio_segy_spec()
 
         in_segy = SegyFile(segy_input, spec=spec)
         out_segy = SegyFile(segy_export_tmp, spec=spec)

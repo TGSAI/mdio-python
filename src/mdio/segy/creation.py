@@ -15,7 +15,7 @@ from segy.schema import SegySpec
 from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
-from mdio.segy.compat import mdio_segyio_spec
+from mdio.segy.compat import mdio_segy_spec
 
 
 if TYPE_CHECKING:
@@ -84,7 +84,8 @@ def mdio_spec_to_segy(
         disk_cache=False,  # Making sure disk caching is disabled
     )
 
-    spec = mdio_segyio_spec.model_copy(deep=True)
+    mdio_file_version = mdio.root.attrs["api_version"]
+    spec = mdio_segy_spec(mdio_file_version)
     spec.endianness = Endianness(output_endian)
     factory = make_segy_factory(mdio, spec=spec)
 

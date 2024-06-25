@@ -22,7 +22,7 @@ from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
 from mdio.segy import blocked_io
-from mdio.segy.compat import mdio_segyio_spec
+from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 from mdio.segy.utilities import get_grid_plan
 
@@ -367,7 +367,7 @@ def segy_to_mdio(  # noqa: C901
     )
 
     # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
-    mdio_spec = mdio_segyio_spec.model_copy(deep=True)
+    mdio_spec = mdio_segy_spec()
     segy = SegyFile(url=segy_path, spec=mdio_spec)
 
     text_header = segy.text_header
