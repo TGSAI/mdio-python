@@ -6,6 +6,8 @@ flexibility. To support older files, we need to open them with the old SEG-Y spe
 This is where we define it.
 """
 
+from __future__ import annotations
+
 from importlib import metadata
 
 from segy.alias.segyio import SEGYIO_BIN_FIELD_MAP
