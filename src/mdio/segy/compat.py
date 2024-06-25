@@ -43,6 +43,9 @@ def get_trace_fields(version: str) -> list[HeaderField]:
 
     Args:
         version: MDIO version to generate the trace fields for.
+
+    Returns:
+        List of header fields for specified MDIO version trace header encoding.
     """
     trace_fields = [field.model for field in SEGYIO_TRACE_FIELD_MAP.values()]
     if version > "0.7.4":
