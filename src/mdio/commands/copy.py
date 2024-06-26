@@ -64,9 +64,9 @@ def copy(
     storage_options: dict | None = None,
     overwrite: bool = False,
 ) -> None:
-    """Copy a MDIO dataset to anpther MDIO dataset.
+    """Copy an MDIO dataset to another MDIO dataset.
 
-    Can also copy with empty data to be filled later. See `excludes`
+    You can also copy empty data to be filled in later. See `excludes`
     and `includes` parameters.
 
     More documentation about `excludes` and `includes` can be found
