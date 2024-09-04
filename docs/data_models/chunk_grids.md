@@ -133,7 +133,9 @@ conceptual and visually not to scale.
 
 ```{eval-rst}
 .. autopydantic_model:: RegularChunkGrid
+
 ----------
+
 .. autopydantic_model:: RegularChunkShape
 ```
 
@@ -143,7 +145,9 @@ conceptual and visually not to scale.
 
 ```{eval-rst}
 .. autopydantic_model:: RectilinearChunkGrid
+
 ----------
+
 .. autopydantic_model:: RectilinearChunkShape
 ```
 

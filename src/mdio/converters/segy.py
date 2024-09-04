@@ -7,8 +7,8 @@ import os
 from datetime import datetime
 from datetime import timezone
 from importlib import metadata
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Sequence
 
 import numpy as np
 import zarr
@@ -26,6 +26,9 @@ from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 from mdio.segy.utilities import get_grid_plan
 
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 logger = logging.getLogger(__name__)
 
@@ -65,20 +68,19 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
             MDIO__GRID__SPARSITY_RATIO_LIMIT is not a float.
     """
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)  # Exclude sample
-    dims = {k: v for k, v in zip(grid.dim_names, grid.shape)}  # noqa: B905
+    dims = dict(zip(grid.dim_names, grid.shape))
 
     logger.debug(f"Dimensions: {dims}")
     logger.debug(f"num_traces = {num_traces}")
     logger.debug(f"grid_traces = {grid_traces}")
     logger.debug(f"sparsity = {grid_traces / num_traces}")
 
-    grid_sparsity_ratio_limit = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", 10)
+    grid_sparsity_ratio_limit = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", "10")
     try:
         grid_sparsity_ratio_limit_ = float(grid_sparsity_ratio_limit)
     except ValueError:
-        raise EnvironmentFormatError(
-            "MDIO__GRID__SPARSITY_RATIO_LIMIT", "float"
-        ) from None
+        env_var, format_ = "MDIO__GRID__SPARSITY_RATIO_LIMIT", "float"
+        raise EnvironmentFormatError(env_var, format_) from None
 
     # Warning if we have above 50% sparsity.
     msg = ""
@@ -97,14 +99,15 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     # Extreme case where the grid is very sparse (usually user error)
     if grid_traces > grid_sparsity_ratio_limit_ * num_traces:
         logger.warning("WARNING: Sparse mdio grid detected!")
-        if os.getenv("MDIO__IGNORE_CHECKS", False):
-            # Do not raise an exception if MDIO_IGNORE_CHECK is False
+        ignore_checks = os.getenv("MDIO__IGNORE_CHECKS", "0") == "1"
+        if ignore_checks:
+            # Do not raise an exception if MDIO_IGNORE_CHECK is 1
             pass
         else:
             raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
-def segy_to_mdio(  # noqa: C901
+def segy_to_mdio(  # noqa: PLR0913, PLR0915, PLR0912
     segy_path: str,
     mdio_path_or_buffer: str,
     index_bytes: Sequence[int],
@@ -157,7 +160,7 @@ def segy_to_mdio(  # noqa: C901
         index_types: Tuple of the data-types for the index attributes.
             Must be in {"int16, int32, float16, float32, ibm32"}
             Default is 4-byte integers for each index key.
-        chunksize : Override default chunk size, which is (64, 64, 64) if
+        chunksize: Override default chunk size, which is (64, 64, 64) if
             3D, and (512, 512) for 2D.
         lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
         compression_tolerance: Tolerance ZFP compression, optional. The fixed
@@ -258,8 +261,10 @@ def segy_to_mdio(  # noqa: C901
 
         In cases where the user does not know if the input has unwrapped
         channels but desires to store with wrapped channel index use:
-        >>>    grid_overrides={"AutoChannelWrap": True,
-                               "AutoChannelTraceQC":  1000000}
+        >>>  grid_overrides = {
+        ...      "AutoChannelWrap": True,
+        ...      "AutoChannelTraceQC":  1000000,
+        ...  }
 
         For ingestion of pre-stack streamer data where the user needs to
         access/index *common-channel gathers* (single gun) then the following
@@ -347,13 +352,12 @@ def segy_to_mdio(  # noqa: C901
     if index_types is None:
         index_types = ["int32"] * len(index_bytes)
 
-    if chunksize is not None:
-        if len(chunksize) != len(index_bytes) + 1:
-            message = (
-                f"Length of chunks={len(chunksize)} must be ",
-                f"equal to array dimensions={len(index_bytes) + 1}",
-            )
-            raise ValueError(message)
+    if chunksize is not None and len(chunksize) != len(index_bytes) + 1:
+        message = (
+            f"Length of chunks={len(chunksize)} must be ",
+            f"equal to array dimensions={len(index_bytes) + 1}",
+        )
+        raise ValueError(message)
 
     if storage_options is None:
         storage_options = {}
@@ -376,8 +380,7 @@ def segy_to_mdio(  # noqa: C901
 
     # Index the dataset using a spec that interprets the user provided index headers.
     index_fields = []
-    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-    for name, byte, format_ in zip(index_names, index_bytes, index_types):  # noqa: B905
+    for name, byte, format_ in zip(index_names, index_bytes, index_types):
         index_fields.append(HeaderField(name=name, byte=byte, format=format_))
     mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
     segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid)
@@ -441,10 +444,10 @@ def segy_to_mdio(  # noqa: C901
 
     if chunksize is None:
         dim_count = len(index_names) + 1
-        if dim_count == 2:
+        if dim_count == 2:  # noqa: PLR2004
             chunksize = (512,) * 2
 
-        elif dim_count == 3:
+        elif dim_count == 3:  # noqa: PLR2004
             chunksize = (64,) * 3
 
         else:
@@ -466,7 +469,7 @@ def segy_to_mdio(  # noqa: C901
         grid=grid,
         data_root=zarr_root["data"],
         metadata_root=zarr_root["metadata"],
-        name="_".join(["chunked", suffix]),
+        name=f"chunked_{suffix}",
         dtype="float32",
         chunks=chunksize,
         lossless=lossless,
