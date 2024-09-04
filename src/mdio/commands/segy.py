@@ -42,7 +42,7 @@ example of ingesting a 3-D Post-Stack seismic data can be though as the
 following, per the SEG-Y Rev1 standard:
 
 \b
---header-names inline,crossline
+`--header-names inline,crossline
 --header-locations 189,193
 --header-types int32,int32
 
@@ -142,7 +142,7 @@ cli = Group(name="segy", help=SEGY_HELP)
     help="Option to add grid overrides.",
     type=JSON,
 )
-def segy_import(
+def segy_import(  # noqa: PLR0913
     segy_path: str,
     mdio_path: str,
     header_locations: list[int],
@@ -155,7 +155,7 @@ def segy_import(
     storage_options_output: dict[str, Any],
     overwrite: bool,
     grid_overrides: dict[str, Any],
-):
+) -> None:
     """Ingest SEG-Y file to MDIO.
 
     SEG-Y format is explained in the "segy" group of the command line
@@ -224,6 +224,7 @@ def segy_import(
 
     Usage:
 
+        \b
         Below are some examples of ingesting standard SEG-Y files per
         the SEG-Y Revision 1 and 2 formats.
 
@@ -269,8 +270,9 @@ def segy_import(
     wrapped channel numbers. Note the missing byte location and type
     for the "cable" index.
 
-
     Usage:
+
+        \b
         3D Seismic Shot Data (Byte Locations Vary):
         Let's assume streamer number does not exist but there are
         800 channels per cable.
@@ -279,8 +281,7 @@ def segy_import(
         --header-names shot,cable,chan
         --header-types int32,None,int32
         --chunk-size 8,2,256,512
-        --grid-overrides '{"ChannelWrap": True, "ChannelsPerCable": 800,
-                           "CalculateCable": True}'
+        --grid-overrides '{"ChannelWrap": True, "ChannelsPerCable": 800, "CalculateCable": True}'
 
         \b
         If we do have cable numbers in the headers, but channels are still
@@ -294,6 +295,7 @@ def segy_import(
         For shot gathers with channel numbers and wrapped channels, no
         grid overrides are necessary.
 
+        \b
         In cases where the user does not know if the input has unwrapped
         channels but desires to store with wrapped channel index use:
         --grid-overrides '{"AutoChannelWrap": True}'
@@ -343,7 +345,7 @@ def segy_import(
         --header-types int32,int16,int32
         --chunk-size 8,2,256,512
         --grid-overrides '{"HasDuplicates": True}'
-    """
+    """  # noqa: D301
     from mdio import segy_to_mdio
 
     segy_to_mdio(
@@ -397,7 +399,7 @@ def segy_export(
     access_pattern: str,
     storage_options: dict[str, Any],
     endian: str,
-):
+) -> None:
     """Export MDIO file to SEG-Y.
 
     SEG-Y format is explained in the "segy" group of the command line
