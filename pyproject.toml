@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "multidimio"
-version = "0.8.3"
+version = "1.0.0-alpha.1"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = ["TGS <sys-opensource@tgs.com>"]
 maintainers = [
@@ -31,6 +31,9 @@ dask = ">=2024.12.0"
 tqdm = "^4.67.0"
 psutil = "^6.1.0"
 fsspec = ">=2024.10.0"
+pydantic = "^2.8.2"
+pydantic-settings = "^2.4.0"
+pint = "^0.24.3"
 segy = "^0.3.0"
 rich = "^13.9.4"
 urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
@@ -49,35 +52,94 @@ cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.10.0"
+ruff = "^0.6.3"
 coverage = {version = "^7.6.7", extras = ["toml"]}
 darglint = "^1.8.1"
-flake8 = "^7.1.0"
-flake8-bandit = "^4.1.1"
-flake8-bugbear = "^24.4.26"
-flake8-docstrings = "^1.7.0"
-flake8-rst-docstrings = "^0.3.0"
-furo = ">=2024.8.6"
-isort = "^5.13.2"
 mypy = "^1.13.0"
-pep8-naming = "^0.14.1"
 pre-commit = "^4.0.1"
 pre-commit-hooks = "^5.0.0"
 pytest = "^8.3.3"
 pytest-dependency = "^0.6.0"
-pyupgrade = "^3.19.0"
-safety = "^3.2.3"
-sphinx-autobuild = ">=2024.10.3"
-sphinx-click = "^6.0.0"
-sphinx-copybutton = "^0.5.2"
+safety = "^3.2.7"
 typeguard = "^4.4.1"
 xdoctest = {version = "^1.2.0", extras = ["colors"]}
-myst-parser = "^3.0.1"
-Pygments = "^2.18.0"
-Sphinx = "^7.4.7"
+
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "7.4.7"
+sphinx-design = "^0.6.1"
+sphinx-click = "^6.0.0"
+sphinx-copybutton = "^0.5.2"
+furo = "^2024.8.6"
+myst-nb = "^1.1.1"
+linkify-it-py = "^2.0.3"
+autodoc-pydantic = "^2.2.0"
+sphinx-autobuild = "^2024.10.3"
 
 [tool.poetry.scripts]
 mdio = "mdio.__main__:main"
+
+[tool.ruff]
+target-version = "py39"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle
+    "F",   # pyflakes
+    "B",  # bugbear
+    "I",  # isort
+    "UP",  # pyupgrade
+    "N",  # pep8-naming
+    "D",   # pydocstyle
+    "ANN",  # annotations
+    "S",  # bandit
+    "A",  # builtins
+    "C4",  # comprehensions
+    "DTZ",  # datetimez
+    "EM",  # errmsg
+    "ICN",  # import-conventions
+    "PIE",  # pie
+    "PT",  # pytest-style
+    "RSE",  # raise
+    "RET",  # return
+    "SIM",  # simplify
+    "TID",  # tidy-imports
+    "TCH",  # type-checking
+    "ARG",  # unused-arguments
+    "PTH",  # use-pathlib
+    "TD",  # todos
+    "PL",  # pylint
+    "FLY", # flynt
+    "NPY",  # numpy
+]
+ignore = [
+    "ANN101",  # Missing type annotation for `self`
+    "D107",  # Missing docstring in __init__ ; should be in class docstring
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.lint.flake8-annotations]
+mypy-init-return = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 100
+ignore-overlong-task-comments = true
+
+[tool.ruff.lint.isort]
+force-single-line = true
+lines-after-imports = 2
+
+[tool.pydoclint]
+style = "google"
+arg-type-hints-in-docstring = false
+check-return-types = false
+check-yield-types = false
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
@@ -90,24 +152,37 @@ source = ["mdio", "tests"]
 [tool.coverage.report]
 show_missing = true
 fail_under = 80
-
-[tool.isort]
-profile = "black"
-force_single_line = true
-lines_after_imports = 2
+exclude_also = [
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
 
 [tool.mypy]
 strict = true
 warn_unreachable = true
+warn_redundant_casts = true
+warn_unused_ignores = true
 pretty = true
 show_column_numbers = true
 show_error_codes = true
 show_error_context = true
+plugins = ["pydantic.mypy", "numpy.typing.mypy_plugin"]
+
+# for strict mypy: (this is the tricky one)
+disallow_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = ["fsspec.*", "numba.*"]
+ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = ["zarr"]
 ignore_missing_imports = true
 
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [build-system]
 requires = ["poetry-core", "fastentrypoints"]
