@@ -237,7 +237,7 @@ def docs_build(session: Session) -> None:
 def docs(session: Session) -> None:
     """Build and serve the documentation with live reloading on file changes."""
     ignore = [
-        "docs/jupyter_execute/tutorials/quickstart.ipynb",
+        "docs/jupyter_execute/*",
     ]
     args = ["--open-browser", "docs", "docs/_build", "--ignore", *ignore]
     args = session.posargs or args

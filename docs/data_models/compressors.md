@@ -65,12 +65,16 @@ For more details about compression modes, see [ZFP Documentation].
 
 ```{eval-rst}
 .. autopydantic_model:: Blosc
+
 ----------
+
 .. autoclass:: BloscAlgorithm()
     :members:
     :undoc-members:
     :member-order: bysource
+
 ----------
+
 .. autoclass:: BloscShuffle()
     :members:
     :undoc-members:
@@ -84,7 +88,9 @@ For more details about compression modes, see [ZFP Documentation].
 
 ```{eval-rst}
 .. autopydantic_model:: ZFP
+
 ----------
+
 .. autoclass:: ZFPMode()
     :members:
     :undoc-members:

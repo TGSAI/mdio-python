@@ -22,6 +22,7 @@ Scalar types are used to represent numbers and boolean values in MDIO arrays.
 ```{eval-rst}
 .. autosummary::
    :nosignatures:
+
    ScalarType
 ```
 
@@ -125,6 +126,7 @@ efficient access and manipulation.
 ```{eval-rst}
 .. autosummary::
    :nosignatures:
+
    StructuredType
    StructuredField
 ```
@@ -248,7 +250,9 @@ This will yield an in-memory or on-disk struct that looks like this (for each el
 
 ```{eval-rst}
 .. autopydantic_model:: StructuredType
+
 ----------
+
 .. autopydantic_model:: StructuredField
 ```
 
