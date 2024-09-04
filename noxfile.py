@@ -25,7 +25,7 @@ except ImportError:
 
 package = "mdio"
 python_versions = ["3.12", "3.11", "3.10", "3.9"]
-nox.needs_version = ">= 2022.1.7"
+nox.needs_version = ">= 2024.04.15"
 nox.options.sessions = (
     "pre-commit",
     "safety",
@@ -121,18 +121,10 @@ def precommit(session: Session) -> None:
         "--show-diff-on-failure",
     ]
     session.install(
-        "black",
+        "ruff",
         "darglint",
-        "flake8",
-        "flake8-bandit",
-        "flake8-bugbear",
-        "flake8-docstrings",
-        "flake8-rst-docstrings",
-        "isort",
-        "pep8-naming",
         "pre-commit",
         "pre-commit-hooks",
-        "pyupgrade",
     )
     session.run("pre-commit", *args)
     if args and args[0] == "install":
@@ -145,6 +137,7 @@ def safety(session: Session) -> None:
     requirements = session.poetry.export_requirements()
     session.install("safety")
     # TODO(Altay): Remove the CVE ignore once its resolved. Its not critical, so ignoring now.
+    # https://github.com/TGSAI/mdio-python/issues/434
     ignore = ["70612"]
     session.run(
         "safety",
@@ -224,11 +217,13 @@ def docs_build(session: Session) -> None:
     session.install(".")
     session.install(
         "sphinx",
+        "sphinx-design",
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
         "myst-nb",
         "linkify-it-py",
+        "autodoc-pydantic",
     )
 
     build_dir = Path("docs", "_build")
@@ -241,16 +236,22 @@ def docs_build(session: Session) -> None:
 @session(python=python_versions[0])
 def docs(session: Session) -> None:
     """Build and serve the documentation with live reloading on file changes."""
-    args = session.posargs or ["--open-browser", "docs", "docs/_build"]
+    ignore = [
+        "docs/jupyter_execute/tutorials/quickstart.ipynb",
+    ]
+    args = ["--open-browser", "docs", "docs/_build", "--ignore", *ignore]
+    args = session.posargs or args
     session.install(".")
     session.install(
         "sphinx",
-        "sphinx-autobuild",
+        "sphinx-design",
         "sphinx-click",
         "sphinx-copybutton",
         "furo",
         "myst-nb",
         "linkify-it-py",
+        "autodoc-pydantic",
+        "sphinx-autobuild",
     )
 
     build_dir = Path("docs", "_build")
