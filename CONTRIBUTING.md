@@ -49,7 +49,7 @@ different systems.
 
 This should seamlessly enable development for users of [VS Code] on systems with docker installed.
 
-### Known Issues:
+### Known Issues
 
 - `git config --global --add safe.directory $(pwd)` might be needed inside the container.
 

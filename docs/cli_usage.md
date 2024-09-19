@@ -68,27 +68,27 @@ Credentials can be automatically fetched from pre-authenticated AWS CLI.
 See [here](https://s3fs.readthedocs.io/en/latest/index.html#credentials) for the order `s3fs`
 checks them. If it is not pre-authenticated, you need to pass `--storage-options`.
 
-**Prefix:**  
+**Prefix:**
 `s3://`
 
-**Storage Options:**  
-`key`: The auth key from AWS  
+**Storage Options:**
+`key`: The auth key from AWS
 `secret`: The auth secret from AWS
 
 Using UNIX:
 
 ```shell
-mdio segy import \
-  path/to/my.segy \
-  s3://bucket/prefix/my.mdio \
-  --header-locations 189,193 \
-  --storage-options '{"key": "my_super_private_key", "secret": "my_super_private_secret"}'
+$ mdio segy import \
+    path/to/my.segy \
+    s3://bucket/prefix/my.mdio \
+    --header-locations 189,193 \
+    --storage-options '{"key": "my_super_private_key", "secret": "my_super_private_secret"}'
 ```
 
 Using Windows (note the extra escape characters `\`):
 
-```console
-mdio segy import \
+```shell
+$ mdio segy import \
   path/to/my.segy \
   s3://bucket/prefix/my.mdio \
   --header-locations 189,193 \
@@ -104,30 +104,30 @@ checks them. If it is not pre-authenticated, you need to pass `--storage-options
 GCP uses [service accounts](https://cloud.google.com/iam/docs/service-accounts) to pass
 authentication information to APIs.
 
-**Prefix:**  
+**Prefix:**
 `gs://` or `gcs://`
 
-**Storage Options:**  
+**Storage Options:**
 `token`: The service account JSON value as string, or local path to JSON
 
 Using a service account:
 
 ```shell
-mdio segy import \
-  path/to/my.segy \
-  gs://bucket/prefix/my.mdio \
-  --header-locations 189,193 \
-  --storage-options '{"token": "~/.config/gcloud/application_default_credentials.json"}'
+$ mdio segy import \
+    path/to/my.segy \
+    gs://bucket/prefix/my.mdio \
+    --header-locations 189,193 \
+    --storage-options '{"token": "~/.config/gcloud/application_default_credentials.json"}'
 ```
 
 Using browser to populate authentication:
 
 ```shell
-mdio segy import \
-  path/to/my.segy \
-  gs://bucket/prefix/my.mdio \
-  --header-locations 189,193 \
-  --storage-options '{"token": "browser"}'
+$ mdio segy import \
+    path/to/my.segy \
+    gs://bucket/prefix/my.mdio \
+    --header-locations 189,193 \
+    --storage-options '{"token": "browser"}'
 ```
 
 ### Microsoft Azure
@@ -136,19 +136,19 @@ There are various ways to authenticate with Azure Data Lake (ADL).
 See [here](https://github.com/fsspec/adlfs#details) for some details.
 If ADL is not pre-authenticated, you need to pass `--storage-options`.
 
-**Prefix:**  
+**Prefix:**
 `az://` or `abfs://`
 
-**Storage Options:**  
-`account_name`: Azure Data Lake storage account name  
+**Storage Options:**
+`account_name`: Azure Data Lake storage account name
 `account_key`: Azure Data Lake storage account access key
 
 ```shell
-mdio segy import \
-  path/to/my.segy \
-  az://bucket/prefix/my.mdio \
-  --header-locations 189,193 \
-  --storage-options '{"account_name": "myaccount", "account_key": "my_super_private_key"}'
+$ mdio segy import \
+    path/to/my.segy \
+    az://bucket/prefix/my.mdio \
+    --header-locations 189,193 \
+    --storage-options '{"account_name": "myaccount", "account_key": "my_super_private_key"}'
 ```
 
 ### Advanced Cloud Features
