@@ -252,7 +252,7 @@ class TestImport6D:
         assert grid.select_dim("sample") == samples_exp
 
 
-@pytest.mark.dependency()
+@pytest.mark.dependency
 @pytest.mark.parametrize("index_bytes", [(17, 13)])
 @pytest.mark.parametrize("index_names", [("inline", "crossline")])
 def test_3d_import(segy_input, zarr_tmp, index_bytes, index_names):
@@ -345,7 +345,7 @@ class TestExport:
         out_segy = SegyFile(segy_export_tmp, spec=spec)
 
         num_traces = in_segy.num_traces
-        random_indices = list(np.random.randint(0, num_traces, 100))
+        random_indices = np.random.choice(num_traces, 100, replace=False)
         in_traces = in_segy.trace[random_indices]
         out_traces = out_segy.trace[random_indices]
 
