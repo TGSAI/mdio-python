@@ -31,7 +31,7 @@ dask = ">=2024.6.1"
 tqdm = "^4.66.4"
 psutil = "^6.0.0"
 fsspec = ">=2024.6.0"
-segy = "^0.1.4"
+segy = "^0.2.0"
 rich = "^13.7.1"
 urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
 
@@ -105,7 +105,7 @@ show_error_codes = true
 show_error_context = true
 
 [[tool.mypy.overrides]]
-module = ["segyio", "zarr"]
+module = ["zarr"]
 ignore_missing_imports = true
 
 
