@@ -30,7 +30,7 @@ zarr = "^2.18.2"
 dask = ">=2024.6.1"
 tqdm = "^4.66.4"
 psutil = "^6.0.0"
-fsspec = ">=2024.6.0"
+fsspec = ">=2024.9.0"
 segy = "^0.2.0"
 rich = "^13.7.1"
 urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
@@ -38,9 +38,9 @@ urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
 # Extras
 distributed = {version = ">=2024.6.1", optional = true}
 bokeh = {version = "^3.4.1", optional = true}
-s3fs = {version = ">=2024.6.0", optional = true}
-gcsfs = {version = ">=2024.6.0", optional = true}
-adlfs = {version = ">=2024.4.1", optional = true}
+s3fs = {version = ">=2024.9.0", optional = true}
+gcsfs = {version = ">=2024.9.0.post1", optional = true}
+adlfs = {version = ">=2024.7.0", optional = true}
 zfpy = {version = "^0.5.5", optional = true}
 
 [tool.poetry.extras]
