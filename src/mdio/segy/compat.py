@@ -8,6 +8,7 @@ This is where we define it.
 
 from __future__ import annotations
 
+import os
 from importlib import metadata
 
 from segy.alias.segyio import SEGYIO_BIN_FIELD_MAP
@@ -16,6 +17,7 @@ from segy.schema import HeaderField
 from segy.schema import HeaderSpec
 from segy.schema import ScalarType
 from segy.schema import SegySpec
+from segy.schema import TextHeaderEncoding
 from segy.schema import TextHeaderSpec
 from segy.schema import TraceDataSpec
 from segy.schema import TraceSpec
@@ -57,6 +59,8 @@ def get_trace_fields(version: str) -> list[HeaderField]:
 
 def mdio_segy_spec(version: str | None = None) -> SegySpec:
     """Get a SEG-Y encoding spec for MDIO based on version."""
+    encoding = os.getenv("MDIO__SEGY__TEXT_ENCODING", TextHeaderEncoding.EBCDIC)
+
     version = MDIO_VERSION if version is None else version
 
     binary_fields = get_binary_fields()
@@ -64,7 +68,7 @@ def mdio_segy_spec(version: str | None = None) -> SegySpec:
 
     return SegySpec(
         segy_standard=None,
-        text_header=TextHeaderSpec(),  # default EBCDIC
+        text_header=TextHeaderSpec(encoding=encoding),
         binary_header=HeaderSpec(fields=binary_fields, item_size=400, offset=3200),
         trace=TraceSpec(
             header=HeaderSpec(fields=trace_fields, item_size=240),
