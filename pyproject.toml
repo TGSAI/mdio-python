@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "multidimio"
-version = "0.8.0.post1"
+version = "0.8.1"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = ["TGS <sys-opensource@tgs.com>"]
 maintainers = [
