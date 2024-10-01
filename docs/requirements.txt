@@ -2,5 +2,5 @@ furo==2024.8.6
 sphinx==8.0.2
 sphinx-click==6.0.0
 sphinx-copybutton==0.5.2
-myst-nb==1.1.1
+myst-nb==1.1.2
 linkify-it-py==2.0.3
