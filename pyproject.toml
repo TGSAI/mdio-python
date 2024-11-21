@@ -27,19 +27,19 @@ python = ">=3.9,<3.13"
 click = "^8.1.7"
 click-params = "^0.5.0"
 zarr = "^2.18.2"
-dask = ">=2024.6.1"
-tqdm = "^4.66.4"
-psutil = "^6.0.0"
-fsspec = ">=2024.9.0"
-segy = "^0.2.2"
-rich = "^13.7.1"
+dask = ">=2024.8.0"
+tqdm = "^4.67.0"
+psutil = "^6.1.0"
+fsspec = ">=2024.10.0"
+segy = "^0.3.0"
+rich = "^13.9.4"
 urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
 
 # Extras
-distributed = {version = ">=2024.6.1", optional = true}
-bokeh = {version = "^3.4.1", optional = true}
-s3fs = {version = ">=2024.9.0", optional = true}
-gcsfs = {version = ">=2024.9.0.post1", optional = true}
+distributed = {version = ">=2024.8.0", optional = true}
+bokeh = {version = "^3.4.3", optional = true}
+s3fs = {version = ">=2024.10.0", optional = true}
+gcsfs = {version = ">=2024.10.0", optional = true}
 adlfs = {version = ">=2024.7.0", optional = true}
 zfpy = {version = "^0.5.5", optional = true}
 
@@ -49,32 +49,32 @@ cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.4.2"
-coverage = {version = "^7.5.3", extras = ["toml"]}
+black = "^24.10.0"
+coverage = {version = "^7.6.7", extras = ["toml"]}
 darglint = "^1.8.1"
 flake8 = "^7.1.0"
 flake8-bandit = "^4.1.1"
 flake8-bugbear = "^24.4.26"
 flake8-docstrings = "^1.7.0"
 flake8-rst-docstrings = "^0.3.0"
-furo = ">=2024.5.6"
+furo = ">=2024.8.6"
 isort = "^5.13.2"
-mypy = "^1.10.0"
+mypy = "^1.13.0"
 pep8-naming = "^0.14.1"
-pre-commit = "^3.7.1"
-pre-commit-hooks = "^4.6.0"
-pytest = "^8.2.2"
+pre-commit = "^4.0.1"
+pre-commit-hooks = "^5.0.0"
+pytest = "^8.3.3"
 pytest-dependency = "^0.6.0"
-pyupgrade = "^3.16.0"
+pyupgrade = "^3.19.0"
 safety = "^3.2.3"
-sphinx-autobuild = ">=2024.4.16"
+sphinx-autobuild = ">=2024.10.3"
 sphinx-click = "^6.0.0"
 sphinx-copybutton = "^0.5.2"
-typeguard = "^4.3.0"
-xdoctest = {version = "^1.1.5", extras = ["colors"]}
+typeguard = "^4.4.1"
+xdoctest = {version = "^1.2.0", extras = ["colors"]}
 myst-parser = "^3.0.1"
 Pygments = "^2.18.0"
-Sphinx = "^7.3.7"
+Sphinx = "^7.4.7"
 
 [tool.poetry.scripts]
 mdio = "mdio.__main__:main"
