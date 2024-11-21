@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -37,7 +38,14 @@ def header_scan_worker(
     Returns:
         HeaderArray parsed from SEG-Y library.
     """
-    return segy_file.header[slice(*trace_range)]
+    slice_ = slice(*trace_range)
+
+    cloud_native_mode = os.getenv("MDIO__IMPORT__CLOUD_NATIVE", default="False")
+
+    if cloud_native_mode.lower() in {"true", "1"}:
+        return segy_file.trace[slice_].header
+
+    return segy_file.header[slice_]
 
 
 def trace_worker(

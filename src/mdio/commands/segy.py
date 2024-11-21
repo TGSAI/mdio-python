@@ -66,7 +66,7 @@ cli = Group(name="segy", help=SEGY_HELP)
 
 
 @cli.command(name="import")
-@argument("segy-path", type=Path(exists=True))
+@argument("segy-path", type=STRING)
 @argument("mdio-path", type=STRING)
 @option(
     "-loc",
