@@ -14,12 +14,17 @@ def fake_segy_tmp(tmp_path_factory):
 
 
 @pytest.fixture(scope="session")
-def segy_input(tmp_path_factory):
+def segy_input_uri():
+    """Path to dome dataset for cloud testing."""
+    return "http://s3.amazonaws.com/teapot/filt_mig.sgy"
+
+
+@pytest.fixture(scope="session")
+def segy_input(segy_input_uri, tmp_path_factory):
     """Download teapot dome dataset for testing."""
-    url = "http://s3.amazonaws.com/teapot/filt_mig.sgy"
     tmp_dir = tmp_path_factory.mktemp("segy")
     tmp_file = path.join(tmp_dir, "teapot.segy")
-    urlretrieve(url, tmp_file)  # noqa: S310
+    urlretrieve(segy_input_uri, tmp_file)  # noqa: S310
 
     return tmp_file
 

@@ -162,7 +162,32 @@ Some useful examples are:
 - File Buffering and random access
 - Mount anything with FUSE
 
-````{note}
+#### Buffered Reads in Ingestion
+
+MDIO v0.8.2 introduces the `MDIO__IMPORT__CLOUD_NATIVE` environment variable to optimize
+SEG-Y header scans by balancing bandwidth usage with read latency through buffered reads.
+
+**When to Use:** This variable is most effective in high-throughput environments like cloud-based ingestion
+systems but can also improve performance for mechanical drives or slow connections.
+
+**How to Enable:** Set the variable to `{"True", "1", "true"}`. For example:
+
+```console
+$ export MDIO__IMPORT__CLOUD_NATIVE="true"
+```
+
+**How It Works:** Buffered reads minimize millions of remote requests during SEG-Y header scans:
+
+- **Cloud Environments:** Ideal for high-throughput connections between cloud ingestion
+  machines and object stores.
+- **Slow Connections:** Bandwidth is the bottleneck, may be faster without it.
+- **Local Reads:** May benefit mechanical drives; SSDs typically perform fine without it.
+
+While buffered reads process the file twice, the tradeoff improves ingestion performance and
+reduces object-store request costs.
+
+#### Chaining `fsspec` Protocols
+
 When combining advanced protocols like `simplecache` and using a remote store like `s3` the
 URL can be chained like `simplecache::s3://bucket/prefix/file.mdio`. When doing this the
 `--storage-options` argument must explicitly state parameters for the cloud backend and the
@@ -181,10 +206,10 @@ extra protocol. For the above example it would look like this:
 ```
 
 In one line:
+
 ```json
 {"s3": {"key": "my_super_private_key", "secret": "my_super_private_secret"}, "simplecache": {"cache_storage": "/custom/temp/storage/path"}
 ```
-````
 
 ## CLI Reference
 
