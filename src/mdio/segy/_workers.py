@@ -8,11 +8,11 @@ from typing import Any
 from typing import cast
 
 import numpy as np
+from segy.arrays import HeaderArray
 
 
 if TYPE_CHECKING:
     from segy import SegyFile
-    from segy.arrays import HeaderArray
     from zarr import Array
 
     from mdio.core import Grid
