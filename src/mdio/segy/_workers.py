@@ -5,13 +5,14 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import cast
 
 import numpy as np
+from segy.arrays import HeaderArray
 
 
 if TYPE_CHECKING:
     from segy import SegyFile
-    from segy.arrays import HeaderArray
     from zarr import Array
 
     from mdio.core import Grid
@@ -43,9 +44,20 @@ def header_scan_worker(
     cloud_native_mode = os.getenv("MDIO__IMPORT__CLOUD_NATIVE", default="False")
 
     if cloud_native_mode.lower() in {"true", "1"}:
-        return segy_file.trace[slice_].header
+        trace_header = segy_file.trace[slice_].header
+    else:
+        trace_header = segy_file.header[slice_]
 
-    return segy_file.header[slice_]
+    # Get non-void fields from dtype and copy to new array for memory efficiency
+    fields = trace_header.dtype.fields
+    non_void_fields = [(name, dtype) for name, (dtype, _) in fields.items()]
+    new_dtype = np.dtype(non_void_fields)
+
+    # Allocate empty memory and assign non-void fields
+    trace_header_filtered = np.empty_like(trace_header, dtype=new_dtype)
+    trace_header_filtered[:] = trace_header
+
+    return cast(HeaderArray, trace_header_filtered)
 
 
 def trace_worker(
