@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from segy import SegyFile
 
 default_cpus = cpu_count(logical=True)
-NUM_CPUS = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
 
 
 def parse_index_headers(
@@ -54,7 +53,8 @@ def parse_index_headers(
     # For Unix async reads with s3fs/fsspec & multiprocessing,
     # use 'spawn' instead of default 'fork' to avoid deadlocks
     # on cloud stores. Slower but necessary. Default on Windows.
-    num_workers = min(n_blocks, NUM_CPUS)
+    num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
+    num_workers = min(n_blocks, num_cpus)
     context = mp.get_context("spawn")
 
     tqdm_kw = dict(unit="block", dynamic_ncols=True)
