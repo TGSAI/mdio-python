@@ -37,7 +37,7 @@ urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
 
 # Extras
 distributed = {version = ">=2024.8.0", optional = true}
-bokeh = {version = "^3.4.3", optional = true}
+bokeh = {version = "^3.4.2", optional = true}
 s3fs = {version = ">=2024.10.0", optional = true}
 gcsfs = {version = ">=2024.10.0", optional = true}
 adlfs = {version = ">=2024.7.0", optional = true}
