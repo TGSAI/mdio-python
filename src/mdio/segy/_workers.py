@@ -53,11 +53,11 @@ def header_scan_worker(
     non_void_fields = [(name, dtype) for name, (dtype, _) in fields.items()]
     new_dtype = np.dtype(non_void_fields)
 
-    # Allocate empty memory and assign non-void fields
-    trace_header_filtered = np.empty_like(trace_header, dtype=new_dtype)
-    trace_header_filtered[:] = trace_header
+    # Copy to non-padded memory, ndmin is to handle the case where there is
+    # 1 trace in block (singleton) so we can concat and assign stuff later.
+    trace_header = np.array(trace_header, dtype=new_dtype, ndmin=1)
 
-    return cast(HeaderArray, trace_header_filtered)
+    return cast(HeaderArray, trace_header)
 
 
 def trace_worker(
