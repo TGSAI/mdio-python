@@ -55,9 +55,9 @@ def header_scan_worker(
 
     # Copy to non-padded memory, ndmin is to handle the case where there is
     # 1 trace in block (singleton) so we can concat and assign stuff later.
-    trace_header_filtered = np.array(trace_header, dtype=new_dtype, ndmin=1)
+    trace_header = np.array(trace_header, dtype=new_dtype, ndmin=1)
 
-    return cast(HeaderArray, trace_header_filtered)
+    return cast(HeaderArray, trace_header)
 
 
 def trace_worker(
