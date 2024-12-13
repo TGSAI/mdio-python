@@ -115,9 +115,6 @@ def segy_export_rechunker(
 
     Returns:
         Adjusted chunk sizes for further processing
-
-    Raises:
-        ValueError: If resulting chunks will split file on disk.
     """
     ndim = len(shape) - 1  # minus the sample axis
 
