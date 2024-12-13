@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
-from dask.array.core import auto_chunks
+from dask.array.core import normalize_chunks
 
 from mdio.core import Dimension
 from mdio.segy.geometry import GridOverrider
@@ -16,6 +17,9 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike
     from segy import SegyFile
     from segy.arrays import HeaderArray
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_grid_plan(  # noqa:  C901
@@ -87,7 +91,7 @@ def segy_export_rechunker(
     shape: tuple[int, ...],
     dtype: DTypeLike,
     limit: str = "300M",
-) -> tuple[int, ...]:
+) -> tuple[tuple[int, ...], ...]:
     """Determine chunk sizes for writing out SEG-Y given limit.
 
     This module finds the desired chunk sizes for given chunk size
@@ -111,19 +115,17 @@ def segy_export_rechunker(
 
     Returns:
         Adjusted chunk sizes for further processing
-
-    Raises:
-        ValueError: If resulting chunks will split file on disk.
     """
     ndim = len(shape) - 1  # minus the sample axis
 
     # set sample chunks to max
     prev_chunks = chunks[:-1] + (shape[-1],)
 
+    new_chunks = tuple()
     for idx in range(ndim, -1, -1):
         tmp_chunks = prev_chunks[:idx] + ("auto",) + prev_chunks[idx + 1 :]
 
-        new_chunks = auto_chunks(
+        new_chunks = normalize_chunks(
             chunks=tmp_chunks,
             shape=shape,
             limit=limit,
@@ -132,22 +134,7 @@ def segy_export_rechunker(
         )
 
         # Ensure it is integers
-        new_chunks = tuple(map(int, new_chunks))
         prev_chunks = new_chunks
 
-    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-    qc_iterator = zip(new_chunks, chunks, shape)  # noqa: B905
-
-    for idx, (dim_new_chunk, dim_chunk, dim_size) in enumerate(qc_iterator):
-        # Sometimes dim_chunk can be larger than dim_size. This catches when
-        # that is False and the new chunk will be smaller than original
-        if dim_new_chunk < dim_chunk < dim_size:
-            msg = (
-                f"Dimension {idx} chunk size in {new_chunks=} is smaller than "
-                f"the disk {chunks=} with given {limit=}. This will cause very "
-                f"poor performance due to redundant reads. Please increase limit "
-                f"to get larger chunks. However, this may require more memory."
-            )
-            raise ValueError(msg)
-
+    logger.debug(f"Auto export rechunking to: {new_chunks}")
     return new_chunks
