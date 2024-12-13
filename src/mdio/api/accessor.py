@@ -248,7 +248,6 @@ class MDIOAccessor:
                 for idx, dim in enumerate(new_chunks)
             )
 
-            print(f"Array shape is {self.shape}")
             self._orig_chunks = self.chunks
             self.chunks = new_chunks
 
