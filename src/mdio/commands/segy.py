@@ -115,10 +115,17 @@ cli = Group(name="segy", help=SEGY_HELP)
     show_default=True,
 )
 @option(
-    "-storage",
-    "--storage-options",
+    "-storage-input",
+    "--storage-options-input",
     required=False,
-    help="Custom storage options for cloud backends",
+    help="Storage options for SEG-Y input file.",
+    type=JSON,
+)
+@option(
+    "-storage-output",
+    "--storage-options-output",
+    required=False,
+    help="Storage options for the MDIO output file.",
     type=JSON,
 )
 @option(
@@ -144,7 +151,8 @@ def segy_import(
     chunk_size: list[int],
     lossless: bool,
     compression_tolerance: float,
-    storage_options: dict[str, Any],
+    storage_options_input: dict[str, Any],
+    storage_options_output: dict[str, Any],
     overwrite: bool,
     grid_overrides: dict[str, Any],
 ):
@@ -347,7 +355,8 @@ def segy_import(
         chunksize=chunk_size,
         lossless=lossless,
         compression_tolerance=compression_tolerance,
-        storage_options=storage_options,
+        storage_options_input=storage_options_input,
+        storage_options_output=storage_options_output,
         overwrite=overwrite,
         grid_overrides=grid_overrides,
     )
