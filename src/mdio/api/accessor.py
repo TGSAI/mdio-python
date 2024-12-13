@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import dask.array as da
 import numpy as np
 import numpy.typing as npt
@@ -15,6 +17,9 @@ from mdio.api.io_utils import process_url
 from mdio.core import Grid
 from mdio.core.exceptions import MDIONotFoundError
 from mdio.exceptions import ShapeError
+
+
+logger = logging.getLogger(__name__)
 
 
 class MDIOAccessor:
@@ -263,9 +268,9 @@ class MDIOAccessor:
         self._traces = self._array_loader(**trace_kwargs)
 
         if self._backend == "dask" and self._orig_chunks != self._chunks:
-            dask_chunksize = self._traces.chunksize
-            print(f"Setting (dask) chunks from {self._orig_chunks} to {dask_chunksize}")
-            self.chunks = dask_chunksize
+            dask_chunks = self._traces.chunks
+            logger.info(f"Setting MDIO in-memory chunks to {dask_chunks}")
+            self.chunks = dask_chunks
 
         header_kwargs = dict(
             group_handle=self._metadata_group,
