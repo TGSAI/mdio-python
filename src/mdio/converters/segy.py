@@ -389,7 +389,7 @@ def segy_to_mdio(  # noqa: C901
     for name, byte, format_ in zip(index_names, index_bytes, index_types):  # noqa: B905
         index_fields.append(HeaderField(name=name, byte=byte, format=format_))
     mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
-    segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid)
+    segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid, settings=segy_settings)
 
     dimensions, chunksize, index_headers = get_grid_plan(
         segy_file=segy_grid,
