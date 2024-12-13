@@ -41,8 +41,8 @@ The protocols that help choose a backend (i.e. `s3://`, `gs://`, or `az://`) can
 prepended to the **_MDIO_** path.
 
 The connection string can be passed to the command-line-interface (CLI) using the
-`-storage, --storage-options` flag as a JSON string or the Python API with the `storage_options`
-keyword argument as a Python dictionary.
+`-storage-{input,output, --storage-options-{input,output}` flag as a JSON string or the Python API with
+the `storage_options_{input,output}` keyword argument as a Python dictionary.
 
 ````{warning}
 On Windows clients, JSON strings are passed to the CLI with a special escape character.
@@ -66,7 +66,7 @@ If this done incorrectly, you will get an invalid JSON string error from the CLI
 
 Credentials can be automatically fetched from pre-authenticated AWS CLI.
 See [here](https://s3fs.readthedocs.io/en/latest/index.html#credentials) for the order `s3fs`
-checks them. If it is not pre-authenticated, you need to pass `--storage-options`.
+checks them. If it is not pre-authenticated, you need to pass `--storage-options-{input,output}`.
 
 **Prefix:**  
 `s3://`
@@ -82,7 +82,7 @@ mdio segy import \
   path/to/my.segy \
   s3://bucket/prefix/my.mdio \
   --header-locations 189,193 \
-  --storage-options '{"key": "my_super_private_key", "secret": "my_super_private_secret"}'
+  --storage-options-output '{"key": "my_super_private_key", "secret": "my_super_private_secret"}'
 ```
 
 Using Windows (note the extra escape characters `\`):
@@ -92,14 +92,14 @@ mdio segy import \
   path/to/my.segy \
   s3://bucket/prefix/my.mdio \
   --header-locations 189,193 \
-  --storage-options "{\"key\": \"my_super_private_key\", \"secret\": \"my_super_private_secret\"}"
+  --storage-options-output "{\"key\": \"my_super_private_key\", \"secret\": \"my_super_private_secret\"}"
 ```
 
 ### Google Cloud Provider
 
 Credentials can be automatically fetched from pre-authenticated `gcloud` CLI.
 See [here](https://gcsfs.readthedocs.io/en/latest/#credentials) for the order `gcsfs`
-checks them. If it is not pre-authenticated, you need to pass `--storage-options`.
+checks them. If it is not pre-authenticated, you need to pass `--storage-options-{input-output}`.
 
 GCP uses [service accounts](https://cloud.google.com/iam/docs/service-accounts) to pass
 authentication information to APIs.
@@ -117,7 +117,7 @@ mdio segy import \
   path/to/my.segy \
   gs://bucket/prefix/my.mdio \
   --header-locations 189,193 \
-  --storage-options '{"token": "~/.config/gcloud/application_default_credentials.json"}'
+  --storage-options-output '{"token": "~/.config/gcloud/application_default_credentials.json"}'
 ```
 
 Using browser to populate authentication:
@@ -127,14 +127,14 @@ mdio segy import \
   path/to/my.segy \
   gs://bucket/prefix/my.mdio \
   --header-locations 189,193 \
-  --storage-options '{"token": "browser"}'
+  --storage-options-output '{"token": "browser"}'
 ```
 
 ### Microsoft Azure
 
 There are various ways to authenticate with Azure Data Lake (ADL).
 See [here](https://github.com/fsspec/adlfs#details) for some details.
-If ADL is not pre-authenticated, you need to pass `--storage-options`.
+If ADL is not pre-authenticated, you need to pass `--storage-options-{input,output}`.
 
 **Prefix:**  
 `az://` or `abfs://`
@@ -148,7 +148,7 @@ mdio segy import \
   path/to/my.segy \
   az://bucket/prefix/my.mdio \
   --header-locations 189,193 \
-  --storage-options '{"account_name": "myaccount", "account_key": "my_super_private_key"}'
+  --storage-options-output '{"account_name": "myaccount", "account_key": "my_super_private_key"}'
 ```
 
 ### Advanced Cloud Features
@@ -190,7 +190,7 @@ reduces object-store request costs.
 
 When combining advanced protocols like `simplecache` and using a remote store like `s3` the
 URL can be chained like `simplecache::s3://bucket/prefix/file.mdio`. When doing this the
-`--storage-options` argument must explicitly state parameters for the cloud backend and the
+`--storage-options-{input,output}` argument must explicitly state parameters for the cloud backend and the
 extra protocol. For the above example it would look like this:
 
 ```json

@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Sequence
 from datetime import datetime
 from datetime import timezone
 from importlib import metadata
 from typing import Any
-from typing import Sequence
 
 import numpy as np
 import zarr
 from segy import SegyFile
+from segy.config import SegySettings
 from segy.schema import HeaderField
 
 from mdio.api.io_utils import process_url
@@ -113,7 +114,8 @@ def segy_to_mdio(  # noqa: C901
     chunksize: Sequence[int] | None = None,
     lossless: bool = True,
     compression_tolerance: float = 0.01,
-    storage_options: dict[str, Any] | None = None,
+    storage_options_input: dict[str, Any] | None = None,
+    storage_options_output: dict[str, Any] | None = None,
     overwrite: bool = False,
     grid_overrides: dict | None = None,
 ) -> None:
@@ -164,7 +166,9 @@ def segy_to_mdio(  # noqa: C901
             accuracy mode in ZFP guarantees there won't be any errors larger
             than this value. The default is 0.01, which gives about 70%
             reduction in size. Will be ignored if `lossless=True`.
-        storage_options: Storage options for the cloud storage backend.
+        storage_options_input: Storage options for SEG-Y input file.
+            Default is `None` (will assume anonymous)
+        storage_options_output: Storage options for the MDIO output file.
             Default is `None` (will assume anonymous)
         overwrite: Toggle for overwriting existing store
         grid_overrides: Option to add grid overrides. See examples.
@@ -355,20 +359,25 @@ def segy_to_mdio(  # noqa: C901
             )
             raise ValueError(message)
 
-    if storage_options is None:
-        storage_options = {}
+    # Handle storage options and check permissions etc
+    if storage_options_input is None:
+        storage_options_input = {}
+
+    if storage_options_output is None:
+        storage_options_output = {}
 
     store = process_url(
         url=mdio_path_or_buffer,
         mode="w",
-        storage_options=storage_options,
+        storage_options=storage_options_output,
         memory_cache_size=0,  # Making sure disk caching is disabled,
         disk_cache=False,  # Making sure disk caching is disabled
     )
 
     # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
     mdio_spec = mdio_segy_spec()
-    segy = SegyFile(url=segy_path, spec=mdio_spec)
+    segy_settings = SegySettings(storage_options=storage_options_input)
+    segy = SegyFile(url=segy_path, spec=mdio_spec, settings=segy_settings)
 
     text_header = segy.text_header
     binary_header = segy.binary_header
@@ -380,7 +389,7 @@ def segy_to_mdio(  # noqa: C901
     for name, byte, format_ in zip(index_names, index_bytes, index_types):  # noqa: B905
         index_fields.append(HeaderField(name=name, byte=byte, format=format_))
     mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
-    segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid)
+    segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid, settings=segy_settings)
 
     dimensions, chunksize, index_headers = get_grid_plan(
         segy_file=segy_grid,
@@ -482,7 +491,7 @@ def segy_to_mdio(  # noqa: C901
     store_nocache = process_url(
         url=mdio_path_or_buffer,
         mode="r+",
-        storage_options=storage_options,
+        storage_options=storage_options_output,
         memory_cache_size=0,  # Making sure disk caching is disabled,
         disk_cache=False,  # Making sure disk caching is disabled
     )
