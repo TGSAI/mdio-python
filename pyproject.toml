@@ -41,7 +41,7 @@ bokeh = {version = "^3.4.2", optional = true}
 s3fs = {version = ">=2024.10.0", optional = true}
 gcsfs = {version = ">=2024.10.0", optional = true}
 adlfs = {version = ">=2024.7.0", optional = true}
-zfpy = {version = "^0.5.5", optional = true}
+zfpy = {version = "^1.0.1", optional = true}
 
 [tool.poetry.extras]
 distributed = ["distributed", "bokeh"]
