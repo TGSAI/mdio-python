@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Callable
 from importlib import metadata
 from pathlib import Path
-from typing import Callable
 
 import click
 

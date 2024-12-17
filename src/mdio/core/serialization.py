@@ -6,8 +6,8 @@ Current support for JSON and YAML.
 import json
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Callable
 from inspect import Signature
-from typing import Callable
 
 import yaml
 
