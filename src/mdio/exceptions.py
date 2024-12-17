@@ -24,8 +24,7 @@ class ShapeError(MDIOError):
             shapes: Shapes of the variables for the `message`.
         """
         if names is not None and shapes is not None:
-            # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-            shape_dict = zip(names, shapes)  # noqa: B905
+            shape_dict = zip(names, shapes, strict=True)
             extras = [f"{name}: {shape}" for name, shape in shape_dict]
             extras = " <> ".join(extras)
 

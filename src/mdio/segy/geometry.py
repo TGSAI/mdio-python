@@ -6,10 +6,10 @@ import logging
 import time
 from abc import ABC
 from abc import abstractmethod
+from collections.abc import Sequence
 from enum import Enum
 from enum import auto
 from typing import TYPE_CHECKING
-from typing import Sequence
 
 import numpy as np
 from numpy.lib import recfunctions as rfn
@@ -233,18 +233,20 @@ def create_trace_index(
     dtype=np.int16,
 ):
     """Update dictionary counter tree for counting trace key for auto index."""
-    # Add index header
-    trace_no_hdr = np.empty(index_headers[header_names[0]].shape, dtype=dtype)
-    index_headers = rfn.append_fields(
-        index_headers, "trace", trace_no_hdr, usemask=False
-    )
-    idx = 0
     if depth == 0:
+        # If there's no hierarchical depth, no tracing needed.
         return None
 
-    for idx_values in zip(  # noqa: B905
-        *(index_headers[header_names[i]] for i in range(depth))
-    ):
+    # Add index header
+    trace_no_field = np.zeros(index_headers.shape, dtype=dtype)
+    index_headers = rfn.append_fields(
+        index_headers, "trace", trace_no_field, usemask=False
+    )
+    idx = 0
+
+    # Extract the relevant columns upfront
+    headers = [index_headers[name] for name in header_names[:depth]]
+    for idx, idx_values in enumerate(zip(*headers, strict=True)):
         if depth == 1:
             counter[idx_values[0]] += 1
             index_headers["trace"][idx] = counter[idx_values[0]]
@@ -486,9 +488,8 @@ class AutoChannelWrap(GridOverrideCommand):
         unique_cables, cable_chan_min, cable_chan_max, geom_type = result
         logger.info(f"Ingesting dataset as {geom_type.name}")
 
-        # TODO: Add strict=True and remove noqa when min Python is 3.10
-        for cable, chan_min, chan_max in zip(  # noqa: B905
-            unique_cables, cable_chan_min, cable_chan_max
+        for cable, chan_min, chan_max in zip(
+            unique_cables, cable_chan_min, cable_chan_max, strict=True
         ):
             logger.info(
                 f"Cable: {cable} has min chan: {chan_min} and max chan: {chan_max}"
@@ -601,15 +602,13 @@ class AutoShotWrap(GridOverrideCommand):
         unique_shot_lines, unique_guns_in_shot_line, geom_type = result
         logger.info(f"Ingesting dataset as shot type: {geom_type.name}")
 
-        # TODO: Add strict=True and remove noqa when min Python is 3.10
         max_num_guns = 1
         for shot_line in unique_shot_lines:
             logger.info(
                 f"shot_line: {shot_line} has guns: {unique_guns_in_shot_line[str(shot_line)]}"
             )
             num_guns = len(unique_guns_in_shot_line[str(shot_line)])
-            if num_guns > max_num_guns:
-                max_num_guns = num_guns
+            max_num_guns = max(num_guns, max_num_guns)
 
         # This might be slow and potentially could be improved with a rewrite
         # to prevent so many lookups

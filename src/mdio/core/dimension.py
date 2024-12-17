@@ -13,10 +13,7 @@ from mdio.core.serialization import Serializer
 from mdio.exceptions import ShapeError
 
 
-# TODO: once min Python >3.10, remove slots attribute and
-#  add `slots=True` to dataclass decorator and also add
-#  `kw_only=True` to enforce keyword only initialization.
-@dataclass(eq=False, order=False)
+@dataclass(eq=False, order=False, slots=True)
 class Dimension:
     """Dimension class.
 
@@ -27,8 +24,6 @@ class Dimension:
         coords: Vector of coordinates.
         name: Name of the dimension.
     """
-
-    __slots__ = ("coords", "name")
 
     coords: list | tuple | NDArray | range
     name: str
@@ -81,11 +76,11 @@ class Dimension:
 
         return hash(self) == hash(other)
 
-    def min(self) -> NDArray[np.float]:
+    def min(self) -> NDArray[float]:
         """Get minimum value of dimension."""
         return np.min(self.coords)
 
-    def max(self) -> NDArray[np.float]:
+    def max(self) -> NDArray[float]:
         """Get maximum value of dimension."""
         return np.max(self.coords)
 

@@ -385,8 +385,7 @@ def segy_to_mdio(  # noqa: C901
 
     # Index the dataset using a spec that interprets the user provided index headers.
     index_fields = []
-    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-    for name, byte, format_ in zip(index_names, index_bytes, index_types):  # noqa: B905
+    for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
         index_fields.append(HeaderField(name=name, byte=byte, format=format_))
     mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
     segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid, settings=segy_settings)
