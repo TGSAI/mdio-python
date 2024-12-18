@@ -42,7 +42,7 @@ example of ingesting a 3-D Post-Stack seismic data can be though as the
 following, per the SEG-Y Rev1 standard:
 
 \b
-`--header-names inline,crossline
+--header-names inline,crossline
 --header-locations 189,193
 --header-types int32,int32
 
