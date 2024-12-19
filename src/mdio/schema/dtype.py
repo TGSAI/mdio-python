@@ -31,7 +31,7 @@ ALLOWED_TYPES = [
     np.float16.__name__,
     np.float32.__name__,
     np.float64.__name__,
-    np.longdouble.__name__,
+    np.float128.__name__,
     # Complex
     np.complex64.__name__,
     np.complex128.__name__,
