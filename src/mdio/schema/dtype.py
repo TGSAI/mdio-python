@@ -28,11 +28,14 @@ ALLOWED_TYPES = [
     np.uint32.__name__,
     np.uint64.__name__,
     # Floating point
+    np.float16.__name__,
     np.float32.__name__,
     np.float64.__name__,
+    np.longdouble.__name__,
     # Complex
     np.complex64.__name__,
     np.complex128.__name__,
+    np.clongdouble.__name__,
 ]
 
 
