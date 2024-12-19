@@ -29,7 +29,7 @@ click-params = "^0.5.0"
 zarr = "^2.18.2"
 dask = ">=2024.12.0"
 tqdm = "^4.67.0"
-psutil = "^6.1.0"
+psutil = "^6.0.0"
 fsspec = ">=2024.10.0"
 pydantic = "^2.8.2"
 pydantic-settings = "^2.4.0"
@@ -52,25 +52,25 @@ cloud = ["s3fs", "gcsfs", "adlfs"]
 lossy = ["zfpy"]
 
 [tool.poetry.group.dev.dependencies]
-ruff = "^0.6.3"
-coverage = {version = "^7.6.7", extras = ["toml"]}
+ruff = "^0.8.4"
+coverage = {version = "^7.6.9", extras = ["toml"]}
 darglint = "^1.8.1"
 mypy = "^1.13.0"
 pre-commit = "^4.0.1"
 pre-commit-hooks = "^5.0.0"
-pytest = "^8.3.3"
+pytest = "^8.3.4"
 pytest-dependency = "^0.6.0"
-safety = "^3.2.7"
+safety = "^3.2.13"
 typeguard = "^4.4.1"
 xdoctest = {version = "^1.2.0", extras = ["colors"]}
 
 
 [tool.poetry.group.docs.dependencies]
-sphinx = "7.4.7"
+sphinx = "^8.1.3"
 sphinx-design = "^0.6.1"
 sphinx-click = "^6.0.0"
 sphinx-copybutton = "^0.5.2"
-furo = ">=2024.8.6"
+furo = "^2024.8.6"
 myst-nb = "^1.1.1"
 linkify-it-py = "^2.0.3"
 autodoc-pydantic = "^2.2.0"
