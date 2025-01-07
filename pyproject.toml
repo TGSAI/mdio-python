@@ -1,52 +1,48 @@
-[tool.poetry]
+[project]
 name = "multidimio"
-version = "0.8.3"
+dynamic = [ "version", "classifiers" ]
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
-authors = ["TGS <sys-opensource@tgs.com>"]
-maintainers = [
-    "Altay Sansal <altay.sansal@tgs.com>",
-]
+authors = [{ name = "Altay Sansal", email = "altay.sansal@tgs.com" }]
 license = "Apache-2.0"
 readme = "README.md"
-homepage = "https://mdio.dev"
+keywords = ["mdio", "multidimio", "seismic", "wind", "data"]
+requires-python = ">=3.10,<3.13"
+dependencies = [
+    "click (>=8.1.7,<9.0.0)",
+    "click-params (>=0.5.0,<0.6.0)",
+    "zarr (>=2.18.2,<3.0.0)",
+    "dask (>=2024.12.0)",
+    "tqdm (>=4.67.0,<5.0.0)",
+    "psutil (>=6.1.0,<7.0.0)",
+    "fsspec (>=2024.10.0)",
+    "segy (>=0.3.0,<0.4.0)",
+    "rich (>=13.9.4,<14.0.0)"
+]
+
+[project.optional-dependencies]
+cloud = [
+    "s3fs (>=2024.10.0)",
+    "gcsfs (>=2024.10.0)",
+    "adlfs (>=2024.7.0)"
+]
+distributed = [
+    "distributed (>=2024.12.0)",
+    "bokeh (>=3.4.2,<4.0.0)",
+]
+lossy = ["zfpy (>=1.0.1,<2.0.0)"]
+
+[project.urls]
+homepage = "https://mdio.dev/"
 repository = "https://github.com/TGSAI/mdio-python"
 documentation = "https://mdio-python.readthedocs.io"
-classifiers = [
-    "Development Status :: 4 - Beta",
-]
-packages = [
-    { include = "mdio", from = "src" },
-]
-keywords = ["mdio", "multidimio", "seismic", "wind", "data"]
 
-[tool.poetry.urls]
-Changelog = "https://github.com/TGSAI/mdio-python/releases"
+[project.scripts]
+mdio = "mdio.__main__:main"
 
-[tool.poetry.dependencies]
-python = ">=3.10,<3.13"
-click = "^8.1.7"
-click-params = "^0.5.0"
-zarr = "^2.18.2"
-dask = ">=2024.12.0"
-tqdm = "^4.67.0"
-psutil = "^6.1.0"
-fsspec = ">=2024.10.0"
-segy = "^0.3.0"
-rich = "^13.9.4"
-urllib3 = "^1.26.18" # Workaround for poetry-plugin-export/issues/183
-
-# Extras
-distributed = {version = ">=2024.12.0", optional = true}
-bokeh = {version = "^3.4.2", optional = true}
-s3fs = {version = ">=2024.10.0", optional = true}
-gcsfs = {version = ">=2024.10.0", optional = true}
-adlfs = {version = ">=2024.7.0", optional = true}
-zfpy = {version = "^1.0.1", optional = true}
-
-[tool.poetry.extras]
-distributed = ["distributed", "bokeh"]
-cloud = ["s3fs", "gcsfs", "adlfs"]
-lossy = ["zfpy"]
+[tool.poetry]
+packages = [{ include = "mdio", from = "src" }]
+version = "0.8.3"
+classifiers = ["Development Status :: 4 - Beta"]
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.10.0"
@@ -75,9 +71,6 @@ xdoctest = {version = "^1.2.0", extras = ["colors"]}
 myst-parser = "^3.0.1"
 Pygments = "^2.18.0"
 Sphinx = "^7.4.7"
-
-[tool.poetry.scripts]
-mdio = "mdio.__main__:main"
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
