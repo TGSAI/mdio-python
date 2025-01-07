@@ -3899,19 +3899,19 @@ typing-extensions = ">=4.7.1"
 
 [[package]]
 name = "segy"
-version = "0.3.0"
+version = "0.3.1"
 description = "The Ultimate Python SEG-Y I/O with Cloud Support and Schemas"
 optional = false
-python-versions = "<3.13,>=3.9"
+python-versions = "<3.13,>=3.10"
 groups = ["main"]
 markers = "python_version <= \"3.11\" or python_version >= \"3.12\""
 files = [
-    {file = "segy-0.3.0-py3-none-any.whl", hash = "sha256:d5cd2abb8f544efdd7a2c127e60821c7550a9a98c0402a20f9a84a48789fd536"},
-    {file = "segy-0.3.0.tar.gz", hash = "sha256:a9f1382314145fd80caefaed1aab936e1286f3fbf31b73ff86e3b04339bb3248"},
+    {file = "segy-0.3.1-py3-none-any.whl", hash = "sha256:bc636860cb88a6f32a3798fd164ab7d00ce67632ea40389356187b6fa87d571b"},
+    {file = "segy-0.3.1.tar.gz", hash = "sha256:649f336c593492674db5a1b1e83cddef503f9e5201743d397fcc72d529bee9a8"},
 ]
 
 [package.dependencies]
-fsspec = ">=2024.10.0,<2025.0.0"
+fsspec = ">=2024.10.0"
 numba = ">=0.59.1,<0.70.0"
 numpy = ">=2.0.0,<3.0.0"
 pandas = ">=2.2.2,<3.0.0"
@@ -3921,7 +3921,7 @@ rapidfuzz = ">=3.10.1,<4.0.0"
 typer = ">=0.13.1,<0.14.0"
 
 [package.extras]
-cloud = ["adlfs (>=2024.7.0,<2025.0.0)", "gcsfs (>=2024.10.0,<2025.0.0)", "s3fs (>=2024.10.0,<2025.0.0)"]
+cloud = ["adlfs (>=2024.7.0)", "gcsfs (>=2024.10.0)", "s3fs (>=2024.10.0)"]
 
 [[package]]
 name = "setuptools"
@@ -5046,4 +5046,4 @@ lossy = ["zfpy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "1eda34502439ebec3d4720552cf2f1e4c96e9b816fb5eac3d3b4876684dec897"
+content-hash = "0ce9de7ba0c30ea861513ca997a90aa5be21528ca88564066e94059493317797"
