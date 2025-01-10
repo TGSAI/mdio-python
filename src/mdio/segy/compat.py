@@ -113,6 +113,9 @@ def revision_encode(binary_header: dict, version_str: str) -> dict:
 
     Returns:
         The updated binary header with the encoded revision.
+
+    Raises:
+        InvalidMDIOError: Raised when binary header in MDIO is broken.
     """
     version_obj = version.parse(version_str)
     if version_obj > version.parse("0.7.4"):
