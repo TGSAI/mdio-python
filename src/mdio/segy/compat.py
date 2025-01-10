@@ -63,7 +63,7 @@ def get_trace_fields(version_str: str) -> list[HeaderField]:
     * mdio>=0.8.0 adds an extra field to the end to fill the last 8 bytes
 
     Args:
-        version: MDIO version to generate the trace fields for.
+        version_str: MDIO version to generate the trace fields for.
 
     Returns:
         List of header fields for specified MDIO version trace header encoding.
