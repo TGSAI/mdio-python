@@ -50,3 +50,7 @@ class WrongTypeError(MDIOError):
             message = " - ".join([message, extras])
 
         super().__init__(message)
+
+
+class InvalidMDIOError(MDIOError):
+    """Raised when an invalid MDIO file is encountered."""

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from os import path
 from shutil import copyfileobj
@@ -16,10 +17,14 @@ from tqdm.auto import tqdm
 
 from mdio.api.accessor import MDIOReader
 from mdio.segy.compat import mdio_segy_spec
+from mdio.segy.compat import revision_encode
 
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
+
+logger = logging.getLogger(__name__)
 
 
 def make_segy_factory(
@@ -91,7 +96,9 @@ def mdio_spec_to_segy(
 
     text_str = "\n".join(mdio.text_header)
     text_bytes = factory.create_textual_header(text_str)
-    bin_hdr_bytes = factory.create_binary_header(mdio.binary_header)
+
+    binary_header = revision_encode(mdio.binary_header, mdio_file_version)
+    bin_hdr_bytes = factory.create_binary_header(binary_header)
 
     with open(output_segy_path, mode="wb") as fp:
         fp.write(text_bytes)
