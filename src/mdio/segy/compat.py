@@ -132,6 +132,7 @@ def revision_encode(binary_header: dict, version_str: str) -> dict:
         raise InvalidMDIOError(msg) from KeyError
 
     code = (major << 8) | minor
+    code_hex = f"0x{code:04x}"
     binary_header["segy_revision"] = code
-    logger.info(f"Encoded revision {major}.{minor} to {code=} ~ {f"0x{code:04x}"}")
+    logger.info(f"Encoded revision {major}.{minor} to {code=} ~ {code_hex}")
     return binary_header
