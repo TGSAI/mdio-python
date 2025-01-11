@@ -41,7 +41,7 @@ mdio = "mdio.__main__:main"
 
 [tool.poetry]
 packages = [{ include = "mdio", from = "src" }]
-version = "0.8.3"
+version = "0.8.4"
 classifiers = ["Development Status :: 4 - Beta"]
 
 [tool.poetry.group.dev.dependencies]
