@@ -170,7 +170,7 @@ SEG-Y header scans by balancing bandwidth usage with read latency through buffer
 **When to Use:** This variable is most effective in high-throughput environments like cloud-based ingestion
 systems but can also improve performance for mechanical drives or slow connections.
 
-**How to Enable:** Set the variable to `{"True", "1", "true"}`. For example:
+**How to Enable:** Set the variable to one of `{"True", "1", "true"}`. For example:
 
 ```console
 $ export MDIO__IMPORT__CLOUD_NATIVE="true"
