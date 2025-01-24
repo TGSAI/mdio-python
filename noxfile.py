@@ -24,7 +24,7 @@ except ImportError:
 
 
 package = "mdio"
-python_versions = ["3.12", "3.11", "3.10"]
+python_versions = ["3.13", "3.12", "3.11", "3.10"]
 nox.needs_version = ">= 2022.1.7"
 nox.options.sessions = (
     "pre-commit",
