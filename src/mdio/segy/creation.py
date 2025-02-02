@@ -175,8 +175,11 @@ def serialize_to_segy_stack(
         aligned_headers = headers[tuple(dim_indices)][aligned_live_mask]
 
         buffer = segy_factory.create_traces(aligned_headers, aligned_samples)
-        aligned_filename = ".".join(map(str, dim_coords))
-        with open(f"{file_root}/{aligned_filename}._mdiotemp", mode="wb") as fp:
+
+        aligned_filename = "/".join(map(str, dim_coords))
+        aligned_path = f"{file_root}/{aligned_filename}._mdiotemp"
+        os.makedirs(os.path.dirname(aligned_path), exist_ok=True)
+        with open(aligned_path, mode="wb") as fp:
             fp.write(buffer)
 
     return live_mask

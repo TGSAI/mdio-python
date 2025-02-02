@@ -225,6 +225,7 @@ def segy_trace_concat(
     indices_iter = np.ndindex(prefix_block_shape)
     coords_iter = ndrange(prefix_block_coords)
 
+    destination_map = {}
     for dim_indices, dim_coords in zip(indices_iter, coords_iter, strict=True):
         # TODO(Altay): When python minimum is 3.11 change to is_block_live[*dim_indices]
         aligned_live = is_block_live[tuple(dim_indices)]
@@ -232,16 +233,22 @@ def segy_trace_concat(
         if np.count_nonzero(aligned_live) == 0:
             continue
 
-        source_file_index = ".".join(map(str, dim_coords))
-        source_path = f"{filename_prefix}/{source_file_index}._mdiotemp"
+        source_index = "/".join(map(str, dim_coords))
+        dest_index = "/".join(map(str, dim_coords[:-1]))
 
-        dest_file_index = ".".join(map(str, dim_coords[:-1]))
-        dest_path = f"{filename_prefix}/{dest_file_index}._mdiotemp"
+        if dest_index not in destination_map:
+            destination_map[dest_index] = []
 
-        with open(dest_path, "ab") as dest, open(source_path, "rb") as src:
-            copyfileobj(src, dest)
+        destination_map[dest_index].append(source_index)
 
-        os.remove(source_path)
+    for dest_index, source_indices in destination_map.items():
+        dest_path = f"{filename_prefix}/{dest_index}._mdiotemp"
+        with open(dest_path, "wb") as dest_file:
+            for src_index in source_indices:
+                src_path = f"{filename_prefix}/{src_index}._mdiotemp"
+                with open(src_path, "rb") as src_file:
+                    copyfileobj(src_file, dest_file)
+                os.remove(src_path)
 
     return is_block_live.any(axis=-1)
 
