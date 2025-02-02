@@ -164,13 +164,15 @@ def serialize_to_segy_stack(
     # Writes them to global coordinates so we can combine them
     # in the right order later
     for dim_indices, dim_coords in zip(indices_iter, coords_iter, strict=True):
-        aligned_live_mask = live_mask[*dim_indices]
+        # TODO(Altay): When python minimum is 3.11 change to live_mask[*dim_indices]
+        aligned_live_mask = live_mask[tuple(dim_indices)]
 
         if np.count_nonzero(aligned_live_mask) == 0:
             continue
 
-        aligned_samples = samples[*dim_indices][aligned_live_mask]
-        aligned_headers = headers[*dim_indices][aligned_live_mask]
+        # TODO(Altay): When python minimum is 3.11 change to samples[*dim_indices]
+        aligned_samples = samples[tuple(dim_indices)][aligned_live_mask]
+        aligned_headers = headers[tuple(dim_indices)][aligned_live_mask]
 
         buffer = segy_factory.create_traces(aligned_headers, aligned_samples)
         aligned_filename = ".".join(map(str, dim_coords))

@@ -226,7 +226,8 @@ def segy_trace_concat(
     coords_iter = ndrange(prefix_block_coords)
 
     for dim_indices, dim_coords in zip(indices_iter, coords_iter, strict=True):
-        aligned_live = is_block_live[*dim_indices]
+        # TODO(Altay): When python minimum is 3.11 change to is_block_live[*dim_indices]
+        aligned_live = is_block_live[tuple(dim_indices)]
 
         if np.count_nonzero(aligned_live) == 0:
             continue
