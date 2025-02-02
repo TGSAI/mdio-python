@@ -4,10 +4,8 @@ from __future__ import annotations
 
 import logging
 import os
-from os import path
 from shutil import copyfileobj
 from typing import TYPE_CHECKING
-from uuid import uuid4
 
 import numpy as np
 from segy.factory import SegyFactory
@@ -18,6 +16,8 @@ from tqdm.auto import tqdm
 from mdio.api.accessor import MDIOReader
 from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.compat import revision_encode
+from mdio.segy.utilities import find_trailing_ones_index
+from mdio.segy.utilities import ndrange
 
 
 if TYPE_CHECKING:
@@ -107,73 +107,79 @@ def mdio_spec_to_segy(
     return mdio, factory
 
 
-def write_to_segy_stack(
+def serialize_to_segy_stack(
     samples: NDArray,
     headers: NDArray,
-    live: NDArray,
+    live_mask: NDArray,
     file_root: str,
     segy_factory: SegyFactory,
+    block_info: dict | None = None,
 ) -> NDArray:
-    """Pre-process seismic data for SEG-Y and write partial blocks.
+    """Pre-process seismic data for SEG-Y and write partial 2D blocks.
 
     This function will take numpy arrays for trace samples, headers, and live mask.
     Then it will do the following:
-    1. Convert sample format to `out_dtype`.
-    2. Byte-swap samples and headers if needed based on `out_byteorder`.
-    3. Iterate inner dimensions and write blocks of traces.
-    3.1. Combine samples and headers to form a SEG-Y trace.
-    3.2. Drop non-live samples.
-    3.3. Write line block to disk.
-    3.4. Save file names for further merges
-    4. Written files will be saved, so further merge methods
-    can combine them to a single flat SEG-Y dataset.
+    1. Iterate outer dimensions that are wrapped.
+    2. Drop non-live samples and headers.
+    3. Combine samples and headers to form a SEG-Y trace.
+    4. Write serialized bytes to disk.
 
     Args:
         samples: Array containing the trace samples.
         headers: Array containing the trace headers.
-        live: Array containing the trace live mask.
+        live_mask: Array containing the trace live mask.
         file_root: Root directory to write partial SEG-Y files.
         segy_factory: A SEG-Y factory configured to write out with user params.
+        block_info: Dask map_blocks reserved kwarg for block indices / shape etc.
 
     Returns:
-        Array containing file names for partial data. None means
-        there were no live traces within the block / line.
+        Live mask, as is, for combined blocks (dropped sample dimension).
     """
-    # Make output array with string type. We need to know
-    # the length of the string ahead of time.
-    # Last axis can be written as sequential, so we collapse that to 1.
-    mock_path = path.join(file_root, uuid4().hex)
-    paths_dtype = f"U{len(mock_path)}"
-    paths_shape = live.shape[:-1] + (1,)
-    part_segy_paths = np.full(paths_shape, fill_value="missing", dtype=paths_dtype)
+    if block_info is None:
+        return live_mask
 
-    # Fast path to return if no live traces.
-    if np.count_nonzero(live) == 0:
-        return part_segy_paths
+    if np.count_nonzero(live_mask) == 0:
+        return live_mask
 
-    # Iterate on N-1 axes of live mask. Last axis can be written
-    # without worrying about order because it is sequential.
-    for index in np.ndindex(live.shape[:-1]):
-        part_live = live[index]
-        num_live = np.count_nonzero(part_live)
+    # Drop map_blocks padded dim
+    live_mask = live_mask[..., 0]
+    headers = headers[..., 0]
 
-        if num_live == 0:
+    # Set up chunk boundaries and coordinates to write
+    global_num_blocks = block_info[0]["num-chunks"]
+    block_coords = block_info[0]["array-location"]
+    result_chunk_shape = block_info[None]["chunk-shape"]
+
+    # Find dimensions that are not chunked to -1 (full size)
+    # Typically outer (slow changing) dimensions
+    consecutive_dim_index = find_trailing_ones_index(global_num_blocks)
+    prefix_block_coords = block_coords[:consecutive_dim_index]
+    prefix_block_shape = result_chunk_shape[:consecutive_dim_index]
+
+    # Generate iterators for dimension's index and coords
+    indices_iter = np.ndindex(prefix_block_shape)
+    coords_iter = ndrange(prefix_block_coords)
+
+    # This pulls 2D unchunked slices out of the ND chunks
+    # Writes them to global coordinates so we can combine them
+    # in the right order later
+    for dim_indices, dim_coords in zip(indices_iter, coords_iter, strict=True):
+        # TODO(Altay): When python minimum is 3.11 change to live_mask[*dim_indices]
+        aligned_live_mask = live_mask[tuple(dim_indices)]
+
+        if np.count_nonzero(aligned_live_mask) == 0:
             continue
 
-        # Generate unique file name and append to return list.
-        file_path = path.join(file_root, uuid4().hex)
-        part_segy_paths[index] = file_path
+        # TODO(Altay): When python minimum is 3.11 change to samples[*dim_indices]
+        aligned_samples = samples[tuple(dim_indices)][aligned_live_mask]
+        aligned_headers = headers[tuple(dim_indices)][aligned_live_mask]
 
-        # Create traces in bytes
-        trace_bytes = segy_factory.create_traces(
-            headers=headers[index][part_live],
-            samples=samples[index][part_live],
-        )
+        buffer = segy_factory.create_traces(aligned_headers, aligned_samples)
+        aligned_filename = ".".join(map(str, dim_coords))
+        with open(f"{file_root}/{aligned_filename}._mdiotemp", mode="wb") as fp:
+            fp.write(buffer)
 
-        with open(file_path, mode="wb") as fp:
-            fp.write(trace_bytes)
-
-    return part_segy_paths
+    return live_mask
 
 
 # TODO: Abstract this to support various implementations by

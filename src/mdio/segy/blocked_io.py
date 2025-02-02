@@ -6,12 +6,12 @@ import multiprocessing as mp
 import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
+from shutil import copyfileobj
 from typing import TYPE_CHECKING
 
 import numpy as np
 from dask.array import Array
-from dask.array import blockwise
-from dask.array.reductions import _tree_reduce
+from dask.array import map_blocks
 from psutil import cpu_count
 from tqdm.auto import tqdm
 from zarr import Blosc
@@ -20,8 +20,9 @@ from zarr import Group
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker
-from mdio.segy.creation import concat_files
-from mdio.segy.creation import write_to_segy_stack
+from mdio.segy.creation import serialize_to_segy_stack
+from mdio.segy.utilities import find_trailing_ones_index
+from mdio.segy.utilities import ndrange
 
 
 if TYPE_CHECKING:
@@ -186,48 +187,63 @@ def to_zarr(
     return stats
 
 
-def segy_concat(
-    partial_files: NDArray,
-    axis: tuple[int] = None,
-    keepdims: bool = None,
+def segy_trace_concat(
+    is_block_live: NDArray,
+    consecutive_dim_index: int,
+    filename_prefix: str,
+    block_info: dict | None = None,
 ) -> NDArray:
-    """Aggregate partial SEG-Y blocks on disk, preserving order.
+    """Concatenate partial ordered SEG-Y blocks on disk.
 
-    Used in conjunction with tree reduction. It will take an array
-    of file names, which preserved the adjacency of blocks, and then
-    combines adjacent blocks while flattening for SEG-Y.
-
-    For `axis` and `keepdims` parameters, please see `dask.array.reduce`
-    documentation.
+    It will take an ND array of booleans that indicate if files for a specific
+    block exists based on the logical (i, j, ...) coordinates. Goal is to preserve
+    the global order of traces when merging files. Order is assumed to be correct
+    past consecutive dimension index parameter.
 
     Args:
-        partial_files: Array containing paths to parts of a SEG-Y row.
-        axis: Which axes to concatenate on.
-        keepdims: Keep the original dimensionality after merging.
+        is_block_live: Array indicating block has live traces or not.
+        consecutive_dim_index: Dimension to assume ordered files to combine.
+        filename_prefix: Prefix directory where files are located.
+        block_info: Dask map_blocks reserved kwarg for block indices / shape etc.
 
     Returns:
-        Concatenated file name array. Dimensions depend on `keepdims`.
+        Concatenated live block indicator dropping dimensions past consecutive index.
     """
-    concat_shape = partial_files.shape[0]
-    concat_paths = np.full_like(partial_files, fill_value="missing", shape=concat_shape)
+    if block_info is None:
+        return is_block_live.any(axis=-1)
 
-    # Fast path if all data in block is missing.
-    if np.all(partial_files == "missing"):
-        return np.expand_dims(concat_paths, axis) if keepdims else concat_paths
+    if np.count_nonzero(is_block_live) == 0:
+        return is_block_live.any(axis=-1)
 
-    # Flatten and concat section files to a single root file at first axis.
-    for index, section_paths in enumerate(partial_files):
-        section_paths = section_paths.ravel()
-        section_missing = section_paths == "missing"
+    result_chunk_shape = block_info[None]["chunk-shape"]
+    block_coords = block_info[0]["array-location"]
 
-        if np.all(section_missing):
+    prefix_block_coords = block_coords[:consecutive_dim_index]
+    prefix_block_shape = result_chunk_shape[:consecutive_dim_index]
+
+    # Generate iterators for dimension's index and coords
+    indices_iter = np.ndindex(prefix_block_shape)
+    coords_iter = ndrange(prefix_block_coords)
+
+    for dim_indices, dim_coords in zip(indices_iter, coords_iter, strict=True):
+        # TODO(Altay): When python minimum is 3.11 change to is_block_live[*dim_indices]
+        aligned_live = is_block_live[tuple(dim_indices)]
+
+        if np.count_nonzero(aligned_live) == 0:
             continue
 
-        section_valid_paths = np.extract(~section_missing, section_paths).tolist()
-        section_concat_files = concat_files(section_valid_paths)
-        concat_paths[index] = section_concat_files
+        source_file_index = ".".join(map(str, dim_coords))
+        source_path = f"{filename_prefix}/{source_file_index}._mdiotemp"
 
-    return np.expand_dims(concat_paths, axis) if keepdims else concat_paths
+        dest_file_index = ".".join(map(str, dim_coords[:-1]))
+        dest_path = f"{filename_prefix}/{dest_file_index}._mdiotemp"
+
+        with open(dest_path, "ab") as dest, open(source_path, "rb") as src:
+            copyfileobj(src, dest)
+
+        os.remove(source_path)
+
+    return is_block_live.any(axis=-1)
 
 
 def to_segy(
@@ -236,14 +252,12 @@ def to_segy(
     live_mask: Array,
     segy_factory: SegyFactory,
     file_root: str,
-    axis: tuple[int] | None = None,
 ) -> Array:
     r"""Convert MDIO blocks to SEG-Y parts.
 
-    This uses as a tree reduction algorithm. Blocks are written out
-    in parallel via multiple workers, and then adjacent blocks are
-    tracked and merged on disk via the `segy_concat` function. The
-    adjacent are hierarchically merged, and it preserves order.
+    Blocks are written out in parallel via multiple workers, and then
+    djacent blocks are tracked and merged on disk via the `segy_trace_concat`
+    function. The adjacent are hierarchically merged, and it preserves order.
 
     Assume array with shape (4, 3, 2) with chunk sizes (1, 1, 2).
     The chunk indices for this array would be:
@@ -267,11 +281,9 @@ def to_segy(
       \/    \/    \/
      abc   def   ghi
 
-    The module will return file names associated with these
-    concatenated files. Then they can be combined to form the
-    sequence "abcdefghi" which is what we want.
-
-    The above algorithm extrapolates to higher dimensions.
+    During all the processing here, we keep track of logical indices of
+    chunks and written files so we can correctly combine them. The above
+    algorithm generalizes to higher dimensions.
 
     Args:
         samples: Sample array.
@@ -279,36 +291,41 @@ def to_segy(
         live_mask: Live mask array.
         segy_factory: A SEG-Y factory configured to write out with user params.
         file_root: Root directory to write partial SEG-Y files.
-        axis: Which axes to merge on. Excluding sample axis.
 
     Returns:
-        Array containing final, flattened SEG-Y blocks.
+        Array containing live (written) status of final flattened SEG-Y blocks.
     """
-    # Map chunk across all blocks
-    samp_inds = tuple(range(samples.ndim))
-    meta_inds = tuple(range(headers.ndim))
-
-    args = (samples, samp_inds)
-    args += (headers, meta_inds)
-    args += (live_mask, meta_inds)
-
-    # Merge samples axis, append headers, and write block as stack of SEG-Ys.
-    # Note: output is N-1 dimensional (meta_inds) because we merged samples.
-    trace_files = blockwise(
-        write_to_segy_stack,
-        meta_inds,
-        *args,
+    # Append headers, and write block as stack of SEG-Ys (full sample dim).
+    # Output is N-1 dimensions. We merged headers + samples to new dtype.
+    is_block_live = map_blocks(
+        serialize_to_segy_stack,
+        samples,
+        headers[..., None],  # pad sample dim
+        live_mask[..., None],  # pad sample dim
         file_root=file_root,
         segy_factory=segy_factory,
-        concatenate=True,
+        drop_axis=-1,
     )
 
-    result = _tree_reduce(
-        trace_files,
-        segy_concat,
-        axis,
-        keepdims=False,
-        dtype=trace_files.dtype,
-    )
+    # Recursively combine SEG-Y files from last (fastest) consecutive dimension
+    # to first (slowest) dimension. End result will be the blocks with the
+    # size of the outermost dimension in ascending order.
+    consecutive_dim_index = find_trailing_ones_index(is_block_live.numblocks)
+    while consecutive_dim_index != 1:
+        current_chunks = is_block_live.chunks
 
-    return result
+        prefix_dim = consecutive_dim_index - 1
+        prefix_chunks = current_chunks[:prefix_dim]
+        new_chunks = prefix_chunks + (-1,) * (len(current_chunks) - prefix_dim)
+
+        is_block_live = map_blocks(
+            segy_trace_concat,
+            is_block_live.rechunk(new_chunks),
+            consecutive_dim_index,
+            file_root,
+            drop_axis=-1,
+        )
+
+        consecutive_dim_index -= 1
+
+    return is_block_live

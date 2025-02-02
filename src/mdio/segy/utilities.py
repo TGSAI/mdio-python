@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+import itertools
 import logging
 from typing import TYPE_CHECKING
+from typing import Generator
+from typing import Iterable
 
 import numpy as np
 from dask.array.core import normalize_chunks
@@ -86,6 +89,64 @@ def get_grid_plan(  # noqa:  C901
     return dims, chunksize
 
 
+def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
+    """Finds the index where trailing '1's begin in a tuple of dimension block sizes.
+
+    If all values are '1', returns 1.
+
+    Args:
+        dim_blocks: A list of integers representing the data chunk dimensions.
+
+    Returns:
+        The index indicating the breakpoint where the trailing sequence of "1s"
+        begins, or `1` if all values in the list are `1`.
+
+    Examples:
+        >>> find_trailing_ones_index((7, 5, 1, 1))
+        2
+
+        >>> find_trailing_ones_index((1, 1, 1, 1))
+        1
+    """
+    total_dims = len(dim_blocks)
+    trailing_ones = itertools.takewhile(lambda x: x == 1, reversed(dim_blocks))
+    trailing_ones_count = sum(1 for _ in trailing_ones)
+
+    is_all_ones = trailing_ones_count == total_dims
+
+    return 1 if is_all_ones else total_dims - trailing_ones_count
+
+
+def ndrange(intervals: Iterable[tuple[int, int]]) -> Generator[tuple[int, ...]]:
+    """Generates coordinate tuples iterating through the specified ranges.
+
+    This function generate all possible combinations multidimensional ranges.
+    Each range is defined as a tuple of the start (inclusive) and end (exclusive) values.
+    The function yields starts and stops of ranges as a generator, enabling memory-efficient
+    iteration for large ranges. Similar to Numpy's ndindex but with start and
+    stop of a range.
+
+    Args:
+        intervals: An iterable of tuples where each tuple consists of two integers
+            representing the start (inclusive) and end (exclusive) of a range.
+
+    Yields:
+        A tuple representing a single combination of coordinates within the
+        specified ranges.
+
+    Examples:
+        >>> list(ndrange([(1, 3), (4, 6)]))
+        [(1, 4), (1, 5), (2, 4), (2, 5)]
+
+        >>> for (x, y, z) in ndrange([(0, 1), (0, 1), (0, 2)]):
+        >>>     print((x, y, z))
+        (0, 0, 0)
+        (0, 0, 1)
+    """
+    dimension_ranges = [range(start, end) for start, end in intervals]
+    yield from itertools.product(*dimension_ranges)
+
+
 def segy_export_rechunker(
     chunks: tuple[int, ...],
     shape: tuple[int, ...],
@@ -135,6 +196,10 @@ def segy_export_rechunker(
 
         # Ensure it is integers
         prev_chunks = new_chunks
+
+    # Ensure the sample (last dim) is single chunk.
+    if len(new_chunks[-1]) != 1:
+        new_chunks = new_chunks[:-1] + (shape[-1],)
 
     logger.debug(f"Auto export rechunking to: {new_chunks}")
     return new_chunks
