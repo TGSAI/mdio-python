@@ -215,11 +215,11 @@ def segy_trace_concat(
     if np.count_nonzero(is_block_live) == 0:
         return is_block_live.any(axis=-1)
 
-    result_chunk_shape = block_info[None]["chunk-shape"]
+    block_shape = is_block_live.shape
     block_coords = block_info[0]["array-location"]
 
     prefix_block_coords = block_coords[:consecutive_dim_index]
-    prefix_block_shape = result_chunk_shape[:consecutive_dim_index]
+    prefix_block_shape = block_shape[:consecutive_dim_index]
 
     # Generate iterators for dimension's index and coords
     indices_iter = np.ndindex(prefix_block_shape)
