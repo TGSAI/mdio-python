@@ -161,27 +161,26 @@ def mdio_to_segy(  # noqa: C901
 
     with tmp_dir:
         with TqdmCallback(desc="Unwrapping MDIO Blocks"):
-            flat_files = to_segy(
+            is_block_live = to_segy(
                 samples=samples,
                 headers=headers,
                 live_mask=live_mask,
                 segy_factory=segy_factory,
                 file_root=tmp_dir.name,
-                axis=tuple(range(1, samples.ndim)),
             )
 
             if client is not None:
-                flat_files = flat_files.compute()
+                is_block_live = is_block_live.compute()
             else:
-                flat_files = flat_files.compute(num_workers=NUM_CPUS)
+                is_block_live = is_block_live.compute(num_workers=NUM_CPUS)
 
-        # If whole blocks are missing, remove them from the list.
-        missing_mask = flat_files == "missing"
-        flat_files = flat_files[~missing_mask]
-
-        final_concat = [output_segy_path] + flat_files.tolist()
+        n_blocks = len(is_block_live)
+        ordered_files = [
+            tmp_dir.name + f"/{block}._mdiotemp" for block in range(n_blocks)
+        ]
+        ordered_files = [output_segy_path] + ordered_files
 
         if client is not None:
-            _ = client.submit(concat_files, final_concat).result()
+            _ = client.submit(concat_files, paths=ordered_files).result()
         else:
-            concat_files(final_concat, progress=True)
+            concat_files(paths=ordered_files, progress=True)
