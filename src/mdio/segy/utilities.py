@@ -197,5 +197,9 @@ def segy_export_rechunker(
         # Ensure it is integers
         prev_chunks = new_chunks
 
+    # Ensure the sample (last dim) is single chunk.
+    if len(new_chunks[-1]) != 1:
+        new_chunks = new_chunks[:-1] + (shape[-1],)
+
     logger.debug(f"Auto export rechunking to: {new_chunks}")
     return new_chunks
