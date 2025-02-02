@@ -35,8 +35,6 @@ try:
 except metadata.PackageNotFoundError:
     API_VERSION = "unknown"
 
-BACKENDS = ["s3", "gcs", "gs", "az", "abfs"]
-
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
     """QC for sensible Grid density.
