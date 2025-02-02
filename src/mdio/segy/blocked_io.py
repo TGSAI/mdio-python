@@ -312,7 +312,7 @@ def to_segy(
     # size of the outermost dimension in ascending order.
     consecutive_dim_index = find_trailing_ones_index(is_block_live.numblocks)
     while consecutive_dim_index != 1:
-        current_chunks = is_block_live.chunksize
+        current_chunks = is_block_live.chunks
 
         prefix_dim = consecutive_dim_index - 1
         prefix_chunks = current_chunks[:prefix_dim]

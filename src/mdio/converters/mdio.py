@@ -149,7 +149,7 @@ def mdio_to_segy(  # noqa: C901
 
     # Lazily pull the data with limits now, and limit mask so its the same shape.
     live_mask, headers, samples = mdio[dim_slices]
-    live_mask = live_mask.rechunk(headers.chunksize)
+    live_mask = live_mask.rechunk(headers.chunks)
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]
