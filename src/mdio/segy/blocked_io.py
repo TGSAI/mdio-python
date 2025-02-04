@@ -318,6 +318,11 @@ def to_segy(
     # to first (slowest) dimension. End result will be the blocks with the
     # size of the outermost dimension in ascending order.
     consecutive_dim_index = find_trailing_ones_index(is_block_live.numblocks)
+
+    # Shortcut if no unwrapping necessary.
+    if consecutive_dim_index == 1:
+        return is_block_live.any(axis=-1)
+
     while consecutive_dim_index != 1:
         current_chunks = is_block_live.chunks
 
