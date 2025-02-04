@@ -174,10 +174,8 @@ def mdio_to_segy(  # noqa: C901
             else:
                 is_block_live = is_block_live.compute(num_workers=NUM_CPUS)
 
-        n_blocks = len(is_block_live)
-        ordered_files = [
-            tmp_dir.name + f"/{block}._mdiotemp" for block in range(n_blocks)
-        ]
+        live_blocks = np.where(is_block_live)[0]
+        ordered_files = [tmp_dir.name + f"/{block}._mdiotemp" for block in live_blocks]
         ordered_files = [output_segy_path] + ordered_files
 
         if client is not None:
