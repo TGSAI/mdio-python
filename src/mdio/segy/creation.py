@@ -135,15 +135,15 @@ def serialize_to_segy_stack(
     Returns:
         Live mask, as is, for combined blocks (dropped sample dimension).
     """
+    # Drop map_blocks padded dim
+    live_mask = live_mask[..., 0]
+    headers = headers[..., 0]
+
     if block_info is None:
         return live_mask
 
     if np.count_nonzero(live_mask) == 0:
         return live_mask
-
-    # Drop map_blocks padded dim
-    live_mask = live_mask[..., 0]
-    headers = headers[..., 0]
 
     # Set up chunk boundaries and coordinates to write
     global_num_blocks = block_info[0]["num-chunks"]
