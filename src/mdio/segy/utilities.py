@@ -92,29 +92,27 @@ def get_grid_plan(  # noqa:  C901
 def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
     """Finds the index where trailing '1's begin in a tuple of dimension block sizes.
 
-    If all values are '1', returns 1.
+    If all values are '1', returns 0.
 
     Args:
         dim_blocks: A list of integers representing the data chunk dimensions.
 
     Returns:
         The index indicating the breakpoint where the trailing sequence of "1s"
-        begins, or `1` if all values in the list are `1`.
+        begins, or `0` if all values in the list are `1`.
 
     Examples:
         >>> find_trailing_ones_index((7, 5, 1, 1))
         2
 
         >>> find_trailing_ones_index((1, 1, 1, 1))
-        1
+        0
     """
     total_dims = len(dim_blocks)
     trailing_ones = itertools.takewhile(lambda x: x == 1, reversed(dim_blocks))
     trailing_ones_count = sum(1 for _ in trailing_ones)
 
-    is_all_ones = trailing_ones_count == total_dims
-
-    return 1 if is_all_ones else total_dims - trailing_ones_count
+    return total_dims - trailing_ones_count
 
 
 def ndrange(intervals: Iterable[tuple[int, int]]) -> Generator[tuple[int, ...]]:
