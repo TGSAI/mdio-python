@@ -20,9 +20,9 @@ from zarr import Group
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker
+from mdio.segy.creation import SegyPartRecord
 from mdio.segy.creation import serialize_to_segy_stack
 from mdio.segy.utilities import find_trailing_ones_index
-from mdio.segy.utilities import ndrange
 
 
 if TYPE_CHECKING:
@@ -187,70 +187,73 @@ def to_zarr(
     return stats
 
 
-def segy_trace_concat(
-    is_block_live: NDArray,
-    consecutive_dim_index: int,
-    filename_prefix: str,
+def segy_record_concat(
+    block_records: NDArray,
+    file_root: str,
     block_info: dict | None = None,
 ) -> NDArray:
     """Concatenate partial ordered SEG-Y blocks on disk.
 
-    It will take an ND array of booleans that indicate if files for a specific
-    block exists based on the logical (i, j, ...) coordinates. Goal is to preserve
-    the global order of traces when merging files. Order is assumed to be correct
-    past consecutive dimension index parameter.
+    It will take an ND array SegyPartRecords. Goal is to preserve
+    the global order of traces when merging files. Order is assumed
+    to be correct at the block level (last dimension)
 
     Args:
-        is_block_live: Array indicating block has live traces or not.
-        consecutive_dim_index: Dimension to assume ordered files to combine.
-        filename_prefix: Prefix directory where files are located.
+        block_records: Array indicating block file records.
+        file_root: Root directory to write partial SEG-Y files.
         block_info: Dask map_blocks reserved kwarg for block indices / shape etc.
 
     Returns:
-        Concatenated live block indicator dropping dimensions past consecutive index.
+        Concatenated SEG-Y block records.
+
+    Raises:
+        ValueError: If required `block_info` is not provided.
     """
     if block_info is None:
-        return is_block_live.any(axis=-1)
+        raise ValueError("block_info is required for global index computation.")
 
-    if np.count_nonzero(is_block_live) == 0:
-        return is_block_live.any(axis=-1)
+    if np.count_nonzero(block_records) == 0:
+        return np.zeros_like(block_records, shape=block_records.shape[:-1])
 
-    block_shape = is_block_live.shape
-    block_coords = block_info[0]["array-location"]
+    info = block_info[0]
 
-    prefix_block_coords = block_coords[:consecutive_dim_index]
-    prefix_block_shape = block_shape[:consecutive_dim_index]
+    block_start = [loc[0] for loc in info["array-location"]]
 
-    # Generate iterators for dimension's index and coords
-    indices_iter = np.ndindex(prefix_block_shape)
-    coords_iter = ndrange(prefix_block_coords)
+    record_shape = block_records.shape[:-1]
+    records_metadata = np.zeros(shape=record_shape, dtype=object)
 
-    destination_map = {}
-    for dim_indices, dim_coords in zip(indices_iter, coords_iter, strict=True):
-        # TODO(Altay): When python minimum is 3.11 change to is_block_live[*dim_indices]
-        aligned_live = is_block_live[tuple(dim_indices)]
+    dest_map = {}
+    for rec_index in np.ndindex(record_shape):
+        rec_blocks = block_records[rec_index]
 
-        if np.count_nonzero(aligned_live) == 0:
+        if np.count_nonzero(rec_blocks) == 0:
             continue
 
-        source_index = "/".join(map(str, dim_coords))
-        dest_index = "/".join(map(str, dim_coords[:-1]))
+        global_index = tuple(
+            block_start[i] + rec_index[i] for i in range(len(record_shape))
+        )
+        record_id_str = "/".join(map(str, global_index))
+        record_file_path = f"{file_root}/{record_id_str}.bin"
 
-        if dest_index not in destination_map:
-            destination_map[dest_index] = []
+        records_metadata[rec_index] = SegyPartRecord(
+            path=record_file_path,
+            index=global_index,
+        )
 
-        destination_map[dest_index].append(source_index)
+        if rec_index not in dest_map:
+            dest_map[record_file_path] = []
 
-    for dest_index, source_indices in destination_map.items():
-        dest_path = f"{filename_prefix}/{dest_index}._mdiotemp"
+        for block in rec_blocks:
+            dest_map[record_file_path].append(block.path)
+
+    for dest_path, source_paths in dest_map.items():
         with open(dest_path, "wb") as dest_file:
-            for src_index in source_indices:
-                src_path = f"{filename_prefix}/{src_index}._mdiotemp"
+            for src_path in source_paths:
                 with open(src_path, "rb") as src_file:
                     copyfileobj(src_file, dest_file)
                 os.remove(src_path)
 
-    return is_block_live.any(axis=-1)
+    return records_metadata
 
 
 def to_segy(
@@ -302,42 +305,51 @@ def to_segy(
     Returns:
         Array containing live (written) status of final flattened SEG-Y blocks.
     """
+    # Calculate axes with only one chunk to be reduced
+    num_blocks = samples.numblocks
+    non_consecutive_axes = find_trailing_ones_index(num_blocks)
+    reduce_axes = tuple(
+        i
+        for i in range(non_consecutive_axes - 1, len(num_blocks))
+        if num_blocks[i] == 1
+    )
+
     # Append headers, and write block as stack of SEG-Ys (full sample dim).
     # Output is N-1 dimensions. We merged headers + samples to new dtype.
-    is_block_live = map_blocks(
+    meta = np.empty((1,), dtype=object)
+    block_io_records = map_blocks(
         serialize_to_segy_stack,
         samples,
         headers[..., None],  # pad sample dim
         live_mask[..., None],  # pad sample dim
+        record_ndim=non_consecutive_axes,
         file_root=file_root,
         segy_factory=segy_factory,
-        drop_axis=-1,
+        drop_axis=reduce_axes,
+        block_info=True,
+        meta=meta,
     )
 
     # Recursively combine SEG-Y files from last (fastest) consecutive dimension
     # to first (slowest) dimension. End result will be the blocks with the
     # size of the outermost dimension in ascending order.
-    consecutive_dim_index = find_trailing_ones_index(is_block_live.numblocks)
+    # consecutive_dim_index = find_trailing_ones_index(is_block_live.numblocks)
+    while non_consecutive_axes > 1:
+        current_chunks = block_io_records.chunks
 
-    # Shortcut if no unwrapping necessary.
-    if consecutive_dim_index == 1:
-        return is_block_live.any(axis=-1)
-
-    while consecutive_dim_index != 1:
-        current_chunks = is_block_live.chunks
-
-        prefix_dim = consecutive_dim_index - 1
+        prefix_dim = non_consecutive_axes - 1
         prefix_chunks = current_chunks[:prefix_dim]
         new_chunks = prefix_chunks + (-1,) * (len(current_chunks) - prefix_dim)
 
-        is_block_live = map_blocks(
-            segy_trace_concat,
-            is_block_live.rechunk(new_chunks),
-            consecutive_dim_index,
-            file_root,
+        block_io_records = map_blocks(
+            segy_record_concat,
+            block_io_records.rechunk(new_chunks),
+            file_root=file_root,
             drop_axis=-1,
+            block_info=True,
+            meta=meta,
         )
 
-        consecutive_dim_index -= 1
+        non_consecutive_axes -= 1
 
-    return is_block_live
+    return block_io_records

@@ -45,10 +45,6 @@ def mdio_to_segy(  # noqa: C901
     The input headers are preserved as is, and will be transferred to the
     output file.
 
-    The user has control over the endianness, and the floating point data
-    type. However, by default we export as Big-Endian IBM float, per the
-    SEG-Y format's default.
-
     The input MDIO can be local or cloud based. However, the output SEG-Y
     will be generated locally.
 
@@ -161,7 +157,7 @@ def mdio_to_segy(  # noqa: C901
 
     with tmp_dir:
         with TqdmCallback(desc="Unwrapping MDIO Blocks"):
-            is_block_live = to_segy(
+            block_records = to_segy(
                 samples=samples,
                 headers=headers,
                 live_mask=live_mask,
@@ -170,12 +166,11 @@ def mdio_to_segy(  # noqa: C901
             )
 
             if client is not None:
-                is_block_live = is_block_live.compute()
+                block_records = block_records.compute()
             else:
-                is_block_live = is_block_live.compute(num_workers=NUM_CPUS)
+                block_records = block_records.compute(num_workers=NUM_CPUS)
 
-        live_blocks = np.where(is_block_live)[0]
-        ordered_files = [tmp_dir.name + f"/{block}._mdiotemp" for block in live_blocks]
+        ordered_files = [rec.path for rec in block_records.ravel() if rec != 0]
         ordered_files = [output_segy_path] + ordered_files
 
         if client is not None:
