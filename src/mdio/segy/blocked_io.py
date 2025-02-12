@@ -333,7 +333,6 @@ def to_segy(
     # Recursively combine SEG-Y files from last (fastest) consecutive dimension
     # to first (slowest) dimension. End result will be the blocks with the
     # size of the outermost dimension in ascending order.
-    # consecutive_dim_index = find_trailing_ones_index(is_block_live.numblocks)
     while non_consecutive_axes > 1:
         current_chunks = block_io_records.chunks
 
