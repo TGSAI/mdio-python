@@ -240,7 +240,7 @@ def segy_record_concat(
             index=global_index,
         )
 
-        if rec_index not in dest_map:
+        if record_file_path not in dest_map:
             dest_map[record_file_path] = []
 
         for block in rec_blocks:
