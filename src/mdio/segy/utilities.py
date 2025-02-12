@@ -5,8 +5,6 @@ from __future__ import annotations
 import itertools
 import logging
 from typing import TYPE_CHECKING
-from typing import Generator
-from typing import Iterable
 
 import numpy as np
 from dask.array.core import normalize_chunks
@@ -113,36 +111,6 @@ def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
     trailing_ones_count = sum(1 for _ in trailing_ones)
 
     return total_dims - trailing_ones_count
-
-
-def ndrange(intervals: Iterable[tuple[int, int]]) -> Generator[tuple[int, ...]]:
-    """Generates coordinate tuples iterating through the specified ranges.
-
-    This function generate all possible combinations multidimensional ranges.
-    Each range is defined as a tuple of the start (inclusive) and end (exclusive) values.
-    The function yields starts and stops of ranges as a generator, enabling memory-efficient
-    iteration for large ranges. Similar to Numpy's ndindex but with start and
-    stop of a range.
-
-    Args:
-        intervals: An iterable of tuples where each tuple consists of two integers
-            representing the start (inclusive) and end (exclusive) of a range.
-
-    Yields:
-        A tuple representing a single combination of coordinates within the
-        specified ranges.
-
-    Examples:
-        >>> list(ndrange([(1, 3), (4, 6)]))
-        [(1, 4), (1, 5), (2, 4), (2, 5)]
-
-        >>> for (x, y, z) in ndrange([(0, 1), (0, 1), (0, 2)]):
-        >>>     print((x, y, z))
-        (0, 0, 0)
-        (0, 0, 1)
-    """
-    dimension_ranges = [range(start, end) for start, end in intervals]
-    yield from itertools.product(*dimension_ranges)
 
 
 def segy_export_rechunker(
