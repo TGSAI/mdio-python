@@ -87,30 +87,33 @@ def get_grid_plan(  # noqa:  C901
     return dims, chunksize
 
 
-def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
-    """Finds the index where trailing '1's begin in a tuple of dimension block sizes.
+def find_trailing_ones_index(dim_sizes: tuple[int, ...]) -> int:
+    """Returns the index where the trailing ones begin in a tuple of dimension sizes.
 
-    If all values are '1', returns 0.
+    If all values are 1, returns 0.
 
     Args:
-        dim_blocks: A list of integers representing the data chunk dimensions.
+        dim_sizes: A tuple of integers representing the data chunk dimensions.
 
     Returns:
-        The index indicating the breakpoint where the trailing sequence of "1s"
-        begins, or `0` if all values in the list are `1`.
+        The index indicating where the trailing sequence of ones starts, or 0 if every value is 1.
 
     Examples:
         >>> find_trailing_ones_index((7, 5, 1, 1))
         2
-
         >>> find_trailing_ones_index((1, 1, 1, 1))
         0
     """
-    total_dims = len(dim_blocks)
-    trailing_ones = itertools.takewhile(lambda x: x == 1, reversed(dim_blocks))
-    trailing_ones_count = sum(1 for _ in trailing_ones)
+    num_dims = len(dim_sizes)
+    trailing_ones_count = 0
 
-    return total_dims - trailing_ones_count
+    for size in reversed(dim_sizes):
+        if size == 1:
+            trailing_ones_count += 1
+        else:
+            break
+
+    return num_dims - trailing_ones_count
 
 
 def segy_export_rechunker(
