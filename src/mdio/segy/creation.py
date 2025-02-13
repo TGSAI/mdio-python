@@ -114,6 +114,28 @@ class SegyPartRecord:
     index: tuple[int, ...]
 
 
+def write_trace_record(
+    file_root: str,
+    segy_factory: SegyFactory,
+    headers: NDArray,
+    samples: NDArray,
+    global_index: tuple[int, ...],
+) -> SegyPartRecord:
+    """Helper function to create trace buffer, write to file, and return record metadata."""
+    # Create record_id based on global_index (formatted accordingly)
+    record_id = (
+        "/".join(map(str, global_index))
+        if len(global_index) > 1
+        else str(global_index[0])
+    )
+    record_file_path = f"{file_root}/{record_id}.bin"
+    os.makedirs(os.path.dirname(record_file_path), exist_ok=True)
+    buffer = segy_factory.create_traces(headers, samples)
+    with open(record_file_path, mode="wb") as fp:
+        fp.write(buffer)
+    return SegyPartRecord(path=record_file_path, index=global_index)
+
+
 def serialize_to_segy_stack(
     samples: NDArray,
     headers: NDArray,
@@ -125,24 +147,20 @@ def serialize_to_segy_stack(
 ) -> NDArray:
     """Pre-process seismic data for SEG-Y and write partial 2D blocks.
 
-    This function will take numpy arrays for trace samples, headers, and live mask.
-    Then it will do the following:
-    1. Iterate outer dimensions that are wrapped.
-    2. Drop non-live samples and headers.
-    3. Combine samples and headers to form a SEG-Y trace.
-    4. Write serialized bytes to disk.
+    This function processes numpy arrays for trace samples, headers, and live mask,
+    dropping non-live entries and writing valid SEG-Y traces to disk.
 
     Args:
         samples: Array containing the trace samples.
         headers: Array containing the trace headers.
         live_mask: Array containing the trace live mask.
-        record_ndim: First array dimensions to partition the SEGY record.
+        record_ndim: First array dimensions to partition the SEG-Y record.
         file_root: Root directory to write partial SEG-Y files.
         segy_factory: A SEG-Y factory configured to write out with user params.
-        block_info: Dask map_blocks reserved kwarg for block indices / shape etc.
+        block_info: Dask map_blocks reserved kwarg for block indices/shape etc.
 
     Returns:
-        Live mask, as is, for combined blocks (dropped sample dimension).
+        NDArray containing the combined record metadata.
 
     Raises:
         ValueError: If required `block_info` is not provided.
@@ -154,67 +172,41 @@ def serialize_to_segy_stack(
     live_mask = live_mask[..., 0]
     headers = headers[..., 0]
 
-    # Figure out global chunk origin and shape of chunk
+    # Compute the global chunk start positions using block_info
     info = block_info[0]
     block_start = [loc[0] for loc in info["array-location"]]
 
-    if samples.ndim == 2:  # 2D data special case for less disk I/O
-        # Shortcut if whole chunk is empty
+    if samples.ndim == 2:
+        # For 2D data, unwrap blocks without splitting records.
         if np.count_nonzero(live_mask) == 0:
             return np.array(0, dtype=object)
-
-        samples = samples[live_mask]
-        headers = headers[live_mask]
-
-        buffer = segy_factory.create_traces(headers, samples)
-
-        global_index = block_start[0]
-        record_id_str = str(global_index)
-        record_file_path = f"{file_root}/{record_id_str}.bin"
-        os.makedirs(os.path.dirname(record_file_path), exist_ok=True)
-        with open(record_file_path, mode="wb") as fp:
-            fp.write(buffer)
-
-        record_metadata = SegyPartRecord(
-            path=record_file_path,
-            index=global_index,
+        filt_samples = samples[live_mask]
+        filt_headers = headers[live_mask]
+        # Ensure global_index is a tuple
+        global_index = (block_start[0],)
+        record_metadata = write_trace_record(
+            file_root, segy_factory, filt_headers, filt_samples, global_index
         )
-        records_metadata = np.array(record_metadata, dtype=object)
-
-    else:  # 3D+ case where we unwrap first `record_ndim` axes.
+        return np.array(record_metadata, dtype=object)
+    else:
+        # For 3D+ data, unwrap the first `record_ndim` axes.
         record_shape = samples.shape[:record_ndim]
         records_metadata = np.zeros(shape=record_shape, dtype=object)
-
-        # Shortcut if whole chunk is empty
         if np.count_nonzero(live_mask) == 0:
             return records_metadata
-
         for rec_index in np.ndindex(record_shape):
             rec_live_mask = live_mask[rec_index]
-
             if np.count_nonzero(rec_live_mask) == 0:
                 continue
-
             rec_samples = samples[rec_index][rec_live_mask]
             rec_headers = headers[rec_index][rec_live_mask]
-
-            buffer = segy_factory.create_traces(rec_headers, rec_samples)
-
             global_index = tuple(
                 block_start[i] + rec_index[i] for i in range(record_ndim)
             )
-            record_id_str = "/".join(map(str, global_index))
-            record_file_path = f"{file_root}/{record_id_str}.bin"
-            os.makedirs(os.path.dirname(record_file_path), exist_ok=True)
-            with open(record_file_path, mode="wb") as fp:
-                fp.write(buffer)
-
-            records_metadata[rec_index] = SegyPartRecord(
-                path=record_file_path,
-                index=global_index,
+            records_metadata[rec_index] = write_trace_record(
+                file_root, segy_factory, rec_headers, rec_samples, global_index
             )
-
-    return records_metadata
+        return records_metadata
 
 
 # TODO: Abstract this to support various implementations by
