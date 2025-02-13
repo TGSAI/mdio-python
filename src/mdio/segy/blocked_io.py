@@ -6,7 +6,6 @@ import multiprocessing as mp
 import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
-from shutil import copyfileobj
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -21,6 +20,7 @@ from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker
 from mdio.segy.creation import SegyPartRecord
+from mdio.segy.creation import concat_files
 from mdio.segy.creation import serialize_to_segy_stack
 from mdio.segy.utilities import find_trailing_ones_index
 
@@ -249,11 +249,7 @@ def segy_record_concat(
             dest_map[record_file_path].append(block.path)
 
     for dest_path, source_paths in dest_map.items():
-        with open(dest_path, "wb") as dest_file:
-            for src_path in source_paths:
-                with open(src_path, "rb") as src_file:
-                    copyfileobj(src_file, dest_file)
-                os.remove(src_path)
+        concat_files([dest_path] + source_paths)
 
     return records_metadata
 
