@@ -188,18 +188,16 @@ def to_zarr(
 
 
 def compute_global_index(
-    record_index: tuple[int, ...], block_start: list[int]
+    record_index: tuple[int, ...], record_shape: tuple[int, ...], block_start: list[int]
 ) -> tuple[int, ...]:
     """Compute the global index by adding the block start to the local record index."""
-    return tuple(
-        start + idx for start, idx in zip(block_start, record_index, strict=True)
-    )
+    return tuple(block_start[i] + record_index[i] for i in range(len(record_shape)))
 
 
 def generate_record_filepath(file_root: str, global_index: tuple[int, ...]) -> str:
     """Generate the file path for a given global index using the file root."""
     record_id_str = "/".join(map(str, global_index))
-    return os.path.join(file_root, f"{record_id_str}.bin")
+    return f"{file_root}/{record_id_str}.bin"
 
 
 def segy_record_concat(
@@ -241,7 +239,7 @@ def segy_record_concat(
         if np.count_nonzero(rec_blocks) == 0:
             continue
 
-        global_index = compute_global_index(rec_index, block_start)
+        global_index = compute_global_index(rec_index, record_shape, block_start)
         record_file_path = generate_record_filepath(file_root, global_index)
         records_metadata[rec_index] = SegyPartRecord(
             path=record_file_path,
