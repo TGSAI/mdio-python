@@ -7,11 +7,11 @@ from importlib import metadata
 
 import numpy as np
 import pytest
-from fsspec.implementations.local import LocalFileSystem
+import zarr
 from numpy.typing import NDArray
 from zarr import Group
 from zarr import consolidate_metadata
-from zarr.storage import FsspecStore
+from zarr import open_group
 
 from mdio import MDIOReader
 from mdio.core import Dimension
@@ -30,11 +30,11 @@ TEST_DIMS = {
 
 
 @pytest.fixture(scope="module")
-def mock_store(tmp_path_factory):
+def mock_root_group(tmp_path_factory) -> Group:
     """Make a mocked MDIO store for writing."""
+    zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
     tmp_dir = tmp_path_factory.mktemp("mdio")
-    fs = LocalFileSystem()
-    return FsspecStore(fs, path=tmp_dir.name)
+    return open_group(tmp_dir.name, mode="w")
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def mock_data(mock_coords):
 
 @pytest.fixture
 def mock_mdio(
-    mock_store: FsspecStore,
+    mock_root_group: Group,
     mock_dimensions: list[Dimension],
     mock_coords: tuple[NDArray],
     mock_data: NDArray,
@@ -84,7 +84,7 @@ def mock_mdio(
 ):
     """This mocks most of mdio.converters.segy in memory."""
     zarr_root = create_zarr_hierarchy(
-        store=mock_store,
+        root_group=mock_root_group,
         overwrite=True,
     )
 
@@ -108,13 +108,14 @@ def mock_mdio(
     write_attribute(name="dimension", zarr_group=zarr_root, attribute=dimensions_dict)
     write_attribute(name="trace_count", zarr_group=zarr_root, attribute=trace_count)
 
-    zarr_root["metadata"].create_dataset(
-        data=grid.live_mask,
+    live_mask_arr = zarr_root["metadata"].create_array(
         name="live_mask",
+        dtype="bool",
         shape=grid.shape[:-1],
-        chunks=-1,
-        dimension_separator="/",
+        chunks=grid.shape[:-1],
+        chunk_key_encoding={"name": "v2", "separator": "/"},
     )
+    live_mask_arr[...] = grid.live_mask[...]
 
     write_attribute(name="created", zarr_group=zarr_root, attribute=str(datetime.now()))
     write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
@@ -132,21 +133,21 @@ def mock_mdio(
     for key, value in stats.items():
         write_attribute(name=key, zarr_group=zarr_root, attribute=value)
 
-    data_arr = data_grp.create_dataset(
+    data_arr = data_grp.create_array(
         "chunked_012",
         data=mock_data,
-        dimension_separator="/",
+        chunk_key_encoding={"name": "v2", "separator": "/"},
     )
 
-    metadata_grp.create_dataset(
+    metadata_grp.create_array(
         data=il_grid * xl_grid,
         name="_".join(["chunked_012", "trace_headers"]),
         shape=grid.shape[:-1],  # Same spatial shape as data
         chunks=data_arr.chunks[:-1],  # Same spatial chunks as data
-        dimension_separator="/",
+        chunk_key_encoding={"name": "v2", "separator": "/"},
     )
 
-    consolidate_metadata(mock_store)
+    consolidate_metadata(mock_root_group.store)
 
     return zarr_root
 
