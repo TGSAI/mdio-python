@@ -33,8 +33,8 @@ TEST_DIMS = {
 def mock_store(tmp_path_factory):
     """Make a mocked MDIO store for writing."""
     tmp_dir = tmp_path_factory.mktemp("mdio")
-    fs = LocalFileSystem(tmp_dir.name)
-    return FsspecStore(fs)
+    fs = LocalFileSystem()
+    return FsspecStore(fs, path=tmp_dir.name)
 
 
 @pytest.fixture
