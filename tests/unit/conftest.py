@@ -10,7 +10,7 @@ import pytest
 from numpy.typing import NDArray
 from zarr import Group
 from zarr import consolidate_metadata
-from zarr.storage import FSStore
+from zarr.storage import FsspecStore
 
 from mdio import MDIOReader
 from mdio.core import Dimension
@@ -32,7 +32,7 @@ TEST_DIMS = {
 def mock_store(tmp_path_factory):
     """Make a mocked MDIO store for writing."""
     tmp_dir = tmp_path_factory.mktemp("mdio")
-    return FSStore(tmp_dir.name)
+    return FsspecStore(tmp_dir.name)
 
 
 @pytest.fixture
@@ -73,7 +73,7 @@ def mock_data(mock_coords):
 
 @pytest.fixture
 def mock_mdio(
-    mock_store: FSStore,
+    mock_store: FsspecStore,
     mock_dimensions: list[Dimension],
     mock_coords: tuple[NDArray],
     mock_data: NDArray,
