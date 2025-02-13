@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import itertools
 import logging
 from typing import TYPE_CHECKING
 
@@ -96,7 +95,8 @@ def find_trailing_ones_index(dim_sizes: tuple[int, ...]) -> int:
         dim_sizes: A tuple of integers representing the data chunk dimensions.
 
     Returns:
-        The index indicating where the trailing sequence of ones starts, or 0 if every value is 1.
+        The index indicating where the trailing sequence of ones starts, or 0 if
+        every value is 1.
 
     Examples:
         >>> find_trailing_ones_index((7, 5, 1, 1))

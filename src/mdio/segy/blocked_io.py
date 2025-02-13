@@ -6,7 +6,6 @@ import multiprocessing as mp
 import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
-from shutil import copyfileobj
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -20,7 +19,8 @@ from zarr import Group
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker
-from mdio.segy.creation import SegyPartRecord, concat_files
+from mdio.segy.creation import SegyPartRecord
+from mdio.segy.creation import concat_files
 from mdio.segy.creation import serialize_to_segy_stack
 from mdio.segy.utilities import find_trailing_ones_index
 
@@ -187,9 +187,13 @@ def to_zarr(
     return stats
 
 
-def compute_global_index(record_index: tuple[int, ...], block_start: list[int]) -> tuple[int, ...]:
+def compute_global_index(
+    record_index: tuple[int, ...], block_start: list[int]
+) -> tuple[int, ...]:
     """Compute the global index by adding the block start to the local record index."""
-    return tuple(start + idx for start, idx in zip(block_start, record_index))
+    return tuple(
+        start + idx for start, idx in zip(block_start, record_index, strict=True)
+    )
 
 
 def generate_record_filepath(file_root: str, global_index: tuple[int, ...]) -> str:
