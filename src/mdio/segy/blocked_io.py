@@ -187,6 +187,17 @@ def to_zarr(
     return stats
 
 
+def compute_global_index(record_index: tuple[int, ...], block_start: list[int]) -> tuple[int, ...]:
+    """Compute the global index by adding the block start to the local record index."""
+    return tuple(start + idx for start, idx in zip(block_start, record_index))
+
+
+def generate_record_filepath(file_root: str, global_index: tuple[int, ...]) -> str:
+    """Generate the file path for a given global index using the file root."""
+    record_id_str = "/".join(map(str, global_index))
+    return os.path.join(file_root, f"{record_id_str}.bin")
+
+
 def segy_record_concat(
     block_records: NDArray,
     file_root: str,
@@ -194,55 +205,45 @@ def segy_record_concat(
 ) -> NDArray:
     """Concatenate partial ordered SEG-Y blocks on disk.
 
-    It will take an ND array SegyPartRecords. Goal is to preserve
-    the global order of traces when merging files. Order is assumed
-    to be correct at the block level (last dimension)
+    The function takes an NDArray containing SEG-Y part records and preserves the global
+    order of traces when merging files. The order is assumed to be correct at the block level
+    (last dimension).
 
     Args:
         block_records: Array indicating block file records.
         file_root: Root directory to write partial SEG-Y files.
-        block_info: Dask map_blocks reserved kwarg for block indices / shape etc.
+        block_info: Reserved keyword argument containing block indices, shape, etc.
 
     Returns:
         Concatenated SEG-Y block records.
 
     Raises:
-        ValueError: If required `block_info` is not provided.
+        ValueError: If the required `block_info` is not provided.
     """
     if block_info is None:
         raise ValueError("block_info is required for global index computation.")
 
     if np.count_nonzero(block_records) == 0:
-        return np.zeros_like(block_records, shape=block_records.shape[:-1])
+        return np.zeros(block_records.shape[:-1], dtype=block_records.dtype)
 
     info = block_info[0]
-
     block_start = [loc[0] for loc in info["array-location"]]
-
     record_shape = block_records.shape[:-1]
-    records_metadata = np.zeros(shape=record_shape, dtype=object)
+    records_metadata = np.zeros(record_shape, dtype=object)
+    dest_map: dict[str, list[str]] = {}
 
-    dest_map = {}
     for rec_index in np.ndindex(record_shape):
         rec_blocks = block_records[rec_index]
-
         if np.count_nonzero(rec_blocks) == 0:
             continue
 
-        global_index = tuple(
-            block_start[i] + rec_index[i] for i in range(len(record_shape))
-        )
-        record_id_str = "/".join(map(str, global_index))
-        record_file_path = f"{file_root}/{record_id_str}.bin"
-
+        global_index = compute_global_index(rec_index, block_start)
+        record_file_path = generate_record_filepath(file_root, global_index)
         records_metadata[rec_index] = SegyPartRecord(
             path=record_file_path,
             index=global_index,
         )
-
-        if record_file_path not in dest_map:
-            dest_map[record_file_path] = []
-
+        dest_map.setdefault(record_file_path, [])
         for block in rec_blocks:
             if block == 0:
                 continue
