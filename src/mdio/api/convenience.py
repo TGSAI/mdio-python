@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import zarr
+from numcodecs import Blosc
 from tqdm.auto import tqdm
-from zarr import Blosc
 
 from mdio.api.io_utils import process_url
 from mdio.core.indexing import ChunkIterator
@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from mdio import MDIOReader
 
 
+# TODO(Altay): This is not implemented in Zarr v3 yet.
 def copy_mdio(  # noqa: PLR0913
     source: MDIOReader,
     dest_path_or_buffer: str,
@@ -242,6 +243,7 @@ def rechunk_batch(
     write_rechunked_values(source, suffix_list, *plan)
 
 
+# TODO(Altay): This needs to be validated
 def rechunk(
     source: MDIOAccessor,
     chunks: tuple[int, ...],
