@@ -244,6 +244,8 @@ def segy_record_concat(
             dest_map[record_file_path] = []
 
         for block in rec_blocks:
+            if block == 0:
+                continue
             dest_map[record_file_path].append(block.path)
 
     for dest_path, source_paths in dest_map.items():
