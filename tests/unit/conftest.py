@@ -7,6 +7,7 @@ from importlib import metadata
 
 import numpy as np
 import pytest
+from fsspec.implementations.local import LocalFileSystem
 from numpy.typing import NDArray
 from zarr import Group
 from zarr import consolidate_metadata
@@ -32,7 +33,8 @@ TEST_DIMS = {
 def mock_store(tmp_path_factory):
     """Make a mocked MDIO store for writing."""
     tmp_dir = tmp_path_factory.mktemp("mdio")
-    return FsspecStore(tmp_dir.name)
+    fs = LocalFileSystem(tmp_dir.name)
+    return FsspecStore(fs)
 
 
 @pytest.fixture
