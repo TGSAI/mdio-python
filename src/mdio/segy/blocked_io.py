@@ -11,9 +11,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 from dask.array import Array
 from dask.array import map_blocks
+from numcodecs import Blosc
 from psutil import cpu_count
 from tqdm.auto import tqdm
-from zarr import Blosc
 from zarr import Group
 
 from mdio.core import Grid
@@ -90,26 +90,24 @@ def to_zarr(
             "install 'zfpy' or install mdio with `--extras lossy`"
         )
 
-    trace_array = data_root.create_dataset(
+    trace_array = data_root.create_array(
         name=name,
         shape=grid.shape,
         compressor=trace_compressor,
         chunks=chunks,
-        dimension_separator="/",
-        write_empty_chunks=False,
+        chunk_key_encoding={"name": "v2", "separator": "/"},
         **kwargs,
     )
 
     # Get header dtype in native order (little-endian 99.9% of the time)
     header_dtype = segy_file.spec.trace.header.dtype.newbyteorder("=")
-    header_array = metadata_root.create_dataset(
+    header_array = metadata_root.create_array(
         name="_".join([name, "trace_headers"]),
         shape=grid.shape[:-1],  # Same spatial shape as data
         chunks=chunks[:-1],  # Same spatial chunks as data
+        chunk_key_encoding={"name": "v2", "separator": "/"},
         compressor=header_compressor,
         dtype=header_dtype,
-        dimension_separator="/",
-        write_empty_chunks=False,
     )
 
     # Initialize chunk iterator (returns next chunk slice indices each iteration)
