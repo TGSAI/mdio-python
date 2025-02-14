@@ -190,27 +190,28 @@ class MDIOAccessor:
             url=self.url,
             disk_cache=self._disk_cache,
         )
-        self.store = zarr.open(
-            self.url, mode=self.mode, storage_options=storage_options
-        ).store
 
-    def _connect(self):
-        """Open the zarr root."""
         try:
-            if self.mode in {"r", "r+"}:
-                self.root = zarr.open_consolidated(store=self.store, mode=self.mode)
-            elif self.mode == "w":
-                self.root = zarr.open(store=self.store, mode="r+")
-            else:
-                msg = f"Invalid mode: {self.mode}"
-                raise ValueError(msg)
-        except KeyError as e:
+            self.store = zarr.open(
+                self.url, mode=self.mode, storage_options=storage_options
+            ).store
+        except FileNotFoundError as e:
             msg = (
-                f"MDIO file not found or corrupt at {self.store.path}. "
+                f"MDIO file not found or corrupt at {self.url}. "
                 "Please check the URL or ensure it is not a deprecated "
                 "version of MDIO file."
             )
             raise MDIONotFoundError(msg) from e
+
+    def _connect(self):
+        """Open the zarr root."""
+        if self.mode in {"r", "r+"}:
+            self.root = zarr.open_consolidated(store=self.store, mode=self.mode)
+        elif self.mode == "w":
+            self.root = zarr.open(store=self.store, mode="r+")
+        else:
+            msg = f"Invalid mode: {self.mode}"
+            raise ValueError(msg)
 
     def _deserialize_grid(self):
         """Deserialize grid from Zarr metadata."""
