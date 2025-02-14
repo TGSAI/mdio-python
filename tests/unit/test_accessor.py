@@ -132,6 +132,6 @@ class TestExceptions:
 
     def test_mdio_exists(self, mock_reader: MDIOReader) -> None:
         """MDIO doesn't exist or corrupt."""
-        mock_store = mock_reader.store
+        mock_root = mock_reader.root
         with pytest.raises(MDIOAlreadyExistsError):
-            create_zarr_hierarchy(mock_store, overwrite=False)
+            create_zarr_hierarchy(mock_root, overwrite=False)
