@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime
 from importlib import metadata
+from pathlib import Path
 
 import numpy as np
 import pytest
 import zarr
 from numpy.typing import NDArray
-from zarr import Group
 from zarr import consolidate_metadata
 from zarr import open_group
 
@@ -30,11 +30,9 @@ TEST_DIMS = {
 
 
 @pytest.fixture(scope="module")
-def mock_root_group(tmp_path_factory) -> Group:
+def mock_mdio_path(tmp_path_factory):
     """Make a mocked MDIO store for writing."""
-    zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
-    tmp_dir = tmp_path_factory.mktemp("mdio")
-    return open_group(tmp_dir.name, mode="w")
+    return tmp_path_factory.mktemp("mdio") / "mock.mdio"
 
 
 @pytest.fixture
@@ -75,7 +73,7 @@ def mock_data(mock_coords):
 
 @pytest.fixture
 def mock_mdio(
-    mock_root_group: Group,
+    mock_mdio_path: Path,
     mock_dimensions: list[Dimension],
     mock_coords: tuple[NDArray],
     mock_data: NDArray,
@@ -83,8 +81,11 @@ def mock_mdio(
     mock_bin: dict[str, int],
 ):
     """This mocks most of mdio.converters.segy in memory."""
-    zarr_root = create_zarr_hierarchy(
-        root_group=mock_root_group,
+    zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
+    zarr_root = open_group(mock_mdio_path, mode="w")
+
+    create_zarr_hierarchy(
+        root_group=zarr_root,
         overwrite=True,
     )
 
@@ -114,6 +115,7 @@ def mock_mdio(
         shape=grid.shape[:-1],
         chunks=grid.shape[:-1],
         chunk_key_encoding={"name": "v2", "separator": "/"},
+        overwrite=True,
     )
     live_mask_arr[...] = grid.live_mask[...]
 
@@ -135,34 +137,39 @@ def mock_mdio(
 
     data_arr = data_grp.create_array(
         "chunked_012",
-        data=mock_data,
+        dtype=mock_data.dtype,
+        shape=mock_data.shape,
         chunk_key_encoding={"name": "v2", "separator": "/"},
+        overwrite=True,
     )
+    data_arr[...] = mock_data
 
-    metadata_grp.create_array(
-        data=il_grid * xl_grid,
+    metadata_arr = metadata_grp.create_array(
         name="_".join(["chunked_012", "trace_headers"]),
+        dtype=il_grid.dtype,
         shape=grid.shape[:-1],  # Same spatial shape as data
         chunks=data_arr.chunks[:-1],  # Same spatial chunks as data
         chunk_key_encoding={"name": "v2", "separator": "/"},
+        overwrite=True,
     )
+    metadata_arr[...] = il_grid * xl_grid
 
-    consolidate_metadata(mock_root_group.store)
+    consolidate_metadata(zarr_root.store)
 
-    return zarr_root
+    return mock_mdio_path
 
 
 @pytest.fixture
-def mock_reader(mock_mdio: Group) -> MDIOReader:
+def mock_reader(mock_mdio: Path) -> MDIOReader:
     """Reader that points to the mocked data to be used later."""
-    return MDIOReader(mock_mdio.store.path)
+    return MDIOReader(mock_mdio.__str__())
 
 
 @pytest.fixture
-def mock_reader_cached(mock_mdio: Group) -> MDIOReader:
+def mock_reader_cached(mock_mdio: Path) -> MDIOReader:
     """Reader that points to the mocked data to be used later. (with local caching)."""
     return MDIOReader(
-        mock_mdio.store.path,
+        mock_mdio.__str__(),
         disk_cache=True,
         storage_options={"simplecache": {"cache_storage": "./mdio_test_cache"}},
     )

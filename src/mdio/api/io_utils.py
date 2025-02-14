@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import dask.array as da
 import zarr
-from zarr.storage._utils import normalize_path
 
 
 def process_url(
@@ -69,7 +68,7 @@ def process_url(
     if disk_cache is True:
         url = "::".join(["simplecache", url])
 
-    return normalize_path(url)
+    return url
 
 
 def open_zarr_array(group_handle: zarr.Group, name: str) -> zarr.Array:

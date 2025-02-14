@@ -259,7 +259,7 @@ def test_3d_import(segy_input, zarr_tmp, index_bytes, index_names):
     """Test importing a SEG-Y file to MDIO."""
     segy_to_mdio(
         segy_path=segy_input.__str__(),
-        mdio_path_or_buffer=zarr_tmp.__str__(),
+        mdio_path_or_buffer=(zarr_tmp / "teapot.mdio").__str__(),
         index_bytes=index_bytes,
         index_names=index_names,
         overwrite=True,
@@ -272,13 +272,13 @@ class TestReader:
 
     def test_meta_read(self, zarr_tmp):
         """Metadata reading tests."""
-        mdio = MDIOReader(zarr_tmp.__str__())
+        mdio = MDIOReader((zarr_tmp / "teapot.mdio").__str__())
         assert mdio.binary_header["samples_per_trace"] == 1501
         assert mdio.binary_header["sample_interval"] == 2000
 
     def test_grid(self, zarr_tmp):
         """Grid reading tests."""
-        mdio = MDIOReader(zarr_tmp.__str__())
+        mdio = MDIOReader((zarr_tmp / "teapot.mdio").__str__())
         grid = mdio.grid
 
         assert grid.select_dim("inline") == Dimension(range(1, 346), "inline")
@@ -287,7 +287,7 @@ class TestReader:
 
     def test_get_data(self, zarr_tmp):
         """Data retrieval tests."""
-        mdio = MDIOReader(zarr_tmp.__str__())
+        mdio = MDIOReader((zarr_tmp / "teapot.mdio").__str__())
 
         assert mdio.shape == (345, 188, 1501)
         assert mdio[0, :, :].shape == (188, 1501)
@@ -296,7 +296,7 @@ class TestReader:
 
     def test_inline(self, zarr_tmp):
         """Read and compare every 75 inlines' mean and std. dev."""
-        mdio = MDIOReader(zarr_tmp.__str__())
+        mdio = MDIOReader((zarr_tmp / "teapot.mdio").__str__())
 
         inlines = mdio[::75, :, :]
         mean, std = inlines.mean(), inlines.std()
@@ -305,7 +305,7 @@ class TestReader:
 
     def test_crossline(self, zarr_tmp):
         """Read and compare every 75 crosslines' mean and std. dev."""
-        mdio = MDIOReader(zarr_tmp.__str__())
+        mdio = MDIOReader((zarr_tmp / "teapot.mdio").__str__())
 
         xlines = mdio[:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
@@ -314,7 +314,7 @@ class TestReader:
 
     def test_zslice(self, zarr_tmp):
         """Read and compare every 225 z-slices' mean and std. dev."""
-        mdio = MDIOReader(zarr_tmp.__str__())
+        mdio = MDIOReader((zarr_tmp / "teapot.mdio").__str__())
 
         slices = mdio[:, :, ::225]
         mean, std = slices.mean(), slices.std()
@@ -329,7 +329,7 @@ class TestExport:
     def test_3d_export(self, zarr_tmp, segy_export_tmp):
         """Test 3D export to IBM and IEEE."""
         mdio_to_segy(
-            mdio_path_or_buffer=zarr_tmp.__str__(),
+            mdio_path_or_buffer=(zarr_tmp / "teapot.mdio").__str__(),
             output_segy_path=segy_export_tmp.__str__(),
         )
 
