@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from mdio import MDIOReader
 
 
-# TODO(Altay): This is not implemented in Zarr v3 yet.
 def copy_mdio(  # noqa: PLR0913
     source: MDIOReader,
     dest_path_or_buffer: str,
@@ -52,19 +51,21 @@ def copy_mdio(  # noqa: PLR0913
             Default is None (will assume anonymous).
         overwrite: Overwrite destination or not.
 
+    Raises:
+        NotImplementedError: because Zarr v3 doesn't support copy.
     """
     if storage_options is None:
         storage_options = {}
 
     dest_store = process_url(
         url=dest_path_or_buffer,
-        mode="w",
-        storage_options=storage_options,
-        memory_cache_size=0,
         disk_cache=False,
     )
 
     if_exists = "replace" if overwrite is True else "raise"
+
+    # TODO(Altay): Update this function when Zarr v3 supports copy.
+    raise NotImplementedError("Zarr version 3.0.0+ does not support copy yet.")
 
     zarr.copy_store(
         source=source.store,
