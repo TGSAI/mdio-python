@@ -144,25 +144,23 @@ def mock_nd_segy(
     """Create a fake SEG-Y file with a multidimensional grid."""
     spec = get_segy_standard(segy_factory_conf.revision)
 
-    header_fields = []
+    header_flds = []
     for dim in grid_conf.dims:
         byte_loc = segy_factory_conf.header_byte_map[dim.name]
-        header_fields.append(HeaderField(name=dim.name, byte=byte_loc, format="int32"))
+        header_flds.append(HeaderField(name=dim.name, byte=byte_loc, format="int32"))
 
-    header_fields.append(
-        HeaderField(name="samples_per_trace", byte=115, format="int16")
-    )
-    header_fields.append(HeaderField(name="sample_interval", byte=117, format="int16"))
+    header_flds.append(HeaderField(name="samples_per_trace", byte=115, format="int16"))
+    header_flds.append(HeaderField(name="sample_interval", byte=117, format="int16"))
 
-    spec = spec.customize(trace_header_fields=header_fields)
+    spec = spec.customize(trace_header_fields=header_flds)
     spec.segy_standard = segy_factory_conf.revision
     factory = SegyFactory(spec=spec, samples_per_trace=segy_factory_conf.num_samples)
 
     dim_coords = ()
     for dim in grid_conf.dims:
-        dim_coords += (
-            np.arange(dim.start, dim.start + (dim.size * dim.step), dim.step),
-        )
+        start, size, step = dim.start, dim.size, dim.step
+        stop = start + (size * step)
+        dim_coords += (np.arange(start, stop, step),)
 
     dim_grid = np.meshgrid(*dim_coords, indexing="ij")
     trace_numbers = np.arange(dim_grid[0].size) + 1
@@ -187,9 +185,8 @@ def generate_selection_mask(
 ) -> NDArray:
     """Generate a boolean selection mask for a masked export test."""
     spatial_shape = [dim.size for dim in grid_conf.dims]
-    mask_dim_shape = [
-        dim.size for dim in grid_conf.dims[: selection_conf.mask_num_dims]
-    ]
+    mask_dims = selection_conf.mask_num_dims
+    mask_dim_shape = [dim.size for dim in grid_conf.dims[:mask_dims]]
 
     selection_mask = np.zeros(shape=spatial_shape, dtype="bool")
     cut_axes = np.zeros(shape=mask_dim_shape, dtype="bool")
@@ -256,15 +253,15 @@ class TestNdImportExport:
         index_names = segy_factory_conf.header_byte_map.keys()
         access_pattern = "".join(map(str, range(len(index_names) + 1)))
         mdio = MDIOReader(mdio_path.__str__(), access_pattern=access_pattern)
-        export_chunks = segy_export_rechunker(
-            mdio.chunks, mdio.shape, dtype="float32", limit="0.3M"
-        )
+
+        chunks, shape = mdio.chunks, mdio.shape
+        new_chunks = segy_export_rechunker(chunks, shape, dtype="float32", limit="0.3M")
 
         mdio_to_segy(
             mdio_path.__str__(),
             segy_rt_path.__str__(),
             access_pattern=access_pattern,
-            new_chunks=export_chunks,
+            new_chunks=new_chunks,
         )
 
         expected_sgy = SegyFile(segy_path)
