@@ -4,13 +4,14 @@ from __future__ import annotations
 
 from datetime import datetime
 from importlib import metadata
+from pathlib import Path
 
 import numpy as np
 import pytest
+import zarr
 from numpy.typing import NDArray
-from zarr import Group
 from zarr import consolidate_metadata
-from zarr.storage import FSStore
+from zarr import open_group
 
 from mdio import MDIOReader
 from mdio.core import Dimension
@@ -29,10 +30,9 @@ TEST_DIMS = {
 
 
 @pytest.fixture(scope="module")
-def mock_store(tmp_path_factory):
+def mock_mdio_path(tmp_path_factory):
     """Make a mocked MDIO store for writing."""
-    tmp_dir = tmp_path_factory.mktemp("mdio")
-    return FSStore(tmp_dir.name)
+    return tmp_path_factory.mktemp("mdio") / "mock.mdio"
 
 
 @pytest.fixture
@@ -73,7 +73,7 @@ def mock_data(mock_coords):
 
 @pytest.fixture
 def mock_mdio(
-    mock_store: FSStore,
+    mock_mdio_path: Path,
     mock_dimensions: list[Dimension],
     mock_coords: tuple[NDArray],
     mock_data: NDArray,
@@ -81,8 +81,11 @@ def mock_mdio(
     mock_bin: dict[str, int],
 ):
     """This mocks most of mdio.converters.segy in memory."""
-    zarr_root = create_zarr_hierarchy(
-        store=mock_store,
+    zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
+    zarr_root = open_group(mock_mdio_path, mode="w")
+
+    create_zarr_hierarchy(
+        root_group=zarr_root,
         overwrite=True,
     )
 
@@ -106,13 +109,15 @@ def mock_mdio(
     write_attribute(name="dimension", zarr_group=zarr_root, attribute=dimensions_dict)
     write_attribute(name="trace_count", zarr_group=zarr_root, attribute=trace_count)
 
-    zarr_root["metadata"].create_dataset(
-        data=grid.live_mask,
+    live_mask_arr = zarr_root["metadata"].create_array(
         name="live_mask",
+        dtype="bool",
         shape=grid.shape[:-1],
-        chunks=-1,
-        dimension_separator="/",
+        chunks=grid.shape[:-1],
+        chunk_key_encoding={"name": "v2", "separator": "/"},
+        overwrite=True,
     )
+    live_mask_arr[...] = grid.live_mask[...]
 
     write_attribute(name="created", zarr_group=zarr_root, attribute=str(datetime.now()))
     write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
@@ -130,36 +135,41 @@ def mock_mdio(
     for key, value in stats.items():
         write_attribute(name=key, zarr_group=zarr_root, attribute=value)
 
-    data_arr = data_grp.create_dataset(
+    data_arr = data_grp.create_array(
         "chunked_012",
-        data=mock_data,
-        dimension_separator="/",
+        dtype=mock_data.dtype,
+        shape=mock_data.shape,
+        chunk_key_encoding={"name": "v2", "separator": "/"},
+        overwrite=True,
     )
+    data_arr[...] = mock_data
 
-    metadata_grp.create_dataset(
-        data=il_grid * xl_grid,
+    metadata_arr = metadata_grp.create_array(
         name="_".join(["chunked_012", "trace_headers"]),
+        dtype=il_grid.dtype,
         shape=grid.shape[:-1],  # Same spatial shape as data
         chunks=data_arr.chunks[:-1],  # Same spatial chunks as data
-        dimension_separator="/",
+        chunk_key_encoding={"name": "v2", "separator": "/"},
+        overwrite=True,
     )
+    metadata_arr[...] = il_grid * xl_grid
 
-    consolidate_metadata(mock_store)
+    consolidate_metadata(zarr_root.store)
 
-    return zarr_root
+    return mock_mdio_path
 
 
 @pytest.fixture
-def mock_reader(mock_mdio: Group) -> MDIOReader:
+def mock_reader(mock_mdio: Path) -> MDIOReader:
     """Reader that points to the mocked data to be used later."""
-    return MDIOReader(mock_mdio.store.path)
+    return MDIOReader(mock_mdio.__str__())
 
 
 @pytest.fixture
-def mock_reader_cached(mock_mdio: Group) -> MDIOReader:
+def mock_reader_cached(mock_mdio: Path) -> MDIOReader:
     """Reader that points to the mocked data to be used later. (with local caching)."""
     return MDIOReader(
-        mock_mdio.store.path,
+        mock_mdio.__str__(),
         disk_cache=True,
         storage_options={"simplecache": {"cache_storage": "./mdio_test_cache"}},
     )
