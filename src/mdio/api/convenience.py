@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import zarr
+from numcodecs import Blosc
 from tqdm.auto import tqdm
-from zarr import Blosc
 
 from mdio.api.io_utils import process_url
 from mdio.core.indexing import ChunkIterator
@@ -51,19 +51,21 @@ def copy_mdio(  # noqa: PLR0913
             Default is None (will assume anonymous).
         overwrite: Overwrite destination or not.
 
+    Raises:
+        NotImplementedError: because Zarr v3 doesn't support copy.
     """
     if storage_options is None:
         storage_options = {}
 
     dest_store = process_url(
         url=dest_path_or_buffer,
-        mode="w",
-        storage_options=storage_options,
-        memory_cache_size=0,
         disk_cache=False,
     )
 
     if_exists = "replace" if overwrite is True else "raise"
+
+    # TODO(Altay): Update this function when Zarr v3 supports copy.
+    raise NotImplementedError("Zarr version 3.0.0+ does not support copy yet.")
 
     zarr.copy_store(
         source=source.store,
@@ -242,6 +244,7 @@ def rechunk_batch(
     write_rechunked_values(source, suffix_list, *plan)
 
 
+# TODO(Altay): This needs to be validated
 def rechunk(
     source: MDIOAccessor,
     chunks: tuple[int, ...],

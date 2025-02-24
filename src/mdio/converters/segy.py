@@ -343,6 +343,8 @@ def segy_to_mdio(  # noqa: C901
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
+    zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
+
     if index_names is None:
         index_names = [f"dim_{i}" for i in range(len(index_bytes))]
 
@@ -364,13 +366,8 @@ def segy_to_mdio(  # noqa: C901
     if storage_options_output is None:
         storage_options_output = {}
 
-    store = process_url(
-        url=mdio_path_or_buffer,
-        mode="w",
-        storage_options=storage_options_output,
-        memory_cache_size=0,  # Making sure disk caching is disabled,
-        disk_cache=False,  # Making sure disk caching is disabled
-    )
+    url = process_url(url=mdio_path_or_buffer, disk_cache=False)
+    root_group = zarr.open_group(url, mode="w", storage_options=storage_options_output)
 
     # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
     mdio_spec = mdio_segy_spec()
@@ -406,42 +403,43 @@ def segy_to_mdio(  # noqa: C901
         logger.warning(f"Ingestion grid shape: {grid.shape}.")
         raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
 
-    zarr_root = create_zarr_hierarchy(
-        store=store,
+    root_group = create_zarr_hierarchy(
+        root_group=root_group,
         overwrite=overwrite,
     )
 
     # Get UTC time, then add local timezone information offset.
     iso_datetime = datetime.now(timezone.utc).isoformat()
 
-    write_attribute(name="created", zarr_group=zarr_root, attribute=iso_datetime)
-    write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
+    write_attribute(name="created", zarr_group=root_group, attribute=iso_datetime)
+    write_attribute(name="api_version", zarr_group=root_group, attribute=API_VERSION)
 
     dimensions_dict = [dim.to_dict() for dim in dimensions]
-    write_attribute(name="dimension", zarr_group=zarr_root, attribute=dimensions_dict)
+    write_attribute(name="dimension", zarr_group=root_group, attribute=dimensions_dict)
 
     # Write trace count
     trace_count = np.count_nonzero(grid.live_mask)
-    write_attribute(name="trace_count", zarr_group=zarr_root, attribute=trace_count)
+    write_attribute(name="trace_count", zarr_group=root_group, attribute=trace_count)
 
     # Note, live mask is not chunked since it's bool and small.
-    zarr_root["metadata"].create_dataset(
-        data=grid.live_mask,
+    live_mask_arr = root_group["metadata"].create_array(
         name="live_mask",
         shape=grid.shape[:-1],
-        chunks=-1,
-        dimension_separator="/",
+        chunks=grid.shape[:-1],
+        dtype="bool",
+        chunk_key_encoding={"name": "v2", "separator": "/"},
     )
+    live_mask_arr[...] = grid.live_mask[...]
 
     write_attribute(
         name="text_header",
-        zarr_group=zarr_root["metadata"],
+        zarr_group=root_group["metadata"],
         attribute=text_header.split("\n"),
     )
 
     write_attribute(
         name="binary_header",
-        zarr_group=zarr_root["metadata"],
+        zarr_group=root_group["metadata"],
         attribute=binary_header.to_dict(),
     )
 
@@ -470,8 +468,8 @@ def segy_to_mdio(  # noqa: C901
     stats = blocked_io.to_zarr(
         segy_file=segy,
         grid=grid,
-        data_root=zarr_root["data"],
-        metadata_root=zarr_root["metadata"],
+        data_root=root_group["data"],
+        metadata_root=root_group["metadata"],
         name="_".join(["chunked", suffix]),
         dtype="float32",
         chunks=chunksize,
@@ -480,17 +478,7 @@ def segy_to_mdio(  # noqa: C901
     )
 
     for key, value in stats.items():
-        write_attribute(name=key, zarr_group=zarr_root, attribute=value)
+        write_attribute(name=key, zarr_group=root_group, attribute=value)
 
-    # Non-cached store for consolidating metadata.
-    # If caching is enabled the metadata may fall out of cache hence
-    # creating an incomplete `.zmetadata` file.
-    store_nocache = process_url(
-        url=mdio_path_or_buffer,
-        mode="r+",
-        storage_options=storage_options_output,
-        memory_cache_size=0,  # Making sure disk caching is disabled,
-        disk_cache=False,  # Making sure disk caching is disabled
-    )
-
-    zarr.consolidate_metadata(store_nocache)
+    # Finalize Zarr for fast open
+    zarr.consolidate_metadata(root_group.store)
