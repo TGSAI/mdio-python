@@ -1,26 +1,26 @@
 """Test configuration before everything runs."""
 
 from os import path
+from pathlib import Path
 from urllib.request import urlretrieve
 
 import pytest
 
 
 @pytest.fixture(scope="session")
-def fake_segy_tmp(tmp_path_factory):
+def fake_segy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the fake SEG-Y files we are going to create."""
-    tmp_dir = tmp_path_factory.mktemp(r"fake_segy")
-    return tmp_dir
+    return tmp_path_factory.mktemp(r"fake_segy")
 
 
 @pytest.fixture(scope="session")
-def segy_input_uri():
+def segy_input_uri() -> str:
     """Path to dome dataset for cloud testing."""
     return "http://s3.amazonaws.com/teapot/filt_mig.sgy"
 
 
 @pytest.fixture(scope="session")
-def segy_input(segy_input_uri, tmp_path_factory):
+def segy_input(segy_input_uri, tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Download teapot dome dataset for testing."""
     tmp_dir = tmp_path_factory.mktemp("segy")
     tmp_file = path.join(tmp_dir, "teapot.segy")
@@ -30,21 +30,21 @@ def segy_input(segy_input_uri, tmp_path_factory):
 
 
 @pytest.fixture(scope="module")
-def zarr_tmp(tmp_path_factory):
+def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
     tmp_file = tmp_path_factory.mktemp(r"mdio")
     return tmp_file
 
 
 @pytest.fixture(scope="module")
-def zarr_tmp2(tmp_path_factory):
+def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
     tmp_file = tmp_path_factory.mktemp(r"mdio2")
     return tmp_file
 
 
 @pytest.fixture(scope="session")
-def segy_export_tmp(tmp_path_factory):
+def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the round-trip IBM SEG-Y."""
     tmp_dir = tmp_path_factory.mktemp("segy")
     tmp_file = path.join(tmp_dir, "teapot_roundtrip.segy")

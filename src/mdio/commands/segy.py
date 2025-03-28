@@ -393,7 +393,7 @@ def segy_import(  # noqa: PLR0913
     show_default=True,
     show_choices=True,
 )
-def segy_export(
+def segy_export(  # noqa: PLR0913
     mdio_file: str,
     segy_path: str,
     access_pattern: str,

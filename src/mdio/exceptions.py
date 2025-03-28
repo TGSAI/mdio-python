@@ -28,7 +28,7 @@ class ShapeError(MDIOError):
             extras = [f"{name}: {shape}" for name, shape in shape_dict]
             extras = " <> ".join(extras)
 
-            message = " - ".join([message, extras])
+            message = f"{message} - {extras}"
 
         super().__init__(message)
 
@@ -36,7 +36,7 @@ class ShapeError(MDIOError):
 class WrongTypeError(MDIOError):
     """Raised when types of two or things don't match."""
 
-    def __init__(self, message, name=None, expected=None):
+    def __init__(self, message: str, name: str = None, expected: str = None):
         """Construct type error.
 
         Args:
@@ -47,6 +47,6 @@ class WrongTypeError(MDIOError):
         if name is not None and expected is not None:
             extras = f"Got: {name} Expected: {expected}"
 
-            message = " - ".join([message, extras])
+            message = f"{message} - {extras}"
 
         super().__init__(message)

@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from dask.array.core import normalize_chunks
 
-from mdio.core import Dimension
+from mdio.core.dimension import Dimension
 from mdio.segy.geometry import GridOverrider
 from mdio.segy.parsers import parse_index_headers
 

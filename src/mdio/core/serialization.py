@@ -60,10 +60,12 @@ def get_serializer(stream_format: str) -> Callable:
     stream_format = stream_format.upper()
     if stream_format == "JSON":
         return _serialize_to_json
-    elif stream_format == "YAML":
+
+    if stream_format == "YAML":
         return _serialize_to_yaml
-    else:
-        raise ValueError(stream_format)
+    
+    msg = f"Unsupported serializer format: {stream_format}"
+    raise ValueError(msg)
 
 
 def get_deserializer(stream_format: str) -> Callable:
@@ -71,10 +73,12 @@ def get_deserializer(stream_format: str) -> Callable:
     stream_format = stream_format.upper()
     if stream_format == "JSON":
         return _deserialize_json
-    elif stream_format == "YAML":
+
+    if stream_format == "YAML":
         return _deserialize_yaml
-    else:
-        raise ValueError(stream_format)
+
+    msg = f"Unsupported deserializer format: {stream_format}"
+    raise ValueError(msg)
 
 
 def _serialize_to_json(payload: dict) -> str:

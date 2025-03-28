@@ -7,6 +7,7 @@ import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 from dask.array import Array
@@ -17,7 +18,6 @@ from tqdm.auto import tqdm
 from zarr import Blosc
 from zarr import Group
 
-from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker
 from mdio.segy.creation import concat_files
@@ -25,14 +25,17 @@ from mdio.segy.creation import write_to_segy_stack
 
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from numpy.typing import NDArray
+
+    from mdio.core import Grid
     from segy import SegyFactory
     from segy import SegyFile
 
 try:
     import zfpy  # Base library
     from zarr import ZFPY  # Codec
-
 except ImportError:
     ZFPY = None
     zfpy = None
@@ -40,7 +43,7 @@ except ImportError:
 default_cpus = cpu_count(logical=True)
 
 
-def to_zarr(
+def to_zarr(  # noqa: PLR0913
     segy_file: SegyFile,
     grid: Grid,
     data_root: Group,
@@ -49,7 +52,7 @@ def to_zarr(
     chunks: tuple[int, ...],
     lossless: bool,
     compression_tolerance: float = 0.01,
-    **kwargs,
+    **kwargs: dict[str, Any],
 ) -> dict:
     """Blocked I/O from SEG-Y to chunked `zarr.core.Array`.
 
@@ -83,11 +86,12 @@ def to_zarr(
         )
         header_compressor = Blosc("zstd")
     else:
-        raise ImportError(
+        msg = (
             "Lossy compression requires the 'zfpy' library. It is "
             "not installed in your environment. To proceed please "
             "install 'zfpy' or install mdio with `--extras lossy`"
         )
+        raise ImportError(msg)
 
     trace_array = data_root.create_dataset(
         name=name,
@@ -102,7 +106,7 @@ def to_zarr(
     # Get header dtype in native order (little-endian 99.9% of the time)
     header_dtype = segy_file.spec.trace.header.dtype.newbyteorder("=")
     header_array = metadata_root.create_dataset(
-        name="_".join([name, "trace_headers"]),
+        name=f"{name}_trace_headers",
         shape=grid.shape[:-1],  # Same spatial shape as data
         chunks=chunks[:-1],  # Same spatial chunks as data
         compressor=header_compressor,
@@ -153,7 +157,7 @@ def to_zarr(
     # Columns in order: count, sum, sum of squared, min, max.
     # From here we can compute global mean, std, rms, min, max.
     # Transposing because we want each statistic as a row to unpack later.
-    # REF: https://math.stackexchange.com/questions/1547141/aggregating-standard-deviation-to-a-summary-point  # noqa: B950
+    # REF: https://math.stackexchange.com/questions/1547141/aggregating-standard-deviation-to-a-summary-point
     # REF: https://www.mathwords.com/r/root_mean_square.htm
     chunk_stats = [stat for stat in chunk_stats if stat is not None]
 
@@ -175,15 +179,13 @@ def to_zarr(
     glob_min = glob_min.min().astype("float64")
     glob_max = glob_max.max().astype("float64")
 
-    stats = {
+    return {
         "mean": glob_mean,
         "std": glob_std,
         "rms": glob_rms,
         "min": glob_min,
         "max": glob_max,
     }
-
-    return stats
 
 
 def segy_concat(
@@ -216,8 +218,8 @@ def segy_concat(
         return np.expand_dims(concat_paths, axis) if keepdims else concat_paths
 
     # Flatten and concat section files to a single root file at first axis.
-    for index, section_paths in enumerate(partial_files):
-        section_paths = section_paths.ravel()
+    for index, section_paths_arr in enumerate(partial_files):
+        section_paths = section_paths_arr.ravel()
         section_missing = section_paths == "missing"
 
         if np.all(section_missing):
@@ -230,12 +232,12 @@ def segy_concat(
     return np.expand_dims(concat_paths, axis) if keepdims else concat_paths
 
 
-def to_segy(
+def to_segy(  # noqa: PLR0913
     samples: Array,
     headers: Array,
     live_mask: Array,
     segy_factory: SegyFactory,
-    file_root: str,
+    file_root: str | Path,
     axis: tuple[int] | None = None,
 ) -> Array:
     r"""Convert MDIO blocks to SEG-Y parts.
@@ -303,12 +305,10 @@ def to_segy(
         concatenate=True,
     )
 
-    result = _tree_reduce(
+    return _tree_reduce(
         trace_files,
         segy_concat,
         axis,
         keepdims=False,
         dtype=trace_files.dtype,
     )
-
-    return result

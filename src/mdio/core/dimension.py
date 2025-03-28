@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 
 from mdio.core.serialization import Serializer
 from mdio.exceptions import ShapeError
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 @dataclass(eq=False, order=False, slots=True)
 class Dimension:
@@ -28,7 +30,7 @@ class Dimension:
     coords: list | tuple | NDArray | range
     name: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Post process and validation."""
         self.coords = np.asarray(self.coords)
         if self.coords.ndim != 1:
@@ -45,10 +47,10 @@ class Dimension:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert dimension to dictionary."""
-        return dict(name=self.name, coords=self.coords.tolist())
+        return {"name": self.name, "coords": self.coords.tolist()}
 
     @classmethod
-    def from_dict(cls, other: dict[str, Any]) -> Dimension:
+    def from_dict(cls: Dimension, other: dict[str, Any]) -> Dimension:
         """Make dimension from dictionary."""
         return Dimension(**other)
 
@@ -60,7 +62,7 @@ class Dimension:
         """Gets a specific coordinate value by index."""
         return self.coords[item]
 
-    def __setitem__(self, key: int, value: Any) -> None:
+    def __setitem__(self, key: int, value: NDArray[float]) -> None:
         """Sets a specific coordinate value by index."""
         self.coords[key] = value
 
@@ -90,7 +92,7 @@ class Dimension:
         return serializer.serialize(self)
 
     @classmethod
-    def deserialize(cls, stream: str, stream_format: str) -> Dimension:
+    def deserialize(cls: Dimension, stream: str, stream_format: str) -> Dimension:
         """Deserialize buffer into Dimension."""
         serializer = DimensionSerializer(stream_format)
         return serializer.deserialize(stream)
@@ -101,11 +103,11 @@ class DimensionSerializer(Serializer):
 
     def serialize(self, dimension: Dimension) -> str:
         """Serialize Dimension into buffer."""
-        payload = dict(
-            name=dimension.name,
-            length=len(dimension),
-            coords=dimension.coords.tolist(),
-        )
+        payload = {
+            "name": dimension.name,
+            "length": len(dimension),
+            "coords": dimension.coords.tolist(),
+        }
         return self.serialize_func(payload)
 
     def deserialize(self, stream: str) -> Dimension:

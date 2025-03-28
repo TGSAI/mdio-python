@@ -12,9 +12,9 @@ class GridOverrideInputError(MDIOError):
 
 
 class GridOverrideUnknownError(GridOverrideInputError):
-    """Raised when grid override parameter is unknown."""
+    """Raised with custom message when grid override parameter is unknown."""
 
-    def __init__(self, command_name):
+    def __init__(self, command_name: str) -> None:
         """Initialize with custom message."""
         self.command_name = command_name
         self.message = f"Unknown grid override: {command_name}"
@@ -22,9 +22,9 @@ class GridOverrideUnknownError(GridOverrideInputError):
 
 
 class GridOverrideKeysError(GridOverrideInputError):
-    """Raised when grid override is not compatible with required keys."""
+    """Raised with custom messagewhen grid override is not compatible with required keys."""
 
-    def __init__(self, command_name, required_keys):
+    def __init__(self, command_name: str, required_keys: str) -> None:
         """Initialize with custom message."""
         self.command_name = command_name
         self.required_keys = required_keys
@@ -33,9 +33,9 @@ class GridOverrideKeysError(GridOverrideInputError):
 
 
 class GridOverrideMissingParameterError(GridOverrideInputError):
-    """Raised when grid override parameters are not correct."""
+    """Raised with custom message when grid override parameters are not correct."""
 
-    def __init__(self, command_name, missing_parameter):
+    def __init__(self, command_name: str, missing_parameter: str) -> None:
         """Initialize with custom message."""
         self.command_name = command_name
         self.missing_parameter = missing_parameter
@@ -44,9 +44,9 @@ class GridOverrideMissingParameterError(GridOverrideInputError):
 
 
 class GridOverrideIncompatibleError(GridOverrideInputError):
-    """Raised when two grid overrides are incompatible."""
+    """Raised with custom message when two grid overrides are incompatible."""
 
-    def __init__(self, first_command, second_command):
+    def __init__(self, first_command: str, second_command: str) -> None:
         """Initialize with custom message."""
         self.first_command = first_command
         self.second_command = second_command

@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import logging
 
-import dask.array as da
 import numpy as np
 import numpy.typing as npt
 import zarr
@@ -18,6 +19,9 @@ from mdio.core import Grid
 from mdio.core.exceptions import MDIONotFoundError
 from mdio.exceptions import ShapeError
 
+if TYPE_CHECKING:
+    import dask.array as da
+    from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)
 
@@ -181,7 +185,7 @@ class MDIOAccessor:
         self._set_attributes()
         self._open_arrays()
 
-    def _validate_store(self, storage_options):
+    def _validate_store(self, storage_options: dict[str, str] | None) -> None:
         """Method to validate the provided store."""
         if storage_options is None:
             storage_options = {}
@@ -194,7 +198,7 @@ class MDIOAccessor:
             disk_cache=self._disk_cache,
         )
 
-    def _connect(self):
+    def _connect(self) -> None:
         """Open the zarr root."""
         try:
             if self.mode in {"r", "r+"}:
@@ -212,11 +216,11 @@ class MDIOAccessor:
             )
             raise MDIONotFoundError(msg) from e
 
-    def _deserialize_grid(self):
+    def _deserialize_grid(self) -> None:
         """Deserialize grid from Zarr metadata."""
         self.grid = Grid.from_zarr(self.root)
 
-    def _set_attributes(self):
+    def _set_attributes(self) -> None:
         """Deserialize attributes from Zarr metadata."""
         self.trace_count = self.root.attrs["trace_count"]
         self.stats = {
@@ -231,7 +235,7 @@ class MDIOAccessor:
         self.n_dim = len(self.shape)
 
         # Access pattern attributes
-        data_array_name = "_".join(["chunked", self.access_pattern])
+        data_array_name = f"chunked_{self.access_pattern}"
         self.chunks = self._data_group[data_array_name].chunks
         self._orig_chunks = self.chunks
 
@@ -251,15 +255,15 @@ class MDIOAccessor:
             self._orig_chunks = self.chunks
             self.chunks = new_chunks
 
-    def _open_arrays(self):
+    def _open_arrays(self) -> None:
         """Open arrays with requested backend."""
-        data_array_name = "_".join(["chunked", self.access_pattern])
-        header_array_name = "_".join(["chunked", self.access_pattern, "trace_headers"])
+        data_array_name = f"chunked_{self.access_pattern}"
+        header_array_name = f"chunked_{self.access_pattern}_trace_headers"
 
-        trace_kwargs = dict(
-            group_handle=self._data_group,
-            name=data_array_name,
-        )
+        trace_kwargs = {
+            "group_handle": self._data_group,
+            "name": data_array_name,
+        }
 
         if self._backend == "dask":
             trace_kwargs["chunks"] = self.chunks
@@ -271,10 +275,10 @@ class MDIOAccessor:
             logger.info(f"Setting MDIO in-memory chunks to {dask_chunks}")
             self.chunks = dask_chunks
 
-        header_kwargs = dict(
-            group_handle=self._metadata_group,
-            name=header_array_name,
-        )
+        header_kwargs = {
+            "group_handle": self._metadata_group,
+            "name": header_array_name,
+        }
 
         if self._backend == "dask":
             header_kwargs["chunks"] = self.chunks[:-1]
@@ -406,7 +410,7 @@ class MDIOAccessor:
 
     def coord_to_index(
         self,
-        *args,
+        *args: int | list[int],
         dimensions: str | list[str] | None = None,
     ) -> tuple[NDArray[int], ...]:
         """Convert dimension coordinate to zero-based index.
@@ -437,6 +441,7 @@ class MDIOAccessor:
             to indicies of that dimension
 
         Raises:
+            KeyError: if a requested dimension doesn't exist.
             ShapeError: if number of queries don't match requested dimensions.
             ValueError: if requested coordinates don't exist.
 
@@ -490,10 +495,15 @@ class MDIOAccessor:
         if dimensions is None:
             dims = self.grid.dims
         else:
-            dims = [self.grid.select_dim(dim_name) for dim_name in dimensions]
+            for query_dim in dimensions:
+                try:
+                    dims.append(self.grid.select_dim(query_dim))
+                except ValueError as err:
+                    msg = f"Requested dimension {query_dim} does not exist."
+                    raise KeyError(msg) from err
 
-        dim_indices = tuple()
-        for mdio_dim, dim_query_coords in zip(dims, queries):  # noqa: B905
+        dim_indices = ()
+        for mdio_dim, dim_query_coords in zip(dims, queries):
             # Make sure all coordinates exist.
             query_diff = np.setdiff1d(dim_query_coords, mdio_dim.coords)
             if len(query_diff) > 0:
@@ -510,14 +520,14 @@ class MDIOAccessor:
 
         return dim_indices if len(dim_indices) > 1 else dim_indices[0]
 
-    def copy(
+    def copy(  # noqa: PLR0913
         self,
         dest_path_or_buffer: str,
         excludes: str = "",
         includes: str = "",
         storage_options: dict | None = None,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """Makes a copy of an MDIO file with or without all arrays.
 
         Refer to mdio.api.convenience.copy for full documentation.
@@ -576,7 +586,7 @@ class MDIOReader(MDIOAccessor):
             `fsspec` documentation for more details.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mdio_path_or_buffer: str,
         access_pattern: str = "012",
@@ -632,7 +642,7 @@ class MDIOWriter(MDIOAccessor):
             `fsspec` documentation for more details.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mdio_path_or_buffer: str,
         access_pattern: str = "012",
