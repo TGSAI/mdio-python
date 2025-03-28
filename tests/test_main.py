@@ -9,13 +9,13 @@ from click.testing import CliRunner
 from mdio import __main__
 
 
-@pytest.fixture
+@pytest.fixture()
 def runner() -> CliRunner:
     """Fixture for invoking command-line interfaces."""
     return CliRunner()
 
 
-@pytest.mark.dependency
+@pytest.mark.dependency()
 def test_main_succeeds(runner: CliRunner, segy_input: str, zarr_tmp: Path) -> None:
     """It exits with a status code of zero."""
     cli_args = ["segy", "import", segy_input, str(zarr_tmp)]

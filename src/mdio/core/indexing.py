@@ -47,15 +47,15 @@ class ChunkIterator:
         self._ranges = itertools.product(*dim_ranges)
         self._idx = 0
 
-    def __iter__(self):
+    def __iter__(self) -> "ChunkIterator":
         """Iteration context."""
         return self
 
-    def __len__(self):
+    def __len__(self) -> int:
         """Get total number of chunks."""
         return self.num_chunks
 
-    def __next__(self):
+    def __next__(self) -> tuple[slice, ...]:
         """Iteration logic."""
         if self._idx <= self.num_chunks:
             # We build slices here. It is dimension agnostic

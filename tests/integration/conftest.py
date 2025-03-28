@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 import os
 
 import numpy as np
@@ -13,9 +14,12 @@ from segy.standards import get_segy_standard
 
 from mdio.segy.geometry import StreamerShotGeometryType
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def create_segy_mock_4d(
-    fake_segy_tmp: str,
+
+def create_segy_mock_4d(  # noqa: PLR0913
+    fake_segy_tmp: str | Path,
     num_samples: int,
     shots: list,
     cables: list,
@@ -35,8 +39,7 @@ def create_segy_mock_4d(
     cable_headers = []
     channel_headers = []
 
-    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-    for cable, num_rec in zip(cables, receivers_per_cable):  # noqa: B905
+    for cable, num_rec in zip(cables, receivers_per_cable, strict=True):
         cable_headers.append(np.repeat(cable, num_rec))
 
         channel_headers.append(np.arange(num_rec) + 1)

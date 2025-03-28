@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from os import path
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -28,8 +29,8 @@ NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 
 
 def mdio_to_segy(  # noqa: C901
-    mdio_path_or_buffer: str,
-    output_segy_path: str,
+    mdio_path_or_buffer: str | Path,
+    output_segy_path: str | Path,
     endian: str = "big",
     access_pattern: str = "012",
     storage_options: dict = None,

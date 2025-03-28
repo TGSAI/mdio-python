@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import os
 from os import path
 from shutil import copyfileobj
 from typing import TYPE_CHECKING
+from typing import Any
 from uuid import uuid4
 
 import numpy as np
@@ -39,15 +42,15 @@ def make_segy_factory(
     )
 
 
-def mdio_spec_to_segy(
-    mdio_path_or_buffer,
-    output_segy_path,
-    access_pattern,
+def mdio_spec_to_segy(  # noqa: PLR0913
+    mdio_path_or_buffer: str | Path,
+    output_segy_path: str | Path,
+    access_pattern: str,
     output_endian,
-    storage_options,
-    new_chunks,
-    backend,
-):
+    storage_options: dict[str, Any],
+    new_chunks: tuple[int, ...],
+    backend: str,
+) -> tuple[MDIOReader, SegyFactory]:
     """Create SEG-Y file without any traces given MDIO specification.
 
     This function opens an MDIO file, gets some relevant information for SEG-Y files,
@@ -100,11 +103,11 @@ def mdio_spec_to_segy(
     return mdio, factory
 
 
-def write_to_segy_stack(
-    samples: NDArray,
-    headers: NDArray,
-    live: NDArray,
-    file_root: str,
+def write_to_segy_stack(  # noqa: PLR0913
+    samples: NDArray[float],
+    headers: NDArray[Any],  # type: ignore
+    live: NDArray[bool],
+    file_root: str | Path,
     segy_factory: SegyFactory,
 ) -> NDArray:
     """Pre-process seismic data for SEG-Y and write partial blocks.
@@ -135,8 +138,8 @@ def write_to_segy_stack(
     # Make output array with string type. We need to know
     # the length of the string ahead of time.
     # Last axis can be written as sequential, so we collapse that to 1.
-    mock_path = path.join(file_root, uuid4().hex)
-    paths_dtype = f"U{len(mock_path)}"
+    mock_path = file_root / uuid4().hex
+    paths_dtype = f"U{len(str(mock_path))}"
     paths_shape = live.shape[:-1] + (1,)
     part_segy_paths = np.full(paths_shape, fill_value="missing", dtype=paths_dtype)
 
@@ -154,7 +157,7 @@ def write_to_segy_stack(
             continue
 
         # Generate unique file name and append to return list.
-        file_path = path.join(file_root, uuid4().hex)
+        file_path = file_root / uuid4().hex
         part_segy_paths[index] = file_path
 
         # Create traces in bytes
@@ -171,7 +174,7 @@ def write_to_segy_stack(
 
 # TODO: Abstract this to support various implementations by
 #  object stores and file systems. Probably fsspec solution.
-def concat_files(paths: list[str], progress=False) -> str:
+def concat_files(paths: list[str], progress: bool =False) -> str:
     """Concatenate files on disk, sequentially in given order.
 
     This function takes files on disk, and it combines them by
@@ -193,11 +196,11 @@ def concat_files(paths: list[str], progress=False) -> str:
     if progress is True:
         paths = tqdm(paths, desc="Merging lines")
 
-    with open(first_file, "ab+") as first_fp:
+    with first_file.open(mode="ab+") as first_fp:
         for next_file in paths:
-            with open(next_file, "rb") as next_fp:
+            with next_file.open(mode="rb") as next_fp:
                 copyfileobj(next_fp, first_fp)
 
-            os.remove(next_file)
+            next_file.unlink()
 
     return first_file

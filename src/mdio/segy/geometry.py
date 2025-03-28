@@ -12,6 +12,7 @@ from enum import auto
 from typing import TYPE_CHECKING
 
 import numpy as np
+import numpy.typing as npt
 from numpy.lib import recfunctions as rfn
 
 from mdio.segy.exceptions import GridOverrideIncompatibleError
@@ -23,6 +24,7 @@ from mdio.segy.exceptions import GridOverrideUnknownError
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy.arrays import HeaderArray
+    from collections.abc import Sequence
 
 
 logger = logging.getLogger(__name__)
@@ -175,7 +177,7 @@ def analyze_shotlines_for_guns(
 
     # Find channel min and max values for each cable
     # unique_guns_in_shot_line = np.empty(unique_shot_lines.shape)
-    unique_guns_in_shot_line = dict()
+    unique_guns_in_shot_line = {}
 
     geom_type = ShotGunGeometryType.B
     # Check shot numbers are still unique if div/num_guns
@@ -209,7 +211,7 @@ def create_counter(
     total_depth: int,
     unique_headers: dict[str, NDArray],
     header_names: list[str],
-):
+) -> int | dict:
     """Helper function to create dictionary tree for counting trace key for auto index."""
     if depth == total_depth:
         return 0
@@ -230,8 +232,8 @@ def create_trace_index(
     counter: dict,
     index_headers: HeaderArray,
     header_names: list,
-    dtype=np.int16,
-):
+    dtype: np.dtype = np.int16,
+) -> None:
     """Update dictionary counter tree for counting trace key for auto index."""
     if depth == 0:
         # If there's no hierarchical depth, no tracing needed.
@@ -262,7 +264,9 @@ def create_trace_index(
     return index_headers
 
 
-def analyze_non_indexed_headers(index_headers: HeaderArray, dtype=np.int16) -> NDArray:
+def analyze_non_indexed_headers(
+    index_headers: HeaderArray, dtype: np.dtype = np.int16
+) -> NDArray:
     """Check input headers for SEG-Y input to help determine geometry.
 
     This function reads in trace_qc_count headers and finds the unique cable values.
@@ -346,7 +350,7 @@ class GridOverrideCommand(ABC):
     def transform_chunksize(
         self,
         chunksize: Sequence[int],
-        grid_overrides: dict[str, bool | int],
+        grid_overrides: dict[str, bool | int],  # noqa: ARG002
     ) -> Sequence[int]:
         """Perform the transform of chunksize.
 
@@ -430,7 +434,7 @@ class DuplicateIndex(GridOverrideCommand):
     def transform_chunksize(
         self,
         chunksize: Sequence[int],
-        grid_overrides: dict[str, bool | int],
+        grid_overrides: dict[str, bool | int],  # noqa: ARG002
     ) -> Sequence[int]:
         """Insert chunksize of 1 to the sample-1 dimension."""
         new_chunks = list(chunksize)
@@ -630,7 +634,7 @@ class GridOverrider:
     This class applies the grid overrides if needed.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Define allowed overrides and parameters here."""
         self.commands = {
             "AutoChannelWrap": AutoChannelWrap(),

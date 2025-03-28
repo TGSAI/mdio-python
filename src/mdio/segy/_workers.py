@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from mdio.core import Grid
 
 
-def header_scan_worker(
+def header_scan_worker(  # noqa: PLR0913
     segy_file: SegyFile,
     trace_range: tuple[int, int],
 ) -> HeaderArray:
