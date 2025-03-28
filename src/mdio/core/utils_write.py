@@ -6,7 +6,7 @@ import zarr
 
 
 def write_attribute(
-    name: str, attribute: dict[str, Any], zarr_group: zarr.Grou
+    name: str, attribute: dict[str, Any], zarr_group: zarr.Group
 ) -> None:
     """Write a mappable to Zarr array or group attribute.
 
