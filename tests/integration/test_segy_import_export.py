@@ -2,7 +2,6 @@
 
 from os.path import getsize
 
-from typing import TYPE_CHECKING
 from typing import Any
 
 import dask
@@ -18,9 +17,7 @@ from mdio.core import Dimension
 from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.geometry import StreamerShotGeometryType
 
-
-if TYPE_CHECKING:
-    from pathlib import Path
+from pathlib import Path
 
 
 dask.config.set(scheduler="synchronous")
