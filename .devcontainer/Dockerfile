@@ -10,15 +10,15 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Poetry
-ARG POETRY_VERSION="1.8.2"
+ARG POETRY_VERSION="2.1.2"
 RUN if [ "${POETRY_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install poetry==${POETRY_VERSION}"; fi
 
 # Nox
-ARG NOX_VERSION="2023.4.22"
+ARG NOX_VERSION="2025.2.9"
 RUN if [ "${NOX_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install nox-poetry nox==${NOX_VERSION}"; fi
 
 # Nox poetry
-ARG NOX_POETRY_VERSION="1.0.3"
+ARG NOX_POETRY_VERSION="1.2.0"
 RUN if [ "${NOX_POETRY_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install nox-poetry nox-poetry==${NOX_POETRY_VERSION}"; fi
 
 # Extra python packages for dev
