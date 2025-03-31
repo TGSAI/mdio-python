@@ -12,7 +12,6 @@ from enum import auto
 from typing import TYPE_CHECKING
 
 import numpy as np
-import numpy.typing as npt
 from numpy.lib import recfunctions as rfn
 
 from mdio.segy.exceptions import GridOverrideIncompatibleError
@@ -22,9 +21,10 @@ from mdio.segy.exceptions import GridOverrideUnknownError
 
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from numpy.typing import NDArray
     from segy.arrays import HeaderArray
-    from collections.abc import Sequence
 
 
 logger = logging.getLogger(__name__)
@@ -259,7 +259,8 @@ def create_trace_index(
             sub_counter[idx_values[-1]] += 1
             index_headers["trace"][idx] = sub_counter[idx_values[-1]]
 
-        idx += 1
+        # TODO(BrianMichell): Ensure this can be removed as effective no-op
+        idx += 1  # noqa: PLW2901
 
     return index_headers
 
@@ -635,7 +636,7 @@ class GridOverrider:
     """
 
     def __init__(self) -> None:
-        """Define allowed overrides and parameters here."""
+        # Define allowed overrides and parameters here.
         self.commands = {
             "AutoChannelWrap": AutoChannelWrap(),
             "AutoShotWrap": AutoShotWrap(),

@@ -47,7 +47,7 @@ def get_dims(headers: npt.NDArray) -> list[Dimension]:
     return dims
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_streamer_headers() -> npt.NDArray:
     """Generate dictionary of mocked streamer index headers."""
     grids = meshgrid(SHOTS, CABLES, RECEIVERS, indexing="ij")

@@ -12,8 +12,10 @@ import numpy as np
 from mdio.core.serialization import Serializer
 from mdio.exceptions import ShapeError
 
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
 
 @dataclass(eq=False, order=False, slots=True)
 class Dimension:
@@ -25,6 +27,10 @@ class Dimension:
     Args:
         coords: Vector of coordinates.
         name: Name of the dimension.
+
+    Attributes:
+        coords: Vector of coordinates.
+        name: Name of the dimension.
     """
 
     coords: list | tuple | NDArray | range
@@ -34,8 +40,9 @@ class Dimension:
         """Post process and validation."""
         self.coords = np.asarray(self.coords)
         if self.coords.ndim != 1:
+            err = "Dimensions can only have vector coordinates"
             raise ShapeError(
-                "Dimensions can only have vector coordinates",
+                err,
                 ("# Dim", "Expected"),
                 (self.coords.ndim, 1),
             )
@@ -73,8 +80,8 @@ class Dimension:
     def __eq__(self, other: Dimension) -> bool:
         """Compares if the dimension has same properties."""
         if not isinstance(other, Dimension):
-            other_type = type(other).__name__
-            raise TypeError(f"Can't compare Dimension with {other_type}")
+            err = f"Can't compare Dimension with {type(other).__name__}"
+            raise TypeError(err)
 
         return hash(self) == hash(other)
 

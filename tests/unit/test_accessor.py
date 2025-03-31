@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -27,7 +26,7 @@ class TestReader:
 
     def test_basic_attrs(
         self, mock_reader: MDIOReader, mock_data: NDArray[float]
-) -> None:
+    ) -> None:
         """Compare ingested basic attrs to original."""
         assert mock_reader.n_dim == mock_data.ndim
         assert mock_reader.trace_count == np.prod(mock_data.shape[:-1])

@@ -33,39 +33,38 @@ TEST_DIMS = {
 
 
 @pytest.fixture(scope="module")
-def mock_store(tmp_path_factory: TempPathFactory) -> FSStore:
+def mock_store(tmp_path_factory: pytest.TempPathFactory) -> FSStore:
     """Make a mocked MDIO store for writing."""
     tmp_dir = tmp_path_factory.mktemp("mdio")
     return FSStore(tmp_dir.name)
 
 
 @pytest.fixture
-def mock_dimensions():
+def mock_dimensions() -> list[Dimension]:
     """Make some fake dimensions."""
-    dimensions = [Dimension(coords, name) for name, coords in TEST_DIMS.items()]
-    return dimensions
+    return [Dimension(coords, name) for name, coords in TEST_DIMS.items()]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_coords() -> tuple[NDArray[int], NDArray[int]]:
     """Make some fake X/Y coordinates."""
     xl_grid, il_grid = np.meshgrid(TEST_DIMS["crossline"], TEST_DIMS["inline"])
     return il_grid, xl_grid
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_text() -> list[str]:
     """Make a mock text header."""
     return [f"{idx:02d} ab " * 16 for idx in range(40)]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_bin() -> dict[str, int]:
     """Make a mock binary header."""
     return {"bin_hdr1": 5, "bin_hdr2": 10}
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_data(mock_coords: tuple[NDArray[int], NDArray[int]]) -> NDArray[float]:
     """Make some mock data as numpy array."""
     il_grid, xl_grid = mock_coords
@@ -73,7 +72,7 @@ def mock_data(mock_coords: tuple[NDArray[int], NDArray[int]]) -> NDArray[float]:
     return data[..., None] + TEST_DIMS["sample"][None, None, :]
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_mdio(  # noqa: PLR0913
     mock_store: FSStore,
     mock_dimensions: list[Dimension],
@@ -153,13 +152,13 @@ def mock_mdio(  # noqa: PLR0913
     return zarr_root
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_reader(mock_mdio: Group) -> MDIOReader:
     """Reader that points to the mocked data to be used later."""
     return MDIOReader(mock_mdio.store.path)
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_reader_cached(mock_mdio: Group) -> MDIOReader:
     """Reader that points to the mocked data to be used later. (with local caching)."""
     return MDIOReader(

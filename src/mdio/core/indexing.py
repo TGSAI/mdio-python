@@ -17,16 +17,9 @@ class ChunkIterator:
         array: zarr.Array to get shape, and chunks from.
         chunk_samples: This is a flag to return the last dimension's
             slice as full, instead of chunks. Default is True.
-
-    Attributes:
-        arr_shape: Shape of the array.
-        len_chunks: Length of chunks in each dimension.
-        dim_chunks: Number of chunks in each dimension.
-        num_chunks: Total number of chunks.
     """
 
     def __init__(self, array: Array, chunk_samples: bool = True):
-        """Initialize iterator."""
         self.arr_shape = array.shape
         self.len_chunks = array.chunks
 

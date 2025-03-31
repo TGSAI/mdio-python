@@ -208,7 +208,10 @@ extra protocol. For the above example it would look like this:
 In one line:
 
 ```json
-{"s3": {"key": "my_super_private_key", "secret": "my_super_private_secret"}, "simplecache": {"cache_storage": "/custom/temp/storage/path"}}
+{
+  "s3": { "key": "my_super_private_key", "secret": "my_super_private_secret" },
+  "simplecache": { "cache_storage": "/custom/temp/storage/path" }
+}
 ```
 
 ## CLI Reference

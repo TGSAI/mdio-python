@@ -6,7 +6,7 @@ from mdio.core import Dimension
 from mdio.exceptions import ShapeError
 
 
-@pytest.fixture()
+@pytest.fixture
 def my_dimension() -> Dimension:
     """Mock dimension."""
     return Dimension(coords=range(10, 18, 2), name="dim_0")

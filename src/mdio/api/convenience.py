@@ -139,7 +139,7 @@ def create_rechunk_plan(
     for chunks, suffix in zip(chunks_list, suffix_list):  # noqa: B905
         norm_chunks = [
             min(chunk, size)
-              for chunk, size in zip(chunks, source.shape)  # noqa: B905
+            for chunk, size in zip(chunks, source.shape)  # noqa: B905
         ]
 
         if suffix == source.access_pattern:

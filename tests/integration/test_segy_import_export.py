@@ -1,7 +1,7 @@
 """End to end testing for SEG-Y to MDIO conversion and back."""
 
 from os.path import getsize
-
+from pathlib import Path
 from typing import Any
 
 import dask
@@ -16,8 +16,6 @@ from mdio.converters import segy_to_mdio
 from mdio.core import Dimension
 from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.geometry import StreamerShotGeometryType
-
-from pathlib import Path
 
 
 dask.config.set(scheduler="synchronous")
@@ -259,7 +257,12 @@ class TestImport6D:
 @pytest.mark.dependency
 @pytest.mark.parametrize("index_bytes", [(17, 13)])
 @pytest.mark.parametrize("index_names", [("inline", "crossline")])
-def test_3d_import(segy_input, zarr_tmp, index_bytes, index_names):
+def test_3d_import(
+    segy_input: str | Path,
+    zarr_tmp: str | Path,
+    index_bytes: tuple[int, ...],
+    index_names: tuple[str, ...],
+) -> None:
     """Test importing a SEG-Y file to MDIO."""
     segy_to_mdio(
         segy_path=segy_input.__str__(),
@@ -277,8 +280,8 @@ class TestReader:
     def test_meta_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         mdio = MDIOReader(str(zarr_tmp))
-        assert mdio.binary_header["samples_per_trace"] == 1501
-        assert mdio.binary_header["sample_interval"] == 2000
+        assert mdio.binary_header["samples_per_trace"] == 1501  # noqa: PLR2004
+        assert mdio.binary_header["sample_interval"] == 2000  # noqa: PLR2004
 
     def test_grid(self, zarr_tmp: Path) -> None:
         """Grid reading tests."""
@@ -339,7 +342,8 @@ class TestExport:
 
     def test_size_equal(self, segy_input: Path, segy_export_tmp: Path) -> None:
         """Check if file sizes match on IBM file."""
-        assert getsize(segy_input) == getsize(segy_export_tmp)
+        # TODO(BrianMichell): Evaluate Path.stat().st_size
+        assert getsize(segy_input) == getsize(segy_export_tmp)  # noqa: PTH202
 
     def test_rand_equal(self, segy_input: Path, segy_export_tmp: Path) -> None:
         """IBM. Is random original traces and headers match round-trip file?"""
@@ -349,7 +353,8 @@ class TestExport:
         out_segy = SegyFile(segy_export_tmp, spec=spec)
 
         num_traces = in_segy.num_traces
-        random_indices = np.random.choice(num_traces, 100, replace=False)
+        # TODO(BrianMichell): Ensure test does not change with
+        random_indices = np.random.choice(num_traces, 100, replace=False)  # noqa: NPY002
         in_traces = in_segy.trace[random_indices]
         out_traces = out_segy.trace[random_indices]
 

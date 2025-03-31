@@ -13,8 +13,10 @@ from mdio.constants import UINT32_MAX
 from mdio.core.dimension import Dimension
 from mdio.core.serialization import Serializer
 
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+
 
 @dataclass
 class Grid:
@@ -29,6 +31,8 @@ class Grid:
     Args:
         dims: List of dimension instances.
 
+    Attributes:
+        dims: List of dimension instances.
     """
 
     dims: list[Dimension]
@@ -71,7 +75,7 @@ class Grid:
         serializer = GridSerializer(stream_format)
         return serializer.deserialize(stream)
 
-    # TODO: Make this a deserialize option
+    # TODO(anyone): Make this a deserialize option
     @classmethod
     def from_zarr(cls: Grid, zarr_root: zarr.Group) -> Grid:
         """Deserialize grid from Zarr attributes."""

@@ -9,6 +9,7 @@ import dask.array as da
 import zarr
 from zarr.storage import FSStore
 
+
 if TYPE_CHECKING:
     from pathlib import Path
 
@@ -94,7 +95,7 @@ def process_url(
     # Flag for checking write access
     # check = True if mode == "w" else False
 
-    # TODO: Turning off write checking now because zarr has a bug.
+    # TODO(anyone): Turning off write checking now because zarr has a bug.
     #  Get rid of this once bug is fixed.
     check = False
 

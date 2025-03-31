@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-import os
 
 import numpy as np
 import pytest
@@ -13,6 +12,7 @@ from segy.standards import SegyStandard
 from segy.standards import get_segy_standard
 
 from mdio.segy.geometry import StreamerShotGeometryType
+
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -29,7 +29,7 @@ def create_segy_mock_4d(  # noqa: PLR0913
     index_receivers: bool = True,
 ) -> str:
     """Dummy 4D SEG-Y file for use in tests."""
-    segy_path = os.path.join(fake_segy_tmp, f"4d_type_{chan_header_type}.sgy")
+    segy_path = fake_segy_tmp / f"4d_type_{chan_header_type}.sgy"
 
     shot_count = len(shots)
     total_chan = np.sum(receivers_per_cable)
@@ -108,7 +108,8 @@ def create_segy_mock_4d(  # noqa: PLR0913
         headers[fields][trc_idx] = header_data
         samples[trc_idx] = np.linspace(start=shot, stop=shot + 1, num=num_samples)
 
-    with open(segy_path, mode="wb") as fp:
+    # TODO(BrianMichell): Evaluate Path.open()
+    with open(segy_path, mode="wb") as fp:  # noqa: PTH123
         fp.write(factory.create_textual_header())
         fp.write(factory.create_binary_header())
         fp.write(factory.create_traces(headers, samples))

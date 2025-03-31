@@ -28,10 +28,10 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from numpy.typing import NDArray
-
-    from mdio.core import Grid
     from segy import SegyFactory
     from segy import SegyFile
+
+    from mdio.core import Grid
 
 try:
     import zfpy  # Base library
@@ -131,7 +131,7 @@ def to_zarr(  # noqa: PLR0913
     pool_chunksize, extra = divmod(num_chunks, num_workers * 4)
     pool_chunksize += 1 if extra else pool_chunksize
 
-    tqdm_kw = dict(unit="block", dynamic_ncols=True)
+    tqdm_kw = {"unit": "block", "dynamic_ncols": True}
     with executor:
         lazy_work = executor.map(
             trace_worker,  # fn

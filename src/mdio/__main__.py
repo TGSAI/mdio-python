@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import importlib
-from collections.abc import Callable
 from importlib import metadata
 from pathlib import Path
-
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Callable
 
 import click
+
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 KNOWN_MODULES = [
@@ -30,11 +32,12 @@ class MyCLI(click.MultiCommand):
     must have a variable named `cli` for the command to be exposed.
 
     Args:
-    - plugin_folder: Path to the directory containing command modules.
+        plugin_folder: Path to the directory containing command modules.
+        *args: Any positional arguments.
+        **kwargs: Any keyword arguments.
     """
 
     def __init__(self, plugin_folder: Path, *args: Any, **kwargs: Any) -> None:  # noqa: ANN401
-        """Initializer function."""
         super().__init__(*args, **kwargs)
         self.plugin_folder = plugin_folder
         self.known_modules = KNOWN_MODULES

@@ -2,10 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-import os
-from os import path
 from shutil import copyfileobj
 from typing import TYPE_CHECKING
 from typing import Any
@@ -22,6 +18,8 @@ from mdio.segy.compat import mdio_segy_spec
 
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from numpy.typing import NDArray
 
 
@@ -42,11 +40,11 @@ def make_segy_factory(
     )
 
 
-def mdio_spec_to_segy(  # noqa: PLR0913
+def mdio_spec_to_segy(  # noqa: PLR0913 DOC107
     mdio_path_or_buffer: str | Path,
     output_segy_path: str | Path,
     access_pattern: str,
-    output_endian,
+    output_endian: Endianness,
     storage_options: dict[str, Any],
     new_chunks: tuple[int, ...],
     backend: str,
@@ -96,7 +94,8 @@ def mdio_spec_to_segy(  # noqa: PLR0913
     text_bytes = factory.create_textual_header(text_str)
     bin_hdr_bytes = factory.create_binary_header(mdio.binary_header)
 
-    with open(output_segy_path, mode="wb") as fp:
+    # TODO(BrianMichell): Evaluate Path.open()
+    with open(output_segy_path, mode="wb") as fp:  # noqa: PTH123
         fp.write(text_bytes)
         fp.write(bin_hdr_bytes)
 
@@ -166,15 +165,16 @@ def write_to_segy_stack(  # noqa: PLR0913
             samples=samples[index][part_live],
         )
 
-        with open(file_path, mode="wb") as fp:
+        # TODO(BrianMichell): Evaluate Path.open()
+        with open(file_path, mode="wb") as fp:  # noqa: PTH123
             fp.write(trace_bytes)
 
     return part_segy_paths
 
 
-# TODO: Abstract this to support various implementations by
+# TODO(anyone): Abstract this to support various implementations by
 #  object stores and file systems. Probably fsspec solution.
-def concat_files(paths: list[str], progress: bool =False) -> str:
+def concat_files(paths: list[str], progress: bool = False) -> str:
     """Concatenate files on disk, sequentially in given order.
 
     This function takes files on disk, and it combines them by
@@ -196,9 +196,11 @@ def concat_files(paths: list[str], progress: bool =False) -> str:
     if progress is True:
         paths = tqdm(paths, desc="Merging lines")
 
-    with first_file.open(mode="ab+") as first_fp:
+    # TODO(BrianMichell): Evaluate Path.open()
+    with first_file.open(mode="ab+") as first_fp:  # noqa: PTH123
         for next_file in paths:
-            with next_file.open(mode="rb") as next_fp:
+            # TODO(BrianMichell): Evaluate Path.open()
+            with next_file.open(mode="rb") as next_fp:  # noqa: PTH123
                 copyfileobj(next_fp, first_fp)
 
             next_file.unlink()
