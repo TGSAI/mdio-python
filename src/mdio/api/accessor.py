@@ -512,6 +512,7 @@ class MDIOAccessor:  # noqa: DOC502
         if dimensions is None:
             dims = self.grid.dims
         else:
+            dims = []
             for query_dim in dimensions:
                 try:
                     dims.append(self.grid.select_dim(query_dim))
