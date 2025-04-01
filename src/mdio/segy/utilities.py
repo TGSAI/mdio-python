@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from dask.array.core import normalize_chunks
 
-from mdio.core import Dimension
+from mdio.core.dimension import Dimension
 from mdio.segy.geometry import GridOverrider
 from mdio.segy.parsers import parse_index_headers
 
@@ -54,7 +54,7 @@ def get_grid_plan(  # noqa:  C901
         grid_overrides = {}
 
     index_headers = parse_index_headers(segy_file=segy_file)
-    index_names = [name for name in index_headers.dtype.names]
+    index_names = list(index_headers.dtype.names)
 
     dims = []
 
@@ -121,7 +121,7 @@ def segy_export_rechunker(
     # set sample chunks to max
     prev_chunks = chunks[:-1] + (shape[-1],)
 
-    new_chunks = tuple()
+    new_chunks = ()
     for idx in range(ndim, -1, -1):
         tmp_chunks = prev_chunks[:idx] + ("auto",) + prev_chunks[idx + 1 :]
 

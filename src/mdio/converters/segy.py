@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Sequence
 from datetime import datetime
 from datetime import timezone
 from importlib import metadata
@@ -30,6 +31,7 @@ from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -109,8 +111,8 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
 
 def segy_to_mdio(  # noqa: PLR0913, PLR0915, PLR0912
-    segy_path: str,
-    mdio_path_or_buffer: str,
+    segy_path: str | Path,
+    mdio_path_or_buffer: str | Path,
     index_bytes: Sequence[int],
     index_names: Sequence[str] | None = None,
     index_types: Sequence[str] | None = None,
@@ -462,7 +464,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915, PLR0912
         else:
             msg = (
                 f"Default chunking for {dim_count}-D seismic data is "
-                "not implemented yet. Please explicity define chunk sizes."
+                "not implemented yet. Please explicitly define chunk sizes."
             )
             raise NotImplementedError(msg)
 

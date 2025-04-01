@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from os import path
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -27,9 +27,9 @@ default_cpus = cpu_count(logical=True)
 NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 
 
-def mdio_to_segy(  # noqa: C901
-    mdio_path_or_buffer: str,
-    output_segy_path: str,
+def mdio_to_segy(  # noqa: C901 PLR0913 PLR0912
+    mdio_path_or_buffer: str | Path,
+    output_segy_path: str | Path,
     endian: str = "big",
     access_pattern: str = "012",
     storage_options: dict = None,
@@ -136,7 +136,8 @@ def mdio_to_segy(  # noqa: C901
 
     # This handles the case if we are skipping a whole block.
     if live_mask.sum() == 0:
-        raise ValueError("No traces will be written out. Live mask is empty.")
+        err = "No traces will be written out. Live mask is empty."
+        raise ValueError(err)
 
     # Find rough dim limits, so we don't unnecessarily hit disk / cloud store.
     # Typically, gets triggered when there is a selection mask
@@ -156,7 +157,7 @@ def mdio_to_segy(  # noqa: C901
         live_mask = live_mask & selection_mask
 
     # tmp file root
-    out_dir = path.dirname(output_segy_path)
+    out_dir = Path(output_segy_path).parent
     tmp_dir = TemporaryDirectory(dir=out_dir)
 
     with tmp_dir:

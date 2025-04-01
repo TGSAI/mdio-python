@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from psutil import cpu_count
-from segy.arrays import HeaderArray
 from tqdm.auto import tqdm
 
 from mdio.segy._workers import header_scan_worker
@@ -19,6 +18,7 @@ from mdio.segy._workers import header_scan_worker
 
 if TYPE_CHECKING:
     from segy import SegyFile
+    from segy.arrays import HeaderArray
 
 default_cpus = cpu_count(logical=True)
 
@@ -57,7 +57,7 @@ def parse_index_headers(
     num_workers = min(n_blocks, num_cpus)
     context = mp.get_context("spawn")
 
-    tqdm_kw = dict(unit="block", dynamic_ncols=True)
+    tqdm_kw = {"unit": "block", "dynamic_ncols": True}
     with ProcessPoolExecutor(num_workers, mp_context=context) as executor:
         # pool.imap is lazy
         lazy_work = executor.map(

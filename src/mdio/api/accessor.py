@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-import dask.array as da
 import numpy as np
 import numpy.typing as npt
 import zarr
@@ -19,10 +19,14 @@ from mdio.core.exceptions import MDIONotFoundError
 from mdio.exceptions import ShapeError
 
 
+if TYPE_CHECKING:
+    import dask.array as da
+    from numpy.typing import NDArray
+
 logger = logging.getLogger(__name__)
 
 
-class MDIOAccessor:
+class MDIOAccessor:  # noqa: DOC502
     """Accessor class for MDIO files.
 
     The accessor can be used to read and write MDIO files. It allows you to
@@ -134,7 +138,7 @@ class MDIOAccessor:
         "dask": open_zarr_array_dask,
     }
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mdio_path_or_buffer: str,
         mode: str,
@@ -146,7 +150,6 @@ class MDIOAccessor:
         memory_cache_size: int,
         disk_cache: bool,
     ):
-        """Accessor initialization function."""
         # Set public attributes
         self.url = mdio_path_or_buffer
         self.mode = mode
@@ -176,12 +179,25 @@ class MDIOAccessor:
 
         # Call methods to finish initialization
         self._validate_store(storage_options)
-        self._connect()
+        self._connect()  # noqa: DOC502
         self._deserialize_grid()
         self._set_attributes()
         self._open_arrays()
 
-    def _validate_store(self, storage_options):
+        if False:
+            """
+            This code block is inert and is intended only to satisfy the linter.
+
+            Pre-commit linting causes some issues.
+            The __init__ method raises an error from the _connect method.
+            Since the error isn't raised directly from the __init__ method,
+            the linter complains and the noqa: DOC502 is ignored.
+            Disabling the DOC502 globally is not desirable.
+            """
+            err = "noqa: DOC502"
+            raise MDIONotFoundError(err)
+
+    def _validate_store(self, storage_options: dict[str, str] | None) -> None:
         """Method to validate the provided store."""
         if storage_options is None:
             storage_options = {}
@@ -194,7 +210,7 @@ class MDIOAccessor:
             disk_cache=self._disk_cache,
         )
 
-    def _connect(self):
+    def _connect(self) -> None:
         """Open the zarr root."""
         try:
             if self.mode in {"r", "r+"}:
@@ -212,11 +228,11 @@ class MDIOAccessor:
             )
             raise MDIONotFoundError(msg) from e
 
-    def _deserialize_grid(self):
+    def _deserialize_grid(self) -> None:
         """Deserialize grid from Zarr metadata."""
         self.grid = Grid.from_zarr(self.root)
 
-    def _set_attributes(self):
+    def _set_attributes(self) -> None:
         """Deserialize attributes from Zarr metadata."""
         self.trace_count = self.root.attrs["trace_count"]
         self.stats = {
@@ -231,7 +247,7 @@ class MDIOAccessor:
         self.n_dim = len(self.shape)
 
         # Access pattern attributes
-        data_array_name = "_".join(["chunked", self.access_pattern])
+        data_array_name = f"chunked_{self.access_pattern}"
         self.chunks = self._data_group[data_array_name].chunks
         self._orig_chunks = self.chunks
 
@@ -251,15 +267,15 @@ class MDIOAccessor:
             self._orig_chunks = self.chunks
             self.chunks = new_chunks
 
-    def _open_arrays(self):
+    def _open_arrays(self) -> None:
         """Open arrays with requested backend."""
-        data_array_name = "_".join(["chunked", self.access_pattern])
-        header_array_name = "_".join(["chunked", self.access_pattern, "trace_headers"])
+        data_array_name = f"chunked_{self.access_pattern}"
+        header_array_name = f"chunked_{self.access_pattern}_trace_headers"
 
-        trace_kwargs = dict(
-            group_handle=self._data_group,
-            name=data_array_name,
-        )
+        trace_kwargs = {
+            "group_handle": self._data_group,
+            "name": data_array_name,
+        }
 
         if self._backend == "dask":
             trace_kwargs["chunks"] = self.chunks
@@ -271,10 +287,10 @@ class MDIOAccessor:
             logger.info(f"Setting MDIO in-memory chunks to {dask_chunks}")
             self.chunks = dask_chunks
 
-        header_kwargs = dict(
-            group_handle=self._metadata_group,
-            name=header_array_name,
-        )
+        header_kwargs = {
+            "group_handle": self._metadata_group,
+            "name": header_array_name,
+        }
 
         if self._backend == "dask":
             header_kwargs["chunks"] = self.chunks[:-1]
@@ -313,7 +329,8 @@ class MDIOAccessor:
     def shape(self, value: tuple[int, ...]) -> None:
         """Validate and set shape of dataset."""
         if not isinstance(value, tuple):
-            raise AttributeError("Array shape needs to be a tuple")
+            err = "Array shape needs to be a tuple"
+            raise AttributeError(err)
         self._shape = value
 
     @property
@@ -325,7 +342,8 @@ class MDIOAccessor:
     def trace_count(self, value: int) -> None:
         """Validate and set trace count for seismic MDIO."""
         if not isinstance(value, int):
-            raise AttributeError("Live trace count needs to be an integer")
+            err = "Live trace count needs to be an integer"
+            raise AttributeError(err)
         self._trace_count = value
 
     @property
@@ -337,7 +355,8 @@ class MDIOAccessor:
     def text_header(self, value: list) -> None:
         """Validate and set seismic text header."""
         if not isinstance(value, list):
-            raise AttributeError("Text header must be a list of str with 40 elements")
+            err = "Text header must be a list of str with 40 elements"
+            raise AttributeError(err)
         self._text_header = value
 
     @property
@@ -349,7 +368,8 @@ class MDIOAccessor:
     def binary_header(self, value: dict) -> None:
         """Validate and set seismic binary header metadata."""
         if not isinstance(value, dict):
-            raise AttributeError("Binary header has to be a dictionary type collection")
+            err = "Binary header has to be a dictionary type collection"
+            raise AttributeError(err)
         self._binary_header = value
 
     @property
@@ -406,7 +426,7 @@ class MDIOAccessor:
 
     def coord_to_index(
         self,
-        *args,
+        *args: int | list[int],
         dimensions: str | list[str] | None = None,
     ) -> tuple[NDArray[int], ...]:
         """Convert dimension coordinate to zero-based index.
@@ -437,6 +457,7 @@ class MDIOAccessor:
             to indicies of that dimension
 
         Raises:
+            KeyError: if a requested dimension doesn't exist.
             ShapeError: if number of queries don't match requested dimensions.
             ValueError: if requested coordinates don't exist.
 
@@ -481,8 +502,9 @@ class MDIOAccessor:
         ndim_expect = self.grid.ndim if dimensions is None else len(dimensions)
 
         if len(queries) != ndim_expect:
+            err = "Coordinate queries not the same size as n_dimensions"
             raise ShapeError(
-                "Coordinate queries not the same size as n_dimensions",
+                err,
                 ("# Coord Dims", "# Dimensions"),
                 (len(queries), ndim_expect),
             )
@@ -490,10 +512,16 @@ class MDIOAccessor:
         if dimensions is None:
             dims = self.grid.dims
         else:
-            dims = [self.grid.select_dim(dim_name) for dim_name in dimensions]
+            dims = []
+            for query_dim in dimensions:
+                try:
+                    dims.append(self.grid.select_dim(query_dim))
+                except ValueError as err:
+                    msg = f"Requested dimension {query_dim} does not exist."
+                    raise KeyError(msg) from err
 
-        dim_indices = tuple()
-        for mdio_dim, dim_query_coords in zip(dims, queries):  # noqa: B905
+        dim_indices = ()
+        for mdio_dim, dim_query_coords in zip(dims, queries):
             # Make sure all coordinates exist.
             query_diff = np.setdiff1d(dim_query_coords, mdio_dim.coords)
             if len(query_diff) > 0:
@@ -510,14 +538,14 @@ class MDIOAccessor:
 
         return dim_indices if len(dim_indices) > 1 else dim_indices[0]
 
-    def copy(
+    def copy(  # noqa: PLR0913
         self,
         dest_path_or_buffer: str,
         excludes: str = "",
         includes: str = "",
         storage_options: dict | None = None,
         overwrite: bool = False,
-    ):
+    ) -> None:
         """Makes a copy of an MDIO file with or without all arrays.
 
         Refer to mdio.api.convenience.copy for full documentation.
@@ -548,6 +576,8 @@ class MDIOAccessor:
 class MDIOReader(MDIOAccessor):
     """Read-only accessor for MDIO files.
 
+    Initialized with `r` permission.
+
     For detailed documentation see MDIOAccessor.
 
     Args:
@@ -576,7 +606,7 @@ class MDIOReader(MDIOAccessor):
             `fsspec` documentation for more details.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mdio_path_or_buffer: str,
         access_pattern: str = "012",
@@ -586,8 +616,7 @@ class MDIOReader(MDIOAccessor):
         backend: str = "zarr",
         memory_cache_size: int = 0,
         disk_cache: bool = False,
-    ):  # TODO: Disabled all caching by default, sometimes causes performance issues
-        """Initialize super class with `r` permission."""
+    ):  # TODO(anyone): Disabled all caching by default, sometimes causes performance issues
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
             mode="r",
@@ -604,6 +633,8 @@ class MDIOReader(MDIOAccessor):
 class MDIOWriter(MDIOAccessor):
     """Writable accessor for MDIO files.
 
+    Initialized with `r+` permission.
+
     For detailed documentation see MDIOAccessor.
 
     Args:
@@ -632,7 +663,7 @@ class MDIOWriter(MDIOAccessor):
             `fsspec` documentation for more details.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mdio_path_or_buffer: str,
         access_pattern: str = "012",
@@ -642,8 +673,7 @@ class MDIOWriter(MDIOAccessor):
         backend: str = "zarr",
         memory_cache_size: int = 0,
         disk_cache: bool = False,
-    ):  # TODO: Disabled all caching by default, sometimes causes performance issues
-        """Initialize super class with `r+` permission."""
+    ):  # TODO(anyone): Disabled all caching by default, sometimes causes performance issues
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
             mode="r+",
