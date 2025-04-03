@@ -1,7 +1,6 @@
 """Nox sessions."""
 
 import os
-import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -170,8 +169,6 @@ def precommit(session: Session) -> None:
         ],
     )
     session.run("pre-commit", *args)
-    if args and args[0] == "install":
-        activate_virtualenv_in_precommit_hooks(session)
 
 
 @session(python=python_versions[0])
@@ -236,9 +233,9 @@ def coverage(session: Session) -> None:
     session_install_uv_package(session, ["coverage[toml]"])
 
     if not session.posargs and any(Path().glob(".coverage.*")):
-        session.run("coverage", "combine")
+        session.run("coverage", "combine", external=True)
 
-    session.run("coverage", *args)
+    session.run("coverage", *args, external=True)
 
 
 @session(python=python_versions[0])
