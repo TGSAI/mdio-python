@@ -42,30 +42,15 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
 
-      - name: Upgrade pip
-        run: |
-          pip install -c ${{ github.workspace }}/.github/workflows/constraints.txt pip
-          pip --version
-
-      - name: Upgrade pip in virtual environments
-        shell: python
-        run: |
-          import os
-          import pip
-
-          with open(os.environ["GITHUB_ENV"], mode="a") as io:
-              print(f"VIRTUALENV_PIP={pip.__version__}", file=io)
-
-      - name: Install Poetry
-        run: |
-          pipx install --pip-args="-c ${{ github.workspace }}/.github/workflows/constraints-poetry.txt" poetry
-          pipx inject poetry poetry-plugin-export
-          poetry --version
+      - name: Install the pinned version of uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+          pyproject-file: ${{ github.workspace }}/pyproject.toml
 
       - name: Install Nox
         run: |
-          pipx install --pip-args="-c ${{ github.workspace }}/.github/workflows/constraints.txt" nox
-          pipx inject --pip-args="-c ${{ github.workspace }}/.github/workflows/constraints.txt" nox nox-poetry
+          uv tool install -c "${{ github.workspace }}/.github/workflows/constraints.txt" nox
           nox --version
 
       - name: Compute pre-commit cache key
@@ -75,13 +60,14 @@ jobs:
         run: |
           import hashlib
           import sys
+          import os
 
           python = "py{}.{}".format(*sys.version_info[:2])
           payload = sys.version.encode() + sys.executable.encode()
           digest = hashlib.sha256(payload).hexdigest()
           result = "${{ runner.os }}-{}-{}-pre-commit".format(python, digest[:8])
 
-          print("::set-output name=result::{}".format(result))
+          print("result={}".format(result), file=open(os.environ['GITHUB_OUTPUT'], 'a'))
 
       - name: Restore pre-commit cache
         uses: actions/cache@v4
@@ -118,26 +104,15 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install the pinned version of uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.12"
-
-      - name: Upgrade pip
-        run: |
-          pip install -c ${{ github.workspace }}/.github/workflows/constraints.txt pip
-          pip --version
-
-      - name: Install Poetry
-        run: |
-          pipx install --pip-args="-c ${{ github.workspace }}/.github/workflows/constraints-poetry.txt" poetry
-          pipx inject poetry poetry-plugin-export
-          poetry --version
+          python-version: 3.13
+          pyproject-file: "${{ github.workspace }}/pyproject.toml"
 
       - name: Install Nox
         run: |
-          pipx install --pip-args="-c ${{ github.workspace }}/.github/workflows/constraints.txt" nox
-          pipx inject --pip-args="-c ${{ github.workspace }}/.github/workflows/constraints.txt" nox nox-poetry
+          uv tool install -c "${{ github.workspace }}/.github/workflows/constraints.txt" nox
           nox --version
 
       - name: Download coverage data
@@ -155,6 +130,6 @@ jobs:
           nox --session=coverage -- xml
 
       - name: Upload coverage report
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v5.1.2
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}

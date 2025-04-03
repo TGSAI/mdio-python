@@ -1,12 +1,19 @@
 [project]
 name = "multidimio"
-dynamic = [ "version", "classifiers" ]
+version = "0.8.5"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = [{ name = "Altay Sansal", email = "altay.sansal@tgs.com" }]
-license = "Apache-2.0"
-readme = "README.md"
-keywords = ["mdio", "multidimio", "seismic", "wind", "data"]
 requires-python = ">=3.10,<3.13"
+readme = "README.md"
+license = "Apache-2.0"
+keywords = [
+    "mdio",
+    "multidimio",
+    "seismic",
+    "wind",
+    "data",
+]
+classifiers = ["Development Status :: 4 - Beta"]
 dependencies = [
     "click (>=8.1.7,<9.0.0)",
     "click-params (>=0.5.0,<0.6.0)",
@@ -16,14 +23,14 @@ dependencies = [
     "psutil (>=6.1.0,<7.0.0)",
     "fsspec (>=2024.10.0)",
     "segy (>=0.3.1,<0.5.0)",
-    "rich (>=13.9.4,<14.0.0)"
+    "rich (>=13.9.4,<14.0.0)",
 ]
 
 [project.optional-dependencies]
 cloud = [
-    "s3fs (>=2024.10.0)",
+    "s3fs == 2024.12.0",
     "gcsfs (>=2024.10.0)",
-    "adlfs (>=2024.7.0)"
+    "adlfs (>=2024.7.0)",
 ]
 distributed = [
     "distributed (>=2024.12.0)",
@@ -39,38 +46,61 @@ documentation = "https://mdio-python.readthedocs.io"
 [project.scripts]
 mdio = "mdio.__main__:main"
 
-[tool.poetry]
-packages = [{ include = "mdio", from = "src" }]
-version = "0.8.5"
-classifiers = ["Development Status :: 4 - Beta"]
+[dependency-groups]
+dev = [
+    "black>=24.10.0,<25",
+    "coverage[toml]>=7.6.7,<8",
+    "darglint>=1.8.1,<2",
+    "flake8>=7.1.0,<8",
+    "flake8-bandit>=4.1.1,<5",
+    "flake8-bugbear>=24.4.26,<25",
+    "flake8-docstrings>=1.7.0,<2",
+    "flake8-rst-docstrings>=0.3.0,<0.4",
+    "furo>=2024.8.6",
+    "isort>=5.13.2,<6",
+    "mypy>=1.13.0,<2",
+    "pep8-naming>=0.14.1,<0.15",
+    "pre-commit>=4.0.1,<5",
+    "pre-commit-hooks>=5.0.0,<6",
+    "pytest>=8.3.3,<9",
+    "pytest-dependency>=0.6.0,<0.7",
+    "pyupgrade>=3.19.0,<4",
+    "safety>=3.2.3,<4",
+    "sphinx-autobuild>=2024.10.3",
+    "sphinx-click>=6.0.0,<7",
+    "sphinx-copybutton>=0.5.2,<0.6",
+    "typeguard>=4.4.1,<5",
+    "xdoctest[colors]>=1.2.0,<2",
+    "myst-parser>=3.0.1,<4",
+    "Pygments>=2.18.0,<3",
+    "Sphinx>=7.4.7,<8",
+]
 
-[tool.poetry.group.dev.dependencies]
-black = "^24.10.0"
-coverage = {version = "^7.6.7", extras = ["toml"]}
-darglint = "^1.8.1"
-flake8 = "^7.1.0"
-flake8-bandit = "^4.1.1"
-flake8-bugbear = "^24.4.26"
-flake8-docstrings = "^1.7.0"
-flake8-rst-docstrings = "^0.3.0"
-furo = ">=2024.8.6"
-isort = "^5.13.2"
-mypy = "^1.13.0"
-pep8-naming = "^0.14.1"
-pre-commit = "^4.0.1"
-pre-commit-hooks = "^5.0.0"
-pytest = "^8.3.3"
-pytest-dependency = "^0.6.0"
-pyupgrade = "^3.19.0"
-safety = "^3.2.3"
-sphinx-autobuild = ">=2024.10.3"
-sphinx-click = "^6.0.0"
-sphinx-copybutton = "^0.5.2"
-typeguard = "^4.4.1"
-xdoctest = {version = "^1.2.0", extras = ["colors"]}
-myst-parser = "^3.0.1"
-Pygments = "^2.18.0"
-Sphinx = "^7.4.7"
+[tool.bumpversion]
+current_version = "0.8.5"
+allow_dirty = true
+commit = false
+tag = false
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)(\\.dev(?P<dev>\\d+))?"
+serialize = [
+    "{major}.{minor}.{patch}.dev{dev}",  # For dev releases
+    "{major}.{minor}.{patch}"            # For stable releases
+]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/mdio"]
+
+[tool.hatch.build.targets.wheel]
+include = ["src/mdio"]
+
+[tool.hatch.build.targets.wheel.sources]
+"src/mdio" = "mdio"
+
+[build-system]
+requires = ["setuptools", "wheel", "fastentrypoints"]
+build-backend = "setuptools.build_meta"
+# requires = ["hatchling"]
+# build-backend = "hatchling.build"
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
@@ -78,7 +108,8 @@ tests = ["tests", "*/tests"]
 
 [tool.coverage.run]
 branch = true
-source = ["mdio", "tests"]
+source = ["src/mdio", "tests"]
+relative_files = true
 
 [tool.coverage.report]
 show_missing = true
@@ -101,7 +132,5 @@ show_error_context = true
 module = ["zarr"]
 ignore_missing_imports = true
 
-
-[build-system]
-requires = ["poetry-core", "fastentrypoints"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+required-version = "0.6.11"
