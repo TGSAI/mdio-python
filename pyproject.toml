@@ -5,7 +5,7 @@ description = "Cloud-native, scalable, and user-friendly multi dimensional energ
 authors = [{ name = "Altay Sansal", email = "altay.sansal@tgs.com" }]
 requires-python = ">=3.10,<3.13"
 readme = "README.md"
-license = "Apache-2.0"
+license = { "text" = "Apache-2.0" }
 keywords = [
     "mdio",
     "multidimio",
@@ -13,7 +13,15 @@ keywords = [
     "wind",
     "data",
 ]
-classifiers = ["Development Status :: 4 - Beta"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: Apache Software License",
+    "Development Status :: 4 - Beta"
+]
+
 dependencies = [
     "click (>=8.1.7,<9.0.0)",
     "click-params (>=0.5.0,<0.6.0)",
