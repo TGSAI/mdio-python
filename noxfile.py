@@ -1,6 +1,7 @@
 """Nox sessions."""
 
 import os
+import shlex
 import shutil
 import sys
 from pathlib import Path
@@ -145,6 +146,7 @@ def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
 @session(name="pre-commit", python=python_versions[0])
 def precommit(session: Session) -> None:
     """Lint using pre-commit."""
+    session_install_uv(session, install_dev=True)
     args = session.posargs or [
         "run",
         "--all-files",
@@ -169,6 +171,8 @@ def precommit(session: Session) -> None:
         ],
     )
     session.run("pre-commit", *args)
+    if args and args[0] == "install":
+        activate_virtualenv_in_precommit_hooks(session)
 
 
 @session(python=python_versions[0])
