@@ -39,9 +39,8 @@ Request features on the [Issue Tracker].
 
 You need Python 3.10+ and the following tools:
 
-- [Poetry]
+- [uv]
 - [Nox]
-- [nox-poetry]
 
 Another alternative is to use a [Development Container] has been setup to provide
 an environment with the required dependencies. This facilitates development on
@@ -55,23 +54,22 @@ This should seamlessly enable development for users of [VS Code] on systems with
 
 ## How to Install and Run MDIO
 
-Install the package with development requirements:
+Install the package with development and documentation generation requirements:
 
 ```console
-$ poetry install
+$ uv sync --all-groups
 ```
 
 You can now run an interactive Python session,
 or the command-line interface:
 
 ```console
-$ poetry run python
-$ poetry run mdio
+$ uv run python
+$ uv run mdio
 ```
 
-[poetry]: https://python-poetry.org/
+[uv]: https://docs.astral.sh/uv/
 [nox]: https://nox.thea.codes/
-[nox-poetry]: https://nox-poetry.readthedocs.io/
 [development container]: https://containers.dev/
 [vs code]: https://code.visualstudio.com/docs/devcontainers/containers/
 
