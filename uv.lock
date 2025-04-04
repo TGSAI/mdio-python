@@ -1236,7 +1236,7 @@ name = "importlib-metadata"
 version = "8.6.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "zipp", marker = "python_full_version < '3.12'" },
+    { name = "zipp" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/33/08/c1395a292bb23fd03bdf572a1357c5a733d3eecbab877641ceacab23db6e/importlib_metadata-8.6.1.tar.gz", hash = "sha256:310b41d755445d74569f993ccfc22838295d9fe005425094fad953d7f15c8580", size = 55767 }
 wheels = [
@@ -1688,7 +1688,7 @@ requires-dist = [
     { name = "psutil", specifier = ">=6.1.0,<7.0.0" },
     { name = "rich", specifier = ">=13.9.4,<14.0.0" },
     { name = "s3fs", marker = "extra == 'cloud'", specifier = "==2024.12.0" },
-    { name = "segy", specifier = ">=0.4.0,<0.5.0" },
+    { name = "segy", specifier = ">=0.4.0,<1.0.0" },
     { name = "tqdm", specifier = ">=4.67.0,<5.0.0" },
     { name = "zarr", specifier = ">=2.18.2,<3.0.0" },
     { name = "zfpy", marker = "extra == 'lossy'", specifier = ">=1.0.1,<2.0.0" },
