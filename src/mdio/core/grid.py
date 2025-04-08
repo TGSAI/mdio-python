@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import inspect
+import logging
 from dataclasses import dataclass
 
 import numpy as np
 import zarr
 
+from mdio.constants import UINT32_MAX
 from mdio.constants import UINT64_MAX
 from mdio.core import Dimension
 from mdio.core.serialization import Serializer
@@ -88,8 +90,25 @@ class Grid:
             dim_hdr = index_headers[dim.name]
             live_dim_indices += (np.searchsorted(dim, dim_hdr),)
 
-        # We set dead traces to uint64 max. Should be far away from actual trace counts.
-        self.map = zarr.full(self.shape[:-1], dtype="uint64", fill_value=UINT64_MAX)
+        # There were cases where ingestion would overflow a signed int32.
+        # It's unlikely that we overflow the uint32_max, but this helps
+        # prevent any issues while keeping the memory footprint as low as possible.
+        grid_size = np.prod(self.shape[:-1])
+        if grid_size > UINT32_MAX-1:
+            # We use UINT32_MAX-1 to ensure that the assumption below is not violated.
+            # "far away" is relative.
+            logging.warning(
+                f"Grid size {grid_size} exceeds UINT32_MAX ({UINT32_MAX-1}). "
+                "Using uint64 for trace map which will use more memory."
+            )
+            dtype = "uint64"
+            fill_value = UINT64_MAX
+        else:
+            dtype = "uint32"
+            fill_value = UINT32_MAX
+
+        # We set dead traces to max uint32/uint64 value. Should be far away from actual trace counts.
+        self.map = zarr.full(self.shape[:-1], dtype=dtype, fill_value=fill_value)
         self.map.vindex[live_dim_indices] = range(len(live_dim_indices[0]))
 
         self.live_mask = zarr.zeros(self.shape[:-1], dtype="bool")
