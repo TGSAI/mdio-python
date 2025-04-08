@@ -95,15 +95,6 @@ serialize = [
     "{major}.{minor}.{patch}"            # For stable releases
 ]
 
-[tool.hatch.build.targets.sdist]
-include = ["src/mdio"]
-
-[tool.hatch.build.targets.wheel]
-include = ["src/mdio"]
-
-[tool.hatch.build.targets.wheel.sources]
-"src/mdio" = "mdio"
-
 [build-system]
 requires = ["setuptools", "wheel", "fastentrypoints"]
 build-backend = "setuptools.build_meta"
