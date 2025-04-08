@@ -202,7 +202,7 @@ def safety(session: Session) -> None:
 def mypy(session: Session) -> None:
     """Type-check using mypy."""
     args = session.posargs or ["src", "tests", "docs/conf.py"]
-    session_install_uv(session, install_dev=True)
+    session_install_uv(session)
     session_install_uv_package(session, ["mypy", "pytest"])
     session.run("mypy", *args)
     if not session.posargs:
