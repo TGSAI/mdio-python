@@ -212,21 +212,18 @@ def mypy(session: Session) -> None:
 @session(python=python_versions)
 def tests(session: Session) -> None:
     """Run the test suite."""
-    session_install_uv(session, install_project=True, install_dev=True)
+    session_install_uv(session)
     session_install_uv_package(
-        session, ["coverage", "pytest", "pygments", "pytest-dependency", "s3fs"]
+        session,
+        [
+            "coverage[toml]",
+            "pytest",
+            "pygments",
+            "pytest-dependency",
+            "s3fs",
+        ],
     )
-    session.run(
-        "uv",
-        "pip",
-        "install",
-        "coverage[toml]",
-        "pytest",
-        "pygments",
-        "pytest-dependency",
-        "s3fs",
-        external=True,
-    )
+    
     try:
         session.run("coverage", "run", "--parallel", "-m", "pytest", *session.posargs)
     finally:
