@@ -5,32 +5,24 @@ FROM mcr.microsoft.com/devcontainers/python:1-${PYTHON_VERSION}-${LINUX_DISTRO}
 
 # Install git for nox pre-commit
 RUN apt-get update \
-  && apt-get install -y --no-install-recommends  \
-  git \
+  && apt-get install -y --no-install-recommends \
+    git \
   && rm -rf /var/lib/apt/lists/*
 
-# Poetry
-ARG POETRY_VERSION="2.1.2"
-RUN if [ "${POETRY_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install poetry==${POETRY_VERSION}"; fi
+# Install UV dependency manager
+ARG UV_VERSION="0.6.11"
+RUN if [ "${UV_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install uv==${UV_VERSION}"; fi
 
-# Nox
+# Nox installation using UV (system-level tool)
 ARG NOX_VERSION="2025.2.9"
-RUN if [ "${NOX_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install nox-poetry nox==${NOX_VERSION}"; fi
+RUN if [ "${NOX_VERSION}" != "none" ]; then bash -c "umask 0002 && uv tool install nox==${NOX_VERSION}"; fi
 
-# Nox poetry
-ARG NOX_POETRY_VERSION="1.2.0"
-RUN if [ "${NOX_POETRY_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install nox-poetry nox-poetry==${NOX_POETRY_VERSION}"; fi
+# Extra python packages for dev (global/system-level)
+RUN bash -c "umask 0002 && uv tool install msgpack ipykernel"
 
-# Extra python packages for dev
-RUN bash -c "umask 0002 &&  pip3 install msgpack ipykernel"
-
-# Create venv
-RUN python -m venv /opt/venv
-RUN poetry config virtualenvs.create false
+# Create virtual environment
+RUN uv venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-
-# Extra python packages for dev
-RUN bash -c "umask 0002 &&  pip3 install msgpack ipykernel"
 
 # Allow users to update venv
 RUN chmod -R 777 /opt/venv
