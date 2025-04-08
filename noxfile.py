@@ -247,7 +247,7 @@ def coverage(session: Session) -> None:
 @session(python=python_versions[0])
 def typeguard(session: Session) -> None:
     """Runtime type checking using Typeguard."""
-    session_install_uv(session, install_project=True, install_dev=True)
+    session_install_uv(session)
     session_install_uv_package(session, ["pytest", "typeguard", "pygments"])
     session.run("pytest", f"--typeguard-packages={package}", *session.posargs)
 
@@ -262,8 +262,8 @@ def xdoctest(session: Session) -> None:
         if "FORCE_COLOR" in os.environ:
             args.append("--colored=1")
 
-    session_install_uv(session, install_project=True, install_dev=True)
-    session_install_uv_package(session, ["xdoctest"])
+    session_install_uv(session)
+    session_install_uv_package(session, ["xdoctest[colors]"])
     session.run("python", "-m", "xdoctest", *args)
 
 
