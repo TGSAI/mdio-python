@@ -170,7 +170,7 @@ def precommit(session: Session) -> None:
             "pre-commit",
             "pre-commit-hooks",
             "pyupgrade",
-        ]
+        ],
     )
     session.run("pre-commit", *args)
     if args and args[0] == "install":
@@ -236,13 +236,12 @@ def coverage(session: Session) -> None:
     """Produce the coverage report."""
     args = session.posargs or ["report"]
 
-    session_install_uv(session, install_project=True, install_dev=True)
     session_install_uv_package(session, ["coverage"])
 
     if not session.posargs and any(Path().glob(".coverage.*")):
-        session.run("coverage", "combine", external=True)
+        session.run("coverage", "combine")
 
-    session.run("coverage", *args, external=True)
+    session.run("coverage", *args)
 
 
 @session(python=python_versions[0])
