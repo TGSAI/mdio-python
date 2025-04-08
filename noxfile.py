@@ -177,6 +177,7 @@ def precommit(session: Session) -> None:
 @session(python=python_versions[0])
 def safety(session: Session) -> None:
     """Scan dependencies for insecure packages."""
+    env = {"UV_PROJECT_ENVIRONMENT": session.virtualenv.location}
     requirements_tmp = str(Path(session.create_tmp()) / "requirements.txt")
     export_args = ["uv", "export", "--all-groups", "-o", requirements_tmp]
     session.run_install(*export_args, silent=True, env=env)
