@@ -7,25 +7,24 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
-import nox
-
 
 try:
-    from nox_poetry import Session
-    from nox_poetry import session
+    import nox
+    from nox import Session
+    from nox import session
 except ImportError:
     message = f"""\
-    Nox failed to import the 'nox-poetry' package.
+    Nox failed to import.
 
     Please install it using the following command:
 
-    {sys.executable} -m pip install nox-poetry"""
+    {sys.executable} -m pip install nox[uv]"""
     raise SystemExit(dedent(message)) from None
-
 
 package = "mdio"
 python_versions = ["3.12", "3.11", "3.10"]
-nox.needs_version = ">= 2022.1.7"
+nox.needs_version = ">=2025.2.9"
+nox.options.default_venv_backend = "uv"
 nox.options.sessions = (
     "pre-commit",
     "safety",
@@ -35,6 +34,39 @@ nox.options.sessions = (
     "xdoctest",
     "docs-build",
 )
+
+
+def session_install_uv(
+    session: Session,
+    install_project: bool = True,
+    install_dev: bool = False,
+    install_docs: bool = False,
+) -> None:
+    """Install root project into the session's virtual environment using uv."""
+    env = {"UV_PROJECT_ENVIRONMENT": session.virtualenv.location}
+
+    args = ["uv", "sync", "--frozen"]
+    if not install_project:
+        args.append("--no-install-project")
+    if not install_dev:
+        args.append("--no-dev")
+    if install_docs:
+        args.extend(["--group", "docs"])
+
+    session.run_install(*args, silent=True, env=env)
+
+
+def session_install_uv_package(session: Session, packages: list[str]) -> None:
+    """Install packages into the session's virtual environment using uv lockfile."""
+    env = {"UV_PROJECT_ENVIRONMENT": session.virtualenv.location}
+
+    # Export requirements.txt to session temp dir using uv with locked dependencies
+    requirements_tmp = str(Path(session.create_tmp()) / "requirements.txt")
+    export_args = ["uv", "export", "--only-dev", "--no-hashes", "-o", requirements_tmp]
+    session.run_install(*export_args, silent=True, env=env)
+
+    # Install requested packages with requirements.txt constraints
+    session.install(*packages, "--constraint", requirements_tmp)
 
 
 def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
@@ -120,19 +152,22 @@ def precommit(session: Session) -> None:
         "--hook-stage=manual",
         "--show-diff-on-failure",
     ]
-    session.install(
-        "black",
-        "darglint",
-        "flake8",
-        "flake8-bandit",
-        "flake8-bugbear",
-        "flake8-docstrings",
-        "flake8-rst-docstrings",
-        "isort",
-        "pep8-naming",
-        "pre-commit",
-        "pre-commit-hooks",
-        "pyupgrade",
+    session_install_uv_package(
+        session,
+        [
+            "black",
+            "darglint",
+            "flake8",
+            "flake8-bandit",
+            "flake8-bugbear",
+            "flake8-docstrings",
+            "flake8-rst-docstrings",
+            "isort",
+            "pep8-naming",
+            "pre-commit",
+            "pre-commit-hooks",
+            "pyupgrade",
+        ],
     )
     session.run("pre-commit", *args)
     if args and args[0] == "install":
@@ -142,15 +177,20 @@ def precommit(session: Session) -> None:
 @session(python=python_versions[0])
 def safety(session: Session) -> None:
     """Scan dependencies for insecure packages."""
-    requirements = session.poetry.export_requirements()
-    session.install("safety")
-    # TODO(Altay): Remove the CVE ignore once its resolved. Its not critical, so ignoring now.
+    env = {"UV_PROJECT_ENVIRONMENT": session.virtualenv.location}
+    requirements_tmp = str(Path(session.create_tmp()) / "requirements.txt")
+    export_args = ["uv", "export", "--all-groups", "-o", requirements_tmp]
+    session.run_install(*export_args, silent=True, env=env)
+    session_install_uv_package(session, ["safety"])
+
+    # TODO(Altay): Remove the CVE ignore once its resolved.
+    # It's not critical, so ignoring now.
     ignore = ["70612"]
     session.run(
         "safety",
         "check",
         "--full-report",
-        f"--file={requirements}",
+        f"--file={requirements_tmp}",
         f"--ignore={','.join(ignore)}",
     )
 
@@ -159,8 +199,8 @@ def safety(session: Session) -> None:
 def mypy(session: Session) -> None:
     """Type-check using mypy."""
     args = session.posargs or ["src", "tests", "docs/conf.py"]
-    session.install(".")
-    session.install("mypy", "pytest")
+    session_install_uv(session)
+    session_install_uv_package(session, ["mypy", "pytest"])
     session.run("mypy", *args)
     if not session.posargs:
         session.run("mypy", f"--python-executable={sys.executable}", "noxfile.py")
@@ -169,8 +209,18 @@ def mypy(session: Session) -> None:
 @session(python=python_versions)
 def tests(session: Session) -> None:
     """Run the test suite."""
-    session.install(".")
-    session.install("coverage[toml]", "pytest", "pygments", "pytest-dependency", "s3fs")
+    session_install_uv(session)
+    session_install_uv_package(
+        session,
+        [
+            "coverage[toml]",
+            "pytest",
+            "pygments",
+            "pytest-dependency",
+            "s3fs",
+        ],
+    )
+
     try:
         session.run("coverage", "run", "--parallel", "-m", "pytest", *session.posargs)
     finally:
@@ -183,7 +233,7 @@ def coverage(session: Session) -> None:
     """Produce the coverage report."""
     args = session.posargs or ["report"]
 
-    session.install("coverage[toml]")
+    session_install_uv_package(session, ["coverage[toml]"])
 
     if not session.posargs and any(Path().glob(".coverage.*")):
         session.run("coverage", "combine")
@@ -194,8 +244,8 @@ def coverage(session: Session) -> None:
 @session(python=python_versions[0])
 def typeguard(session: Session) -> None:
     """Runtime type checking using Typeguard."""
-    session.install(".")
-    session.install("pytest", "typeguard", "pygments")
+    session_install_uv(session)
+    session_install_uv_package(session, ["pytest", "typeguard", "pygments"])
     session.run("pytest", f"--typeguard-packages={package}", *session.posargs)
 
 
@@ -209,8 +259,8 @@ def xdoctest(session: Session) -> None:
         if "FORCE_COLOR" in os.environ:
             args.append("--colored=1")
 
-    session.install(".")
-    session.install("xdoctest[colors]")
+    session_install_uv(session)
+    session_install_uv_package(session, ["xdoctest[colors]"])
     session.run("python", "-m", "xdoctest", *args)
 
 
@@ -221,14 +271,17 @@ def docs_build(session: Session) -> None:
     if not session.posargs and "FORCE_COLOR" in os.environ:
         args.insert(0, "--color")
 
-    session.install(".")
-    session.install(
-        "sphinx",
-        "sphinx-click",
-        "sphinx-copybutton",
-        "furo",
-        "myst-nb",
-        "linkify-it-py",
+    session_install_uv(session)
+    session_install_uv_package(
+        session,
+        [
+            "sphinx",
+            "sphinx-click",
+            "sphinx-copybutton",
+            "furo",
+            "myst-nb",
+            "linkify-it-py",
+        ],
     )
 
     build_dir = Path("docs", "_build")
@@ -242,15 +295,18 @@ def docs_build(session: Session) -> None:
 def docs(session: Session) -> None:
     """Build and serve the documentation with live reloading on file changes."""
     args = session.posargs or ["--open-browser", "docs", "docs/_build"]
-    session.install(".")
-    session.install(
-        "sphinx",
-        "sphinx-autobuild",
-        "sphinx-click",
-        "sphinx-copybutton",
-        "furo",
-        "myst-nb",
-        "linkify-it-py",
+    session_install_uv(session)
+    session_install_uv_package(
+        session,
+        [
+            "sphinx",
+            "sphinx-autobuild",
+            "sphinx-click",
+            "sphinx-copybutton",
+            "furo",
+            "myst-nb",
+            "linkify-it-py",
+        ],
     )
 
     build_dir = Path("docs", "_build")
