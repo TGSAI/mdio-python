@@ -145,10 +145,11 @@ def create_rechunk_plan(
             raise NameError(msg)
 
         metadata_arrs.append(
-            metadata_group.zeros_like(
+            metadata_group.zeros(
                 name=f"chunked_{suffix}_trace_headers",
-                data=metadata_array,
+                shape=metadata_array.shape,
                 chunks=norm_chunks[:-1],
+                dtype=metadata_array.dtype,
                 compressor=header_compressor,
                 overwrite=overwrite,
                 **CREATE_KW,
@@ -156,10 +157,11 @@ def create_rechunk_plan(
         )
 
         data_arrs.append(
-            data_group.zeros_like(
+            data_group.zeros(
                 name=f"chunked_{suffix}",
-                data=data_array,
+                shape=data_array.shape,
                 chunks=norm_chunks,
+                dtype=data_array.dtype,
                 compressor=trace_compressor,
                 overwrite=overwrite,
                 **CREATE_KW,
