@@ -8,7 +8,7 @@ from dataclasses import dataclass
 import numpy as np
 import zarr
 
-from mdio.constants import UINT32_MAX
+from mdio.constants import UINT64_MAX
 from mdio.core import Dimension
 from mdio.core.serialization import Serializer
 
@@ -88,8 +88,8 @@ class Grid:
             dim_hdr = index_headers[dim.name]
             live_dim_indices += (np.searchsorted(dim, dim_hdr),)
 
-        # We set dead traces to uint32 max. Should be far away from actual trace counts.
-        self.map = zarr.full(self.shape[:-1], dtype="uint32", fill_value=UINT32_MAX)
+        # We set dead traces to uint64 max. Should be far away from actual trace counts.
+        self.map = zarr.full(self.shape[:-1], dtype="uint64", fill_value=UINT64_MAX)
         self.map.vindex[live_dim_indices] = range(len(live_dim_indices[0]))
 
         self.live_mask = zarr.zeros(self.shape[:-1], dtype="bool")
