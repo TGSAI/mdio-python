@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
+
 try:
     import nox
     from nox import Session
