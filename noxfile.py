@@ -236,7 +236,7 @@ def coverage(session: Session) -> None:
     """Produce the coverage report."""
     args = session.posargs or ["report"]
 
-    session_install_uv_package(session, ["coverage"])
+    session_install_uv_package(session, ["coverage[toml]"])
 
     if not session.posargs and any(Path().glob(".coverage.*")):
         session.run("coverage", "combine")
