@@ -274,7 +274,7 @@ def docs_build(session: Session) -> None:
     if not session.posargs and "FORCE_COLOR" in os.environ:
         args.insert(0, "--color")
 
-    session_install_uv(session, install_project=True, install_dev=True)
+    session_install_uv(session)
     session_install_uv_package(
         session,
         [
@@ -298,7 +298,7 @@ def docs_build(session: Session) -> None:
 def docs(session: Session) -> None:
     """Build and serve the documentation with live reloading on file changes."""
     args = session.posargs or ["--open-browser", "docs", "docs/_build"]
-    session_install_uv(session, install_project=True, install_dev=True)
+    session_install_uv(session)
     session_install_uv_package(
         session,
         [
