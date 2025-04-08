@@ -84,21 +84,6 @@ dev = [
     "Sphinx>=7.4.7,<8",
 ]
 
-[tool.bumpversion]
-current_version = "0.8.5"
-allow_dirty = true
-commit = false
-tag = false
-parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)(\\.dev(?P<dev>\\d+))?"
-serialize = [
-    "{major}.{minor}.{patch}.dev{dev}",  # For dev releases
-    "{major}.{minor}.{patch}"            # For stable releases
-]
-
-[build-system]
-requires = ["setuptools", "wheel", "fastentrypoints"]
-build-backend = "setuptools.build_meta"
-
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
 tests = ["tests", "*/tests"]
@@ -129,5 +114,17 @@ show_error_context = true
 module = ["zarr"]
 ignore_missing_imports = true
 
-[tool.uv]
-required-version = "0.6.11"
+[tool.bumpversion]
+current_version = "0.8.5"
+allow_dirty = true
+commit = false
+tag = false
+parse = "(?P<major>\\d+)\\.(?P<minor>\\d+)\\.(?P<patch>\\d+)(\\.dev(?P<dev>\\d+))?"
+serialize = [
+    "{major}.{minor}.{patch}.dev{dev}",  # For dev releases
+    "{major}.{minor}.{patch}"            # For stable releases
+]
+
+[build-system]
+requires = ["setuptools", "wheel", "fastentrypoints"]
+build-backend = "setuptools.build_meta"
