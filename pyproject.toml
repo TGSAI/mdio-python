@@ -3,7 +3,7 @@ name = "multidimio"
 version = "0.8.5"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = [{ name = "Altay Sansal", email = "altay.sansal@tgs.com" }]
-requires-python = ">=3.10,<3.13"
+requires-python = ">=3.10,<3.14"
 readme = "README.md"
 license = { "text" = "Apache-2.0" }
 keywords = [
@@ -18,6 +18,7 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: Apache Software License",
     "Development Status :: 4 - Beta"
 ]
@@ -30,7 +31,7 @@ dependencies = [
     "tqdm (>=4.67.0,<5.0.0)",
     "psutil (>=6.1.0,<7.0.0)",
     "fsspec (>=2024.10.0)",
-    "segy (>=0.3.1,<0.5.0)",
+    "segy (>=0.4.0,<0.5.0)",
     "rich (>=13.9.4,<14.0.0)",
 ]
 
