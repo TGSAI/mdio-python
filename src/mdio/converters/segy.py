@@ -509,7 +509,7 @@ def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int] | int:
         Either a single integer (-1) if no chunking is needed, or a sequence of integers
         representing the optimal chunk size for each dimension of the grid.
     """
-    if np.sum(grid.live_mask) < INT32_MAX:
+    if grid.live_mask.nbytes < INT32_MAX:
         # Base case where we don't need to chunk the live mask
         return -1
 
