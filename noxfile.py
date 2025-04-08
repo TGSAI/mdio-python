@@ -8,14 +8,23 @@ from pathlib import Path
 from tempfile import NamedTemporaryFile
 from textwrap import dedent
 
-import nox
-from nox import Session
-from nox import session
+try:
+    import nox
+    from nox import Session
+    from nox import session
+except ImportError:
+    message = f"""\
+    Nox failed to import.
 
+    Please install it using the following command:
+
+    {sys.executable} -m pip install nox[uv]"""
+    raise SystemExit(dedent(message)) from None
 
 package = "mdio"
 python_versions = ["3.12", "3.11", "3.10"]
-nox.needs_version = ">= 2022.1.7"
+nox.needs_version = ">=2025.2.9"
+nox.options.default_venv_backend = "uv"
 nox.options.sessions = (
     "pre-commit",
     "safety",
