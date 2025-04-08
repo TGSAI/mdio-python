@@ -84,6 +84,9 @@ dev = [
     "Sphinx>=7.4.7,<8",
 ]
 
+[tool.uv]
+required-version = "0.6.11"
+
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
 tests = ["tests", "*/tests"]
