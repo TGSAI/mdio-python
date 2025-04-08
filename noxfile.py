@@ -179,8 +179,9 @@ def safety(session: Session) -> None:
     """Scan dependencies for insecure packages."""
     requirements_tmp = str(Path(session.create_tmp()) / "requirements.txt")
     export_args = ["uv", "export", "--all-groups", "-o", requirements_tmp]
+    session.run_install(*export_args, silent=True, env=env)
     session_install_uv_package(session, ["safety"])
-    
+
     # TODO(Altay): Remove the CVE ignore once its resolved.
     # It's not critical, so ignoring now.
     ignore = ["70612"]
