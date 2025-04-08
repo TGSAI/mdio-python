@@ -266,6 +266,27 @@ def test_3d_import(segy_input, zarr_tmp, index_bytes, index_names):
     )
 
 
+@pytest.mark.dependency
+def test_live_mask_chunksize(segy_input, zarr_tmp):
+    """Test that the live_mask_chunksize parameter is handled correctly by segy_to_mdio."""
+    segy_to_mdio(
+        segy_path=segy_input.__str__(),
+        mdio_path_or_buffer=zarr_tmp.__str__(),
+        index_bytes=(17, 13),
+        index_names=("inline", "crossline"),
+        chunksize=(512, 512, 512),  # For a 3D dataset: inline, crossline, sample
+        overwrite=True,
+        live_mask_chunksize=(8, 8),  # Explicit live_mask chunksize to test
+    )
+
+    import zarr
+    # Open the MDIO store as a Zarr group.
+    zarr_group = zarr.open_group(zarr_tmp.__str__(), mode="r")
+    live_mask_ds = zarr_group["metadata"]["live_mask"]
+    # Assert that the live_mask dataset has chunks equal to (8, 8)
+    assert live_mask_ds.chunks == (8, 8)
+
+
 @pytest.mark.dependency("test_3d_import")
 class TestReader:
     """Test reader functionality."""

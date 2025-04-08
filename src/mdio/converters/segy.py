@@ -116,6 +116,7 @@ def segy_to_mdio(  # noqa: C901
     storage_options_output: dict[str, Any] | None = None,
     overwrite: bool = False,
     grid_overrides: dict | None = None,
+    live_mask_chunksize: Sequence[int] | None = None,
 ) -> None:
     """Convert SEG-Y file to MDIO format.
 
@@ -170,11 +171,16 @@ def segy_to_mdio(  # noqa: C901
             Default is `None` (will assume anonymous)
         overwrite: Toggle for overwriting existing store
         grid_overrides: Option to add grid overrides. See examples.
+        live_mask_chunksize: Chunk size for live mask. This has limited
+            support across the MDIO api.
+            Default is `None` (will do no chunking)
 
     Raises:
         GridTraceCountError: Raised if grid won't hold all traces in the
             SEG-Y file.
-        ValueError: If length of chunk sizes don't match number of dimensions.
+        ValueError: If length of chunk sizes don't match number of dimensions
+            or live_mask_chunksize is not None and lenght of live_mask_chunksize
+            is not equal to number of dimensions minus one.
         NotImplementedError: If can't determine chunking automatically for 4D+.
 
     Examples:
@@ -342,6 +348,20 @@ def segy_to_mdio(  # noqa: C901
         ...     chunksize=(8, 2, 256, 512),
         ...     grid_overrides={"HasDuplicates": True},
         ... )
+
+        >>> segy_to_mdio(
+        ...     segy_path="prefix/shot_file.segy",
+        ...     mdio_path_or_buffer="s3://bucket/shot_file.mdio",
+        ...     index_bytes=(133, 171, 17, 137, 13),
+        ...     index_lengths=(2, 2, 4, 2, 4),
+        ...     index_names=("shot_line", "gun", "shot_point", "cable", "channel"),
+        ...     chunksize=(1, 1, 8, 1, 128, 1024),
+        ...     grid_overrides={
+        ...         "AutoShotWrap": True,
+        ...         "AutoChannelWrap": True,
+        ...         "AutoChannelTraceQC":  1000000
+        ...     },
+        ...     live_mask_chunksize=(1, 1, 8, 1, 128),
     """
     if index_names is None:
         index_names = [f"dim_{i}" for i in range(len(index_bytes))]
@@ -354,6 +374,14 @@ def segy_to_mdio(  # noqa: C901
             message = (
                 f"Length of chunks={len(chunksize)} must be ",
                 f"equal to array dimensions={len(index_bytes) + 1}",
+            )
+            raise ValueError(message)
+    
+    if  live_mask_chunksize is not None:
+        if len(live_mask_chunksize) != len(index_bytes):
+            message = (
+                f"Length of live_mask_chunksize={len(live_mask_chunksize)} must be ",
+                f"equal to array dimensions={len(index_bytes)}",
             )
             raise ValueError(message)
 
@@ -424,12 +452,15 @@ def segy_to_mdio(  # noqa: C901
     trace_count = np.count_nonzero(grid.live_mask)
     write_attribute(name="trace_count", zarr_group=zarr_root, attribute=trace_count)
 
+    if live_mask_chunksize is None:
+        live_mask_chunksize = -1
+
     # Note, live mask is not chunked since it's bool and small.
     zarr_root["metadata"].create_dataset(
         data=grid.live_mask,
         name="live_mask",
         shape=grid.shape[:-1],
-        chunks=-1,
+        chunks=live_mask_chunksize,
         dimension_separator="/",
     )
 
