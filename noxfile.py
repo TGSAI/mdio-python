@@ -223,7 +223,7 @@ def tests(session: Session) -> None:
             "s3fs",
         ],
     )
-    
+
     try:
         session.run("coverage", "run", "--parallel", "-m", "pytest", *session.posargs)
     finally:
