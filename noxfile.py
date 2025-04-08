@@ -184,9 +184,8 @@ def safety(session: Session) -> None:
     ignore = ["70612"]
     session.run(
         "safety",
-        "check",
-        "--full-report",
-        f"--ignore={','.join(ignore)}",
+        "scan",
+        "--detailed-output",
     )
 
 
