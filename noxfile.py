@@ -177,8 +177,10 @@ def precommit(session: Session) -> None:
 @session(python=python_versions[0])
 def safety(session: Session) -> None:
     """Scan dependencies for insecure packages."""
-    session_install_uv(session, install_dev=True)
+    requirements_tmp = str(Path(session.create_tmp()) / "requirements.txt")
+    export_args = ["uv", "export", " --all-groups", "--no-hashes", "-o", requirements_tmp]
     session_install_uv_package(session, ["safety"])
+    
     # TODO(Altay): Remove the CVE ignore once its resolved.
     # It's not critical, so ignoring now.
     ignore = ["70612"]
@@ -186,6 +188,7 @@ def safety(session: Session) -> None:
         "safety",
         "check",
         "--full-report",
+        f"--file={requirements_tmp}",
         f"--ignore={','.join(ignore)}",
     )
 
