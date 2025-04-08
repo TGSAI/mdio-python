@@ -5,7 +5,6 @@ import shlex
 import shutil
 import sys
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from textwrap import dedent
 
 
@@ -178,22 +177,17 @@ def precommit(session: Session) -> None:
 @session(python=python_versions[0])
 def safety(session: Session) -> None:
     """Scan dependencies for insecure packages."""
-    with NamedTemporaryFile(delete=False) as requirements:
-        session_install_uv(session, install_dev=True)
-        session_install_uv_package(session, ["safety"])
-        # TODO(Altay): Remove the CVE ignore once its resolved.
-        # It's not critical, so ignoring now.
-        ignore = ["70612"]
-        try:
-            session.run(
-                "safety",
-                "check",
-                "--full-report",
-                f"--file={requirements.name}",
-                f"--ignore={','.join(ignore)}",
-            )
-        finally:
-            os.remove(requirements.name)
+    session_install_uv(session, install_dev=True)
+    session_install_uv_package(session, ["safety"])
+    # TODO(Altay): Remove the CVE ignore once its resolved.
+    # It's not critical, so ignoring now.
+    ignore = ["70612"]
+    session.run(
+        "safety",
+        "check",
+        "--full-report",
+        f"--ignore={','.join(ignore)}",
+    )
 
 
 @session(python=python_versions)
