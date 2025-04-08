@@ -1,7 +1,6 @@
 """Test live mask chunk size calculation."""
 
 import numpy as np
-import pytest
 
 from mdio.constants import INT32_MAX
 from mdio.converters.segy import _calculate_live_mask_chunksize

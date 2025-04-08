@@ -171,6 +171,7 @@ def segy_to_mdio(  # noqa: C901
             Default is `None` (will assume anonymous)
         overwrite: Toggle for overwriting existing store
         grid_overrides: Option to add grid overrides. See examples.
+
     Raises:
         GridTraceCountError: Raised if grid won't hold all traces in the
             SEG-Y file.
@@ -503,6 +504,10 @@ def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int] | int:
 
     Args:
         grid: The grid to calculate the chunksize for.
+
+    Returns:
+        Either a single integer (-1) if no chunking is needed, or a sequence of integers
+        representing the optimal chunk size for each dimension of the grid.
     """
     if np.sum(grid.live_mask) < INT32_MAX:
         # Base case where we don't need to chunk the live mask
