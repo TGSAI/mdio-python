@@ -265,6 +265,7 @@ def test_3d_import(segy_input, zarr_tmp, index_bytes, index_names):
         overwrite=True,
     )
 
+
 @pytest.mark.dependency("test_3d_import")
 class TestReader:
     """Test reader functionality."""
