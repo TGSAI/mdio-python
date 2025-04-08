@@ -94,11 +94,11 @@ class Grid:
         # It's unlikely that we overflow the uint32_max, but this helps
         # prevent any issues while keeping the memory footprint as low as possible.
         grid_size = np.prod(self.shape[:-1])
-        if grid_size > UINT32_MAX-1:
+        if grid_size > UINT32_MAX - 1:
             # We use UINT32_MAX-1 to ensure that the assumption below is not violated.
             # "far away" is relative.
             logging.warning(
-                f"Grid size {grid_size} exceeds UINT32_MAX ({UINT32_MAX-1}). "
+                f"Grid size {grid_size} exceeds UINT32_MAX ({UINT32_MAX - 1}). "
                 "Using uint64 for trace map which will use more memory."
             )
             dtype = "uint64"
@@ -107,7 +107,8 @@ class Grid:
             dtype = "uint32"
             fill_value = UINT32_MAX
 
-        # We set dead traces to max uint32/uint64 value. Should be far away from actual trace counts.
+        # We set dead traces to max uint32/uint64 value.
+        # Should be far away from actual trace counts.
         self.map = zarr.full(self.shape[:-1], dtype=dtype, fill_value=fill_value)
         self.map.vindex[live_dim_indices] = range(len(live_dim_indices[0]))
 
