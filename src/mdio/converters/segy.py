@@ -376,7 +376,7 @@ def segy_to_mdio(  # noqa: C901
                 f"equal to array dimensions={len(index_bytes) + 1}",
             )
             raise ValueError(message)
-    
+
     if live_mask_chunksize is not None:
         if len(live_mask_chunksize) != len(index_bytes):
             message = (

@@ -280,6 +280,7 @@ def test_live_mask_chunksize(segy_input, zarr_tmp):
     )
 
     import zarr
+
     # Open the MDIO store as a Zarr group.
     zarr_group = zarr.open_group(zarr_tmp.__str__(), mode="r")
     live_mask_ds = zarr_group["metadata"]["live_mask"]
