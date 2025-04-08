@@ -182,8 +182,12 @@ def safety(session: Session) -> None:
     # TODO(Altay): Remove the CVE ignore once its resolved.
     # It's not critical, so ignoring now.
     ignore = ["70612"]
-    session.run("safety", "auth")
-    session.run("safety", "scan", "--detailed-output")
+    session.run(
+        "safety",
+        "check",
+        "--full-report",
+        f"--ignore={','.join(ignore)}",
+    )
 
 
 @session(python=python_versions)
