@@ -17,6 +17,7 @@ from segy.config import SegySettings
 from segy.schema import HeaderField
 
 from mdio.api.io_utils import process_url
+from mdio.constants import INT32_MAX
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
@@ -116,7 +117,6 @@ def segy_to_mdio(  # noqa: C901
     storage_options_output: dict[str, Any] | None = None,
     overwrite: bool = False,
     grid_overrides: dict | None = None,
-    live_mask_chunksize: Sequence[int] | None = None,
 ) -> None:
     """Convert SEG-Y file to MDIO format.
 
@@ -171,16 +171,10 @@ def segy_to_mdio(  # noqa: C901
             Default is `None` (will assume anonymous)
         overwrite: Toggle for overwriting existing store
         grid_overrides: Option to add grid overrides. See examples.
-        live_mask_chunksize: Chunk size for live mask. This has limited
-            support across the MDIO api.
-            Default is `None` (will do no chunking)
-
     Raises:
         GridTraceCountError: Raised if grid won't hold all traces in the
             SEG-Y file.
-        ValueError: If length of chunk sizes don't match number of dimensions
-            or live_mask_chunksize is not None and lenght of live_mask_chunksize
-            is not equal to number of dimensions minus one.
+        ValueError: If length of chunk sizes don't match number of dimensions.
         NotImplementedError: If can't determine chunking automatically for 4D+.
 
     Examples:
@@ -348,20 +342,6 @@ def segy_to_mdio(  # noqa: C901
         ...     chunksize=(8, 2, 256, 512),
         ...     grid_overrides={"HasDuplicates": True},
         ... )
-
-        >>> segy_to_mdio(
-        ...     segy_path="prefix/shot_file.segy",
-        ...     mdio_path_or_buffer="s3://bucket/shot_file.mdio",
-        ...     index_bytes=(133, 171, 17, 137, 13),
-        ...     index_lengths=(2, 2, 4, 2, 4),
-        ...     index_names=("shot_line", "gun", "shot_point", "cable", "channel"),
-        ...     chunksize=(1, 1, 8, 1, 128, 1024),
-        ...     grid_overrides={
-        ...         "AutoShotWrap": True,
-        ...         "AutoChannelWrap": True,
-        ...         "AutoChannelTraceQC":  1000000
-        ...     },
-        ...     live_mask_chunksize=(1, 1, 8, 1, 128),
     """
     if index_names is None:
         index_names = [f"dim_{i}" for i in range(len(index_bytes))]
@@ -374,14 +354,6 @@ def segy_to_mdio(  # noqa: C901
             message = (
                 f"Length of chunks={len(chunksize)} must be ",
                 f"equal to array dimensions={len(index_bytes) + 1}",
-            )
-            raise ValueError(message)
-
-    if live_mask_chunksize is not None:
-        if len(live_mask_chunksize) != len(index_bytes):
-            message = (
-                f"Length of live_mask_chunksize={len(live_mask_chunksize)} must be ",
-                f"equal to array dimensions={len(index_bytes)}",
             )
             raise ValueError(message)
 
@@ -452,8 +424,7 @@ def segy_to_mdio(  # noqa: C901
     trace_count = np.count_nonzero(grid.live_mask)
     write_attribute(name="trace_count", zarr_group=zarr_root, attribute=trace_count)
 
-    if live_mask_chunksize is None:
-        live_mask_chunksize = -1
+    live_mask_chunksize = _calculate_live_mask_chunksize(grid)
 
     # Note, live mask is not chunked since it's bool and small.
     zarr_root["metadata"].create_dataset(
@@ -525,3 +496,39 @@ def segy_to_mdio(  # noqa: C901
     )
 
     zarr.consolidate_metadata(store_nocache)
+
+
+def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int] | int:
+    """Calculate the optimal chunksize for the live mask.
+
+    Args:
+        grid: The grid to calculate the chunksize for.
+    """
+    if np.sum(grid.live_mask) < INT32_MAX:
+        # Base case where we don't need to chunk the live mask
+        return -1
+
+    # Calculate the optimal chunksize for the live mask
+    total_elements = np.prod(grid.shape[:-1])  # Exclude sample dimension
+    num_chunks = np.ceil(total_elements / INT32_MAX).astype(int)
+
+    # Calculate chunk size for each dimension
+    chunks = []
+    remaining_elements = total_elements
+
+    for dim_size in grid.shape[:-1]:  # Exclude sample dimension
+        # Calculate how many chunks we need in this dimension
+        # We want to distribute chunks evenly across dimensions
+        dim_chunks = max(
+            1,
+            int(
+                np.ceil(
+                    dim_size / np.ceil(np.power(num_chunks, 1 / len(grid.shape[:-1])))
+                )
+            ),
+        )
+        chunk_size = int(np.ceil(dim_size / dim_chunks))
+        chunks.append(chunk_size)
+        remaining_elements //= dim_chunks
+
+    return tuple(chunks)
