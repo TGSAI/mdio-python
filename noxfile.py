@@ -149,14 +149,29 @@ def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
 @session(name="pre-commit", python=python_versions[0])
 def precommit(session: Session) -> None:
     """Lint using pre-commit."""
-    session_install_uv(session, install_dev=True)
     args = session.posargs or [
         "run",
         "--all-files",
         "--hook-stage=manual",
         "--show-diff-on-failure",
     ]
-    session_install_uv_package(session, ["pre-commit"])
+    session_install_uv_package(
+        session,
+        [
+            "black",
+            "darglint",
+            "flake8",
+            "flake8-bandit",
+            "flake8-bugbear",
+            "flake8-docstrings",
+            "flake8-rst-docstrings",
+            "isort",
+            "pep8-naming",
+            "pre-commit",
+            "pre-commit-hooks",
+            "pyupgrade",
+        ]
+    )
     session.run("pre-commit", *args)
     if args and args[0] == "install":
         activate_virtualenv_in_precommit_hooks(session)
