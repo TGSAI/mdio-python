@@ -506,35 +506,125 @@ def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int]:
         grid: The grid to calculate the chunksize for.
 
     Returns:
-        A sequence of integers representing the optimal chunk size for each dimension of the grid.
+        A sequence of integers representing the optimal chunk size for each dimension
+        of the grid.
     """
-    # Use nbytes for the initial check, since we are limited by Blosc's maximum
-    # chunk size in bytes.
-    if grid.live_mask.nbytes < INT32_MAX:
-        # Base case where we don't need to chunk the live mask
-        return grid.live_mask.shape
+    return _calculate_optimal_chunksize(grid.live_mask, INT32_MAX)
 
-    # Calculate the optimal chunksize for the live mask
-    total_elements = np.prod(grid.shape[:-1])  # Exclude sample dimension
-    num_chunks = np.ceil(total_elements / INT32_MAX).astype(int)
 
-    # Calculate chunk size for each dimension
-    chunks = []
-    remaining_elements = total_elements
+def _calculate_optimal_chunksize(  # noqa: C901
+    volume: np.ndarray | zarr.Array, n_bytes: int
+) -> Sequence[int]:
+    """Calculate a uniform chunk shape for an N-dimensional data volume such that...
 
-    for dim_size in grid.shape[:-1]:  # Exclude sample dimension
-        # Calculate how many chunks we need in this dimension
-        # We want to distribute chunks evenly across dimensions
-        dim_chunks = max(
-            1,
-            int(
-                np.ceil(
-                    dim_size / np.ceil(np.power(num_chunks, 1 / len(grid.shape[:-1])))
-                )
-            ),
-        )
-        chunk_size = int(np.ceil(dim_size / dim_chunks))
-        chunks.append(chunk_size)
-        remaining_elements //= dim_chunks
+    0. The product of the chunk dimensions multiplied by the element size does not
+       exceed n_bytes.
+    1. The chunk shape is "regular" – each chunk dimension is a divisor of the
+       overall volume shape.
+    2. If an exact match is impossible, the chunk shape chosen maximizes the number of
+       elements (minimizing the unused bytes).
+    3. The computation is efficient.
 
-    return tuple(chunks)
+    The computation efficiency is broken down as follows:
+
+    - Divisor Computation: For each of the N dimensions (assume size ~ n), it checks
+      up to n numbers, so this part is roughly O(N * n).
+      For example, if you have a 3D array where each dimension is about 100,
+      it does around 3*100 = 300 steps.
+    - DFS Search: In the worst-case, the DFS explores about D choices per dimension
+      (D = average number of divisors) leading to O(D^N) combinations.
+      In practice, D is small (often < 10), so for a 2D array this is around 10^2
+      (about 100 combinations) and for a 3D array about 10^3 (roughly 1,000 combinations).
+      Since N is typically small (often <6), this exponential term behaves like a
+      constant factor.
+
+    Args:
+      volume : np.ndarray | zarr.Array
+          An N-dimensional array-like object (e.g. np.ndarray or zarr array).
+      n_bytes : int
+          Maximum allowed number of bytes per chunk (>= 1).
+
+    Returns:
+      Sequence[int]
+          A tuple representing the optimal chunk shape (number of elements along each axis).
+
+    Raises:
+      ValueError if n_bytes is less than the number of bytes of one element.
+    """
+    # Get volume shape and element size.
+    shape = volume.shape
+
+    if volume.size == 0:
+        logging.warning("Chunking calculation received empty volume shape...")
+        return volume.shape
+
+    itemsize = volume.dtype.itemsize
+
+    # Maximum number of elements that can fit in a chunk
+    # (we ignore any extra bytes; must not exceed n_bytes).
+    max_elements_allowed = n_bytes // itemsize
+    if max_elements_allowed < 1:
+        raise ValueError("n_bytes is too small to hold even one element of the volume.")
+
+    n_dims = len(shape)
+
+    def get_divisors(n: int) -> list[int]:
+        """Return a sorted list of all positive divisors of n.
+
+        Args:
+            n: The number to compute the divisors of.
+
+        Returns:
+            A sorted list of all positive divisors of n.
+        """
+        divs = []
+        # It is efficient enough for typical dimension sizes.
+        for i in range(1, n + 1):
+            if n % i == 0:
+                divs.append(i)
+        return sorted(divs)
+
+    # For each dimension, compute the list of allowed chunk sizes (divisors).
+    divisors_list = [get_divisors(d) for d in shape]
+
+    # For pruning: precompute the maximum possible product achievable from axis i to N-1.
+    # This is the product of the maximum divisors for each remaining axis.
+    max_possible = [1] * (n_dims + 1)
+    for i in range(n_dims - 1, -1, -1):
+        max_possible[i] = max(divisors_list[i]) * max_possible[i + 1]
+
+    best_product = 0
+    best_combination = [None] * n_dims
+    current_chunk = [None] * n_dims
+
+    def dfs(dim: int, current_product: int) -> None:
+        """Depth-first search to find the optimal chunk shape.
+
+        Args:
+            dim: The current dimension to process.
+            current_product: The current product of the chunk dimensions.
+        """
+        nonlocal best_product
+        # If all dimensions have been processed, update best combination if needed.
+        if dim == n_dims:
+            if current_product > best_product:
+                best_product = current_product
+                best_combination[:] = current_chunk[:]
+            return
+
+        # Prune branches: even if we take the maximum allowed for all remaining dimensions,
+        # if we cannot exceed best_product, then skip.
+        if current_product * max_possible[dim] < best_product:
+            return
+
+        # Iterate over allowed divisors for the current axis,
+        # trying larger candidates first so that high products are found early.
+        for candidate in sorted(divisors_list[dim], reverse=True):
+            new_product = current_product * candidate
+            if new_product > max_elements_allowed:
+                continue  # This candidate would exceed the byte restriction.
+            current_chunk[dim] = candidate
+            dfs(dim + 1, new_product)
+
+    dfs(0, 1)
+    return tuple(best_combination)
