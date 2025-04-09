@@ -499,15 +499,14 @@ def segy_to_mdio(  # noqa: C901
     zarr.consolidate_metadata(store_nocache)
 
 
-def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int] | int:
+def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int]:
     """Calculate the optimal chunksize for the live mask.
 
     Args:
         grid: The grid to calculate the chunksize for.
 
     Returns:
-        Either a single integer (-1) if no chunking is needed, or a sequence of integers
-        representing the optimal chunk size for each dimension of the grid.
+        A sequence of integers representing the optimal chunk size for each dimension of the grid.
     """
     # Use nbytes for the initial check, since we are limited by Blosc's maximum
     # chunk size in bytes.
