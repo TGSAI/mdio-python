@@ -509,9 +509,11 @@ def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int] | int:
         Either a single integer (-1) if no chunking is needed, or a sequence of integers
         representing the optimal chunk size for each dimension of the grid.
     """
+    # Use nbytes for the initial check, since we are limited by Blosc's maximum
+    # chunk size in bytes.
     if grid.live_mask.nbytes < INT32_MAX:
         # Base case where we don't need to chunk the live mask
-        return -1
+        return grid.live_mask.shape
 
     # Calculate the optimal chunksize for the live mask
     total_elements = np.prod(grid.shape[:-1])  # Exclude sample dimension
