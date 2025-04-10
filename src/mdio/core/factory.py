@@ -22,7 +22,6 @@ from typing import Any
 import numpy as np
 import zarr
 from numpy.typing import DTypeLike
-from zarr import ZFPY
 from zarr import Blosc
 from zarr import Group
 
@@ -30,6 +29,12 @@ from mdio.api.io_utils import process_url
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
 from mdio.segy.helpers_segy import create_zarr_hierarchy
+
+
+try:
+    from zarr import ZFPY
+except ImportError:
+    ZFPY = None
 
 
 DEFAULT_TEXT = [f"C{idx:02d}" + " " * 77 for idx in range(40)]
