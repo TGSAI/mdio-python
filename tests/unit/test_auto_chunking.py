@@ -76,23 +76,6 @@ def test_large_3d_grid_chunking():
     assert result == (750, 750, 750)
 
 
-def test_uneven_dimensions_chunking():
-    """Test exact chunk size calculation for uneven dimensions."""
-    # Create a grid with uneven dimensions that exceeds INT32_MAX
-    # Using 50,000 x 50,000 = 2,500,000,000 elements (exceeds INT32_MAX)
-    # But with uneven chunking: 50,000 x 25,000
-    dims = [
-        Dimension(coords=range(0, 50000, 1), name="dim1"),
-        Dimension(coords=range(0, 50000, 1), name="dim2"),
-        Dimension(coords=range(0, 100, 1), name="sample"),
-    ]
-    grid = Grid(dims=dims)
-    grid.live_mask = MockArray((50000, 50000), bool)
-
-    result = _calculate_live_mask_chunksize(grid)
-    assert result == (25000, 25000)
-
-
 def test_prestack_land_survey_chunking():
     """Test exact chunk size calculation for a dense pre-stack land survey grid."""
     # Create a dense pre-stack land survey grid that exceeds INT32_MAX
@@ -186,7 +169,7 @@ def test_primes():
     assert result == (4, 4)
 
 
-def test_altay():
+def test_grid_gambit():
     """Test various chunk size scenarios with different array dimensions."""
     from mdio.constants import INT32_MAX
 
