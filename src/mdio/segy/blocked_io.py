@@ -13,8 +13,6 @@ from dask.array import Array
 from dask.array import map_blocks
 from psutil import cpu_count
 from tqdm.auto import tqdm
-from zarr import Blosc
-from zarr import Group
 
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
@@ -30,13 +28,6 @@ if TYPE_CHECKING:
     from segy import SegyFactory
     from segy import SegyFile
 
-try:
-    import zfpy  # Base library
-    from zarr import ZFPY  # Codec
-
-except ImportError:
-    ZFPY = None
-    zfpy = None
 
 default_cpus = cpu_count(logical=True)
 
@@ -44,8 +35,8 @@ default_cpus = cpu_count(logical=True)
 def to_zarr(
     segy_file: SegyFile,
     grid: Grid,
-    data_root: Group,
-    metadata_root: Group,
+    data_array: Array,
+    header_array: Array,
     name: str,
     chunks: tuple[int, ...],
     lossless: bool,
@@ -57,8 +48,8 @@ def to_zarr(
     Args:
         segy_file: SEG-Y file instance.
         grid: mdio.Grid instance
-        data_root: Handle for zarr.core.Group we are writing traces
-        metadata_root: Handle for zarr.core.Group we are writing trace headers
+        data_array: Handle for zarr.core.Array we are writing trace data
+        header_array: Handle for zarr.core.Array we are writing trace headers
         name: Name of the zarr.Array
         chunks: Chunk sizes for trace data
         lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
@@ -70,50 +61,9 @@ def to_zarr(
 
     Returns:
         Global statistics for the SEG-Y as a dictionary.
-
-    Raises:
-        ImportError: if the ZFP isn't installed and user requests lossy.
     """
-    if lossless is True:
-        trace_compressor = Blosc("zstd")
-        header_compressor = trace_compressor
-    elif ZFPY is not None or zfpy is not None:
-        trace_compressor = ZFPY(
-            mode=zfpy.mode_fixed_accuracy,
-            tolerance=compression_tolerance,
-        )
-        header_compressor = Blosc("zstd")
-    else:
-        raise ImportError(
-            "Lossy compression requires the 'zfpy' library. It is "
-            "not installed in your environment. To proceed please "
-            "install 'zfpy' or install mdio with `--extras lossy`"
-        )
-
-    trace_array = data_root.create_dataset(
-        name=name,
-        shape=grid.shape,
-        compressor=trace_compressor,
-        chunks=chunks,
-        dimension_separator="/",
-        write_empty_chunks=False,
-        **kwargs,
-    )
-
-    # Get header dtype in native order (little-endian 99.9% of the time)
-    header_dtype = segy_file.spec.trace.header.dtype.newbyteorder("=")
-    header_array = metadata_root.create_dataset(
-        name="_".join([name, "trace_headers"]),
-        shape=grid.shape[:-1],  # Same spatial shape as data
-        chunks=chunks[:-1],  # Same spatial chunks as data
-        compressor=header_compressor,
-        dtype=header_dtype,
-        dimension_separator="/",
-        write_empty_chunks=False,
-    )
-
     # Initialize chunk iterator (returns next chunk slice indices each iteration)
-    chunker = ChunkIterator(trace_array, chunk_samples=False)
+    chunker = ChunkIterator(data_array, chunk_samples=False)
     num_chunks = len(chunker)
 
     # For Unix async writes with s3fs/fsspec & multiprocessing,
@@ -133,7 +83,7 @@ def to_zarr(
         lazy_work = executor.map(
             trace_worker,  # fn
             repeat(segy_file),
-            repeat(trace_array),
+            repeat(data_array),
             repeat(header_array),
             repeat(grid),
             chunker,

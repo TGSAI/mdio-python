@@ -7,6 +7,11 @@ from mdio.api import MDIOWriter
 from mdio.api.convenience import copy_mdio
 from mdio.converters import mdio_to_segy
 from mdio.converters import segy_to_mdio
+from mdio.core.dimension import Dimension
+from mdio.core.factory import MDIOCreateConfig
+from mdio.core.factory import MDIOVariableConfig
+from mdio.core.factory import create_empty
+from mdio.core.grid import Grid
 
 
 __all__ = [
@@ -15,6 +20,11 @@ __all__ = [
     "copy_mdio",
     "mdio_to_segy",
     "segy_to_mdio",
+    "Dimension",
+    "MDIOCreateConfig",
+    "MDIOVariableConfig",
+    "create_empty",
+    "Grid",
 ]
 
 
