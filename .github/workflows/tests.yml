@@ -17,9 +17,11 @@ jobs:
           #          - { python: "3.13", os: "ubuntu-latest", session: "mypy" }
           #          - { python: "3.12", os: "ubuntu-latest", session: "mypy" }
           #          - { python: "3.11", os: "ubuntu-latest", session: "mypy" }
+          #          - { python: "3.10", os: "ubuntu-latest", session: "mypy" }
           - { python: "3.13", os: "ubuntu-latest", session: "tests" }
           - { python: "3.12", os: "ubuntu-latest", session: "tests" }
           - { python: "3.11", os: "ubuntu-latest", session: "tests" }
+          - { python: "3.10", os: "ubuntu-latest", session: "tests" }
           - { python: "3.13", os: "windows-latest", session: "tests" }
           - { python: "3.13", os: "macos-latest", session: "tests" }
           #          - { python: "3.13", os: "ubuntu-latest", session: "typeguard" }
@@ -108,18 +110,8 @@ jobs:
       - name: Install the pinned version of uv
         uses: astral-sh/setup-uv@v5
         with:
-          python-version: "3.13"
-
-      - name: Upgrade pip
-        run: |
-          pip install -c ${{ github.workspace }}/.github/workflows/constraints.txt pip
-          pip --version
-
-      - name: Install Poetry
-        run: |
-          pipx install --pip-args="-c ${{ github.workspace }}/.github/workflows/constraints-poetry.txt" poetry
-          pipx inject poetry poetry-plugin-export
-          poetry --version
+          python-version: 3.13
+          pyproject-file: "${{ github.workspace }}/pyproject.toml"
 
       - name: Install Nox
         run: |
