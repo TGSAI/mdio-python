@@ -11,6 +11,7 @@ from mdio.core.dimension import Dimension
 from mdio.core.factory import MDIOCreateConfig
 from mdio.core.factory import MDIOVariableConfig
 from mdio.core.factory import create_empty
+from mdio.core.factory import create_empty_like
 from mdio.core.grid import Grid
 
 
@@ -24,6 +25,7 @@ __all__ = [
     "MDIOCreateConfig",
     "MDIOVariableConfig",
     "create_empty",
+    "create_empty_like",
     "Grid",
 ]
 
