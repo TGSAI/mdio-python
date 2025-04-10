@@ -154,7 +154,6 @@ class MDIOAccessor:
 
         # Set private attributes for public interface.
         # Pep8 complains because they are defined outside __init__
-        self._binary_header = None
         self._chunks = None
         self._live_mask = None
         self._root = None
@@ -162,8 +161,6 @@ class MDIOAccessor:
         self._orig_chunks = None
         self._store = None
         self._shape = None
-        self._stats = None
-        self._text_header = None
         self._trace_count = None
 
         # Private attributes
@@ -212,6 +209,10 @@ class MDIOAccessor:
             )
             raise MDIONotFoundError(msg) from e
 
+    def _consolidate_metadata(self) -> None:
+        """Flush optimized MDIO metadata, run after modifying it."""
+        zarr.consolidate_metadata(self.root.store)
+
     def _deserialize_grid(self):
         """Deserialize grid from Zarr metadata."""
         self.grid = Grid.from_zarr(self.root)
@@ -219,12 +220,6 @@ class MDIOAccessor:
     def _set_attributes(self):
         """Deserialize attributes from Zarr metadata."""
         self.trace_count = self.root.attrs["trace_count"]
-        self.stats = {
-            key: self.root.attrs[key] for key in ["mean", "std", "rms", "min", "max"]
-        }
-
-        self.text_header = self._metadata_group.attrs["text_header"]
-        self.binary_header = self._metadata_group.attrs["binary_header"]
 
         # Grid based attributes
         self.shape = self.grid.shape
@@ -331,26 +326,28 @@ class MDIOAccessor:
     @property
     def text_header(self) -> list:
         """Get seismic text header."""
-        return self._text_header
+        return self._metadata_group.attrs["text_header"]
 
     @text_header.setter
     def text_header(self, value: list) -> None:
         """Validate and set seismic text header."""
-        if not isinstance(value, list):
+        if not isinstance(value, list) or len(value) != 40:
             raise AttributeError("Text header must be a list of str with 40 elements")
-        self._text_header = value
+        self._metadata_group.attrs["text_header"] = value
+        self._consolidate_metadata()
 
     @property
     def binary_header(self) -> dict:
         """Get seismic binary header metadata."""
-        return self._binary_header
+        return self._metadata_group.attrs["binary_header"]
 
     @binary_header.setter
     def binary_header(self, value: dict) -> None:
         """Validate and set seismic binary header metadata."""
         if not isinstance(value, dict):
             raise AttributeError("Binary header has to be a dictionary type collection")
-        self._binary_header = value
+        self._metadata_group.attrs["binary_header"] = value
+        self._consolidate_metadata()
 
     @property
     def chunks(self) -> tuple[int, ...]:
@@ -365,12 +362,17 @@ class MDIOAccessor:
     @property
     def stats(self) -> dict:
         """Get global statistics like min/max/rms/std."""
-        return self._stats
+        keys = {"mean", "std", "rms", "min", "max"}
+        return {key: self.root.attrs[key] for key in keys}
 
     @stats.setter
     def stats(self, value: dict) -> None:
         """Set global statistics like min/max/rms/std."""
-        self._stats = value
+        keys = {"mean", "std", "rms", "min", "max"}
+        if not isinstance(value, dict) or not keys.issubset(value.keys()):
+            raise AttributeError(f"For settings status, you must provide keys: {keys}")
+        self.root.attrs.update(value)
+        self._consolidate_metadata()
 
     @property
     def _metadata_group(self) -> zarr.Group:
@@ -403,6 +405,7 @@ class MDIOAccessor:
     def __setitem__(self, key: int | tuple, value: npt.ArrayLike) -> None:
         """Data setter."""
         self._traces[key] = value
+        self._live_mask[key] = True
 
     def coord_to_index(
         self,
@@ -646,7 +649,7 @@ class MDIOWriter(MDIOAccessor):
         """Initialize super class with `r+` permission."""
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
-            mode="r+",
+            mode="w",
             access_pattern=access_pattern,
             storage_options=storage_options,
             return_metadata=return_metadata,
