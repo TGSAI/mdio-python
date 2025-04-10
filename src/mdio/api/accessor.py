@@ -646,7 +646,7 @@ class MDIOWriter(MDIOAccessor):
         memory_cache_size: int = 0,
         disk_cache: bool = False,
     ):  # TODO: Disabled all caching by default, sometimes causes performance issues
-        """Initialize super class with `r+` permission."""
+        """Initialize accessor class with `w` permission."""
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
             mode="w",
