@@ -3,7 +3,7 @@ name = "multidimio"
 version = "0.8.5"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = [{ name = "Altay Sansal", email = "altay.sansal@tgs.com" }]
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.11,<3.14"
 readme = "README.md"
 license = { "text" = "Apache-2.0" }
 keywords = [
