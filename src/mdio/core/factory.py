@@ -17,6 +17,7 @@ For detailed usage and parameters, see the docstring of the `create_empty` funct
 from dataclasses import dataclass
 from datetime import datetime
 from datetime import timezone
+from importlib import metadata
 from typing import Any
 
 import numpy as np
@@ -36,6 +37,11 @@ try:
 except ImportError:
     ZFPY = None
 
+
+try:
+    API_VERSION = metadata.version("multidimio")
+except metadata.PackageNotFoundError:
+    API_VERSION = "unknown"
 
 DEFAULT_TEXT = [f"C{idx:02d}" + " " * 77 for idx in range(40)]
 
@@ -131,12 +137,11 @@ def create_empty(
     # Get UTC time, then add local timezone information offset.
     iso_datetime = datetime.now(timezone.utc).isoformat()
     dimensions_dict = [dim.to_dict() for dim in config.grid.dims]
-    trace_count = 0
 
     write_attribute(name="created", zarr_group=zarr_root, attribute=iso_datetime)
-    write_attribute(name="api_version", zarr_group=zarr_root, attribute="0.8.4")
+    write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
     write_attribute(name="dimension", zarr_group=zarr_root, attribute=dimensions_dict)
-    write_attribute(name="trace_count", zarr_group=zarr_root, attribute=trace_count)
+    write_attribute(name="trace_count", zarr_group=zarr_root, attribute=0)
     write_attribute(name="text_header", zarr_group=meta_group, attribute=DEFAULT_TEXT)
     write_attribute(name="binary_header", zarr_group=meta_group, attribute={})
 
