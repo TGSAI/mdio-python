@@ -6,10 +6,14 @@ used for storing multidimensional data with associated metadata. It includes:
 - `MDIOVariableConfig`: Config for individual variables in the dataset.
 - `MDIOCreateConfig`: Config for the dataset, including path, grid, and variables.
 - `create_empty`: Function to create the empty dataset based on provided configuration.
+- `create_empty_like`: Create an empty dataset with same structure as an existing one.
 
 The `create_empty` function sets up the Zarr hierarchy with metadata and data groups,
 creates datasets for each variable and their trace headers, and initializes attributes
 such as creation time, API version, grid dimensions, and basic statistics.
+
+The `create_empty_like` function creates a new empty dataset by replicating the
+structure of an existing MDIO dataset, including its grid, variables, and headers.
 
 For detailed usage and parameters, see the docstring of the `create_empty` function.
 """
@@ -26,6 +30,7 @@ from numpy.typing import DTypeLike
 from zarr import Blosc
 from zarr import Group
 
+from mdio import MDIOWriter
 from mdio.api.io_utils import process_url
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
@@ -190,3 +195,64 @@ def create_empty(
         zarr.consolidate_metadata(zarr_root.store)
 
     return zarr_root
+
+
+def create_empty_like(
+    source_path: str,
+    dest_path: str,
+    overwrite: bool = False,
+    storage_options_input: dict[str, Any] = None,
+    storage_options_output: dict[str, Any] = None,
+) -> None:
+    """Create an empty MDIO dataset with the same structure as an existing one.
+
+    This function initializes a new empty MDIO dataset at the specified
+    destination path, replicating the structure of an existing dataset, including
+    its grid, variables, chunking strategy, compression, and headers. It copies
+    metadata such as text and binary headers from the source dataset and sets
+    initial attributes like creation time, API version, and zeroed statistics.
+
+    Important: It is up to the user to update headers, `live_mask` and stats.
+
+    Args:
+        source_path: The path or URI of the existing MDIO dataset to replicate.
+        dest_path: The path or URI where the new MDIO dataset will be created.
+        overwrite: If True, overwrites any existing dataset at the destination.
+        storage_options_input: Options for storage backend of the source dataset.
+        storage_options_output: Options for storage backend of the destination dataset.
+    """
+    storage_options_input = storage_options_input or {}
+    storage_options_output = storage_options_output or {}
+
+    source_root = zarr.open_consolidated(
+        source_path,
+        mode="r",
+        storage_options=storage_options_input,
+    )
+    src_data_grp = source_root["data"]
+    src_meta_grp = source_root["metadata"]
+
+    grid = Grid.from_zarr(source_root)
+
+    variables = []
+    for var_name in src_data_grp:
+        variable = MDIOVariableConfig(
+            name=var_name,
+            dtype=src_data_grp[var_name].dtype,
+            chunks=src_data_grp[var_name].chunks,
+            compressor=src_data_grp[var_name].compressor,
+            header_dtype=src_meta_grp[f"{var_name}_trace_headers"].dtype,
+        )
+        variables.append(variable)
+
+    config = MDIOCreateConfig(path=dest_path, grid=grid, variables=variables)
+
+    create_empty(
+        config=config,
+        overwrite=overwrite,
+        storage_options=storage_options_output,
+    )
+
+    writer = MDIOWriter(dest_path, storage_options=storage_options_output)
+    writer.text_header = src_meta_grp.attrs["text_header"]
+    writer.binary_header = src_meta_grp.attrs["binary_header"]
