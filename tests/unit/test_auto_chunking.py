@@ -3,10 +3,10 @@
 import numpy as np
 import pytest
 
-from mdio.converters.segy import _calculate_live_mask_chunksize
-from mdio.converters.segy import _calculate_optimal_chunksize
 from mdio.core import Dimension
 from mdio.core import Grid
+from mdio.core.grid import _calculate_live_mask_chunksize
+from mdio.core.grid import _calculate_optimal_chunksize
 
 
 class MockArray:
@@ -222,9 +222,7 @@ def test_altay():
         grid = Grid(dims=dims)
         grid.live_mask = MockArray(shape, bool)
 
-        # Calculate chunk size using the live mask function
         result = _calculate_live_mask_chunksize(grid)
-        print(f"{kind}: {result}")
 
         # Verify that the chunk size is valid
         assert all(chunk > 0 for chunk in result), f"Invalid chunk size for {kind}"
@@ -235,5 +233,6 @@ def test_altay():
         if kind in ["right_above_2G", "above_2G_v2", "above_2G_v2_asym", "above_4G_v2_asym", "above_3G_4D_asym"]:
             # TODO(BrianMichell): Our implementation is taking "limit" pretty liberally.
             # This is not overtly an issue because we are well below the 2GiB limit, but it's indicative of an underlying issue.
-            continue
-        assert chunk_elements <= INT32_MAX // 4, f"Chunk too large for {kind}"
+            assert chunk_elements <= (INT32_MAX // 4) * 1.5, f"Chunk too large for {kind}"
+        else:
+            assert chunk_elements <= INT32_MAX // 4, f"Chunk too large for {kind}"
