@@ -129,6 +129,8 @@ class MDIOAccessor:
         we can directly unpack it and use it further down our code.
     """
 
+    _stats_keys = {"mean", "std", "rms", "min", "max"}
+
     _array_load_function_mapper = {
         "zarr": open_zarr_array,
         "dask": open_zarr_array_dask,
@@ -362,15 +364,14 @@ class MDIOAccessor:
     @property
     def stats(self) -> dict:
         """Get global statistics like min/max/rms/std."""
-        keys = {"mean", "std", "rms", "min", "max"}
-        return {key: self.root.attrs[key] for key in keys}
+        return {key: self.root.attrs[key] for key in self._stats_keys}
 
     @stats.setter
     def stats(self, value: dict) -> None:
         """Set global statistics like min/max/rms/std."""
-        keys = {"mean", "std", "rms", "min", "max"}
-        if not isinstance(value, dict) or not keys.issubset(value.keys()):
-            raise AttributeError(f"For settings status, you must provide keys: {keys}")
+        if not isinstance(value, dict) or not self._stats_keys.issubset(value.keys()):
+            msg = f"For settings status, you must provide keys: {self._stats_keys}"
+            raise AttributeError(msg)
         self.root.attrs.update(value)
         self._consolidate_metadata()
 
