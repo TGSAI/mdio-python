@@ -89,6 +89,7 @@ def test_rechunk_integration(segy_file, mdio_path):
     3. Perform a rechunk operation via the convenience API.
     4. Validate that the rechunked arrays have the same underlying data as the original,
        ensuring that data integrity remains undamaged.
+    5. Validate that the chunking in zarr metadata matches the expected chunk sizes.
     """
     # Convert the fake SEG-Y file to MDIO.
     # For conversion, we choose inline and crossline header values from bytes 189 and 193.
@@ -114,11 +115,15 @@ def test_rechunk_integration(segy_file, mdio_path):
         disk_cache=False,
     )
 
-    # Capture the original data.
+    # Capture the original data and chunk sizes
     original_traces = reader._traces[
         :
     ]  # Main data array (3D: inline, crossline, samples).
     original_headers = reader._headers[:]  # Header array.
+    original_chunks = reader._traces.chunks  # Original chunk sizes
+
+    # Verify original chunking
+    assert original_chunks == (2, 2, 100), "Original chunk sizes do not match expected"
 
     # Choose a new chunk size different from the original.
     # Here we change the chunking of the inline dimension.
@@ -143,7 +148,12 @@ def test_rechunk_integration(segy_file, mdio_path):
     # Get the rechunked data using the accessor's methods
     rechunked_data = rechunked_reader._traces[:]
     rechunked_headers = rechunked_reader._headers[:]
+    rechunked_chunks = rechunked_reader._traces.chunks  # New chunk sizes
 
     # Validate that the underlying data has not changed.
     np.testing.assert_array_equal(original_traces, rechunked_data)
     np.testing.assert_array_equal(original_headers, rechunked_headers)
+
+    # Validate that the new chunk sizes match what we specified
+    assert rechunked_chunks == new_chunk, "Rechunked sizes do not match expected"
+    assert original_chunks != rechunked_chunks, "Chunk sizes should have changed"
