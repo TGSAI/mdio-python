@@ -2,22 +2,19 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-
 import inspect
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
 import zarr
-
-from mdio.constants import UINT32_MAX
-from mdio.constants import UINT64_MAX
-from mdio.constants import INT32_MAX
-
 from dask.array.core import normalize_chunks
 from dask.array.rechunk import _balance_chunksizes
 
+from mdio.constants import INT32_MAX
+from mdio.constants import UINT32_MAX
+from mdio.constants import UINT64_MAX
 from mdio.core import Dimension
 from mdio.core.serialization import Serializer
 
@@ -153,18 +150,17 @@ def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int]:
         A sequence of integers representing the optimal chunk size for each dimension
         of the grid.
     """
-    return _calculate_optimal_chunksize(grid.live_mask, INT32_MAX//4)
+    return _calculate_optimal_chunksize(grid.live_mask, INT32_MAX // 4)
 
 
 def _calculate_optimal_chunksize(  # noqa: C901
-    volume: np.ndarray | zarr.Array,
-    max_bytes: int
+    volume: np.ndarray | zarr.Array, max_bytes: int
 ) -> Sequence[int]:
     """Calculate the optimal chunksize for an N-dimensional data volume.
 
     Args:
         volume: The volume to calculate the chunksize for.
-        n_bytes: The maximum allowed number of bytes per chunk.
+        max_bytes: The maximum allowed number of bytes per chunk.
 
     Returns:
         A sequence of integers representing the optimal chunk size for each dimension

@@ -28,6 +28,7 @@ from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 from mdio.segy.utilities import get_grid_plan
 
+
 logger = logging.getLogger(__name__)
 
 try:

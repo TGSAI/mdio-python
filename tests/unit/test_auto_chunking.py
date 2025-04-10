@@ -1,7 +1,6 @@
 """Test live mask chunk size calculation."""
 
 import numpy as np
-import pytest
 
 from mdio.core import Dimension
 from mdio.core import Grid
@@ -11,8 +10,9 @@ from mdio.core.grid import _calculate_optimal_chunksize
 
 class MockArray:
     """Mock array class that mimics numpy array attributes without allocating memory."""
-    
+
     def __init__(self, shape, dtype):
+        """Initialize the mock array."""
         self.shape = shape
         self.dtype = np.dtype(dtype)
         self.itemsize = self.dtype.itemsize
@@ -217,7 +217,7 @@ def test_altay():
         ]
         # Add sample dimension
         dims.append(Dimension(coords=range(0, 100, 1), name="sample"))
-        
+
         # Create grid and set live mask
         grid = Grid(dims=dims)
         grid.live_mask = MockArray(shape, bool)
@@ -227,12 +227,21 @@ def test_altay():
         # Verify that the chunk size is valid
         assert all(chunk > 0 for chunk in result), f"Invalid chunk size for {kind}"
         assert len(result) == len(shape), f"Dimension mismatch for {kind}"
-        
+
         # # Calculate total elements in chunks
         chunk_elements = np.prod(result)
-        if kind in ["right_above_2G", "above_2G_v2", "above_2G_v2_asym", "above_4G_v2_asym", "above_3G_4D_asym"]:
+        if kind in [
+            "right_above_2G",
+            "above_2G_v2",
+            "above_2G_v2_asym",
+            "above_4G_v2_asym",
+            "above_3G_4D_asym",
+        ]:
             # TODO(BrianMichell): Our implementation is taking "limit" pretty liberally.
-            # This is not overtly an issue because we are well below the 2GiB limit, but it's indicative of an underlying issue.
-            assert chunk_elements <= (INT32_MAX // 4) * 1.5, f"Chunk too large for {kind}"
+            # This is not overtly an issue because we are well below the 2GiB limit,
+            # but it could be improved.
+            assert (
+                chunk_elements <= (INT32_MAX // 4) * 1.5
+            ), f"Chunk too large for {kind}"
         else:
             assert chunk_elements <= INT32_MAX // 4, f"Chunk too large for {kind}"
