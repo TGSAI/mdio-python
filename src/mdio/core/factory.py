@@ -112,7 +112,7 @@ def create_empty(
         storage_options: Options for the storage backend, such as credentials or settings for
             cloud storage (e.g., S3, GCS). Defaults to None.
         consolidate_meta: If True, consolidates metadata into a single file after creation,
-            improving performance for large datasets. Defaults to True.
+            improving performance for large metadata. Defaults to True.
 
     Returns:
         Group: The root Zarr group representing the newly created MDIO dataset.
