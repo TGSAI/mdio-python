@@ -117,7 +117,7 @@ class Grid:
             live_dim_indices = []
             for dim in self.dims[:-1]:
                 dim_hdr = index_headers[dim.name][start:end]
-                indices = np.searchsorted(dim, dim_hdr).astype(np.uint32)  # Use uint32
+                indices = np.searchsorted(dim, dim_hdr).astype(np.uint32)
                 live_dim_indices.append(indices)
             live_dim_indices = tuple(live_dim_indices)
 
