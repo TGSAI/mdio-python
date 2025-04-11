@@ -31,7 +31,7 @@ def test_grid_without_live_mask():
         Dimension(coords=range(0, 100, 1), name="sample"),
     ]
     grid = Grid(dims=dims)
-    
+
     result = _calculate_live_mask_chunksize(grid)
     assert result == (100, 100)
 
