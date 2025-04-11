@@ -34,6 +34,7 @@ from zarr import Group
 from mdio import MDIOWriter
 from mdio.api.io_utils import process_url
 from mdio.core import Grid
+from mdio.core.grid import _calculate_live_mask_chunksize
 from mdio.core.utils_write import write_attribute
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 
@@ -148,7 +149,7 @@ def create_empty(
     meta_group.create_dataset(
         name="live_mask",
         shape=config.grid.shape[:-1],
-        chunks=Grid._calculate_live_mask_chunksize(config.grid),
+        chunks=_calculate_live_mask_chunksize(config.grid),
         dtype="bool",
         dimension_separator="/",
     )
