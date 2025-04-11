@@ -38,7 +38,7 @@ class Grid:
     map: ZarrArray | None = None
     live_mask: ZarrArray | None = None
 
-    _TARGET_MEMORY_PER_BATCH = 1 * 1024**3  # 1GB limit for
+    _TARGET_MEMORY_PER_BATCH = 1 * 1024**3  # 1GB target for batch process map
     _INTERNAL_CHUNK_SIZE_TARGET = 10 * 1024**2  # 10MB target for internal chunks
 
     def __post_init__(self):
