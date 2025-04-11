@@ -150,7 +150,12 @@ def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int]:
         A sequence of integers representing the optimal chunk size for each dimension
         of the grid.
     """
-    return _calculate_optimal_chunksize(grid.live_mask, INT32_MAX // 4)
+    try:
+        return _calculate_optimal_chunksize(grid.live_mask, INT32_MAX // 4)
+    except:
+        # Create an empty array with the same shape and dtype as the live mask would have
+        empty_array = np.empty(grid.shape[:-1], dtype=np.bool_)
+        return _calculate_optimal_chunksize(empty_array, INT32_MAX // 4)
 
 
 def _calculate_optimal_chunksize(  # noqa: C901
