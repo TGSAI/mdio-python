@@ -3,21 +3,17 @@
 from __future__ import annotations
 
 import inspect
-import logging
-from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
 import zarr
-from dask.array.core import normalize_chunks
-from dask.array.rechunk import _balance_chunksizes
-from zarr import Array
+from segy.arrays import HeaderArray
+from zarr import Array as ZarrArray
 
-from mdio.constants import INT32_MAX
 from mdio.constants import UINT32_MAX
-from mdio.constants import UINT64_MAX
 from mdio.core import Dimension
 from mdio.core.serialization import Serializer
+from mdio.core.utils_write import get_constrained_chunksize
 
 
 @dataclass
@@ -32,12 +28,13 @@ class Grid:
 
     Args:
         dims: List of dimension instances.
-
     """
 
     dims: list[Dimension]
-    map: Array | None = None
-    live_mask: Array | None = None
+    map: ZarrArray | None = None
+    live_mask: ZarrArray | None = None
+
+    _TARGET_MEMORY_PER_BATCH = 1 * 1024**3  # 1GB limit for
 
     def __post_init__(self):
         """Initialize convenience properties."""
@@ -86,35 +83,46 @@ class Grid:
 
         return cls(dims_list)
 
-    def build_map(self, index_headers):
+    def build_map(self, index_headers: HeaderArray) -> None:
         """Build a map for live traces based on `index_headers`.
 
         Args:
             index_headers: Headers to be normalized (indexed)
         """
-        live_dim_indices = tuple()
-        for dim in self.dims[:-1]:
-            dim_hdr = index_headers[dim.name]
-            live_dim_indices += (np.searchsorted(dim, dim_hdr),)
-
-        # Determine the appropriate data type for the map based on grid size
+        # Determine data type for the map based on grid size
         grid_size = np.prod(self.shape[:-1])
-        use_uint64 = grid_size > UINT32_MAX - 1
-        dtype = "uint64" if use_uint64 else "uint32"
-        fill_value = UINT64_MAX if use_uint64 else UINT32_MAX
+        map_dtype = "uint64" if grid_size > UINT32_MAX else "uint32"
+        fill_value = np.iinfo(map_dtype).max
 
-        if use_uint64:
-            logging.warning(
-                f"Grid size {grid_size} exceeds threshold {UINT32_MAX - 1}. "
-                "Using uint64 for trace map, which increases memory usage."
-            )
+        # Initialize Zarr arrays for the map and live mask
+        live_shape = self.shape[:-1]
+        chunks = get_constrained_chunksize(live_shape, map_dtype, 10 * 1024**2)
+        self.map = zarr.full(live_shape, fill_value, dtype=map_dtype, chunks=chunks)
+        self.live_mask = zarr.zeros(live_shape, dtype="bool", chunks=chunks)
 
-        # Create map of trace indices and a bool mask for live traces
-        self.map = zarr.full(self.shape[:-1], dtype=dtype, fill_value=fill_value)
-        self.map.vindex[live_dim_indices] = np.arange(len(live_dim_indices[0]))
+        # Calculate batch size for processing
+        memory_per_trace_index = index_headers.itemsize
+        batch_size = int(self._TARGET_MEMORY_PER_BATCH / memory_per_trace_index)
+        total_live_traces = index_headers.size  # Total live traces
 
-        self.live_mask = zarr.zeros(self.shape[:-1], dtype="bool")
-        self.live_mask.vindex[live_dim_indices] = 1
+        # Process live traces in batches
+        for start in range(0, total_live_traces, batch_size):
+            end = min(start + batch_size, total_live_traces)
+
+            # Compute indices for the current batch
+            live_dim_indices = []
+            for dim in self.dims[:-1]:
+                dim_hdr = index_headers[dim.name][start:end]
+                indices = np.searchsorted(dim, dim_hdr).astype(np.uint32)  # Use uint32
+                live_dim_indices.append(indices)
+            live_dim_indices = tuple(live_dim_indices)
+
+            # Generate trace indices for the batch
+            trace_indices = np.arange(start, end, dtype=np.uint64)
+
+            # Update Zarr arrays for the batch
+            self.map.vindex[live_dim_indices] = trace_indices
+            self.live_mask.vindex[live_dim_indices] = True
 
 
 class GridSerializer(Serializer):
@@ -135,56 +143,3 @@ class GridSerializer(Serializer):
         payload = self.validate_payload(payload, signature)
 
         return Grid(**payload)
-
-
-class _EmptyGrid:
-    """Empty volume for Grid mocking."""
-
-    def __init__(self, shape: Sequence[int], dtype: np.dtype = np.bool):
-        """Initialize the empty grid."""
-        self.shape = shape
-        self.dtype = dtype
-
-    def __getitem__(self, item):
-        """Get item from the empty grid."""
-        return self.dtype.type(0)
-
-
-def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int]:
-    """Calculate the optimal chunksize for the live mask.
-
-    Args:
-        grid: The grid to calculate the chunksize for.
-
-    Returns:
-        A sequence of integers representing the optimal chunk size for each dimension
-        of the grid.
-    """
-    try:
-        return _calculate_optimal_chunksize(grid.live_mask, INT32_MAX // 4)
-    except AttributeError:
-        # Create an empty array with the same shape and dtype as the live mask would have
-        return _calculate_optimal_chunksize(_EmptyGrid(grid.shape[:-1]), INT32_MAX // 4)
-
-
-def _calculate_optimal_chunksize(  # noqa: C901
-    volume: np.ndarray | zarr.Array, max_bytes: int
-) -> Sequence[int]:
-    """Calculate the optimal chunksize for an N-dimensional data volume.
-
-    Args:
-        volume: The volume to calculate the chunksize for.
-        max_bytes: The maximum allowed number of bytes per chunk.
-
-    Returns:
-        A sequence of integers representing the optimal chunk size for each dimension
-        of the grid.
-    """
-    shape = volume.shape
-    chunks = normalize_chunks(
-        "auto",
-        shape,
-        dtype=volume.dtype,
-        limit=max_bytes,
-    )
-    return tuple(_balance_chunksizes(chunk)[0] for chunk in chunks)
