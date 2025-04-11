@@ -30,13 +30,6 @@ if TYPE_CHECKING:
     from segy import SegyFactory
     from segy import SegyFile
 
-try:
-    import zfpy  # Base library
-    from zarr import ZFPY  # Codec
-
-except ImportError:
-    ZFPY = None
-    zfpy = None
 
 default_cpus = cpu_count(logical=True)
 
@@ -44,8 +37,8 @@ default_cpus = cpu_count(logical=True)
 def to_zarr(
     segy_file: SegyFile,
     grid: Grid,
-    data_root: Group,
-    metadata_root: Group,
+    data_array: Array,
+    header_array: Array,
     name: str,
     chunks: tuple[int, ...],
     lossless: bool,
@@ -57,8 +50,8 @@ def to_zarr(
     Args:
         segy_file: SEG-Y file instance.
         grid: mdio.Grid instance
-        data_root: Handle for zarr.core.Group we are writing traces
-        metadata_root: Handle for zarr.core.Group we are writing trace headers
+        data_array: Handle for zarr.core.Array we are writing trace data
+        header_array: Handle for zarr.core.Array we are writing trace headers
         name: Name of the zarr.Array
         chunks: Chunk sizes for trace data
         lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
@@ -111,7 +104,7 @@ def to_zarr(
     )
 
     # Initialize chunk iterator (returns next chunk slice indices each iteration)
-    chunker = ChunkIterator(trace_array, chunk_samples=False)
+    chunker = ChunkIterator(data_array, chunk_samples=False)
     num_chunks = len(chunker)
 
     # For Unix async writes with s3fs/fsspec & multiprocessing,
@@ -131,7 +124,7 @@ def to_zarr(
         lazy_work = executor.map(
             trace_worker,  # fn
             repeat(segy_file),
-            repeat(trace_array),
+            repeat(data_array),
             repeat(header_array),
             repeat(grid),
             chunker,

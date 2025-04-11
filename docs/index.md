@@ -17,6 +17,7 @@ maxdepth: 1
 ---
 installation
 notebooks/quickstart
+notebooks/creation
 notebooks/compression
 notebooks/rechunking
 usage

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime
 from importlib import metadata
 from pathlib import Path
 
@@ -14,19 +13,28 @@ from zarr import consolidate_metadata
 from zarr import open_group
 
 from mdio import MDIOReader
+from mdio import MDIOWriter
 from mdio.core import Dimension
 from mdio.core import Grid
+from mdio.core.factory import MDIOCreateConfig
+from mdio.core.factory import MDIOVariableConfig
+from mdio.core.factory import create_empty
 from mdio.core.utils_write import write_attribute
-from mdio.segy.helpers_segy import create_zarr_hierarchy
 
 
 API_VERSION = metadata.version("multidimio")
 
-TEST_DIMS = {
-    "inline": np.arange(101, 131, 2),
-    "crossline": np.arange(10, 20, 1),
-    "sample": np.arange(0, 100, 5),
-}
+TEST_DIMS = [
+    Dimension(name="inline", coords=np.arange(101, 131, 2)),
+    Dimension(name="crossline", coords=np.arange(10, 20, 1)),
+    Dimension(name="sample", coords=np.arange(0, 100, 5)),
+]
+
+
+@pytest.fixture
+def mock_grid() -> Grid:
+    """Make a mock grid using test dimensions."""
+    return Grid(dims=TEST_DIMS)
 
 
 @pytest.fixture(scope="module")
@@ -36,23 +44,12 @@ def mock_mdio_path(tmp_path_factory):
 
 
 @pytest.fixture
-def mock_dimensions():
-    """Make some fake dimensions."""
-    dimensions = [Dimension(coords, name) for name, coords in TEST_DIMS.items()]
-    return dimensions
-
-
-@pytest.fixture
-def mock_coords():
+def mock_ilxl_values(mock_grid: Grid) -> tuple[NDArray, ...]:
     """Make some fake X/Y coordinates."""
-    xl_grid, il_grid = np.meshgrid(TEST_DIMS["crossline"], TEST_DIMS["inline"])
+    il_coords = mock_grid.select_dim("inline").coords
+    xl_coords = mock_grid.select_dim("crossline").coords
+    xl_grid, il_grid = np.meshgrid(xl_coords, il_coords)
     return il_grid, xl_grid
-
-
-@pytest.fixture
-def mock_text():
-    """Make a mock text header."""
-    return [f"{idx:02d} ab " * 16 for idx in range(40)]
 
 
 @pytest.fixture
@@ -62,11 +59,12 @@ def mock_bin():
 
 
 @pytest.fixture
-def mock_data(mock_coords):
+def mock_data(mock_grid: Grid, mock_ilxl_values: tuple[NDArray, ...]) -> NDArray:
     """Make some mock data as numpy array."""
-    il_grid, xl_grid = mock_coords
+    il_grid, xl_grid = mock_ilxl_values
+    sample_axis = mock_grid.select_dim("sample").coords
     data = il_grid / xl_grid
-    data = data[..., None] + TEST_DIMS["sample"][None, None, :]
+    data = data[..., None] + sample_axis[None, None, :]
 
     return data
 
@@ -77,7 +75,6 @@ def mock_mdio(
     mock_dimensions: list[Dimension],
     mock_coords: tuple[NDArray],
     mock_data: NDArray,
-    mock_text: list[str],
     mock_bin: dict[str, int],
 ):
     """This mocks most of mdio.converters.segy in memory."""
@@ -107,22 +104,28 @@ def mock_mdio(
 
     trace_count = np.count_nonzero(grid.live_mask)
     write_attribute(name="dimension", zarr_group=zarr_root, attribute=dimensions_dict)
+    il_grid, xl_grid = mock_ilxl_values
+    mock_header_dtype = np.dtype([("inline", "i4"), ("crossline", "i4")])
+    mock_grid.live_mask = np.ones(mock_grid.shape[:-1], dtype=bool)
+
+    var = MDIOVariableConfig(
+        name="chunked_012",
+        dtype="float64",
+        chunks=mock_grid.shape,
+        header_dtype=mock_header_dtype,
+    )
+
+    conf = MDIOCreateConfig(path=mock_mdio_dir, grid=mock_grid, variables=[var])
+    zarr_root = create_empty(conf, overwrite=True)
+    trace_count = np.count_nonzero(mock_grid.live_mask)
     write_attribute(name="trace_count", zarr_group=zarr_root, attribute=trace_count)
 
-    live_mask_arr = zarr_root["metadata"].create_array(
-        name="live_mask",
-        dtype="bool",
-        shape=grid.shape[:-1],
-        chunks=grid.shape[:-1],
-        chunk_key_encoding={"name": "v2", "separator": "/"},
-        overwrite=True,
-    )
-    live_mask_arr[...] = grid.live_mask[...]
+    writer = MDIOWriter(mock_mdio_dir)
+    writer.binary_header = mock_bin
 
-    write_attribute(name="created", zarr_group=zarr_root, attribute=str(datetime.now()))
-    write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
-    write_attribute(name="text_header", zarr_group=metadata_grp, attribute=mock_text)
-    write_attribute(name="binary_header", zarr_group=metadata_grp, attribute=mock_bin)
+    writer._headers["inline"] = il_grid
+    writer._headers["crossline"] = xl_grid
+    writer[:] = mock_data
 
     stats = {
         "mean": mock_data.mean(),
@@ -131,32 +134,8 @@ def mock_mdio(
         "min": mock_data.min(),
         "max": mock_data.max(),
     }
-
-    for key, value in stats.items():
-        write_attribute(name=key, zarr_group=zarr_root, attribute=value)
-
-    data_arr = data_grp.create_array(
-        "chunked_012",
-        dtype=mock_data.dtype,
-        shape=mock_data.shape,
-        chunk_key_encoding={"name": "v2", "separator": "/"},
-        overwrite=True,
-    )
-    data_arr[...] = mock_data
-
-    metadata_arr = metadata_grp.create_array(
-        name="_".join(["chunked_012", "trace_headers"]),
-        dtype=il_grid.dtype,
-        shape=grid.shape[:-1],  # Same spatial shape as data
-        chunks=data_arr.chunks[:-1],  # Same spatial chunks as data
-        chunk_key_encoding={"name": "v2", "separator": "/"},
-        overwrite=True,
-    )
-    metadata_arr[...] = il_grid * xl_grid
-
-    consolidate_metadata(zarr_root.store)
-
-    return mock_mdio_path
+    writer.stats = stats
+    return zarr_root
 
 
 @pytest.fixture
