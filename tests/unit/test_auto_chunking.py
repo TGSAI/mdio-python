@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from mdio.constants import INT32_MAX
+from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
 from mdio.core.utils_write import get_live_mask_chunksize
 
@@ -82,5 +82,5 @@ class TestAutoChunkLiveMask:
         chunk_elements = np.prod(result)
 
         # We want them to be 500MB +/- 25%
-        assert chunk_elements > INT32_MAX // 4 * 0.75
-        assert chunk_elements < INT32_MAX // 4 * 1.25
+        assert chunk_elements > MAX_SIZE_LIVE_MASK * 0.75
+        assert chunk_elements < MAX_SIZE_LIVE_MASK * 1.25
