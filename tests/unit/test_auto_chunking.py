@@ -6,6 +6,7 @@ from mdio.core import Dimension
 from mdio.core import Grid
 from mdio.core.grid import _calculate_live_mask_chunksize
 from mdio.core.grid import _calculate_optimal_chunksize
+from mdio.core.grid import _EmptyGrid
 
 
 def test_small_grid_no_chunking():
@@ -17,7 +18,7 @@ def test_small_grid_no_chunking():
         Dimension(coords=range(0, 100, 1), name="sample"),
     ]
     grid = Grid(dims=dims)
-    grid.live_mask = np.empty((100, 100), dtype=np.bool)
+    grid.live_mask = _EmptyGrid((100, 100), dtype=np.bool)
 
     result = _calculate_live_mask_chunksize(grid)
     assert result == (100, 100)
@@ -46,7 +47,7 @@ def test_large_2d_grid_chunking():
         Dimension(coords=range(0, 100, 1), name="sample"),
     ]
     grid = Grid(dims=dims)
-    grid.live_mask = np.empty((50000, 50000), dtype=np.bool)
+    grid.live_mask = _EmptyGrid((50000, 50000), dtype=np.bool)
 
     result = _calculate_live_mask_chunksize(grid)
 
@@ -65,7 +66,7 @@ def test_large_3d_grid_chunking():
         Dimension(coords=range(0, 100, 1), name="sample"),
     ]
     grid = Grid(dims=dims)
-    grid.live_mask = np.empty((1500, 1500, 1500), dtype=np.bool)
+    grid.live_mask = _EmptyGrid((1500, 1500, 1500), dtype=np.bool)
 
     result = _calculate_live_mask_chunksize(grid)
 
@@ -96,7 +97,7 @@ def test_prestack_land_survey_chunking():
         Dimension(coords=range(0, 1000, 1), name="sample"),
     ]
     grid = Grid(dims=dims)
-    grid.live_mask = np.empty((1000, 1000, 100, 36), dtype=np.bool)
+    grid.live_mask = _EmptyGrid((1000, 1000, 100, 36), dtype=np.bool)
 
     result = _calculate_live_mask_chunksize(grid)
     assert result == (334, 334, 100, 36)
@@ -104,7 +105,7 @@ def test_prestack_land_survey_chunking():
 
 def test_one_dim_full_chunk():
     """Test one-dimensional volume where the whole dimension can be used as chunk."""
-    arr = np.empty((100,), dtype=np.int8)
+    arr = _EmptyGrid((100,), dtype=np.int8)
     # With n_bytes = 100, max_elements_allowed = 100, thus optimal chunk should be (100,)
     result = _calculate_optimal_chunksize(arr, 100)
     assert result == (100,)
@@ -115,7 +116,7 @@ def test_two_dim_optimal():
 
     For a shape of (8,6) with n_bytes=20, the optimal chunk is expected to be (8,2).
     """
-    arr = np.empty((8, 6), dtype=np.int8)
+    arr = _EmptyGrid((8, 6), dtype=np.int8)
     result = _calculate_optimal_chunksize(arr, 20)
     assert result == (4, 4)
 
@@ -125,7 +126,7 @@ def test_three_dim_optimal():
 
     For a shape of (9,6,4) with n_bytes=100, the expected chunk is (9,2,4).
     """
-    arr = np.empty((9, 6, 4), dtype=np.int8)
+    arr = _EmptyGrid((9, 6, 4), dtype=np.int8)
     result = _calculate_optimal_chunksize(arr, 100)
     assert result == (5, 5, 4)
 
@@ -135,21 +136,21 @@ def test_minimal_chunk_for_large_dtype():
 
     Using int32 (itemsize=4) with shape (4,5) and n_bytes=4 yields (1,1).
     """
-    arr = np.empty((4, 5), dtype=np.int32)
+    arr = _EmptyGrid((4, 5), dtype=np.int32)
     result = _calculate_optimal_chunksize(arr, 4)
     assert result == (1, 1)
 
 
 def test_large_nbytes():
     """Test that a very large n_bytes returns the full volume shape as the optimal chunk."""
-    arr = np.empty((10, 10), dtype=np.int8)
+    arr = _EmptyGrid((10, 10), dtype=np.int8)
     result = _calculate_optimal_chunksize(arr, 1000)
     assert result == (10, 10)
 
 
 def test_two_dim_non_int8():
     """Test with a non-int8 dtype where n_bytes exactly covers the full volume in bytes."""
-    arr = np.empty((6, 8), dtype=np.int16)  # int16 has itemsize 2
+    arr = _EmptyGrid((6, 8), dtype=np.int16)  # int16 has itemsize 2
     # Total bytes of full volume = 6*8*2 = 96, so optimal chunk should be (6,8)
     result = _calculate_optimal_chunksize(arr, 96)
     assert result == (6, 8)
@@ -160,14 +161,14 @@ def test_irregular_dimensions():
 
     For shape (7,5) with n_bytes=35, optimal chunk should be (7,5) since 7*5 = 35.
     """
-    arr = np.empty((7, 5), dtype=np.int8)
+    arr = _EmptyGrid((7, 5), dtype=np.int8)
     result = _calculate_optimal_chunksize(arr, 35)
     assert result == (7, 5)
 
 
 def test_primes():
     """Test volume with prime dimensions where divisors are limited."""
-    arr = np.empty((7, 5), dtype=np.int8)
+    arr = _EmptyGrid((7, 5), dtype=np.int8)
     result = _calculate_optimal_chunksize(arr, 23)
     assert result == (4, 4)
 
@@ -206,7 +207,7 @@ def test_grid_gambit():
 
         # Create grid and set live mask
         grid = Grid(dims=dims)
-        grid.live_mask = np.empty(shape, dtype=np.bool)
+        grid.live_mask = _EmptyGrid(shape, dtype=np.bool)
 
         result = _calculate_live_mask_chunksize(grid)
 

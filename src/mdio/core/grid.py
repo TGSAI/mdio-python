@@ -140,6 +140,19 @@ class GridSerializer(Serializer):
         return Grid(**payload)
 
 
+class _EmptyGrid:
+    """Empty volume for Grid mocking."""
+
+    def __init__(self, shape: Sequence[int], dtype: np.dtype = np.bool):
+        """Initialize the empty grid."""
+        self.shape = shape
+        self.dtype = dtype
+
+    def __getitem__(self, item):
+        """Get item from the empty grid."""
+        return self.dtype.type(0)
+
+
 def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int]:
     """Calculate the optimal chunksize for the live mask.
 
@@ -154,8 +167,7 @@ def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int]:
         return _calculate_optimal_chunksize(grid.live_mask, INT32_MAX // 4)
     except AttributeError:
         # Create an empty array with the same shape and dtype as the live mask would have
-        empty_array = np.empty(grid.shape[:-1], dtype=np.bool_)
-        return _calculate_optimal_chunksize(empty_array, INT32_MAX // 4)
+        return _calculate_optimal_chunksize(_EmptyGrid(grid.shape[:-1]), INT32_MAX // 4)
 
 
 def _calculate_optimal_chunksize(  # noqa: C901
