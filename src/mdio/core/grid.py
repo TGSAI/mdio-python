@@ -152,7 +152,7 @@ def _calculate_live_mask_chunksize(grid: Grid) -> Sequence[int]:
     """
     try:
         return _calculate_optimal_chunksize(grid.live_mask, INT32_MAX // 4)
-    except:
+    except AttributeError:
         # Create an empty array with the same shape and dtype as the live mask would have
         empty_array = np.empty(grid.shape[:-1], dtype=np.bool_)
         return _calculate_optimal_chunksize(empty_array, INT32_MAX // 4)
