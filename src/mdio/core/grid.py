@@ -11,6 +11,7 @@ import numpy as np
 import zarr
 from dask.array.core import normalize_chunks
 from dask.array.rechunk import _balance_chunksizes
+from zarr import Array
 
 from mdio.constants import INT32_MAX
 from mdio.constants import UINT32_MAX
@@ -35,6 +36,8 @@ class Grid:
     """
 
     dims: list[Dimension]
+    map: Array | None = None
+    live_mask: Array | None = None
 
     def __post_init__(self):
         """Initialize convenience properties."""
@@ -94,27 +97,21 @@ class Grid:
             dim_hdr = index_headers[dim.name]
             live_dim_indices += (np.searchsorted(dim, dim_hdr),)
 
-        # There were cases where ingestion would overflow a signed int32.
-        # It's unlikely that we overflow the uint32_max, but this helps
-        # prevent any issues while keeping the memory footprint as low as possible.
+        # Determine the appropriate data type for the map based on grid size
         grid_size = np.prod(self.shape[:-1])
-        if grid_size > UINT32_MAX - 1:
-            # We use UINT32_MAX-1 to ensure that the assumption below is not violated.
-            # "far away" is relative.
-            logging.warning(
-                f"Grid size {grid_size} exceeds UINT32_MAX ({UINT32_MAX - 1}). "
-                "Using uint64 for trace map which will use more memory."
-            )
-            dtype = "uint64"
-            fill_value = UINT64_MAX
-        else:
-            dtype = "uint32"
-            fill_value = UINT32_MAX
+        use_uint64 = grid_size > UINT32_MAX - 1
+        dtype = "uint64" if use_uint64 else "uint32"
+        fill_value = UINT64_MAX if use_uint64 else UINT32_MAX
 
-        # We set dead traces to max uint32/uint64 value.
-        # Should be far away from actual trace counts.
+        if use_uint64:
+            logging.warning(
+                f"Grid size {grid_size} exceeds threshold {UINT32_MAX - 1}. "
+                "Using uint64 for trace map, which increases memory usage."
+            )
+
+        # Create map of trace indices and a bool mask for live traces
         self.map = zarr.full(self.shape[:-1], dtype=dtype, fill_value=fill_value)
-        self.map.vindex[live_dim_indices] = range(len(live_dim_indices[0]))
+        self.map.vindex[live_dim_indices] = np.arange(len(live_dim_indices[0]))
 
         self.live_mask = zarr.zeros(self.shape[:-1], dtype="bool")
         self.live_mask.vindex[live_dim_indices] = 1
