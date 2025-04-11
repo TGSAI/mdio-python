@@ -4,16 +4,20 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
 import zarr
-from segy.arrays import HeaderArray
-from zarr import Array as ZarrArray
 
 from mdio.constants import UINT32_MAX
 from mdio.core import Dimension
 from mdio.core.serialization import Serializer
 from mdio.core.utils_write import get_constrained_chunksize
+
+
+if TYPE_CHECKING:
+    from segy.arrays import HeaderArray
+    from zarr import Array as ZarrArray
 
 
 @dataclass
