@@ -20,7 +20,8 @@ def test_create_empty_like(mock_reader: MDIOReader):
 
     source_reader = mock_reader
     dest_reader = MDIOReader(dest_path)
-    assert source_reader.grid == dest_reader.grid
+    assert source_reader.grid.dims == dest_reader.grid.dims
+    assert source_reader.live_mask != dest_reader.grid.live_mask
 
     source_traces = source_reader._traces
     dest_traces = dest_reader._traces

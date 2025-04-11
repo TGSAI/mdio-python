@@ -12,20 +12,26 @@ FLOAT32_MIN = np.finfo("float32").min
 FLOAT64_MIN = np.finfo("float64").min
 FLOAT64_MAX = np.finfo("float64").max
 
-INT8_MIN = -0x80
-INT8_MAX = 0x7F
+INT8_MIN = np.iinfo("int8").min
+INT8_MAX = np.iinfo("int8").max
 
-INT16_MIN = -0x8000
-INT16_MAX = 0x7FFF
+INT16_MIN = np.iinfo("int16").min
+INT16_MAX = np.iinfo("int16").max
 
-INT32_MIN = -0x80000000
-INT32_MAX = 0x7FFFFFFF
+INT32_MIN = np.iinfo("int32").min
+INT32_MAX = np.iinfo("int32").max
 
-UINT8_MIN = 0x0
-UINT8_MAX = 0xFF
+INT64_MIN = np.iinfo("int64").min
+INT64_MAX = np.iinfo("int64").max
 
-UINT16_MIN = 0x0
-UINT16_MAX = 0xFFFF
+UINT8_MIN = 0
+UINT8_MAX = np.iinfo("uint8").max
 
-UINT32_MIN = 0x0
-UINT32_MAX = 0xFFFFFFFF
+UINT16_MIN = 0
+UINT16_MAX = np.iinfo("uint16").max
+
+UINT32_MIN = 0
+UINT32_MAX = np.iinfo("uint32").max
+
+UINT64_MIN = 0
+UINT64_MAX = np.iinfo("uint64").max

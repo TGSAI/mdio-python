@@ -1,9 +1,19 @@
 """Test configuration before everything runs."""
 
+import warnings
 from os import path
 from urllib.request import urlretrieve
 
 import pytest
+
+
+# Suppress Dask's chunk balancing warning
+warnings.filterwarnings(
+    "ignore",
+    message="Could not balance chunks to be equal",
+    category=UserWarning,
+    module="dask.array.rechunk",
+)
 
 
 @pytest.fixture(scope="session")
