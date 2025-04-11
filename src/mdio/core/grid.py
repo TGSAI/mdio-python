@@ -107,7 +107,7 @@ class Grid:
         # Calculate batch size for processing
         memory_per_trace_index = index_headers.itemsize
         batch_size = int(self._TARGET_MEMORY_PER_BATCH / memory_per_trace_index)
-        total_live_traces = index_headers.size  # Total live traces
+        total_live_traces = index_headers.size
 
         # Process live traces in batches
         for start in range(0, total_live_traces, batch_size):
