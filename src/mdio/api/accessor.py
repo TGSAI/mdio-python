@@ -185,13 +185,22 @@ class MDIOAccessor:
         if storage_options is None:
             storage_options = {}
 
-        self.store = process_url(
+        self.url = process_url(
             url=self.url,
-            mode=self.mode,
-            storage_options=storage_options,
-            memory_cache_size=self._memory_cache_size,
             disk_cache=self._disk_cache,
         )
+
+        try:
+            self.store = zarr.open(
+                self.url, mode=self.mode, storage_options=storage_options
+            ).store
+        except FileNotFoundError as e:
+            msg = (
+                f"MDIO file not found or corrupt at {self.url}. "
+                "Please check the URL or ensure it is not a deprecated "
+                "version of MDIO file."
+            )
+            raise MDIONotFoundError(msg) from e
 
     def _connect(self):
         """Open the zarr root."""
@@ -378,12 +387,12 @@ class MDIOAccessor:
     @property
     def _metadata_group(self) -> zarr.Group:
         """Get metadata zarr.group handle."""
-        return self.root.metadata
+        return self.root["metadata"]
 
     @property
     def _data_group(self) -> zarr.Group:
         """Get data zarr.Group handle."""
-        return self.root.data
+        return self.root["data"]
 
     def __getitem__(self, item: int | tuple) -> npt.ArrayLike | da.Array | tuple:
         """Data getter."""

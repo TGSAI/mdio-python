@@ -11,8 +11,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 from dask.array import Array
 from dask.array import map_blocks
+from numcodecs import Blosc
 from psutil import cpu_count
 from tqdm.auto import tqdm
+from zarr import Group
 
 from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
@@ -61,7 +63,46 @@ def to_zarr(
 
     Returns:
         Global statistics for the SEG-Y as a dictionary.
+
+    Raises:
+        ImportError: if the ZFP isn't installed and user requests lossy.
     """
+    if lossless is True:
+        trace_compressor = Blosc("zstd")
+        header_compressor = trace_compressor
+    elif ZFPY is not None or zfpy is not None:
+        trace_compressor = ZFPY(
+            mode=zfpy.mode_fixed_accuracy,
+            tolerance=compression_tolerance,
+        )
+        header_compressor = Blosc("zstd")
+    else:
+        raise ImportError(
+            "Lossy compression requires the 'zfpy' library. It is "
+            "not installed in your environment. To proceed please "
+            "install 'zfpy' or install mdio with `--extras lossy`"
+        )
+
+    trace_array = data_root.create_array(
+        name=name,
+        shape=grid.shape,
+        compressor=trace_compressor,
+        chunks=chunks,
+        chunk_key_encoding={"name": "v2", "separator": "/"},
+        **kwargs,
+    )
+
+    # Get header dtype in native order (little-endian 99.9% of the time)
+    header_dtype = segy_file.spec.trace.header.dtype.newbyteorder("=")
+    header_array = metadata_root.create_array(
+        name="_".join([name, "trace_headers"]),
+        shape=grid.shape[:-1],  # Same spatial shape as data
+        chunks=chunks[:-1],  # Same spatial chunks as data
+        chunk_key_encoding={"name": "v2", "separator": "/"},
+        compressor=header_compressor,
+        dtype=header_dtype,
+    )
+
     # Initialize chunk iterator (returns next chunk slice indices each iteration)
     chunker = ChunkIterator(data_array, chunk_samples=False)
     num_chunks = len(chunker)

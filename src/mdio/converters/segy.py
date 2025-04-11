@@ -374,6 +374,8 @@ def segy_to_mdio(  # noqa: C901
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
+    zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
+
     if index_names is None:
         index_names = [f"dim_{i}" for i in range(len(index_bytes))]
 
@@ -505,17 +507,7 @@ def segy_to_mdio(  # noqa: C901
 
     # Write actual stats
     for key, value in stats.items():
-        write_attribute(name=key, zarr_group=zarr_root, attribute=value)
+        write_attribute(name=key, zarr_group=root_group, attribute=value)
 
-    # Non-cached store for consolidating metadata.
-    # If caching is enabled the metadata may fall out of cache hence
-    # creating an incomplete `.zmetadata` file.
-    store_nocache = process_url(
-        url=mdio_path_or_buffer,
-        mode="r+",
-        storage_options=storage_options_output,
-        memory_cache_size=0,  # Making sure disk caching is disabled,
-        disk_cache=False,  # Making sure disk caching is disabled
-    )
-
-    zarr.consolidate_metadata(store_nocache)
+    # Finalize Zarr for fast open
+    zarr.consolidate_metadata(root_group.store)

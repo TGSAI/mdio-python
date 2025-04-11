@@ -22,7 +22,7 @@ except ImportError:
     raise SystemExit(dedent(message)) from None
 
 package = "mdio"
-python_versions = ["3.13", "3.12", "3.11", "3.10"]
+python_versions = ["3.13", "3.12", "3.11"]
 nox.needs_version = ">=2025.2.9"
 nox.options.default_venv_backend = "uv"
 nox.options.sessions = (
@@ -146,6 +146,7 @@ def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
 @session(name="pre-commit", python=python_versions[0])
 def precommit(session: Session) -> None:
     """Lint using pre-commit."""
+    session_install_uv(session, install_dev=True)
     args = session.posargs or [
         "run",
         "--all-files",
@@ -236,9 +237,9 @@ def coverage(session: Session) -> None:
     session_install_uv_package(session, ["coverage[toml]"])
 
     if not session.posargs and any(Path().glob(".coverage.*")):
-        session.run("coverage", "combine")
+        session.run("coverage", "combine", external=True)
 
-    session.run("coverage", *args)
+    session.run("coverage", *args, external=True)
 
 
 @session(python=python_versions[0])

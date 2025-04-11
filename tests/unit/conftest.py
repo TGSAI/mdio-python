@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 from importlib import metadata
+from pathlib import Path
 
 import numpy as np
 import pytest
+import zarr
 from numpy.typing import NDArray
-from zarr import Group
+from zarr import consolidate_metadata
+from zarr import open_group
 
 from mdio import MDIOReader
 from mdio import MDIOWriter
@@ -35,9 +38,9 @@ def mock_grid() -> Grid:
 
 
 @pytest.fixture(scope="module")
-def mock_mdio_dir(tmp_path_factory) -> str:
-    """Make a mocked MDIO dir for writing."""
-    return str(tmp_path_factory.mktemp("mdio"))
+def mock_mdio_path(tmp_path_factory):
+    """Make a mocked MDIO store for writing."""
+    return tmp_path_factory.mktemp("mdio") / "mock.mdio"
 
 
 @pytest.fixture
@@ -68,13 +71,39 @@ def mock_data(mock_grid: Grid, mock_ilxl_values: tuple[NDArray, ...]) -> NDArray
 
 @pytest.fixture
 def mock_mdio(
-    mock_mdio_dir: str,
-    mock_grid: Grid,
-    mock_ilxl_values: tuple[NDArray, NDArray],
+    mock_mdio_path: Path,
+    mock_dimensions: list[Dimension],
+    mock_coords: tuple[NDArray],
     mock_data: NDArray,
     mock_bin: dict[str, int],
 ):
     """This mocks most of mdio.converters.segy in memory."""
+    zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
+    zarr_root = open_group(mock_mdio_path, mode="w")
+
+    create_zarr_hierarchy(
+        root_group=zarr_root,
+        overwrite=True,
+    )
+
+    data_grp = zarr_root["data"]
+    metadata_grp = zarr_root["metadata"]
+
+    dimensions_dict = [dim.to_dict() for dim in mock_dimensions]
+    grid = Grid(mock_dimensions)
+
+    il_grid, xl_grid = mock_coords
+    mock_inline, mock_crossline = il_grid.ravel(), xl_grid.ravel()
+
+    mock_dtype = np.dtype([("inline", "i4"), ("crossline", "i4")])
+    mock_headers = np.empty(il_grid.size, dtype=mock_dtype)
+    mock_headers["inline"] = mock_inline
+    mock_headers["crossline"] = mock_crossline
+
+    grid.build_map(mock_headers)
+
+    trace_count = np.count_nonzero(grid.live_mask)
+    write_attribute(name="dimension", zarr_group=zarr_root, attribute=dimensions_dict)
     il_grid, xl_grid = mock_ilxl_values
     mock_header_dtype = np.dtype([("inline", "i4"), ("crossline", "i4")])
     mock_grid.live_mask = np.ones(mock_grid.shape[:-1], dtype=bool)
@@ -110,16 +139,16 @@ def mock_mdio(
 
 
 @pytest.fixture
-def mock_reader(mock_mdio: Group) -> MDIOReader:
+def mock_reader(mock_mdio: Path) -> MDIOReader:
     """Reader that points to the mocked data to be used later."""
-    return MDIOReader(mock_mdio.store.path)
+    return MDIOReader(mock_mdio.__str__())
 
 
 @pytest.fixture
-def mock_reader_cached(mock_mdio: Group) -> MDIOReader:
+def mock_reader_cached(mock_mdio: Path) -> MDIOReader:
     """Reader that points to the mocked data to be used later. (with local caching)."""
     return MDIOReader(
-        mock_mdio.store.path,
+        mock_mdio.__str__(),
         disk_cache=True,
         storage_options={"simplecache": {"cache_storage": "./mdio_test_cache"}},
     )
