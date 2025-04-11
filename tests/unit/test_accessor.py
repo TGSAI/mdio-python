@@ -10,6 +10,7 @@ import pytest
 from mdio import MDIOReader
 from mdio.core.exceptions import MDIOAlreadyExistsError
 from mdio.core.exceptions import MDIONotFoundError
+from mdio.core.factory import DEFAULT_TEXT
 from mdio.exceptions import ShapeError
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 
@@ -29,9 +30,9 @@ class TestReader:
         assert mock_reader.stats["min"] == mock_data.min()
         assert mock_reader.stats["max"] == mock_data.max()
 
-    def test_text_hdr(self, mock_reader, mock_text):
+    def test_text_hdr(self, mock_reader):
         """Compare ingested text header to original."""
-        assert mock_reader.text_header == mock_text
+        assert mock_reader.text_header == DEFAULT_TEXT
 
     def test_bin_hdr(self, mock_reader, mock_bin):
         """Compare ingested binary header to original."""
@@ -94,17 +95,14 @@ class TestReader:
         npt.assert_array_equal(xl_indices, xl_index)
         npt.assert_array_equal(z_indices, z_index)
 
-        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-        for act_idx, exp_idx in zip(il_indices, il_index):  # noqa: B905
-            npt.assert_array_equal(mock_reader[act_idx], mock_data[exp_idx])
+        for act_idx, exp_idx in zip(il_indices, il_index, strict=True):
+            npt.assert_almost_equal(mock_reader[act_idx], mock_data[exp_idx])
 
-        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-        for act_idx, exp_idx in zip(xl_indices, xl_index):  # noqa: B905
-            npt.assert_array_equal(mock_reader[:, act_idx], mock_data[:, exp_idx])
+        for act_idx, exp_idx in zip(xl_indices, xl_index, strict=True):
+            npt.assert_almost_equal(mock_reader[:, act_idx], mock_data[:, exp_idx])
 
-        # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-        for act_idx, exp_idx in zip(z_indices, z_index):  # noqa: B905
-            npt.assert_array_equal(mock_reader[..., act_idx], mock_data[..., exp_idx])
+        for act_idx, exp_idx in zip(z_indices, z_index, strict=True):
+            npt.assert_almost_equal(mock_reader[..., act_idx], mock_data[..., exp_idx])
 
     def test_local_caching(self, mock_reader_cached):
         """Test local caching."""

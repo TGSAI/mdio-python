@@ -5,8 +5,6 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Sequence
-from datetime import datetime
-from datetime import timezone
 from importlib import metadata
 from typing import Any
 
@@ -15,18 +13,28 @@ import zarr
 from segy import SegyFile
 from segy.config import SegySettings
 from segy.schema import HeaderField
+from zarr import Blosc
 
 from mdio.api.io_utils import process_url
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Grid
-from mdio.core.grid import _calculate_live_mask_chunksize
+from mdio.core.factory import MDIOCreateConfig
+from mdio.core.factory import MDIOVariableConfig
+from mdio.core.factory import create_empty
 from mdio.core.utils_write import write_attribute
 from mdio.segy import blocked_io
 from mdio.segy.compat import mdio_segy_spec
-from mdio.segy.helpers_segy import create_zarr_hierarchy
 from mdio.segy.utilities import get_grid_plan
+
+
+try:
+    import zfpy  # Base library
+    from zarr import ZFPY  # Codec
+except ImportError:
+    ZFPY = None
+    zfpy = None
 
 
 logger = logging.getLogger(__name__)
@@ -102,6 +110,28 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
             pass
         else:
             raise GridTraceSparsityError(grid.shape, num_traces, msg)
+
+
+def get_compressor(
+    lossless: bool, compression_tolerance: float = -1
+) -> Blosc | ZFPY | None:
+    """Get the appropriate compressor for the seismic traces."""
+    if lossless:
+        compressor = Blosc("zstd")
+    else:
+        if zfpy is None or ZFPY is None:
+            msg = (
+                "Lossy compression requires the 'zfpy' library. It is "
+                "not installed in your environment. To proceed please "
+                "install 'zfpy' or install mdio with `--extras lossy`"
+            )
+            raise ImportError(msg)
+
+        compressor = ZFPY(
+            mode=zfpy.mode_fixed_accuracy,
+            tolerance=compression_tolerance,
+        )
+    return compressor
 
 
 def segy_to_mdio(  # noqa: C901
@@ -365,14 +395,6 @@ def segy_to_mdio(  # noqa: C901
     if storage_options_output is None:
         storage_options_output = {}
 
-    store = process_url(
-        url=mdio_path_or_buffer,
-        mode="w",
-        storage_options=storage_options_output,
-        memory_cache_size=0,  # Making sure disk caching is disabled,
-        disk_cache=False,  # Making sure disk caching is disabled
-    )
-
     # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
     mdio_spec = mdio_segy_spec()
     segy_settings = SegySettings(storage_options=storage_options_input)
@@ -407,47 +429,6 @@ def segy_to_mdio(  # noqa: C901
         logger.warning(f"Ingestion grid shape: {grid.shape}.")
         raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
 
-    zarr_root = create_zarr_hierarchy(
-        store=store,
-        overwrite=overwrite,
-    )
-
-    # Get UTC time, then add local timezone information offset.
-    iso_datetime = datetime.now(timezone.utc).isoformat()
-
-    write_attribute(name="created", zarr_group=zarr_root, attribute=iso_datetime)
-    write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
-
-    dimensions_dict = [dim.to_dict() for dim in dimensions]
-    write_attribute(name="dimension", zarr_group=zarr_root, attribute=dimensions_dict)
-
-    # Write trace count
-    trace_count = np.count_nonzero(grid.live_mask)
-    write_attribute(name="trace_count", zarr_group=zarr_root, attribute=trace_count)
-
-    live_mask_chunksize = _calculate_live_mask_chunksize(grid)
-
-    # Note, live mask is not chunked since it's bool and small.
-    zarr_root["metadata"].create_dataset(
-        data=grid.live_mask,
-        name="live_mask",
-        shape=grid.shape[:-1],
-        chunks=live_mask_chunksize,
-        dimension_separator="/",
-    )
-
-    write_attribute(
-        name="text_header",
-        zarr_group=zarr_root["metadata"],
-        attribute=text_header.split("\n"),
-    )
-
-    write_attribute(
-        name="binary_header",
-        zarr_group=zarr_root["metadata"],
-        attribute=binary_header.to_dict(),
-    )
-
     if chunksize is None:
         dim_count = len(index_names) + 1
         if dim_count == 2:
@@ -470,11 +451,51 @@ def segy_to_mdio(  # noqa: C901
         suffix = [str(idx) for idx, value in enumerate(suffix) if value is not None]
         suffix = "".join(suffix)
 
+    compressor = get_compressor(compression_tolerance, lossless)
+    header_dtype = segy.spec.trace.header.dtype.newbyteorder("=")
+    var_conf = MDIOVariableConfig(
+        name=f"chunked_{suffix}",
+        dtype="float32",
+        chunks=chunksize,
+        compressor=compressor,
+        header_dtype=header_dtype,
+    )
+    config = MDIOCreateConfig(path=mdio_path_or_buffer, grid=grid, variables=[var_conf])
+
+    zarr_root = create_empty(
+        config,
+        overwrite=overwrite,
+        storage_options=storage_options_output,
+        consolidate_meta=False,
+    )
+    data_group, meta_group = zarr_root["data"], zarr_root["metadata"]
+    data_array = data_group[f"chunked_{suffix}"]
+    header_array = meta_group[f"chunked_{suffix}_trace_headers"]
+
+    # Write actual live mask and metadata to empty MDIO
+    meta_group["live_mask"][:] = grid.live_mask
+    write_attribute(
+        name="trace_count",
+        zarr_group=zarr_root,
+        attribute=np.count_nonzero(grid.live_mask),
+    )
+    write_attribute(
+        name="text_header",
+        zarr_group=zarr_root["metadata"],
+        attribute=text_header.split("\n"),
+    )
+    write_attribute(
+        name="binary_header",
+        zarr_group=zarr_root["metadata"],
+        attribute=binary_header.to_dict(),
+    )
+
+    # Write traces
     stats = blocked_io.to_zarr(
         segy_file=segy,
         grid=grid,
-        data_root=zarr_root["data"],
-        metadata_root=zarr_root["metadata"],
+        data_array=data_array,
+        header_array=header_array,
         name="_".join(["chunked", suffix]),
         dtype="float32",
         chunks=chunksize,
@@ -482,6 +503,7 @@ def segy_to_mdio(  # noqa: C901
         compression_tolerance=compression_tolerance,
     )
 
+    # Write actual stats
     for key, value in stats.items():
         write_attribute(name=key, zarr_group=zarr_root, attribute=value)
 
