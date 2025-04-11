@@ -26,6 +26,7 @@ from typing import Any
 
 import numpy as np
 import zarr
+from numcodecs.abc import Codec
 from numpy.typing import DTypeLike
 from zarr import Blosc
 from zarr import Group
@@ -35,12 +36,6 @@ from mdio.api.io_utils import process_url
 from mdio.core import Grid
 from mdio.core.utils_write import write_attribute
 from mdio.segy.helpers_segy import create_zarr_hierarchy
-
-
-try:
-    from zarr import ZFPY
-except ImportError:
-    ZFPY = None
 
 
 try:
@@ -63,14 +58,14 @@ class MDIOVariableConfig:
         name: The name of the variable.
         dtype: The data type of the variable (e.g., 'float32', 'int16').
         chunks: The chunk size for the variable along each dimension.
-        compressor: The compression algorithm to use (e.g., Blosc or ZFPY).
+        compressor: The compression algorithm to use (from Numcodecs).
         header_dtype: The data type for the variable's header.
     """
 
     name: str
     dtype: str
     chunks: tuple[int, ...] | None = None
-    compressor: Blosc | ZFPY | None = None
+    compressor: Codec | None = None
     header_dtype: DTypeLike | None = None
 
 
