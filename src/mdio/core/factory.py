@@ -148,7 +148,7 @@ def create_empty(
     meta_group.create_dataset(
         name="live_mask",
         shape=config.grid.shape[:-1],
-        chunks=-1,
+        chunks=Grid._calculate_live_mask_chunksize(config.grid),
         dtype="bool",
         dimension_separator="/",
     )
