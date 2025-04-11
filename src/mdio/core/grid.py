@@ -39,6 +39,7 @@ class Grid:
     live_mask: ZarrArray | None = None
 
     _TARGET_MEMORY_PER_BATCH = 1 * 1024**3  # 1GB limit for
+    _INTERNAL_CHUNK_SIZE_TARGET = 10 * 1024**2  # 10MB target for internal chunks
 
     def __post_init__(self):
         """Initialize convenience properties."""
@@ -100,7 +101,12 @@ class Grid:
 
         # Initialize Zarr arrays for the map and live mask
         live_shape = self.shape[:-1]
-        chunks = get_constrained_chunksize(live_shape, map_dtype, 10 * 1024**2)
+        chunks = get_constrained_chunksize(
+            shape=live_shape,
+            dtype=map_dtype,
+            max_bytes=self._INTERNAL_CHUNK_SIZE_TARGET,
+        )
+        # Temporary zarrs for ingestion.
         self.map = zarr.full(live_shape, fill_value, dtype=map_dtype, chunks=chunks)
         self.live_mask = zarr.zeros(live_shape, dtype="bool", chunks=chunks)
 
