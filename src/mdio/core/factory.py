@@ -199,8 +199,8 @@ def create_empty_like(
     source_path: str,
     dest_path: str,
     overwrite: bool = False,
-    storage_options_input: dict[str, Any] = None,
-    storage_options_output: dict[str, Any] = None,
+    storage_options_input: dict[str, Any] | None = None,
+    storage_options_output: dict[str, Any] | None = None,
 ) -> None:
     """Create an empty MDIO dataset with the same structure as an existing one.
 
