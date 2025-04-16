@@ -42,6 +42,14 @@ and
    :members:
 ```
 
+## Convenience Functions
+
+```{eval-rst}
+.. automodule:: mdio.api.convenience
+   :members:
+   :exclude-members: create_rechunk_plan, write_rechunked_values
+```
+
 ## Core Functionality
 
 ### Dimensions
@@ -63,12 +71,4 @@ and
 ```{eval-rst}
 .. automodule:: mdio.core.serialization
    :members:
-```
-
-## Convenience Functions
-
-```{eval-rst}
-.. automodule:: mdio.api.convenience
-   :members:
-   :exclude-members: create_rechunk_plan, write_rechunked_values
 ```
