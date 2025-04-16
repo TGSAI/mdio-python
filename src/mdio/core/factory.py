@@ -24,7 +24,6 @@ from datetime import timezone
 from importlib import metadata
 from typing import Any
 
-import numpy as np
 import zarr
 from numcodecs import Blosc
 from numpy.typing import DTypeLike
@@ -37,6 +36,7 @@ from mdio.api.io_utils import process_url
 from mdio.core.grid import Grid
 from mdio.core.utils_write import get_live_mask_chunksize
 from mdio.core.utils_write import write_attribute
+from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 
 
@@ -46,6 +46,7 @@ except metadata.PackageNotFoundError:
     API_VERSION = "unknown"
 
 DEFAULT_TEXT = [f"C{idx:02d}" + " " * 77 for idx in range(40)]
+DEFAULT_TRACE_HEADER_DTYPE = mdio_segy_spec().trace.header.dtype
 
 
 @dataclass
@@ -161,7 +162,7 @@ def create_empty(
             chunk_key_encoding={"name": "v2", "separator": "/"},
         )
 
-        header_dtype = variable.header_dtype or np.dtype("V240")
+        header_dtype = variable.header_dtype or DEFAULT_TRACE_HEADER_DTYPE
         meta_group.create_array(
             name=f"{variable.name}_trace_headers",
             shape=config.grid.shape[:-1],  # Same spatial shape as data
