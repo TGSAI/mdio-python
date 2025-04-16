@@ -48,6 +48,13 @@ and
    :members:
 ```
 
+### Creation
+
+```{eval-rst}
+.. automodule:: mdio.core.factory
+   :members:
+```
+
 ### Data I/O
 
 ```{eval-rst}
