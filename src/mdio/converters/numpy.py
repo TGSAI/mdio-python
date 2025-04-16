@@ -69,8 +69,7 @@ def numpy_to_mdio(
             `index_coords` dictionary.
         ValueError: If any coordinate array in `index_coords` has a size that
             does not match the corresponding array dimension.
-        ImportError: If lossy compression is requested (`lossless=False`) but the
-            `zfpy` library is not installed.
+
 
     Examples:
         To convert a 3D NumPy array to MDIO format locally with default chunking:
