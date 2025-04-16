@@ -133,7 +133,7 @@ def segy_to_mdio(  # noqa: C901
     index_bytes: Sequence[int],
     index_names: Sequence[str] | None = None,
     index_types: Sequence[str] | None = None,
-    chunksize: Sequence[int] | None = None,
+    chunksize: tuple[int, ...] | None = None,
     lossless: bool = True,
     compression_tolerance: float = 0.01,
     storage_options_input: dict[str, Any] | None = None,
@@ -484,11 +484,6 @@ def segy_to_mdio(  # noqa: C901
         grid=grid,
         data_array=data_array,
         header_array=header_array,
-        name=f"chunked_{suffix}",
-        dtype="float32",
-        chunks=chunksize,
-        lossless=lossless,
-        compression_tolerance=compression_tolerance,
     )
 
     # Write actual stats

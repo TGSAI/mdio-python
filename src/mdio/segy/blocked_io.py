@@ -37,11 +37,6 @@ def to_zarr(
     grid: Grid,
     data_array: Array,
     header_array: Array,
-    name: str,
-    chunks: tuple[int, ...],
-    lossless: bool,
-    compression_tolerance: float = 0.01,
-    **kwargs,
 ) -> dict:
     """Blocked I/O from SEG-Y to chunked `zarr.core.Array`.
 
@@ -50,14 +45,6 @@ def to_zarr(
         grid: mdio.Grid instance
         data_array: Handle for zarr.core.Array we are writing trace data
         header_array: Handle for zarr.core.Array we are writing trace headers
-        name: Name of the zarr.Array
-        chunks: Chunk sizes for trace data
-        lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
-        compression_tolerance: Tolerance ZFP compression, optional. The fixed
-            accuracy mode in ZFP guarantees there won't be any errors larger
-            than this value. The default is 0.01, which gives about 70%
-            reduction in size.
-        **kwargs: Additional keyword arguments passed to zarr.core.Array  # noqa: RST210
 
     Returns:
         Global statistics for the SEG-Y as a dictionary.
