@@ -50,9 +50,18 @@ def test_main_info_succeeds(runner: CliRunner, zarr_tmp: Path) -> None:
 
 
 @pytest.mark.dependency(depends=["test_main_succeeds"])
-def test_main_copy_succeeds(runner: CliRunner, zarr_tmp: Path, zarr_tmp2: Path) -> None:
+def test_main_copy_no_data(runner: CliRunner, zarr_tmp: Path, zarr_tmp2: Path) -> None:
     """It exits with a status code of zero."""
     cli_args = ["copy", str(zarr_tmp), str(zarr_tmp2)]
+
+    result = runner.invoke(__main__.main, args=cli_args)
+    assert result.exit_code == 0
+
+
+@pytest.mark.dependency(depends=["test_main_copy_without_data"])
+def test_main_copy(runner: CliRunner, zarr_tmp: Path, zarr_tmp2: Path) -> None:
+    """It exits with a status code of zero."""
+    cli_args = ["copy", str(zarr_tmp), str(zarr_tmp2), "-headers", "-traces"]
 
     result = runner.invoke(__main__.main, args=cli_args)
     assert result.exit_code == 0

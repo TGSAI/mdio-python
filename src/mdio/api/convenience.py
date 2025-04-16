@@ -5,14 +5,16 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import zarr
+from numcodecs import Blosc
 from tqdm.auto import tqdm
-from zarr import Blosc
 
-from mdio.api.io_utils import process_url
+from mdio.core.factory import create_empty_like
 from mdio.core.indexing import ChunkIterator
 
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from numcodecs.abc import Codec
     from numpy.typing import NDArray
     from zarr import Array
@@ -22,12 +24,13 @@ if TYPE_CHECKING:
 
 
 def copy_mdio(  # noqa: PLR0913
-    source: MDIOReader,
-    dest_path_or_buffer: str,
-    excludes: str = "",
-    includes: str = "",
-    storage_options: dict | None = None,
+    source_path: str,
+    target_path: str,
     overwrite: bool = False,
+    copy_traces: bool = False,
+    copy_headers: bool = False,
+    storage_options_input: dict[str, Any] | None = None,
+    storage_options_output: dict[str, Any] | None = None,
 ) -> None:
     """Copy MDIO file.
 
@@ -38,53 +41,58 @@ def copy_mdio(  # noqa: PLR0913
     in Zarr's documentation in `zarr.convenience.copy_store`.
 
     Args:
-        source: MDIO reader or accessor instance. Data will be copied from here
-        dest_path_or_buffer: Destination path. Could be any FSSpec mapping.
-        excludes: Data to exclude during copy. i.e. `chunked_012`. The raw data
-            won't be copied, but it will create an empty array to be filled.
-            If left blank, it will copy everything.
-        includes: Data to include during copy. i.e. `trace_headers`. If this is
-            not specified, and certain data is excluded, it will not copy headers.
-            If you want to preserve headers, specify `trace_headers`. If left blank,
-            it will copy everything except specified in `excludes` parameter.
-        storage_options: Storage options for the cloud storage backend.
-            Default is None (will assume anonymous).
+        source_path: Source MDIO path. Data will be copied from here
+        target_path: Destination path. Could be any FSSpec mapping.
+        copy_traces: Flag to enable copying trace data for all access patterns.
+        copy_headers: Flag to enable copying headers for all access patterns.
+        storage_options_input: Storage options for input MDIO.
+        storage_options_output: Storage options for output MDIO.
         overwrite: Overwrite destination or not.
 
     """
-    if storage_options is None:
-        storage_options = {}
+    storage_options_input = storage_options_input or {}
+    storage_options_output = storage_options_output or {}
 
-    dest_store = process_url(
-        url=dest_path_or_buffer,
-        mode="w",
-        storage_options=storage_options,
-        memory_cache_size=0,
-        disk_cache=False,
+    create_empty_like(
+        source_path,
+        target_path,
+        overwrite,
+        storage_options_input,
+        storage_options_output,
     )
 
-    if_exists = "replace" if overwrite is True else "raise"
-
-    zarr.copy_store(
-        source=source.store,
-        dest=dest_store,
-        excludes=excludes,
-        includes=includes,
-        if_exists=if_exists,
+    source_root = zarr.open_consolidated(
+        source_path,
+        mode="r",
+        storage_options=storage_options_input,
     )
+    src_data_grp = source_root["data"]
+    access_patterns = [key.removeprefix("chunked_") for key in src_data_grp]
 
-    if len(excludes) > 0:
-        data_path = f"data/{excludes}"
-        source_array = source.root[data_path]
-        dimension_separator = source_array._dimension_separator
+    # We are done if user doesn't want to copy headers and traces
+    if not (copy_traces | copy_headers):
+        return
 
-        zarr.zeros_like(
-            source_array,
-            store=dest_store,
-            path=data_path,
-            overwrite=overwrite,
-            dimension_separator=dimension_separator,
-        )
+    for access_pattern in access_patterns:
+        reader = MDIOReader(source_path, access_pattern, storage_options_input)
+        writer = MDIOReader(target_path, access_pattern, storage_options_output)
+
+        writer.live_mask[:] = reader.live_mask[:]
+
+        iterator = ChunkIterator(reader._traces, chunk_samples=False)
+        progress = tqdm(iterator, unit="block")
+        if copy_traces:
+            progress.set_description(desc=f"Copying traces for '{access_pattern=}'")
+            writer.stats = reader.stats
+            for slice_ in iterator:
+                writer[slice_] = reader[slice_]
+
+        if copy_headers:
+            progress.set_description(desc=f"Copying headers for '{access_pattern=}'")
+            for slice_ in iterator:
+                writer[slice_] = reader[slice_]
+
+    zarr.consolidate_metadata(writer.store)
 
 
 CREATE_KW = {

@@ -10,12 +10,11 @@ from typing import Any
 
 import numpy as np
 import zarr
+from numcodecs import Blosc
 from segy import SegyFile
 from segy.config import SegySettings
 from segy.schema import HeaderField
-from zarr import Blosc
 
-from mdio.api.io_utils import process_url
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
@@ -31,7 +30,7 @@ from mdio.segy.utilities import get_grid_plan
 
 try:
     import zfpy  # Base library
-    from zarr import ZFPY  # Codec
+    from numcodecs import ZFPY  # Codec
 except ImportError:
     ZFPY = None
     zfpy = None
@@ -374,11 +373,8 @@ def segy_to_mdio(  # noqa: C901
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
-    if index_names is None:
-        index_names = [f"dim_{i}" for i in range(len(index_bytes))]
-
-    if index_types is None:
-        index_types = ["int32"] * len(index_bytes)
+    index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
+    index_types = index_types or ["int32"] * len(index_bytes)
 
     if chunksize is not None:
         if len(chunksize) != len(index_bytes) + 1:
@@ -389,11 +385,8 @@ def segy_to_mdio(  # noqa: C901
             raise ValueError(message)
 
     # Handle storage options and check permissions etc
-    if storage_options_input is None:
-        storage_options_input = {}
-
-    if storage_options_output is None:
-        storage_options_output = {}
+    storage_options_input = storage_options_input or {}
+    storage_options_output = storage_options_output or {}
 
     # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
     mdio_spec = mdio_segy_spec()
@@ -451,42 +444,43 @@ def segy_to_mdio(  # noqa: C901
         suffix = [str(idx) for idx, value in enumerate(suffix) if value is not None]
         suffix = "".join(suffix)
 
-    compressor = get_compressor(compression_tolerance, lossless)
+    compressors = get_compressor(lossless, compression_tolerance)
     header_dtype = segy.spec.trace.header.dtype.newbyteorder("=")
     var_conf = MDIOVariableConfig(
         name=f"chunked_{suffix}",
         dtype="float32",
         chunks=chunksize,
-        compressor=compressor,
+        compressors=compressors,
         header_dtype=header_dtype,
     )
     config = MDIOCreateConfig(path=mdio_path_or_buffer, grid=grid, variables=[var_conf])
 
-    zarr_root = create_empty(
+    root_group = create_empty(
         config,
         overwrite=overwrite,
         storage_options=storage_options_output,
         consolidate_meta=False,
     )
-    data_group, meta_group = zarr_root["data"], zarr_root["metadata"]
+    data_group = root_group["data"]
+    meta_group = root_group["metadata"]
     data_array = data_group[f"chunked_{suffix}"]
     header_array = meta_group[f"chunked_{suffix}_trace_headers"]
 
     # Write actual live mask and metadata to empty MDIO
-    meta_group["live_mask"][:] = grid.live_mask
+    meta_group["live_mask"][:] = grid.live_mask[:]
     write_attribute(
         name="trace_count",
-        zarr_group=zarr_root,
+        zarr_group=root_group,
         attribute=np.count_nonzero(grid.live_mask),
     )
     write_attribute(
         name="text_header",
-        zarr_group=zarr_root["metadata"],
+        zarr_group=meta_group,
         attribute=text_header.split("\n"),
     )
     write_attribute(
         name="binary_header",
-        zarr_group=zarr_root["metadata"],
+        zarr_group=meta_group,
         attribute=binary_header.to_dict(),
     )
 
@@ -496,7 +490,7 @@ def segy_to_mdio(  # noqa: C901
         grid=grid,
         data_array=data_array,
         header_array=header_array,
-        name="_".join(["chunked", suffix]),
+        name=f"chunked_{suffix}",
         dtype="float32",
         chunks=chunksize,
         lossless=lossless,
@@ -505,17 +499,6 @@ def segy_to_mdio(  # noqa: C901
 
     # Write actual stats
     for key, value in stats.items():
-        write_attribute(name=key, zarr_group=zarr_root, attribute=value)
+        write_attribute(name=key, zarr_group=root_group, attribute=value)
 
-    # Non-cached store for consolidating metadata.
-    # If caching is enabled the metadata may fall out of cache hence
-    # creating an incomplete `.zmetadata` file.
-    store_nocache = process_url(
-        url=mdio_path_or_buffer,
-        mode="r+",
-        storage_options=storage_options_output,
-        memory_cache_size=0,  # Making sure disk caching is disabled,
-        disk_cache=False,  # Making sure disk caching is disabled
-    )
-
-    zarr.consolidate_metadata(store_nocache)
+    zarr.consolidate_metadata(root_group.store)

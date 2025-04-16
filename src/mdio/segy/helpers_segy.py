@@ -1,18 +1,21 @@
 """Helper functions for tinkering with SEG-Y related Zarr."""
 
-from zarr import Group
-from zarr import open_group
+from typing import TYPE_CHECKING
+
 from zarr.errors import ContainsGroupError
-from zarr.storage import FSStore
 
 from mdio.core.exceptions import MDIOAlreadyExistsError
 
 
-def create_zarr_hierarchy(store: FSStore, overwrite: bool) -> Group:
+if TYPE_CHECKING:
+    from zarr import Group
+
+
+def create_zarr_hierarchy(root_group: Group, overwrite: bool) -> Group:
     """Create `zarr` hierarchy for SEG-Y files.
 
     Args:
-        store: Output path where the converted output is written.
+        root_group: Output root group where data will be written.
         overwrite: Toggle for overwriting existing store.
 
     Returns:
@@ -21,14 +24,12 @@ def create_zarr_hierarchy(store: FSStore, overwrite: bool) -> Group:
     Raises:
         MDIOAlreadyExistsError: If a file with data already exists.
     """
-    root_group = open_group(store=store)
-
     try:
         root_group.create_group(name="data", overwrite=overwrite)
         root_group.create_group(name="metadata", overwrite=overwrite)
     except ContainsGroupError as e:
         msg = (
-            f"An MDIO file with data already exists at {store.path}. "
+            f"An MDIO file with data already exists at {root_group.store_path}. "
             "If this is intentional, please specify 'overwrite=True'."
         )
         raise MDIOAlreadyExistsError(msg) from e

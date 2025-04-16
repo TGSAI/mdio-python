@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from importlib import metadata
+from pathlib import Path
 
 import numpy as np
 import pytest
 from numpy.typing import NDArray
-from zarr import Group
 
 from mdio import MDIOReader
 from mdio import MDIOWriter
@@ -68,12 +68,12 @@ def mock_data(mock_grid: Grid, mock_ilxl_values: tuple[NDArray, ...]) -> NDArray
 
 @pytest.fixture
 def mock_mdio(
-    mock_mdio_dir: str,
+    mock_mdio_dir: Path,
     mock_grid: Grid,
     mock_ilxl_values: tuple[NDArray, NDArray],
     mock_data: NDArray,
     mock_bin: dict[str, int],
-):
+) -> Path:
     """This mocks most of mdio.converters.segy in memory."""
     il_grid, xl_grid = mock_ilxl_values
     mock_header_dtype = np.dtype([("inline", "i4"), ("crossline", "i4")])
@@ -106,20 +106,20 @@ def mock_mdio(
         "max": mock_data.max(),
     }
     writer.stats = stats
-    return zarr_root
+    return mock_mdio_dir
 
 
 @pytest.fixture
-def mock_reader(mock_mdio: Group) -> MDIOReader:
+def mock_reader(mock_mdio: Path) -> MDIOReader:
     """Reader that points to the mocked data to be used later."""
-    return MDIOReader(mock_mdio.store.path)
+    return MDIOReader(str(mock_mdio))
 
 
 @pytest.fixture
-def mock_reader_cached(mock_mdio: Group) -> MDIOReader:
+def mock_reader_cached(mock_mdio: Path) -> MDIOReader:
     """Reader that points to the mocked data to be used later. (with local caching)."""
     return MDIOReader(
-        mock_mdio.store.path,
+        str(mock_mdio),
         disk_cache=True,
         storage_options={"simplecache": {"cache_storage": "./mdio_test_cache"}},
     )

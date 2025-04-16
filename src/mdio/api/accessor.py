@@ -10,7 +10,6 @@ import numpy.typing as npt
 import zarr
 from numpy.typing import NDArray
 
-from mdio.api.convenience import copy_mdio
 from mdio.api.io_utils import open_zarr_array
 from mdio.api.io_utils import open_zarr_array_dask
 from mdio.api.io_utils import process_url
@@ -57,9 +56,7 @@ class MDIOAccessor:
     particularly useful when we are accessing the data from a high-latency
     store such as object stores, or mounted network drives with high latency.
     We can use the `disk_cache` option to fetch chunks the local temporary
-    directory for faster repetitive access. We can also turn on the Least
-    Recently Used (LRU) cache  by using the `memory_cache` option. It has
-    to be specified in bytes.
+    directory for faster repetitive access.
 
     Args:
         mdio_path_or_buffer: Store URL for MDIO file. This can be either on
@@ -84,19 +81,12 @@ class MDIOAccessor:
             multiple chunks before working.
         backend: Backend selection, optional. Default is "zarr". Must be
             in {'zarr', 'dask'}.
-        memory_cache_size: Maximum, in memory, least recently used (LRU)
-            cache size in bytes.
         disk_cache: Disk cache implemented by `fsspec`, optional. Default is
             False, which turns off disk caching. See `simplecache` from
             `fsspec` documentation for more details.
 
     Raises:
         MDIONotFoundError: If the MDIO file can not be opened.
-
-    Notes:
-        The combination of the `Dask` backend and caching schemes are experimental.
-        This configuration may cause unexpected memory usage and duplicate data
-        fetching.
 
     Examples:
         Assuming we ingested `my_3d_seismic.segy` as `my_3d_seismic.mdio` we can
@@ -145,7 +135,6 @@ class MDIOAccessor:
         return_metadata: bool,
         new_chunks: tuple[int, ...] | None,
         backend: str,
-        memory_cache_size: int,
         disk_cache: bool,
     ):
         """Accessor initialization function."""
@@ -161,7 +150,6 @@ class MDIOAccessor:
         self._root = None
         self._n_dim = None
         self._orig_chunks = None
-        self._store = None
         self._shape = None
         self._trace_count = None
 
@@ -170,46 +158,40 @@ class MDIOAccessor:
         self._backend = backend
         self._return_metadata = return_metadata
         self._new_chunks = new_chunks
-        self._memory_cache_size = memory_cache_size
+        self._storage_options = storage_options
         self._disk_cache = disk_cache
 
         # Call methods to finish initialization
-        self._validate_store(storage_options)
-        self._connect()
+        self._process_url()
+        try:
+            self._connect()
+        except FileNotFoundError as exc:
+            msg = (
+                f"MDIO file not found or corrupt at {self.url}. Please check"
+                "the URL or ensure it is not a deprecated version of MDIO file."
+            )
+            raise MDIONotFoundError(msg) from exc
         self._deserialize_grid()
         self._set_attributes()
         self._open_arrays()
 
-    def _validate_store(self, storage_options):
+    def _process_url(self) -> None:
         """Method to validate the provided store."""
-        if storage_options is None:
-            storage_options = {}
-
-        self.store = process_url(
+        self.url = process_url(
             url=self.url,
-            mode=self.mode,
-            storage_options=storage_options,
-            memory_cache_size=self._memory_cache_size,
             disk_cache=self._disk_cache,
         )
 
-    def _connect(self):
+    def _connect(self) -> None:
         """Open the zarr root."""
-        try:
-            if self.mode in {"r", "r+"}:
-                self.root = zarr.open_consolidated(store=self.store, mode=self.mode)
-            elif self.mode == "w":
-                self.root = zarr.open(store=self.store, mode="r+")
-            else:
-                msg = f"Invalid mode: {self.mode}"
-                raise ValueError(msg)
-        except KeyError as e:
-            msg = (
-                f"MDIO file not found or corrupt at {self.store.path}. "
-                "Please check the URL or ensure it is not a deprecated "
-                "version of MDIO file."
-            )
-            raise MDIONotFoundError(msg) from e
+        kwargs = {"store": self.url, "storage_options": self._storage_options}
+        if self.mode in {"r", "r+"}:
+            self.root = zarr.open_consolidated(mode=self.mode, **kwargs)
+        elif self.mode == "w":
+            self.root = zarr.open(mode="r+", **kwargs)
+        else:
+            msg = f"Invalid mode: {self.mode}"
+            raise ValueError(msg)
 
     def _consolidate_metadata(self) -> None:
         """Flush optimized MDIO metadata, run after modifying it."""
@@ -378,12 +360,12 @@ class MDIOAccessor:
     @property
     def _metadata_group(self) -> zarr.Group:
         """Get metadata zarr.group handle."""
-        return self.root.metadata
+        return self.root["metadata"]
 
     @property
     def _data_group(self) -> zarr.Group:
         """Get data zarr.Group handle."""
-        return self.root.data
+        return self.root["data"]
 
     def __getitem__(self, item: int | tuple) -> npt.ArrayLike | da.Array | tuple:
         """Data getter."""
@@ -514,40 +496,6 @@ class MDIOAccessor:
 
         return dim_indices if len(dim_indices) > 1 else dim_indices[0]
 
-    def copy(
-        self,
-        dest_path_or_buffer: str,
-        excludes: str = "",
-        includes: str = "",
-        storage_options: dict | None = None,
-        overwrite: bool = False,
-    ):
-        """Makes a copy of an MDIO file with or without all arrays.
-
-        Refer to mdio.api.convenience.copy for full documentation.
-
-        Args:
-            dest_path_or_buffer: Destination path. Could be any FSSpec mapping.
-            excludes: Data to exclude during copy. i.e. `chunked_012`. The raw data
-                won't be copied, but it will create an empty array to be filled.
-                If left blank, it will copy everything.
-            includes: Data to include during copy. i.e. `trace_headers`. If this is
-                not specified, and certain data is excluded, it will not copy headers.
-                If you want to preserve headers, specify `trace_headers`. If left blank,
-                it will copy everything except specified in `excludes` parameter.
-            storage_options: Storage options for the cloud storage backend.
-                Default is None (will assume anonymous).
-            overwrite: Overwrite destination or not.
-        """
-        copy_mdio(
-            source=self,
-            dest_path_or_buffer=dest_path_or_buffer,
-            excludes=excludes,
-            includes=includes,
-            storage_options=storage_options,
-            overwrite=overwrite,
-        )
-
 
 class MDIOReader(MDIOAccessor):
     """Read-only accessor for MDIO files.
@@ -573,8 +521,6 @@ class MDIOReader(MDIOAccessor):
             multiple chunks before working.
         backend: Backend selection, optional. Default is "zarr". Must be
             in {'zarr', 'dask'}.
-        memory_cache_size: Maximum, in memory, least recently used (LRU)
-            cache size in bytes.
         disk_cache: Disk cache implemented by `fsspec`, optional. Default is
             False, which turns off disk caching. See `simplecache` from
             `fsspec` documentation for more details.
@@ -588,7 +534,6 @@ class MDIOReader(MDIOAccessor):
         return_metadata: bool = False,
         new_chunks: tuple[int, ...] = None,
         backend: str = "zarr",
-        memory_cache_size: int = 0,
         disk_cache: bool = False,
     ):  # TODO: Disabled all caching by default, sometimes causes performance issues
         """Initialize super class with `r` permission."""
@@ -600,7 +545,6 @@ class MDIOReader(MDIOAccessor):
             return_metadata=return_metadata,
             new_chunks=new_chunks,
             backend=backend,
-            memory_cache_size=memory_cache_size,
             disk_cache=disk_cache,
         )
 
@@ -629,8 +573,6 @@ class MDIOWriter(MDIOAccessor):
             multiple chunks before working.
         backend: Backend selection, optional. Default is "zarr". Must be
             in {'zarr', 'dask'}.
-        memory_cache_size: Maximum, in memory, least recently used (LRU)
-            cache size in bytes.
         disk_cache: Disk cache implemented by `fsspec`, optional. Default is
             False, which turns off disk caching. See `simplecache` from
             `fsspec` documentation for more details.
@@ -644,7 +586,6 @@ class MDIOWriter(MDIOAccessor):
         return_metadata: bool = False,
         new_chunks: tuple[int, ...] = None,
         backend: str = "zarr",
-        memory_cache_size: int = 0,
         disk_cache: bool = False,
     ):  # TODO: Disabled all caching by default, sometimes causes performance issues
         """Initialize accessor class with `w` permission."""
@@ -656,6 +597,5 @@ class MDIOWriter(MDIOAccessor):
             return_metadata=return_metadata,
             new_chunks=new_chunks,
             backend=backend,
-            memory_cache_size=memory_cache_size,
             disk_cache=disk_cache,
         )

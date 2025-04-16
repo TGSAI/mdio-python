@@ -95,15 +95,15 @@ def parse_grid(grid: Grid) -> dict[str, dict[str, int | str]]:
 def parse_access_patterns(reader: MDIOReader) -> dict[str, Any]:
     """Extract access patterns and their info."""
     access_pattern_dict = {}
-    for name, array in reader._data_group.items():
+    for name, array in reader._data_group.arrays():
         pattern = name.replace("chunked_", "")
         chunks = str(array.chunks)
         format_ = str(array.dtype)
-        compressor = str(array.compressor)
+        compressors = str(array.compressors)
         access_pattern_dict[pattern] = {
             "chunks": chunks,
             "format": format_,
-            "compressor": compressor,
+            "compressor(s)": compressors,
         }
 
     return access_pattern_dict

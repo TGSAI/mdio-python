@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from click import STRING
 from click import argument
 from click import command
 from click import option
@@ -13,55 +12,47 @@ from click_params import JSON
 @argument("source-mdio-path", type=str)
 @argument("target-mdio-path", type=str)
 @option(
-    "-access",
-    "--access-pattern",
-    required=False,
-    default="012",
-    help="Access pattern of the file",
-    type=STRING,
+    "-traces",
+    "--with-traces",
+    is_flag=True,
+    help="Flag to overwrite the MDIO file if it exists",
     show_default=True,
 )
 @option(
-    "-exc",
-    "--excludes",
-    required=False,
-    default="",
-    help="Data to exclude during copy, like `chunked_012`. The data values won’t be "
-    "copied but an empty array will be created. If blank, it copies everything.",
-    type=STRING,
+    "-headers",
+    "--with-headers",
+    is_flag=True,
+    help="Flag to overwrite the MDIO file if it exists",
+    show_default=True,
 )
 @option(
-    "-inc",
-    "--includes",
+    "-storage-input",
+    "--storage-options-input",
     required=False,
-    default="",
-    help="Data to include during copy, like `trace_headers`. If not specified, and "
-    "certain data is excluded, it will not copy headers. To preserve headers, "
-    "specify trace_headers. If left blank, it will copy everything except what is "
-    "specified in the 'excludes' parameter.",
-    type=STRING,
+    help="Storage options for input MDIO file.",
+    type=JSON,
 )
 @option(
-    "-storage",
-    "--storage-options",
+    "-storage-output",
+    "--storage-options-output",
     required=False,
-    help="Custom storage options for cloud backends",
+    help="Storage options for output MDIO file.",
     type=JSON,
 )
 @option(
     "-overwrite",
     "--overwrite",
     is_flag=True,
-    help="Flag to overwrite if mdio file if it exists",
+    help="Flag to overwrite the MDIO file if it exists",
     show_default=True,
 )
 def copy(
     source_mdio_path: str,
     target_mdio_path: str,
-    access_pattern: str = "012",
-    includes: str = "",
-    excludes: str = "",
-    storage_options: dict | None = None,
+    with_traces: bool = False,
+    with_headers: bool = False,
+    storage_options_input: dict | None = None,
+    storage_options_output: dict | None = None,
     overwrite: bool = False,
 ) -> None:
     """Copy an MDIO dataset to another MDIO dataset.
@@ -72,16 +63,16 @@ def copy(
     More documentation about `excludes` and `includes` can be found
     in Zarr's documentation in `zarr.convenience.copy_store`.
     """
-    from mdio import MDIOReader
+    from mdio.api.convenience import copy_mdio
 
-    reader = MDIOReader(source_mdio_path, access_pattern=access_pattern)
-
-    reader.copy(
-        dest_path_or_buffer=target_mdio_path,
-        excludes=excludes,
-        includes=includes,
-        storage_options=storage_options,
-        overwrite=overwrite,
+    copy_mdio(
+        source_mdio_path,
+        target_mdio_path,
+        overwrite,
+        with_traces,
+        with_headers,
+        storage_options_input,
+        storage_options_output,
     )
 
 
