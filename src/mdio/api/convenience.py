@@ -71,8 +71,7 @@ def copy_mdio(  # noqa: PLR0913
     src_data_grp = source_root["data"]
     access_patterns = [key.removeprefix("chunked_") for key in src_data_grp]
 
-    # We are done if user doesn't want to copy headers and traces
-    if not (copy_traces | copy_headers):
+    if not copy_traces and not copy_headers:
         return
 
     for access_pattern in access_patterns:
