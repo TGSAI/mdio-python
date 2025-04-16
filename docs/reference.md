@@ -33,7 +33,7 @@ and
 ```{eval-rst}
 .. automodule:: mdio.converters.segy
    :members:
-   :exclude-members: grid_density_qc, parse_index_types
+   :exclude-members: grid_density_qc, parse_index_types, get_compressor
 
 .. automodule:: mdio.converters.mdio
    :members:
