@@ -24,24 +24,27 @@ BINARY_HEADER_KEY = "binary_header"
 CHUNKED_TRACE_HEADERS_KEY = "chunked_012_trace_headers"
 
 
-def update_mdio_for_version_0_7_4(root):
+def update_mdio_for_version_0_7_4(root_group: zarr.Group):
     """Update MDIO metadata to mimic version 0.7.4."""
     # Update binary header revision keys
-    bin_hdr = root.metadata.attrs[BINARY_HEADER_KEY]
+    meta_group = root_group.require_group("metadata")
+    bin_hdr = meta_group.attrs[BINARY_HEADER_KEY]
     bin_hdr["SEGYRevision"] = bin_hdr.pop("segy_revision_major")
     bin_hdr["SEGYRevisionMinor"] = bin_hdr.pop("segy_revision_minor")
-    root.metadata.attrs[BINARY_HEADER_KEY] = bin_hdr
+    meta_group.attrs[BINARY_HEADER_KEY] = bin_hdr
 
     # Remove trace headers past field 232 (pre-0.8 schema)
-    orig_hdr = root.metadata[CHUNKED_TRACE_HEADERS_KEY]
+    orig_hdr = meta_group[CHUNKED_TRACE_HEADERS_KEY]
     new_dtype = np.dtype(orig_hdr.dtype.descr[:-1])
-    new_hdr = zarr.zeros_like(orig_hdr, dtype=new_dtype)
-    root.metadata.create_dataset(
-        CHUNKED_TRACE_HEADERS_KEY,
-        data=new_hdr,
+    meta_group.create_array(
+        name=CHUNKED_TRACE_HEADERS_KEY,
+        shape=orig_hdr.shape,
+        dtype=new_dtype,
+        chunks=orig_hdr.chunks,
+        chunk_key_encoding={"name": "v2", "separator": "/"},
         overwrite=True,
     )
-    zarr.consolidate_metadata(root.store)
+    zarr.consolidate_metadata(meta_group.store)
 
 
 @pytest.mark.parametrize("mdio_version", MDIO_VERSIONS)

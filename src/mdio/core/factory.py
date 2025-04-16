@@ -24,18 +24,19 @@ from datetime import timezone
 from importlib import metadata
 from typing import Any
 
-import numpy as np
 import zarr
-from numcodecs.abc import Codec
+from numcodecs import Blosc
 from numpy.typing import DTypeLike
-from zarr import Blosc
 from zarr import Group
+from zarr import open_group
+from zarr.core.array import CompressorsLike
 
-from mdio import MDIOWriter
+from mdio.api.accessor import MDIOWriter
 from mdio.api.io_utils import process_url
-from mdio.core import Grid
+from mdio.core.grid import Grid
 from mdio.core.utils_write import get_live_mask_chunksize
 from mdio.core.utils_write import write_attribute
+from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.helpers_segy import create_zarr_hierarchy
 
 
@@ -45,6 +46,7 @@ except metadata.PackageNotFoundError:
     API_VERSION = "unknown"
 
 DEFAULT_TEXT = [f"C{idx:02d}" + " " * 77 for idx in range(40)]
+DEFAULT_TRACE_HEADER_DTYPE = mdio_segy_spec().trace.header.dtype
 
 
 @dataclass
@@ -59,14 +61,14 @@ class MDIOVariableConfig:
         name: The name of the variable.
         dtype: The data type of the variable (e.g., 'float32', 'int16').
         chunks: The chunk size for the variable along each dimension.
-        compressor: The compression algorithm to use (from Numcodecs).
+        compressors: The compression algorithm(s) to use.
         header_dtype: The data type for the variable's header.
     """
 
     name: str
     dtype: str
     chunks: tuple[int, ...] | None = None
-    compressor: Codec | None = None
+    compressors: CompressorsLike | None = None
     header_dtype: DTypeLike | None = None
 
 
@@ -118,64 +120,56 @@ def create_empty(
     Returns:
         Group: The root Zarr group representing the newly created MDIO dataset.
     """
+    zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
+
     storage_options = storage_options or {}
 
-    store = process_url(
-        url=config.path,
-        mode="w",
-        storage_options=storage_options,
-        memory_cache_size=0,  # Making sure disk caching is disabled,
-        disk_cache=False,  # Making sure disk caching is disabled
-    )
+    url = process_url(url=config.path, disk_cache=False)
+    root_group = open_group(url, mode="w", storage_options=storage_options)
+    root_group = create_zarr_hierarchy(root_group, overwrite)
 
-    zarr_root = create_zarr_hierarchy(
-        store=store,
-        overwrite=overwrite,
-    )
-    meta_group = zarr_root.require_group("metadata")
-    data_group = zarr_root.require_group("data")
+    meta_group = root_group["metadata"]
+    data_group = root_group["data"]
 
     # Get UTC time, then add local timezone information offset.
     iso_datetime = datetime.now(timezone.utc).isoformat()
     dimensions_dict = [dim.to_dict() for dim in config.grid.dims]
 
-    write_attribute(name="created", zarr_group=zarr_root, attribute=iso_datetime)
-    write_attribute(name="api_version", zarr_group=zarr_root, attribute=API_VERSION)
-    write_attribute(name="dimension", zarr_group=zarr_root, attribute=dimensions_dict)
-    write_attribute(name="trace_count", zarr_group=zarr_root, attribute=0)
+    write_attribute(name="created", zarr_group=root_group, attribute=iso_datetime)
+    write_attribute(name="api_version", zarr_group=root_group, attribute=API_VERSION)
+    write_attribute(name="dimension", zarr_group=root_group, attribute=dimensions_dict)
+    write_attribute(name="trace_count", zarr_group=root_group, attribute=0)
     write_attribute(name="text_header", zarr_group=meta_group, attribute=DEFAULT_TEXT)
     write_attribute(name="binary_header", zarr_group=meta_group, attribute={})
 
     live_shape = config.grid.shape[:-1]
     live_chunks = get_live_mask_chunksize(live_shape)
-    meta_group.create_dataset(
+    meta_group.create_array(
         name="live_mask",
         shape=live_shape,
         chunks=live_chunks,
         dtype="bool",
-        dimension_separator="/",
+        chunk_key_encoding={"name": "v2", "separator": "/"},
     )
 
     for variable in config.variables:
-        data_group.create_dataset(
+        data_group.create_array(
             name=variable.name,
             shape=config.grid.shape,
             dtype=variable.dtype,
-            compressor=variable.compressor,
+            compressors=variable.compressors,
             chunks=variable.chunks,
-            dimension_separator="/",
-            write_empty_chunks=False,
+            chunk_key_encoding={"name": "v2", "separator": "/"},
         )
 
-        header_dtype = variable.header_dtype or np.dtype("V240")
-        meta_group.create_dataset(
+        header_dtype = variable.header_dtype or DEFAULT_TRACE_HEADER_DTYPE
+        meta_group.create_array(
             name=f"{variable.name}_trace_headers",
             shape=config.grid.shape[:-1],  # Same spatial shape as data
             chunks=variable.chunks[:-1],  # Same spatial chunks as data
-            compressor=Blosc("zstd"),
+            compressors=Blosc("zstd"),
             dtype=header_dtype,
-            dimension_separator="/",
-            write_empty_chunks=False,
+            chunk_key_encoding={"name": "v2", "separator": "/"},
         )
 
     stats = {
@@ -187,20 +181,20 @@ def create_empty(
     }
 
     for key, value in stats.items():
-        write_attribute(name=key, zarr_group=zarr_root, attribute=value)
+        write_attribute(name=key, zarr_group=root_group, attribute=value)
 
     if consolidate_meta:
-        zarr.consolidate_metadata(zarr_root.store)
+        zarr.consolidate_metadata(root_group.store)
 
-    return zarr_root
+    return root_group
 
 
 def create_empty_like(
     source_path: str,
     dest_path: str,
     overwrite: bool = False,
-    storage_options_input: dict[str, Any] = None,
-    storage_options_output: dict[str, Any] = None,
+    storage_options_input: dict[str, Any] | None = None,
+    storage_options_output: dict[str, Any] | None = None,
 ) -> None:
     """Create an empty MDIO dataset with the same structure as an existing one.
 
@@ -238,7 +232,7 @@ def create_empty_like(
             name=var_name,
             dtype=src_data_grp[var_name].dtype,
             chunks=src_data_grp[var_name].chunks,
-            compressor=src_data_grp[var_name].compressor,
+            compressors=src_data_grp[var_name].compressors,
             header_dtype=src_meta_grp[f"{var_name}_trace_headers"].dtype,
         )
         variables.append(variable)

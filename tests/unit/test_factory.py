@@ -29,7 +29,7 @@ def test_create_empty_like(mock_reader: MDIOReader):
     assert source_traces.dtype == dest_traces.dtype
     assert source_traces.shape == dest_traces.shape
     assert source_traces.chunks == dest_traces.chunks
-    assert source_traces.compressor == dest_traces.compressor
+    assert source_traces.compressors == dest_traces.compressors
 
     source_headers = source_reader._headers
     dest_headers = dest_reader._headers
@@ -37,7 +37,7 @@ def test_create_empty_like(mock_reader: MDIOReader):
     assert source_headers.dtype == dest_headers.dtype
     assert source_headers.shape == dest_headers.shape
     assert source_headers.chunks == dest_headers.chunks
-    assert source_headers.compressor == dest_headers.compressor
+    assert source_headers.compressors == dest_headers.compressors
 
     assert source_reader.text_header == dest_reader.text_header
     assert source_reader.binary_header == dest_reader.binary_header

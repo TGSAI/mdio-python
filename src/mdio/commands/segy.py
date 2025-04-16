@@ -132,7 +132,7 @@ cli = Group(name="segy", help=SEGY_HELP)
     "-overwrite",
     "--overwrite",
     is_flag=True,
-    help="Flag to overwrite if mdio file if it exists",
+    help="Flag to overwrite the MDIO file if it exists",
     show_default=True,
 )
 @option(

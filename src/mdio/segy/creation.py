@@ -84,7 +84,6 @@ def mdio_spec_to_segy(
         return_metadata=True,
         new_chunks=new_chunks,
         backend=backend,
-        memory_cache_size=0,  # Making sure disk caching is disabled
         disk_cache=False,  # Making sure disk caching is disabled
     )
 

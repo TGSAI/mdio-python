@@ -5,29 +5,34 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import zarr
+from numcodecs import Blosc
 from tqdm.auto import tqdm
-from zarr import Blosc
+from zarr.core.array import CompressorsLike
 
-from mdio.api.io_utils import process_url
+from mdio import MDIOReader
+from mdio import MDIOWriter
+from mdio.core.factory import create_empty_like
 from mdio.core.indexing import ChunkIterator
 
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from numcodecs.abc import Codec
     from numpy.typing import NDArray
     from zarr import Array
 
     from mdio import MDIOAccessor
-    from mdio import MDIOReader
 
 
 def copy_mdio(  # noqa: PLR0913
-    source: MDIOReader,
-    dest_path_or_buffer: str,
-    excludes: str = "",
-    includes: str = "",
-    storage_options: dict | None = None,
+    source_path: str,
+    target_path: str,
     overwrite: bool = False,
+    copy_traces: bool = False,
+    copy_headers: bool = False,
+    storage_options_input: dict[str, Any] | None = None,
+    storage_options_output: dict[str, Any] | None = None,
 ) -> None:
     """Copy MDIO file.
 
@@ -38,59 +43,58 @@ def copy_mdio(  # noqa: PLR0913
     in Zarr's documentation in `zarr.convenience.copy_store`.
 
     Args:
-        source: MDIO reader or accessor instance. Data will be copied from here
-        dest_path_or_buffer: Destination path. Could be any FSSpec mapping.
-        excludes: Data to exclude during copy. i.e. `chunked_012`. The raw data
-            won't be copied, but it will create an empty array to be filled.
-            If left blank, it will copy everything.
-        includes: Data to include during copy. i.e. `trace_headers`. If this is
-            not specified, and certain data is excluded, it will not copy headers.
-            If you want to preserve headers, specify `trace_headers`. If left blank,
-            it will copy everything except specified in `excludes` parameter.
-        storage_options: Storage options for the cloud storage backend.
-            Default is None (will assume anonymous).
+        source_path: Source MDIO path. Data will be copied from here
+        target_path: Destination path. Could be any FSSpec mapping.
+        copy_traces: Flag to enable copying trace data for all access patterns.
+        copy_headers: Flag to enable copying headers for all access patterns.
+        storage_options_input: Storage options for input MDIO.
+        storage_options_output: Storage options for output MDIO.
         overwrite: Overwrite destination or not.
 
     """
-    if storage_options is None:
-        storage_options = {}
+    storage_options_input = storage_options_input or {}
+    storage_options_output = storage_options_output or {}
 
-    dest_store = process_url(
-        url=dest_path_or_buffer,
-        mode="w",
-        storage_options=storage_options,
-        memory_cache_size=0,
-        disk_cache=False,
+    create_empty_like(
+        source_path,
+        target_path,
+        overwrite,
+        storage_options_input,
+        storage_options_output,
     )
 
-    if_exists = "replace" if overwrite is True else "raise"
-
-    zarr.copy_store(
-        source=source.store,
-        dest=dest_store,
-        excludes=excludes,
-        includes=includes,
-        if_exists=if_exists,
+    source_root = zarr.open_consolidated(
+        source_path,
+        mode="r",
+        storage_options=storage_options_input,
     )
+    src_data_grp = source_root["data"]
+    access_patterns = [key.removeprefix("chunked_") for key in src_data_grp]
 
-    if len(excludes) > 0:
-        data_path = f"data/{excludes}"
-        source_array = source.root[data_path]
-        dimension_separator = source_array._dimension_separator
+    if not copy_traces and not copy_headers:
+        return
 
-        zarr.zeros_like(
-            source_array,
-            store=dest_store,
-            path=data_path,
-            overwrite=overwrite,
-            dimension_separator=dimension_separator,
-        )
+    for access_pattern in access_patterns:
+        reader = MDIOReader(source_path, access_pattern, storage_options_input)
+        writer = MDIOWriter(target_path, access_pattern, storage_options_output)
+
+        writer.live_mask[:] = reader.live_mask[:]
+
+        iterator = ChunkIterator(reader._traces, chunk_samples=False)
+        progress = tqdm(iterator, unit="block")
+        progress.set_description(desc=f"Copying data for '{access_pattern=}'")
+        for slice_ in progress:
+            if copy_traces:
+                writer.stats = reader.stats
+                writer._traces[slice_] = reader._traces[slice_]
+
+            if copy_headers:
+                meta_slice = slice_[:-1]
+                writer._headers[meta_slice] = reader._headers[meta_slice]
+
+    zarr.consolidate_metadata(writer.root.store)
 
 
-CREATE_KW = {
-    "dimension_separator": "/",
-    "write_empty_chunks": False,
-}
 MAX_BUFFER = 512
 
 
@@ -98,10 +102,10 @@ def create_rechunk_plan(
     source: MDIOAccessor,
     chunks_list: list[tuple[int, ...]],
     suffix_list: list[str],
-    compressor: Codec | None = None,
+    compressors: CompressorsLike = None,
     overwrite: bool = False,
 ) -> tuple[[list[Array]], list[Array], NDArray, ChunkIterator]:
-    """Create rechunk plan based on source and user input.
+    """Create a rechunk plan based on source and user input.
 
     It will buffer 512 x n-dimensions in memory. Approximately
     128MB. However, if you need to adjust the buffer size, change
@@ -111,7 +115,7 @@ def create_rechunk_plan(
         source: MDIO accessor instance. Data will be copied from here.
         chunks_list: List of tuples containing new chunk sizes.
         suffix_list: List of suffixes to append to new chunk sizes.
-        compressor: Data compressor to use, optional. Default is Blosc('zstd').
+        compressors: Data compressor to use, optional. Default is Blosc('zstd').
         overwrite: Overwrite destination or not.
 
     Returns:
@@ -120,6 +124,8 @@ def create_rechunk_plan(
     Raises:
         NameError: if trying to write to original data.
     """
+    zarr.config.set({"write_empty_chunks": False})
+
     data_group = source._data_group
     metadata_group = source._metadata_group
 
@@ -131,43 +137,47 @@ def create_rechunk_plan(
     data_arrs = []
 
     header_compressor = Blosc("zstd")
-    trace_compressor = Blosc("zstd") if compressor is None else compressor
+    trace_compressor = Blosc("zstd") if compressors is None else compressors
 
-    for chunks, suffix in zip(chunks_list, suffix_list):  # noqa: B905
-        norm_chunks = [
-            min(chunk, size) for chunk, size in zip(chunks, source.shape)  # noqa: B905
-        ]
+    for chunks, suffix in zip(chunks_list, suffix_list, strict=True):
+        norm_chunks = tuple(
+            min(chunk, size) for chunk, size in zip(chunks, source.shape, strict=True)
+        )
 
         if suffix == source.access_pattern:
             msg = f"Can't write over source data with suffix {suffix}"
             raise NameError(msg)
 
         metadata_arrs.append(
-            metadata_group.zeros_like(
+            metadata_group.zeros(
                 name=f"chunked_{suffix}_trace_headers",
-                data=metadata_array,
+                shape=metadata_array.shape,
+                dtype=metadata_array.dtype,
                 chunks=norm_chunks[:-1],
                 compressor=header_compressor,
                 overwrite=overwrite,
-                **CREATE_KW,
+                zarr_format=2,
+                dimension_separator="/",
             )
         )
 
         data_arrs.append(
-            data_group.zeros_like(
+            data_group.zeros(
                 name=f"chunked_{suffix}",
-                data=data_array,
+                shape=data_array.shape,
+                dtype=data_array.dtype,
                 chunks=norm_chunks,
                 compressor=trace_compressor,
                 overwrite=overwrite,
-                **CREATE_KW,
+                zarr_format=2,
+                dimension_separator="/",
             )
         )
 
-    zarr.consolidate_metadata(source.store)
+    zarr.consolidate_metadata(source.root.store)
 
     n_dimension = len(data_array.shape)
-    dummy_array = zarr.empty_like(data_array, chunks=(MAX_BUFFER,) * n_dimension)
+    dummy_array = zarr.empty(shape=data_array.shape, chunks=(MAX_BUFFER,) * n_dimension)
     iterator = ChunkIterator(dummy_array)
 
     return metadata_arrs, data_arrs, live_mask, iterator
@@ -235,7 +245,7 @@ def rechunk_batch(
         source,
         chunks_list=chunks_list,
         suffix_list=suffix_list,
-        compressor=compressor,
+        compressors=compressor,
         overwrite=overwrite,
     )
 
@@ -264,6 +274,4 @@ def rechunk(
         >>> accessor = MDIOAccessor(...)
         >>> rechunk(accessor, (1, 1024, 1024), suffix="fast_il")
     """
-    # TODO(Anyone): Write tests for rechunking functions
-    # https://github.com/TGSAI/mdio-python/issues/369
     rechunk_batch(source, [chunks], [suffix], compressor, overwrite)
