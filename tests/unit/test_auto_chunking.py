@@ -27,6 +27,7 @@ if TYPE_CHECKING:
         ((7, 5), "int8", 23, (4, 4)),  # test adjusted primes
     ],
 )
+@pytest.mark.filterwarnings("ignore:chunk size balancing not possible:UserWarning")
 def test_auto_chunking(
     shape: tuple[int, ...],
     dtype: "DTypeLike",
@@ -76,6 +77,7 @@ class TestAutoChunkLiveMask:
             (512, 17, 43, 200, 50),
         ],
     )
+    @pytest.mark.filterwarnings("ignore:chunk size balancing not possible:UserWarning")
     def test_auto_chunk_live_mask_nbytes(self, shape: tuple[int, ...]) -> None:
         """Test auto chunked live mask is within expected number of bytes."""
         result = get_live_mask_chunksize(shape)
