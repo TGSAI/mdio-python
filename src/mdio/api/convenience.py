@@ -83,16 +83,15 @@ def copy_mdio(  # noqa: PLR0913
 
         iterator = ChunkIterator(reader._traces, chunk_samples=False)
         progress = tqdm(iterator, unit="block")
-        if copy_traces:
-            progress.set_description(desc=f"Copying traces for '{access_pattern=}'")
-            writer.stats = reader.stats
-            for slice_ in iterator:
-                writer[slice_] = reader[slice_]
+        progress.set_description(desc=f"Copying data for '{access_pattern=}'")
+        for slice_ in progress:
+            if copy_traces:
+                writer.stats = reader.stats
+                writer._traces[slice_] = reader._traces[slice_]
 
-        if copy_headers:
-            progress.set_description(desc=f"Copying headers for '{access_pattern=}'")
-            for slice_ in iterator:
-                writer[slice_] = reader[slice_]
+            if copy_headers:
+                meta_slice = slice_[:-1]
+                writer._headers[meta_slice] = reader._headers[meta_slice]
 
     zarr.consolidate_metadata(writer.root.store)
 
@@ -276,6 +275,4 @@ def rechunk(
         >>> accessor = MDIOAccessor(...)
         >>> rechunk(accessor, (1, 1024, 1024), suffix="fast_il")
     """
-    # TODO(Anyone): Write tests for rechunking functions
-    # https://github.com/TGSAI/mdio-python/issues/369
     rechunk_batch(source, [chunks], [suffix], compressor, overwrite)
