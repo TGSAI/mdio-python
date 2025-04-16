@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Sequence
-from importlib import metadata
 from typing import Any
 
 import numpy as np
@@ -37,11 +36,6 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
-
-try:
-    API_VERSION = metadata.version("multidimio")
-except metadata.PackageNotFoundError:
-    API_VERSION = "unknown"
 
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
