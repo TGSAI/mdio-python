@@ -1,5 +1,7 @@
 """Test live mask chunk size calculation."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -30,7 +32,7 @@ if TYPE_CHECKING:
 @pytest.mark.filterwarnings("ignore:chunk size balancing not possible:UserWarning")
 def test_auto_chunking(
     shape: tuple[int, ...],
-    dtype: "DTypeLike",
+    dtype: DTypeLike,
     limit: int,
     expected_chunks: tuple[int, ...],
 ) -> None:
