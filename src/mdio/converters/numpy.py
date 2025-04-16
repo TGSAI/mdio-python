@@ -6,13 +6,13 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from mdio import Dimension
-from mdio import Grid
-from mdio import MDIOCreateConfig
-from mdio import MDIOVariableConfig
-from mdio import MDIOWriter
-from mdio import create_empty
+from mdio.api.accessor import MDIOWriter
 from mdio.converters.segy import get_compressor
+from mdio.core.dimension import Dimension
+from mdio.core.factory import MDIOCreateConfig
+from mdio.core.factory import MDIOVariableConfig
+from mdio.core.factory import create_empty
+from mdio.core.grid import Grid
 
 
 if TYPE_CHECKING:

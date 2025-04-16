@@ -6,6 +6,7 @@ from mdio.api import MDIOReader
 from mdio.api import MDIOWriter
 from mdio.api.convenience import copy_mdio
 from mdio.converters import mdio_to_segy
+from mdio.converters import numpy_to_mdio
 from mdio.converters import segy_to_mdio
 from mdio.core.dimension import Dimension
 from mdio.core.factory import MDIOCreateConfig
@@ -20,6 +21,7 @@ __all__ = [
     "MDIOWriter",
     "copy_mdio",
     "mdio_to_segy",
+    "numpy_to_mdio",
     "segy_to_mdio",
     "Dimension",
     "MDIOCreateConfig",
