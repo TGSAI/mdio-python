@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from zarr import Group
 
 
-def create_zarr_hierarchy(root_group: Group, overwrite: bool) -> Group:
+def create_zarr_hierarchy(root_group: "Group", overwrite: bool) -> "Group":
     """Create `zarr` hierarchy for SEG-Y files.
 
     Args:
