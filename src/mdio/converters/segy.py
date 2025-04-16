@@ -175,24 +175,27 @@ def segy_to_mdio(  # noqa: C901
 
     Args:
         segy_path: Path to the input SEG-Y file
-        mdio_path_or_buffer: Output path for MDIO file
+        mdio_path_or_buffer: Output path for the MDIO file, either local or
+            cloud-based (e.g., with `s3://`, `gcs://`, or `abfs://` protocols).
         index_bytes: Tuple of the byte location for the index attributes
-        index_names: Tuple of the index names for the index attributes
+        index_names: List of names for the index dimensions. If not provided,
+            defaults to `dim_0`, `dim_1`, ..., with the last dimension named
+            `sample`.
         index_types: Tuple of the data-types for the index attributes.
             Must be in {"int16, int32, float16, float32, ibm32"}
             Default is 4-byte integers for each index key.
-        chunksize : Override default chunk size, which is (64, 64, 64) if
-            3D, and (512, 512) for 2D.
-        lossless: Lossless Blosc with zstandard, or ZFP with fixed precision.
-        compression_tolerance: Tolerance ZFP compression, optional. The fixed
-            accuracy mode in ZFP guarantees there won't be any errors larger
-            than this value. The default is 0.01, which gives about 70%
-            reduction in size. Will be ignored if `lossless=True`.
-        storage_options_input: Storage options for SEG-Y input file.
-            Default is `None` (will assume anonymous)
-        storage_options_output: Storage options for the MDIO output file.
-            Default is `None` (will assume anonymous)
-        overwrite: Toggle for overwriting existing store
+        chunksize: Tuple specifying the chunk sizes for each dimension of the
+            array. It must match the number of dimensions in the input array.
+        lossless: If True, uses lossless Blosc compression with zstandard.
+            If False, uses ZFP lossy compression (requires `zfpy` library).
+        compression_tolerance: Tolerance for ZFP compression in lossy mode.
+            Ignored if `lossless=True`. Default is 0.01, providing ~70% size
+            reduction.
+        storage_options_input: Dictionary of storage options for the SEGY input
+             output file (e.g., cloud credentials). Defaults to None.
+        storage_options_output: Dictionary of storage options for the MDIO output
+             output file (e.g., cloud credentials). Defaults to None.
+        overwrite: If True, overwrites existing MDIO file at the specified path.
         grid_overrides: Option to add grid overrides. See examples.
 
     Raises:
