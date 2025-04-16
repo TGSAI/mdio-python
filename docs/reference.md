@@ -37,6 +37,9 @@ and
 
 .. automodule:: mdio.converters.mdio
    :members:
+
+.. automodule:: mdio.converters.numpy
+   :members:
 ```
 
 ## Core Functionality
