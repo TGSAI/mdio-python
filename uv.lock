@@ -1573,7 +1573,7 @@ requires-dist = [
     { name = "s3fs", marker = "extra == 'cloud'", specifier = "==2024.12.0" },
     { name = "segy", specifier = ">=0.4.0,<0.5.0" },
     { name = "tqdm", specifier = ">=4.67.0,<5.0.0" },
-    { name = "zarr", specifier = "==3.0.6" },
+    { name = "zarr", specifier = ">=3.0.3,<3.0.7" },
     { name = "zfpy", marker = "extra == 'lossy'", specifier = ">=1.0.1,<2.0.0" },
 ]
 provides-extras = ["cloud", "distributed", "lossy"]
@@ -3323,7 +3323,7 @@ wheels = [
 
 [[package]]
 name = "zarr"
-version = "3.0.6"
+version = "3.0.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "donfig" },
@@ -3332,9 +3332,9 @@ dependencies = [
     { name = "packaging" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/bf/2820e8ad5f086ea5cd4c4d65eb5e0113f98145ddf5810cec1c75fb10fb98/zarr-3.0.6.tar.gz", hash = "sha256:6ef23c740e34917a2a1099471361537732942e49f0cabe95c9b7124cd0d6d84f", size = 240812 }
+sdist = { url = "https://files.pythonhosted.org/packages/ee/49/f140566c2849f6275e5d13f5eed3556e0337d190b593998ca21a6120e612/zarr-3.0.3.tar.gz", hash = "sha256:d63d62b7a0461f01541b01b40a50fb48e65dc8ff054c62f4816d87b14c546f0b", size = 225758 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fb/38/56a1c129577d20dc975a934ccc3f7f16276eab04ff0ffbe02ea348407a37/zarr-3.0.6-py3-none-any.whl", hash = "sha256:dba078726b6e4defb0ae6a852b7e7035ce163d89d485961681ece49191dcce82", size = 196357 },
+    { url = "https://files.pythonhosted.org/packages/0e/41/36a8b385c1523957f267172151978eb3ed37b53c8dc6db43e4e160d6d8b6/zarr-3.0.3-py3-none-any.whl", hash = "sha256:273a4de88d03769eb8cca7c7e882d697d7f5c3e40377654eeb49f1c38976808b", size = 187034 },
 ]
 
 [[package]]
