@@ -1500,7 +1500,7 @@ wheels = [
 
 [[package]]
 name = "multidimio"
-version = "0.8.5"
+version = "0.9.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -1508,6 +1508,8 @@ dependencies = [
     { name = "dask" },
     { name = "fsspec" },
     { name = "psutil" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
     { name = "rich" },
     { name = "segy" },
     { name = "tqdm" },
@@ -1569,6 +1571,8 @@ requires-dist = [
     { name = "fsspec", specifier = ">=2024.10.0" },
     { name = "gcsfs", marker = "extra == 'cloud'", specifier = ">=2024.10.0" },
     { name = "psutil", specifier = ">=6.1.0,<7.0.0" },
+    { name = "pydantic", specifier = ">=2.8.2,<3.0.0" },
+    { name = "pydantic-settings", specifier = ">=2.4.0,<3.0.0" },
     { name = "rich", specifier = ">=13.9.4,<14.0.0" },
     { name = "s3fs", marker = "extra == 'cloud'", specifier = "==2024.12.0" },
     { name = "segy", specifier = ">=0.4.0,<0.5.0" },
