@@ -209,7 +209,7 @@ def create_counter(
     total_depth: int,
     unique_headers: dict[str, NDArray],
     header_names: list[str],
-):
+) -> int | dict:
     """Helper function to create dictionary tree for counting trace key for auto index."""
     if depth == total_depth:
         return 0
@@ -230,8 +230,8 @@ def create_trace_index(
     counter: dict,
     index_headers: HeaderArray,
     header_names: list,
-    dtype=np.int16,
-):
+    dtype: np.dtype = np.int16,
+) -> None | HeaderArray:
     """Update dictionary counter tree for counting trace key for auto index."""
     if depth == 0:
         # If there's no hierarchical depth, no tracing needed.
@@ -262,7 +262,9 @@ def create_trace_index(
     return index_headers
 
 
-def analyze_non_indexed_headers(index_headers: HeaderArray, dtype=np.int16) -> NDArray:
+def analyze_non_indexed_headers(
+    index_headers: HeaderArray, dtype: np.dtype = np.int16
+) -> NDArray:
     """Check input headers for SEG-Y input to help determine geometry.
 
     This function reads in trace_qc_count headers and finds the unique cable values.

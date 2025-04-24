@@ -43,15 +43,15 @@ def make_segy_factory(
     )
 
 
-def mdio_spec_to_segy(
-    mdio_path_or_buffer,
-    output_segy_path,
-    access_pattern,
-    output_endian,
-    storage_options,
-    new_chunks,
-    backend,
-):
+def mdio_spec_to_segy(  # noqa: PLR0913 DOC107
+    mdio_path_or_buffer: str,
+    output_segy_path: str,
+    access_pattern: str,
+    output_endian: Endianness,
+    storage_options: dict[str],
+    new_chunks: tuple[int, ...],
+    backend: str,
+) -> tuple[MDIOReader, SegyFactory]:
     """Create SEG-Y file without any traces given MDIO specification.
 
     This function opens an MDIO file, gets some relevant information for SEG-Y files,
