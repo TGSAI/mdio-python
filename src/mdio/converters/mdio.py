@@ -45,6 +45,10 @@ def mdio_to_segy(  # noqa: C901
     The input headers are preserved as is, and will be transferred to the
     output file.
 
+    The user has control over the endianness, and the floating point data
+    type. However, by default we export as Big-Endian IBM float, per the
+    SEG-Y format's default.
+
     The input MDIO can be local or cloud based. However, the output SEG-Y
     will be generated locally.
 

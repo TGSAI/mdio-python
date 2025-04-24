@@ -32,6 +32,9 @@ class Grid:
 
     Args:
         dims: List of dimension instances.
+
+    Attributes:
+        dims: List of dimension instances.
     """
 
     dims: list[Dimension]

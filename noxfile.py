@@ -278,9 +278,11 @@ def docs_build(session: Session) -> None:
             "sphinx",
             "sphinx-click",
             "sphinx-copybutton",
+            "sphinx-design",
             "furo",
             "myst-nb",
             "linkify-it-py",
+            "pint",
         ],
     )
 
@@ -303,9 +305,11 @@ def docs(session: Session) -> None:
             "sphinx-autobuild",
             "sphinx-click",
             "sphinx-copybutton",
+            "sphinx-design",
             "furo",
             "myst-nb",
             "linkify-it-py",
+            "pint",
         ],
     )
 

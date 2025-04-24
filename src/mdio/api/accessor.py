@@ -500,6 +500,8 @@ class MDIOAccessor:
 class MDIOReader(MDIOAccessor):
     """Read-only accessor for MDIO files.
 
+    Initialized with `r` permission.
+
     For detailed documentation see MDIOAccessor.
 
     Args:
@@ -551,6 +553,8 @@ class MDIOReader(MDIOAccessor):
 
 class MDIOWriter(MDIOAccessor):
     """Writable accessor for MDIO files.
+
+    Initialized with `w` permission.
 
     For detailed documentation see MDIOAccessor.
 

@@ -201,7 +201,7 @@ def to_segy(
     r"""Convert MDIO blocks to SEG-Y parts.
 
     Blocks are written out in parallel via multiple workers, and then
-    djacent blocks are tracked and merged on disk via the `segy_trace_concat`
+    adjacent blocks are tracked and merged on disk via the `segy_trace_concat`
     function. The adjacent are hierarchically merged, and it preserves order.
 
     Assume array with shape (4, 3, 2) with chunk sizes (1, 1, 2).

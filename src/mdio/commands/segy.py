@@ -224,6 +224,7 @@ def segy_import(
 
     Usage:
 
+        \b
         Below are some examples of ingesting standard SEG-Y files per
         the SEG-Y Revision 1 and 2 formats.
 
@@ -271,6 +272,8 @@ def segy_import(
 
 
     Usage:
+
+        \b
         3D Seismic Shot Data (Byte Locations Vary):
         Let's assume streamer number does not exist but there are
         800 channels per cable.
@@ -294,6 +297,7 @@ def segy_import(
         For shot gathers with channel numbers and wrapped channels, no
         grid overrides are necessary.
 
+        \b
         In cases where the user does not know if the input has unwrapped
         channels but desires to store with wrapped channel index use:
         --grid-overrides '{"AutoChannelWrap": True}'
