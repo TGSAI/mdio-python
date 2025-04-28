@@ -21,9 +21,9 @@ def make_named_dimension(name: str, size: int) -> NamedDimension:
 
 def make_coordinate(
     name: str,
-    dimensions: List[Union[NamedDimension, str]],
-    data_type: ScalarType,
-    metadata: Optional[List[Union[AllUnits, UserAttributes]]] = None,
+    dimensions: List[NamedDimension | str],
+    data_type: ScalarType | StructuredType,
+    metadata: Optional[List[AllUnits | UserAttributes]] = None,
 ) -> Coordinate:
     """Create a Coordinate with the given name, dimensions, data_type, and metadata."""
     return Coordinate(
@@ -36,10 +36,10 @@ def make_coordinate(
 
 def make_variable(
     name: str,
-    dimensions: List[Union[NamedDimension, str]],
-    data_type: Union[ScalarType, StructuredType],
-    compressor: Union[Blosc, ZFP, None],
-    coordinates: Optional[List[Union[Coordinate, str]]] = None,
+    dimensions: List[NamedDimension | str],
+    data_type: ScalarType | StructuredType,
+    compressor: Blosc | ZFP | None = None,
+    coordinates: Optional[List[Coordinate | str]] = None,
     metadata: Optional[VariableMetadata] = None,
 ) -> Variable:
     """Create a Variable with the given name, dimensions, data_type, compressor, coordinates, and metadata."""
