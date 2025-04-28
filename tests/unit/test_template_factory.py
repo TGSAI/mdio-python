@@ -154,13 +154,14 @@ def test_make_toy_dataset():
     )
 
     # Standalone dimension arrays
-    inline_var = make_variable(name="inline", dimensions=[inline], data_type=ScalarType.UINT32, compressor=None)
+    # Tests that we don't need to pass a compressor.
+    inline_var = make_variable(name="inline", dimensions=[inline], data_type=ScalarType.UINT32)
+    # Tests that we can still pass it explicitly.
     crossline_var = make_variable(name="crossline", dimensions=[crossline], data_type=ScalarType.UINT32, compressor=None)
     depth_var = make_variable(
         name="depth",
         dimensions=[depth],
         data_type=ScalarType.UINT32,
-        compressor=None,
         metadata={"unitsV1": {"length": "m"}}
     )
     cdp_x = make_variable(
