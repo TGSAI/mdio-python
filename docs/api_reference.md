@@ -71,5 +71,4 @@ and
 ```{eval-rst}
 .. automodule:: mdio.core.serialization
    :members:
-   :exclude-members: create_rechunk_plan, write_rechunked_values
 ```
