@@ -21,6 +21,7 @@ extensions = [
     "sphinx_click",
     "sphinx_copybutton",
     "myst_nb",
+    "sphinx_design",
 ]
 
 # List of patterns, relative to source directory, that match files and
