@@ -28,6 +28,17 @@ api_reference
 
 ```{toctree}
 :hidden:
+:caption: Core Concepts and Structures
+
+data_models/index
+data_models/dimensions
+data_models/chunk_grids
+data_models/data_types
+data_models/compressors
+```
+
+```{toctree}
+:hidden:
 :caption: Community and Contribution
 
 contributing
