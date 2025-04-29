@@ -2,6 +2,7 @@
 
 ```{toctree}
 :hidden:
+
 quickstart
 creation
 compression
