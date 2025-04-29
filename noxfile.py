@@ -257,6 +257,7 @@ def docs_build(session: Session) -> None:
     session_install_uv_package(
         session,
         [
+            "autodoc-pydantic",
             "sphinx",
             "sphinx-click",
             "sphinx-copybutton",
@@ -282,6 +283,7 @@ def docs(session: Session) -> None:
     session_install_uv_package(
         session,
         [
+            "autodoc-pydantic",
             "sphinx",
             "sphinx-autobuild",
             "sphinx-click",
