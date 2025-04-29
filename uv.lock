@@ -209,19 +209,6 @@ wheels = [
 ]
 
 [[package]]
-name = "autodoc-pydantic"
-version = "2.2.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "sphinx" },
-]
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/7b/df/87120e2195f08d760bc5cf8a31cfa2381a6887517aa89453b23f1ae3354f/autodoc_pydantic-2.2.0-py3-none-any.whl", hash = "sha256:8c6a36fbf6ed2700ea9c6d21ea76ad541b621fbdf16b5a80ee04673548af4d95", size = 34001 },
-]
-
-[[package]]
 name = "azure-core"
 version = "1.32.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1846,7 +1833,6 @@ dev = [
     { name = "xdoctest", extra = ["colors"] },
 ]
 docs = [
-    { name = "autodoc-pydantic" },
     { name = "furo" },
     { name = "linkify-it-py" },
     { name = "myst-nb" },
@@ -1901,7 +1887,6 @@ dev = [
     { name = "xdoctest", extras = ["colors"], specifier = ">=1.2.0,<2" },
 ]
 docs = [
-    { name = "autodoc-pydantic", specifier = ">=2.2.0" },
     { name = "furo", specifier = ">=2024.8.6" },
     { name = "linkify-it-py", specifier = ">=2.0.3" },
     { name = "myst-nb", specifier = ">=1.2.0" },
