@@ -1,4 +1,4 @@
-# Usage
+# CLI Usage
 
 ## Ingestion and Export
 
@@ -68,11 +68,11 @@ Credentials can be automatically fetched from pre-authenticated AWS CLI.
 See [here](https://s3fs.readthedocs.io/en/latest/index.html#credentials) for the order `s3fs`
 checks them. If it is not pre-authenticated, you need to pass `--storage-options-{input,output}`.
 
-**Prefix:**  
+**Prefix:**
 `s3://`
 
-**Storage Options:**  
-`key`: The auth key from AWS  
+**Storage Options:**
+`key`: The auth key from AWS
 `secret`: The auth secret from AWS
 
 Using UNIX:
@@ -104,10 +104,10 @@ checks them. If it is not pre-authenticated, you need to pass `--storage-options
 GCP uses [service accounts](https://cloud.google.com/iam/docs/service-accounts) to pass
 authentication information to APIs.
 
-**Prefix:**  
+**Prefix:**
 `gs://` or `gcs://`
 
-**Storage Options:**  
+**Storage Options:**
 `token`: The service account JSON value as string, or local path to JSON
 
 Using a service account:
@@ -136,11 +136,11 @@ There are various ways to authenticate with Azure Data Lake (ADL).
 See [here](https://github.com/fsspec/adlfs#details) for some details.
 If ADL is not pre-authenticated, you need to pass `--storage-options-{input,output}`.
 
-**Prefix:**  
+**Prefix:**
 `az://` or `abfs://`
 
-**Storage Options:**  
-`account_name`: Azure Data Lake storage account name  
+**Storage Options:**
+`account_name`: Azure Data Lake storage account name
 `account_key`: Azure Data Lake storage account access key
 
 ```shell
