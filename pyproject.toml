@@ -1,6 +1,6 @@
 [project]
 name = "multidimio"
-version = "0.9.2"
+version = "1.0.0-alpha.1"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = [{ name = "Altay Sansal", email = "altay.sansal@tgs.com" }]
 requires-python = ">=3.11,<3.14"
@@ -27,10 +27,14 @@ dependencies = [
     "click-params (>=0.5.0,<0.6.0)",
     "dask (>=2024.12.0)",
     "fsspec (>=2024.10.0)",
+    "pint>=0.24.3,<0.25",
     "psutil (>=6.1.0,<7.0.0)",
+    "pydantic (>=2.8.2,<3.0.0)",
+    "pydantic-settings (>=2.4.0,<3.0.0)",
     "rich (>=13.9.4,<14.0.0)",
     "segy (>=0.4.0,<0.5.0)",
     "tqdm (>=4.67.0,<5.0.0)",
+    "xarray>=2025.3.1",
     "zarr (>=3.0.8,<4.0.0)",
 ]
 
@@ -180,11 +184,16 @@ pretty = true
 show_column_numbers = true
 show_error_codes = true
 show_error_context = true
-disallow_untyped_defs = true # for strict mypy: (this is the tricky one)
-plugins = ["numpy.typing.mypy_plugin"]
+disallow_untyped_defs = true  # for strict mypy: (this is the tricky one)
+plugins = ["pydantic.mypy", "numpy.typing.mypy_plugin"]
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
 
 [tool.bumpversion]
-current_version = "0.9.2"
+current_version = "1.0.0-alpha.1"
 allow_dirty = true
 commit = false
 tag = false
