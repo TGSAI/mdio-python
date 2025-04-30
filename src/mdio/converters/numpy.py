@@ -14,7 +14,6 @@ from mdio.core.factory import MDIOVariableConfig
 from mdio.core.factory import create_empty
 from mdio.core.grid import Grid
 
-
 if TYPE_CHECKING:
     from typing import Any
 
@@ -22,7 +21,7 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
-def numpy_to_mdio(
+def numpy_to_mdio(  # noqa: PLR0913
     array: NDArray,
     mdio_path_or_buffer: str,
     chunksize: tuple[int, ...],
@@ -33,42 +32,36 @@ def numpy_to_mdio(
     compression_tolerance: float = 0.01,
     storage_options: dict[str, Any] | None = None,
     overwrite: bool = False,
-):
+) -> None:
     """Conversion from NumPy array to MDIO format.
 
-    This module provides functionality to convert a NumPy array into the MDIO
-    format. The conversion process organizes the input array into a multidimensional
-    tensor with specified indexing and compression options.
+    This module provides functionality to convert a NumPy array into the MDIO format. The
+    conversion process organizes the input array into a multidimensional tensor with specified
+    indexing and compression options.
 
     Args:
         array: Input NumPy array to be converted to MDIO format.
-        mdio_path_or_buffer: Output path for the MDIO file, either local or
-            cloud-based (e.g., with `s3://`, `gcs://`, or `abfs://` protocols).
-        chunksize: Tuple specifying the chunk sizes for each dimension of the
-            array. It must match the number of dimensions in the input array.
-        index_names: List of names for the index dimensions. If not provided,
-            defaults to `dim_0`, `dim_1`, ..., with the last dimension named
-            `sample`.
-        index_coords: Dictionary mapping dimension names to their coordinate
-            arrays. If not provided, defaults to sequential integers (0 to size-1)
-            for each dimension.
+        mdio_path_or_buffer: Output path for the MDIO file, either local or cloud-based (e.g.,
+            with `s3://`, `gcs://`, or `abfs://` protocols).
+        chunksize: Tuple specifying the chunk sizes for each dimension of the array. It must match
+            the number of dimensions in the input array.
+        index_names: List of names for the index dimensions. If not provided, defaults to `dim_0`,
+            `dim_1`, ..., with the last dimension named `sample`.
+        index_coords: Dictionary mapping dimension names to their coordinate arrays. If not
+            provided, defaults to sequential integers (0 to size-1) for each dimension.
         header_dtype: Data type for trace headers, if applicable. Defaults to None.
-        lossless: If True, uses lossless Blosc compression with zstandard.
-            If False, uses ZFP lossy compression (requires `zfpy` library).
-        compression_tolerance: Tolerance for ZFP compression in lossy mode.
-            Ignored if `lossless=True`. Default is 0.01, providing ~70% size
-            reduction.
-        storage_options: Dictionary of storage options for the MDIO output file
-            (e.g., cloud credentials). Defaults to None (anonymous access).
+        lossless: If True, uses lossless Blosc compression with zstandard. If False, uses ZFP lossy
+            compression (requires `zfpy` library).
+        compression_tolerance: Tolerance for ZFP compression in lossy mode. Ignored if
+            `lossless=True`. Default is 0.01, providing ~70% size reduction.
+        storage_options: Dictionary of storage options for the MDIO output file (e.g.,
+            cloud credentials). Defaults to None (anonymous access).
         overwrite: If True, overwrites existing MDIO file at the specified path.
 
     Raises:
-        ValueError: If the length of `chunksize` does not match the number of
-            dimensions in the input array.
-        ValueError: If an element of `index_names` is not included in the
-            `index_coords` dictionary.
-        ValueError: If any coordinate array in `index_coords` has a size that
-            does not match the corresponding array dimension.
+        ValueError: When length of `chunksize` does not match the number of dims in the input array.
+        ValueError: If an element of `index_names` is not included in the `index_coords` dictionary.
+        ValueError: When size of a coordinate array in does not match the corresponding dimension.
 
 
     Examples:
@@ -115,8 +108,7 @@ def numpy_to_mdio(
 
     if len(chunksize) != array.ndim:
         message = (
-            f"Length of chunks={len(chunksize)} must be ",
-            f"equal to array dimensions={array.ndim}",
+            f"Length of chunks={len(chunksize)} must be equal to array dimensions={array.ndim}",
         )
         raise ValueError(message)
 
