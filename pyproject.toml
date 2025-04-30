@@ -56,22 +56,14 @@ mdio = "mdio.__main__:main"
 
 [dependency-groups]
 dev = [
-    "black>=24.10.0,<25",
+    "ruff>=0.11.7",
     "coverage[toml]>=7.6.7,<8",
     "darglint>=1.8.1,<2",
-    "flake8>=7.1.0,<8",
-    "flake8-bandit>=4.1.1,<5",
-    "flake8-bugbear>=24.4.26,<25",
-    "flake8-docstrings>=1.7.0,<2",
-    "flake8-rst-docstrings>=0.3.0,<0.4",
-    "isort>=5.13.2,<6",
     "mypy>=1.13.0,<2",
-    "pep8-naming>=0.14.1,<0.15",
     "pre-commit>=4.0.1,<5",
     "pre-commit-hooks>=5.0.0,<6",
     "pytest>=8.3.3,<9",
     "pytest-dependency>=0.6.0,<0.7",
-    "pyupgrade>=3.19.0,<4",
     "safety>=3.2.3,<4",
     "typeguard>=4.4.1,<5",
     "xdoctest[colors]>=1.2.0,<2",
@@ -89,8 +81,68 @@ docs = [
     "sphinx-design>=0.6.1,<0.7",
 ]
 
+
+
 [tool.uv]
 required-version = "0.6.11"
+
+[tool.ruff]
+target-version = "py311"
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle
+    "F",   # pyflakes
+    "B",   # bugbear
+    "I",   # isort
+    "UP",  # pyupgrade
+    "N",   # pep8-naming
+    "D",   # pydocstyle
+    "ANN", # annotations
+    "S",   # bandit
+    "A",   # builtins
+    "C4",  # comprehensions
+    "DTZ", # datetimez
+    "EM",  # errmsg
+    "ICN", # import-conventions
+    "PIE", # pie
+    "PT",  # pytest-style
+    "RSE", # raise
+    "RET", # return
+    "SIM", # simplify
+    "TID", # tidy-imports
+    "TCH", # type-checking
+    "ARG", # unused-arguments
+    "PTH", # use-pathlib
+    "TD",  # todos
+    "PL",  # pylint
+    "FLY", # flynt
+    "NPY201", # numpy
+    "LOG", # logging
+    "G", # logging-format
+    "PERF", # perflint
+]
+
+ignore = [
+    "D107",   # Missing docstring in __init__ ; should be in class docstring
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101"]
+
+[tool.ruff.lint.flake8-annotations]
+mypy-init-return = true
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.isort]
+force-single-line = true
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 100
+ignore-overlong-task-comments = true
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
