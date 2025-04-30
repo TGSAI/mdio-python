@@ -11,7 +11,6 @@ from click import argument
 from click import command
 from click import option
 
-
 if TYPE_CHECKING:
     from mdio import MDIOReader
     from mdio.core import Grid
@@ -38,16 +37,11 @@ if TYPE_CHECKING:
     show_default=True,
     show_choices=True,
 )
-def info(
-    mdio_path: str,
-    output_format: str,
-    access_pattern: str,
-) -> None:
+def info(mdio_path: str, output_format: str, access_pattern: str) -> None:
     """Provide information on a MDIO dataset.
 
-    By default, this returns human-readable information about the grid and stats for
-    the dataset. If output-format is set to json then a json is returned to
-    facilitate parsing.
+    By default, this returns human-readable information about the grid and stats for the dataset.
+    If output-format is set to 'json' then a JSON is returned to facilitate parsing.
     """
     from mdio import MDIOReader
 
@@ -113,7 +107,7 @@ def json_print(mdio_info: dict[str, Any]) -> None:
     """Convert MDIO Info to JSON and pretty print."""
     from json import dumps as json_dumps
 
-    from rich import print
+    from rich import print  # noqa: A004
 
     print(json_dumps(mdio_info, indent=2))
 
@@ -131,7 +125,7 @@ def pretty_print(mdio_info: dict[str, Any]) -> None:
     grid_table.add_column("Max", justify="left", style="magenta")
     grid_table.add_column("Size", justify="left", style="green")
 
-    for _, axis_dict in mdio_info["grid"].items():
+    for axis_dict in mdio_info["grid"].values():
         name, min_, max_, size = axis_dict.values()
         grid_table.add_row(name, min_, max_, size)
 
@@ -143,9 +137,7 @@ def pretty_print(mdio_info: dict[str, Any]) -> None:
         stat_table.add_row(stat, f"{value:.4f}")
 
     access_patter_table = Table(show_edge=False)
-    access_patter_table.add_column(
-        "Pattern", justify="right", style="cyan", no_wrap=True
-    )
+    access_patter_table.add_column("Pattern", justify="right", style="cyan", no_wrap=True)
     access_patter_table.add_column("Chunks", justify="left", style="magenta")
     access_patter_table.add_column("Format", justify="left", style="magenta")
     access_patter_table.add_column("Compressor", justify="left", style="magenta")
