@@ -3,40 +3,38 @@
 from __future__ import annotations
 
 import importlib
-from collections.abc import Callable
 from importlib import metadata
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    from typing import Any
 
 import click
 
-
-KNOWN_MODULES = [
-    "segy.py",
-    "copy.py",
-    "info.py",
-]
+KNOWN_MODULES = ["segy.py", "copy.py", "info.py"]
 
 
 class MyCLI(click.MultiCommand):
     """CLI generator via plugin design pattern.
 
-    This class dynamically loads command modules from the specified
-    `plugin_folder`. If the command us another CLI group, the command
-    module must define a `cli = click.Group(...)` and subsequent
-    commands must be added to this CLI. If it is a single utility it
-    must have a variable named `cli` for the command to be exposed.
+    This class dynamically loads command modules from the specified `plugin_folder`. If the
+    command us another CLI group, the command module must define a `cli = click.Group(...)` and
+    subsequent commands must be added to this CLI. If it is a single utility it must have a
+    variable named `cli` for the command to be exposed.
 
     Args:
     - plugin_folder: Path to the directory containing command modules.
     """
 
-    def __init__(self, plugin_folder: Path, *args, **kwargs):
+    def __init__(self, plugin_folder: Path, *args: Any, **kwargs: Any):  # noqa: ANN401
         """Initializer function."""
         super().__init__(*args, **kwargs)
         self.plugin_folder = plugin_folder
         self.known_modules = KNOWN_MODULES
 
-    def list_commands(self, ctx: click.Context) -> list[str]:
+    def list_commands(self, _ctx: click.Context) -> list[str]:
         """List commands available under `commands` module."""
         rv = []
         for filename in self.plugin_folder.iterdir():
@@ -47,7 +45,7 @@ class MyCLI(click.MultiCommand):
         rv.sort()
         return rv
 
-    def get_command(self, ctx: click.Context, name: str) -> Callable | None:
+    def get_command(self, _ctx: click.Context, name: str) -> Callable | None:
         """Get command implementation from `commands` module."""
         try:
             filepath = self.plugin_folder / f"{name}.py"
