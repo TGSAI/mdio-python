@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from os import path
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import numpy as np
@@ -16,7 +16,6 @@ from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
 from mdio.segy.utilities import segy_export_rechunker
 
-
 try:
     import distributed
 except ImportError:
@@ -27,7 +26,7 @@ default_cpus = cpu_count(logical=True)
 NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 
 
-def mdio_to_segy(  # noqa: C901
+def mdio_to_segy(  # noqa: PLR0912, PLR0913
     mdio_path_or_buffer: str,
     output_segy_path: str,
     endian: str = "big",
@@ -39,41 +38,34 @@ def mdio_to_segy(  # noqa: C901
 ) -> None:
     """Convert MDIO file to SEG-Y format.
 
-    MDIO allows exporting multidimensional seismic data back to the flattened
-    seismic format SEG-Y, to be used in data transmission.
+    We export N-D seismic data to the flattened SEG-Y format used in data transmission.
 
-    The input headers are preserved as is, and will be transferred to the
-    output file.
+    The input headers are preserved as is, and will be transferred to the output file.
 
-    The input MDIO can be local or cloud based. However, the output SEG-Y
-    will be generated locally.
+    Input MDIO can be local or cloud based. However, the output SEG-Y will be generated locally.
 
-    A `selection_mask` can be provided (in the shape of the spatial grid)
-    to export a subset of the seismic data.
+    A `selection_mask` can be provided (same shape as spatial grid) to export a subset.
 
     Args:
-        mdio_path_or_buffer: Input path where the MDIO is located
-        output_segy_path: Path to the output SEG-Y file
-        endian: Endianness of the input SEG-Y. Rev.2 allows little
-            endian. Default is 'big'.
-        access_pattern: This specificies the chunk access pattern. Underlying
-            zarr.Array must exist. Examples: '012', '01'
-        storage_options: Storage options for the cloud storage backend.
-            Default: None (will assume anonymous access)
+        mdio_path_or_buffer: Input path where the MDIO is located.
+        output_segy_path: Path to the output SEG-Y file.
+        endian: Endianness of the input SEG-Y. Rev.2 allows little endian. Default is 'big'.
+        access_pattern: This specificies the chunk access pattern. Underlying zarr.Array must
+            exist. Examples: '012', '01'
+        storage_options: Storage options for the cloud storage backend. Default: None (anonymous)
         new_chunks: Set manual chunksize. For development purposes only.
         selection_mask: Array that lists the subset of traces
-        client: Dask client. If `None` we will use local threaded scheduler.
-            If `auto` is used we will create multiple processes (with
-            8 threads each).
+        client: Dask client. If `None` we will use local threaded scheduler. If `auto` is used we
+            will create multiple processes (with 8 threads each).
 
     Raises:
         ImportError: if distributed package isn't installed but requested.
         ValueError: if cut mask is empty, i.e. no traces will be written.
 
     Examples:
-        To export an existing local MDIO file to SEG-Y we use the code
-        snippet below. This will export the full MDIO (without padding) to
-        SEG-Y format using IBM floats and big-endian byte order.
+        To export an existing local MDIO file to SEG-Y we use the code snippet below. This will
+        export the full MDIO (without padding) to SEG-Y format using IBM floats and big-endian
+        byte order.
 
         >>> from mdio import mdio_to_segy
         >>>
@@ -83,8 +75,7 @@ def mdio_to_segy(  # noqa: C901
         ...     output_segy_path="prefix/file.segy",
         ... )
 
-        If we want to export this as an IEEE big-endian, using a selection
-        mask, we would run:
+        If we want to export this as an IEEE big-endian, using a selection mask, we would run:
 
         >>> mdio_to_segy(
         ...     mdio_path_or_buffer="prefix2/file.mdio",
@@ -94,6 +85,8 @@ def mdio_to_segy(  # noqa: C901
 
     """
     backend = "dask"
+
+    output_segy_path = Path(output_segy_path)
 
     mdio = MDIOReader(
         mdio_path_or_buffer=mdio_path_or_buffer,
@@ -132,7 +125,8 @@ def mdio_to_segy(  # noqa: C901
 
     # This handles the case if we are skipping a whole block.
     if live_mask.sum() == 0:
-        raise ValueError("No traces will be written out. Live mask is empty.")
+        msg = "No traces will be written out. Live mask is empty."
+        raise ValueError(msg)
 
     # Find rough dim limits, so we don't unnecessarily hit disk / cloud store.
     # Typically, gets triggered when there is a selection mask
@@ -152,7 +146,7 @@ def mdio_to_segy(  # noqa: C901
         live_mask = live_mask & selection_mask
 
     # tmp file root
-    out_dir = path.dirname(output_segy_path)
+    out_dir = output_segy_path.parent
     tmp_dir = TemporaryDirectory(dir=out_dir)
 
     with tmp_dir:
