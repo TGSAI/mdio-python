@@ -67,7 +67,7 @@ class TestExceptions:
     def test_unsupported_format_serializer(self) -> None:
         """Unknown serializer format."""
         with pytest.raises(ValueError, match="Unsupported serializer"):
-            get_deserializer("unsupported")
+            get_serializer("unsupported")
 
     def test_unsupported_format_deserializer(self) -> None:
         """Unknown deserializer format."""
