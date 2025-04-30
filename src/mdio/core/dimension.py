@@ -4,21 +4,24 @@ from __future__ import annotations
 
 import inspect
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 
 from mdio.core.serialization import Serializer
 from mdio.exceptions import ShapeError
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 @dataclass(eq=False, order=False, slots=True)
 class Dimension:
     """Dimension class.
 
-    Dimension has a name and coordinates associated with it.
-    The Dimension coordinates can only be a vector.
+    Dimension has a name and coordinates associated with it. The Dimension coordinates can only
+    be a vector.
 
     Args:
         coords: Vector of coordinates.
@@ -28,15 +31,12 @@ class Dimension:
     coords: list | tuple | NDArray | range
     name: str
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Post process and validation."""
         self.coords = np.asarray(self.coords)
         if self.coords.ndim != 1:
-            raise ShapeError(
-                "Dimensions can only have vector coordinates",
-                ("# Dim", "Expected"),
-                (self.coords.ndim, 1),
-            )
+            msg = "Dimensions can only have vector coordinates"
+            raise ShapeError(msg, ("# Dim", "Expected"), (self.coords.ndim, 1))
 
     @property
     def size(self) -> int:
@@ -45,7 +45,7 @@ class Dimension:
 
     def to_dict(self) -> dict[str, Any]:
         """Convert dimension to dictionary."""
-        return dict(name=self.name, coords=self.coords.tolist())
+        return {"name": self.name, "coords": self.coords.tolist()}
 
     @classmethod
     def from_dict(cls, other: dict[str, Any]) -> Dimension:
@@ -60,7 +60,7 @@ class Dimension:
         """Gets a specific coordinate value by index."""
         return self.coords[item]
 
-    def __setitem__(self, key: int, value: Any) -> None:
+    def __setitem__(self, key: int, value: NDArray) -> None:
         """Sets a specific coordinate value by index."""
         self.coords[key] = value
 
@@ -72,7 +72,8 @@ class Dimension:
         """Compares if the dimension has same properties."""
         if not isinstance(other, Dimension):
             other_type = type(other).__name__
-            raise TypeError(f"Can't compare Dimension with {other_type}")
+            msg = f"Can't compare Dimension with {other_type}"
+            raise TypeError(msg)
 
         return hash(self) == hash(other)
 
@@ -101,11 +102,11 @@ class DimensionSerializer(Serializer):
 
     def serialize(self, dimension: Dimension) -> str:
         """Serialize Dimension into buffer."""
-        payload = dict(
-            name=dimension.name,
-            length=len(dimension),
-            coords=dimension.coords.tolist(),
-        )
+        payload = {
+            "name": dimension.name,
+            "length": len(dimension),
+            "coords": dimension.coords.tolist(),
+        }
         return self.serialize_func(payload)
 
     def deserialize(self, stream: str) -> Dimension:
