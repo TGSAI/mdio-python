@@ -1,9 +1,8 @@
 """Generate SEG-Y spec MDIO backward compatibility.
 
-We were limited to fixed field names and byte locations due to using the segyio
-library. Since MDIO 0.8.0 we have a more powerful SEG-Y parser and it gives more
-flexibility. To support older files, we need to open them with the old SEG-Y spec.
-This is where we define it.
+We were limited to fixed field names and byte locations due to using the segyio library. Since
+MDIO 0.8.0 we have a more powerful SEG-Y parser and it gives more flexibility. To support older
+files, we need to open them with the old SEG-Y spec. This is where we define it.
 """
 
 from __future__ import annotations
@@ -26,7 +25,6 @@ from segy.standards.fields import binary
 
 from mdio.exceptions import InvalidMDIOError
 
-
 MDIO_VERSION = metadata.version("multidimio")
 
 
@@ -38,8 +36,8 @@ def get_binary_fields() -> list[HeaderField]:
     revision_field = binary.Rev1.SEGY_REVISION.model
     mdio_v0_bin_fields = []
 
-    # Replace min/max (rev2-ish) with rev1 like parsing.
-    # Ignore minor one, and add the revision as 4-byte.
+    # Replace min/max (rev2-ish) with rev1 like parsing. Ignore minor one, and add the
+    # revision as 4-byte.
     for alias, field in SEGYIO_BIN_FIELD_MAP.items():
         if alias == "SEGYRevision":
             mdio_v0_bin_fields.append(revision_field)
@@ -53,10 +51,9 @@ def get_trace_fields(version_str: str) -> list[HeaderField]:
 
     This part allows us to configure custom rules for different MDIO versions.
 
-    For instance, since MDIO 0.8.0 we also save the unassigned parts of the
-    trace header (after byte 233 / offset 232). To be able to ingest/export
-    new MDIO files and also support exporting older MDIO files, we conditionally
-    add the new field based on MDIO version specified above.
+    For instance, since MDIO 0.8.0 we also save the unassigned parts of the trace header (after
+    byte 233 / offset 232). To be able to ingest/export new MDIO files and also support exporting
+    older MDIO files, we conditionally add the new field based on MDIO version specified above.
 
     Current rules:
     * mdio<=0.7.4 use the segyio mappings directly.
@@ -101,14 +98,13 @@ def mdio_segy_spec(version_str: str | None = None) -> SegySpec:
 def revision_encode(binary_header: dict, version_str: str) -> dict:
     """Encode revision code to binary header.
 
-    We have two cases where legacy MDIO uses keys "SEGYRevision" and
-    "SEGYRevisionMinor" whereas the new one uses "segy_revision_major"
-    and "segy_revision_minor". Given either case we return the correctly
-    Rev1 like encoded revision code, ready to write to SEG-Y.
+    We have two cases where legacy MDIO uses keys "SEGYRevision" and "SEGYRevisionMinor" whereas
+    the new one uses "segy_revision_major" and "segy_revision_minor". Given either case we return
+    the correctly Rev1 like encoded revision code, ready to write to SEG-Y.
 
     Args:
-        binary_header: Dictionary representing the SEG-Y binary header.
-            Contains keys for major and minor revision numbers.
+        binary_header: Dictionary representing the SEG-Y binary header. Contains keys for major
+            and minor revision numbers.
         version_str: MDIO version string to determine the encoding format.
 
     Returns:
@@ -134,5 +130,5 @@ def revision_encode(binary_header: dict, version_str: str) -> dict:
     code = (major << 8) | minor
     code_hex = f"0x{code:04x}"
     binary_header["segy_revision"] = code
-    logger.info(f"Encoded revision {major}.{minor} to {code=} ~ {code_hex}")
+    logger.info("Encoded revision %s.%s to code=%s ~ %s", major, minor, code, code_hex)
     return binary_header
