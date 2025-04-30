@@ -1890,7 +1890,7 @@ requires-dist = [
     { name = "segy", specifier = ">=0.4.0,<0.5.0" },
     { name = "tqdm", specifier = ">=4.67.0,<5.0.0" },
     { name = "xarray", specifier = ">=2025.3.1" },
-    { name = "zarr", specifier = ">=3.0.6,<4.0.0" },
+    { name = "zarr", specifier = ">=3.0.3,<3.0.7" },
     { name = "zfpy", marker = "extra == 'lossy'", specifier = ">=1.0.1,<2.0.0" },
 ]
 provides-extras = ["cloud", "distributed", "lossy"]
