@@ -6,7 +6,6 @@ import logging
 import time
 from abc import ABC
 from abc import abstractmethod
-from collections.abc import Sequence
 from enum import Enum
 from enum import auto
 from typing import TYPE_CHECKING
@@ -19,8 +18,10 @@ from mdio.segy.exceptions import GridOverrideKeysError
 from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError
 
-
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
+    from numpy.typing import DTypeLike
     from numpy.typing import NDArray
     from segy.arrays import HeaderArray
 
@@ -29,7 +30,7 @@ logger = logging.getLogger(__name__)
 
 
 class StreamerShotGeometryType(Enum):
-    r"""Shot  geometry template types for streamer acquisition.
+    r"""Shot geometry template types for streamer acquisition.
 
     Configuration A:
         Cable 1 ->          1------------------20
@@ -68,11 +69,10 @@ class StreamerShotGeometryType(Enum):
 class ShotGunGeometryType(Enum):
     r"""Shot geometry template types for multi-gun acquisition.
 
-    For shot lines with multiple guns, we can have two configurations for
-    numbering shot_point. The desired index is to have the shot point index
-    for a given gun to be dense and unique (configuration A). Typically the
-    shot_point is unique for the line and therefore is not dense for each
-    gun (configuration B).
+    For shot lines with multiple guns, we can have two configurations for numbering shot_point. The
+    desired index is to have the shot point index for a given gun to be dense and unique
+    (configuration A). Typically the shot_point is unique for the line and therefore is not dense
+    for each gun (configuration B).
 
     Configuration A:
         Gun 1 ->         1------------------20
@@ -93,9 +93,8 @@ def analyze_streamer_headers(
 ) -> tuple[NDArray, NDArray, NDArray, StreamerShotGeometryType]:
     """Check input headers for SEG-Y input to help determine geometry.
 
-    This function reads in trace_qc_count headers and finds the unique cable values.
-    The function then checks to ensure channel numbers for different cables do
-    not overlap.
+    This function reads in trace_qc_count headers and finds the unique cable values. The function
+    then checks to ensure channel numbers for different cables do not overlap.
 
     Args:
         index_headers: numpy array with index headers
@@ -137,16 +136,14 @@ def analyze_streamer_headers(
             if min_val2 < max_val1 and max_val2 > min_val1:
                 geom_type = StreamerShotGeometryType.A
 
-                overlap_info = (
-                    f"Cable {cable1} index {idx1} with channel range {cable1_range} "
-                    f"overlaps cable {cable2} index {idx2} with channel range "
-                    f"{cable2_range}. Check for aux trace issues if the overlap is "
-                    "unexpected. To fix, modify the SEG-Y file or use AutoIndex "
-                    "grid override (not channel) for channel number correction."
-                )
-
                 logger.info("Found overlapping channels, assuming streamer type A")
-                logger.info(overlap_info)
+                overlap_info = (
+                    "Cable %s index %s with channel range %s overlaps cable %s index %s with "
+                    "channel range %s. Check for aux trace issues if the overlap is unexpected. "
+                    "To fix, modify the SEG-Y file or use AutoIndex grid override (not channel) "
+                    "for channel number correction."
+                )
+                logger.info(overlap_info, cable1, idx1, cable1_range, cable2, idx2, cable2_range)
 
                 return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
@@ -158,8 +155,8 @@ def analyze_shotlines_for_guns(
 ) -> tuple[NDArray, dict[str, list], ShotGunGeometryType]:
     """Check input headers for SEG-Y input to help determine geometry of shots and guns.
 
-    This function reads in trace_qc_count headers and finds the unique gun values.
-    The function then checks to ensure shot numbers are dense.
+    This function reads in trace_qc_count headers and finds the unique gun values. The function
+    then checks to ensure shot numbers are dense.
 
     Args:
         index_headers: numpy array with index headers
@@ -170,12 +167,11 @@ def analyze_shotlines_for_guns(
     # Find unique cable ids
     unique_shot_lines = np.sort(np.unique(index_headers["shot_line"]))
     unique_guns = np.sort(np.unique(index_headers["gun"]))
-    logger.info(f"unique_shot_lines: {unique_shot_lines}")
-    logger.info(f"unique_guns: {unique_guns}")
+    logger.info("unique_shot_lines: %s", unique_shot_lines)
+    logger.info("unique_guns: %s", unique_guns)
 
     # Find channel min and max values for each cable
-    # unique_guns_in_shot_line = np.empty(unique_shot_lines.shape)
-    unique_guns_in_shot_line = dict()
+    unique_guns_in_shot_line = {}
 
     geom_type = ShotGunGeometryType.B
     # Check shot numbers are still unique if div/num_guns
@@ -194,11 +190,8 @@ def analyze_shotlines_for_guns(
             num_shots_sl = np.unique(shots_current_sl_gun).shape[0]
             mod_shots = np.floor(shots_current_sl_gun / num_guns_sl)
             if len(np.unique(mod_shots)) != num_shots_sl:
-                msg = (
-                    f"Shot line {shot_line} has {num_shots_sl} when using div by "
-                    f"{num_guns_sl} (num_guns) has  {np.unique(mod_shots)} unique mod shots."
-                )
-                logger.info(msg)
+                msg = "Shot line %s has %s when using div by %s %s has %s unique mod shots."
+                logger.info(msg, shot_line, num_shots_sl, num_guns_sl, np.unique(mod_shots))
                 geom_type = ShotGunGeometryType.A
                 return unique_shot_lines, unique_guns_in_shot_line, geom_type
     return unique_shot_lines, unique_guns_in_shot_line, geom_type
@@ -209,7 +202,7 @@ def create_counter(
     total_depth: int,
     unique_headers: dict[str, NDArray],
     header_names: list[str],
-):
+) -> dict[str, dict]:
     """Helper function to create dictionary tree for counting trace key for auto index."""
     if depth == total_depth:
         return 0
@@ -218,9 +211,7 @@ def create_counter(
 
     header_key = header_names[depth]
     for header in unique_headers[header_key]:
-        counter[header] = create_counter(
-            depth + 1, total_depth, unique_headers, header_names
-        )
+        counter[header] = create_counter(depth + 1, total_depth, unique_headers, header_names)
 
     return counter
 
@@ -229,9 +220,9 @@ def create_trace_index(
     depth: int,
     counter: dict,
     index_headers: HeaderArray,
-    header_names: list,
-    dtype=np.int16,
-):
+    header_names: list[str],
+    dtype: DTypeLike = np.int16,
+) -> NDArray | None:
     """Update dictionary counter tree for counting trace key for auto index."""
     if depth == 0:
         # If there's no hierarchical depth, no tracing needed.
@@ -239,10 +230,7 @@ def create_trace_index(
 
     # Add index header
     trace_no_field = np.zeros(index_headers.shape, dtype=dtype)
-    index_headers = rfn.append_fields(
-        index_headers, "trace", trace_no_field, usemask=False
-    )
-    idx = 0
+    index_headers = rfn.append_fields(index_headers, "trace", trace_no_field, usemask=False)
 
     # Extract the relevant columns upfront
     headers = [index_headers[name] for name in header_names[:depth]]
@@ -257,17 +245,14 @@ def create_trace_index(
             sub_counter[idx_values[-1]] += 1
             index_headers["trace"][idx] = sub_counter[idx_values[-1]]
 
-        idx += 1
-
     return index_headers
 
 
-def analyze_non_indexed_headers(index_headers: HeaderArray, dtype=np.int16) -> NDArray:
+def analyze_non_indexed_headers(index_headers: HeaderArray, dtype: DTypeLike = np.int16) -> NDArray:
     """Check input headers for SEG-Y input to help determine geometry.
 
-    This function reads in trace_qc_count headers and finds the unique cable values.
-    The function then checks to make sure channel numbers for different cables do
-    not overlap.
+    This function reads in trace_qc_count headers and finds the unique cable values. Then, it
+    checks to make sure channel numbers for different cables do not overlap.
 
     Args:
         index_headers: numpy array with index headers
@@ -294,7 +279,7 @@ def analyze_non_indexed_headers(index_headers: HeaderArray, dtype=np.int16) -> N
     )
 
     t_stop = time.perf_counter()
-    logger.debug(f"Time spent generating trace index: {t_start - t_stop:.4f} s")
+    logger.debug("Time spent generating trace index: %.4f s", t_start - t_stop)
     return index_headers
 
 
@@ -312,9 +297,7 @@ class GridOverrideCommand(ABC):
         """Get the set of required parameters for the grid override command."""
 
     @abstractmethod
-    def validate(
-        self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]
-    ) -> None:
+    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
         """Validate if this transform should run on the type of data."""
 
     @abstractmethod
@@ -325,15 +308,11 @@ class GridOverrideCommand(ABC):
     ) -> NDArray:
         """Perform the grid transform."""
 
-    def transform_index_names(
-        self,
-        index_names: Sequence[str],
-    ) -> Sequence[str]:
+    def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
         """Perform the transform of index names.
 
-        Optional method: Subclasses may override this method to provide
-        custom behavior. If not overridden, this default implementation
-        will be used, which is a no-op.
+        Optional method: Subclasses may override this method to provide custom behavior. If not
+        overridden, this default implementation will be used, which is a no-op.
 
         Args:
             index_names: List of index names to be modified.
@@ -350,9 +329,8 @@ class GridOverrideCommand(ABC):
     ) -> Sequence[int]:
         """Perform the transform of chunksize.
 
-        Optional method: Subclasses may override this method to provide
-        custom behavior. If not overridden, this default implementation
-        will be used, which is a no-op.
+        Optional method: Subclasses may override this method to provide custom behavior. If not
+        overridden, this default implementation will be used, which is a no-op.
 
         Args:
             chunksize: List of chunk sizes to be modified.
@@ -361,6 +339,7 @@ class GridOverrideCommand(ABC):
         Returns:
             New tuple of chunk sizes after the transform.
         """
+        _ = grid_overrides  # Unused, required for ABC compatibility
         return chunksize
 
     @property
@@ -392,11 +371,7 @@ class DuplicateIndex(GridOverrideCommand):
     required_keys = None
     required_parameters = None
 
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-    ) -> None:
+    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
         """Validate if this transform should run on the type of data."""
         if "ChannelWrap" in grid_overrides:
             raise GridOverrideIncompatibleError(self.name, "ChannelWrap")
@@ -418,10 +393,7 @@ class DuplicateIndex(GridOverrideCommand):
 
         return analyze_non_indexed_headers(index_headers)
 
-    def transform_index_names(
-        self,
-        index_names: Sequence[str],
-    ) -> Sequence[str]:
+    def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
         """Insert dimension "trace" to the sample-1 dimension."""
         new_names = list(index_names)
         new_names.append("trace")
@@ -433,6 +405,7 @@ class DuplicateIndex(GridOverrideCommand):
         grid_overrides: dict[str, bool | int],
     ) -> Sequence[int]:
         """Insert chunksize of 1 to the sample-1 dimension."""
+        _ = grid_overrides  # Unused, required for ABC compatibility
         new_chunks = list(chunksize)
         new_chunks.insert(-1, 1)
         return tuple(new_chunks)
@@ -461,11 +434,7 @@ class AutoChannelWrap(GridOverrideCommand):
     required_keys = {"shot_point", "cable", "channel"}
     required_parameters = None
 
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-    ) -> None:
+    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
         """Validate if this transform should run on the type of data."""
         if "ChannelWrap" in grid_overrides:
             raise GridOverrideIncompatibleError(self.name, "ChannelWrap")
@@ -486,17 +455,14 @@ class AutoChannelWrap(GridOverrideCommand):
 
         result = analyze_streamer_headers(index_headers)
         unique_cables, cable_chan_min, cable_chan_max, geom_type = result
-        logger.info(f"Ingesting dataset as {geom_type.name}")
+        logger.info("Ingesting dataset as %s", geom_type.name)
 
         for cable, chan_min, chan_max in zip(
             unique_cables, cable_chan_min, cable_chan_max, strict=True
         ):
-            logger.info(
-                f"Cable: {cable} has min chan: {chan_min} and max chan: {chan_max}"
-            )
+            logger.info("Cable: %s has min chan: %s and max chan: %s", cable, chan_min, chan_max)
 
-        # This might be slow and potentially could be improved with a rewrite
-        # to prevent so many lookups
+        # This might be slow and could be improved with a rewrite to prevent so many lookups
         if geom_type == StreamerShotGeometryType.B:
             for idx, cable in enumerate(unique_cables):
                 cable_idxs = np.where(index_headers["cable"][:] == cable)
@@ -515,9 +481,7 @@ class ChannelWrap(GridOverrideCommand):
     required_keys = {"shot_point", "cable", "channel"}
     required_parameters = {"ChannelsPerCable"}
 
-    def validate(
-        self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]
-    ) -> None:
+    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
         """Validate if this transform should run on the type of data."""
         if "AutoChannelWrap" in grid_overrides:
             raise GridOverrideIncompatibleError(self.name, "AutoCableChannel")
@@ -526,17 +490,13 @@ class ChannelWrap(GridOverrideCommand):
         self.check_required_params(grid_overrides)
 
     def transform(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
+        self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
         channels_per_cable = grid_overrides["ChannelsPerCable"]
-        index_headers["channel"] = (
-            index_headers["channel"] - 1
-        ) % channels_per_cable + 1
+        index_headers["channel"] = (index_headers["channel"] - 1) % channels_per_cable + 1
 
         return index_headers
 
@@ -547,11 +507,7 @@ class CalculateCable(GridOverrideCommand):
     required_keys = {"shot_point", "cable", "channel"}
     required_parameters = {"ChannelsPerCable"}
 
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-    ) -> None:
+    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
         """Validate if this transform should run on the type of data."""
         if "AutoChannelWrap" in grid_overrides:
             raise GridOverrideIncompatibleError(self.name, "AutoCableChannel")
@@ -568,9 +524,7 @@ class CalculateCable(GridOverrideCommand):
         self.validate(index_headers, grid_overrides)
 
         channels_per_cable = grid_overrides["ChannelsPerCable"]
-        index_headers["cable"] = (
-            index_headers["channel"] - 1
-        ) // channels_per_cable + 1
+        index_headers["cable"] = (index_headers["channel"] - 1) // channels_per_cable + 1
 
         return index_headers
 
@@ -581,11 +535,7 @@ class AutoShotWrap(GridOverrideCommand):
     required_keys = {"shot_line", "gun", "shot_point", "cable", "channel"}
     required_parameters = None
 
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-    ) -> None:
+    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
         """Validate if this transform should run on the type of data."""
         self.check_required_keys(index_headers)
         self.check_required_params(grid_overrides)
@@ -600,12 +550,12 @@ class AutoShotWrap(GridOverrideCommand):
 
         result = analyze_shotlines_for_guns(index_headers)
         unique_shot_lines, unique_guns_in_shot_line, geom_type = result
-        logger.info(f"Ingesting dataset as shot type: {geom_type.name}")
+        logger.info("Ingesting dataset as shot type: %s", geom_type.name)
 
         max_num_guns = 1
         for shot_line in unique_shot_lines:
             logger.info(
-                f"shot_line: {shot_line} has guns: {unique_guns_in_shot_line[str(shot_line)]}"
+                "shot_line: %s has guns: %s", shot_line, unique_guns_in_shot_line[str(shot_line)]
             )
             num_guns = len(unique_guns_in_shot_line[str(shot_line)])
             max_num_guns = max(num_guns, max_num_guns)
@@ -624,13 +574,13 @@ class AutoShotWrap(GridOverrideCommand):
 class GridOverrider:
     """Executor for grid overrides.
 
-    We support a certain type of grid overrides, and they have to be
-    implemented following the ABC's in this module.
+    We support a certain type of grid overrides, and they have to be implemented following the
+    ABC's in this module.
 
     This class applies the grid overrides if needed.
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Define allowed overrides and parameters here."""
         self.commands = {
             "AutoChannelWrap": AutoChannelWrap(),
