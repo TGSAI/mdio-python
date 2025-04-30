@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 
-import dask.array as da
 import numpy as np
 import numpy.typing as npt
 import zarr
-from numpy.typing import NDArray
 
 from mdio.api.io_utils import open_zarr_array
 from mdio.api.io_utils import open_zarr_array_dask
@@ -17,97 +16,89 @@ from mdio.core import Grid
 from mdio.core.exceptions import MDIONotFoundError
 from mdio.exceptions import ShapeError
 
+if TYPE_CHECKING:
+    from dask.array import Array as DaskArray
+    from numpy.typing import NDArray
+
 
 logger = logging.getLogger(__name__)
+
+TEXT_HEADER_ROWS = 40
 
 
 class MDIOAccessor:
     """Accessor class for MDIO files.
 
-    The accessor can be used to read and write MDIO files. It allows you to
-    open an MDIO file in several `mode` and `access_pattern` combinations.
+    The accessor can be used to read and write MDIO files. It allows you to open an MDIO file
+    in several `mode` and `access_pattern` combinations.
 
-    Access pattern defines the dimensions that are chunked. For instance
-    if you have a 3-D array that is chunked in every direction (i.e. a
-    3-D seismic stack consisting of inline, crossline, and sample dimensions)
-    its access pattern would be "012". If it was only chunked in the first
+    Access pattern defines the dimensions that are chunked. For instance if you have a 3-D array
+    that is chunked in every direction (i.e. a 3-D seismic stack consisting of inline, crossline,
+    and sample dimensions) its access pattern would be "012". If it was only chunked in the first
     two dimensions (i.e. seismic inline and crossline), it would be "01".
 
-    By default, MDIO will try to open with "012" access pattern, and will
-    raise an error if that pattern doesn't exist.
+    By default, MDIO will try to open with "012" access pattern, and will raise an error if that
+    pattern doesn't exist.
 
-    After dataset is opened, when the accessor is sliced it will either return
-    just seismic trace data as a Numpy array or a tuple of live mask, headers,
-    and seismic trace in Numpy based on the parameter `return_metadata`.
+    After dataset is opened, when the accessor is sliced it will either return just seismic trace
+    data as a Numpy array or a tuple of live mask, headers, and seismic trace in Numpy based on
+    the parameter `return_metadata`.
 
-    Regarding object store access, if the user credentials have been set
-    system-wide on local machine or VM; there is no need to specify credentials.
-    However, the `storage_options` option allows users to specify credentials
-    for the store that is being accessed. Please see the `fsspec` documentation
-    for configuring storage options.
+    Regarding object store access, if the user credentials have been set system-wide on local
+    machine or VM; there is no need to specify credentials. However, the `storage_options` option
+    allows users to specify credentials for the store that is being accessed. Please see the
+    `fsspec` documentation for configuring storage options.
 
-    MDIO currently supports `Zarr` and `Dask` backends. The Zarr backend
-    is useful for reading small amounts of data with minimal overhead. However,
-    by utilizing the `Dask` backend with a larger chunk size using the
-    `new_chunks` argument, the data can be read in parallel using a Dask
-    LocalCluster or a distributed Cluster.
+    MDIO currently supports `Zarr` and `Dask` backends. The Zarr backend is useful for reading
+    small amounts of data with minimal overhead. However, by utilizing the `Dask` backend with
+    a larger chunk size using the `new_chunks` argument, the data can be read in parallel using
+    a Dask LocalCluster or a distributed Cluster.
 
-    The accessor also allows users to enable `fsspec` caching. These are
-    particularly useful when we are accessing the data from a high-latency
-    store such as object stores, or mounted network drives with high latency.
-    We can use the `disk_cache` option to fetch chunks the local temporary
-    directory for faster repetitive access.
+    The accessor also allows users to enable `fsspec` caching. These are particularly useful
+    when we are accessing the data from a high-latency store such as object stores, or mounted
+    network drives with high latency. We can use the `disk_cache` option to fetch chunks the
+    local temporary directory for faster repetitive access.
 
     Args:
-        mdio_path_or_buffer: Store URL for MDIO file. This can be either on
-            a local disk, or a cloud object store.
-        mode: Read or read/write mode. The file must exist. Options are
-            in {'r', 'r+', 'w'}. 'r' is read only, 'r+' is append mode where
-            only existing arrays can be modified, 'w' is similar to 'r+'
-            but rechunking or other file-wide operations are allowed.
-        access_pattern: Chunk access pattern, optional. Default is "012".
-            Examples: '012', '01', '01234'.
-        storage_options: Options for the storage backend. By default,
-            system-wide credentials will be used. If system-wide credentials
-            are not set and the source is not public, an authentication
-            error will be raised by the backend.
-        return_metadata: Flag for returning live mask, headers, and traces
-            or just the trace data. Default is False, which means just trace
-            data will be returned.
-        new_chunks: Chunk sizes used in Dask backend. Ignored for Zarr
-            backend. By default, the disk-chunks will be used. However, if
-            we want to stream groups of chunks to a Dask worker, we can
-            rechunk here. Then each Dask worker can asynchronously fetch
-            multiple chunks before working.
-        backend: Backend selection, optional. Default is "zarr". Must be
-            in {'zarr', 'dask'}.
-        disk_cache: Disk cache implemented by `fsspec`, optional. Default is
-            False, which turns off disk caching. See `simplecache` from
-            `fsspec` documentation for more details.
+        mdio_path_or_buffer: Store or URL for MDIO file.
+        mode: Read or read/write mode. The file must exist. Options are in {'r', 'r+', 'w'}.
+            'r' is read only, 'r+' is append mode where only existing arrays can be modified,
+            'w' is similar to 'r+' but rechunking or other file-wide operations are allowed.
+        access_pattern: Chunk access pattern, optional. Default is "012". Examples: '012', '01'.
+        storage_options: Options for the storage backend. By default, system-wide credentials
+            will be used.
+        return_metadata: Flag for returning live mask, headers, and traces or just the trace data.
+            Default is False, which means just trace data will be returned.
+        new_chunks: Chunk sizes used in Dask backend. Ignored for Zarr backend. By default, the
+            disk-chunks will be used. However, if we want to stream groups of chunks to a Dask
+            worker, we can rechunk here. Then each Dask worker can asynchronously fetch multiple
+            chunks before working.
+        backend: Backend selection, optional. Default is "zarr". Must be in {'zarr', 'dask'}.
+        disk_cache: Disk cache implemented by `fsspec`, optional. Default is False, which turns
+            off disk caching. See `simplecache` from `fsspec` documentation for more details.
 
     Raises:
         MDIONotFoundError: If the MDIO file can not be opened.
 
     Examples:
-        Assuming we ingested `my_3d_seismic.segy` as `my_3d_seismic.mdio` we can
-        open the file in read-only mode like this.
+        Assuming we ingested `my_3d_seismic.segy` as `my_3d_seismic.mdio` we can open the file
+        in read-only mode like this.
 
         >>> from mdio import MDIOReader
         >>>
         >>>
         >>> mdio = MDIOReader("my_3d_seismic.mdio")
 
-        This will open the file with the lazy `Zarr` backend. To access a
-        specific inline, crossline, or sample index we can do:
+        This will open the file with the lazy `Zarr` backend. To access a specific inline,
+        crossline, or sample index we can do:
 
         >>> inline = mdio[15]  # get the 15th inline
         >>> crossline = mdio[:, 15]  # get the 50th crossline
         >>> samples = mdio[..., 250]  # get the 250th sample slice
 
-        The above will variables will be Numpy arrays of the relevant
-        trace data. If we want to retreive the live mask and trace headers
-        for our sliding we need to open the file with the `return_metadata`
-        option.
+        The above will variables will be Numpy arrays of the relevant trace data. If we want to
+        retreive the live mask and trace headers for our sliding we need to open the file with
+        the `return_metadata` option.
 
         >>> mdio = MDIOReader("my_3d_seismic.mdio", return_metadata=True)
 
@@ -115,18 +106,17 @@ class MDIOAccessor:
 
         >>> il_live, il_headers, il_traces = mdio[15]
 
-        Since MDIOAccessor returns a tuple with these three Numpy arrays,
-        we can directly unpack it and use it further down our code.
+        Since MDIOAccessor returns a tuple with these three Numpy arrays, we can directly unpack it
+        and use it further down our code.
     """
 
     _stats_keys = {"mean", "std", "rms", "min", "max"}
-
     _array_load_function_mapper = {
         "zarr": open_zarr_array,
         "dask": open_zarr_array_dask,
     }
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mdio_path_or_buffer: str,
         mode: str,
@@ -167,8 +157,8 @@ class MDIOAccessor:
             self._connect()
         except FileNotFoundError as exc:
             msg = (
-                f"MDIO file not found or corrupt at {self.url}. Please check"
-                "the URL or ensure it is not a deprecated version of MDIO file."
+                f"MDIO file not found or corrupt at {self.url}. Please check the URL or ensure "
+                "it is not a deprecated version of MDIO file."
             )
             raise MDIONotFoundError(msg) from exc
         self._deserialize_grid()
@@ -197,11 +187,11 @@ class MDIOAccessor:
         """Flush optimized MDIO metadata, run after modifying it."""
         zarr.consolidate_metadata(self.root.store)
 
-    def _deserialize_grid(self):
+    def _deserialize_grid(self) -> None:
         """Deserialize grid from Zarr metadata."""
         self.grid = Grid.from_zarr(self.root)
 
-    def _set_attributes(self):
+    def _set_attributes(self) -> None:
         """Deserialize attributes from Zarr metadata."""
         self.trace_count = self.root.attrs["trace_count"]
 
@@ -210,7 +200,7 @@ class MDIOAccessor:
         self.n_dim = len(self.shape)
 
         # Access pattern attributes
-        data_array_name = "_".join(["chunked", self.access_pattern])
+        data_array_name = f"chunked_{self.access_pattern}"
         self.chunks = self._data_group[data_array_name].chunks
         self._orig_chunks = self.chunks
 
@@ -230,15 +220,12 @@ class MDIOAccessor:
             self._orig_chunks = self.chunks
             self.chunks = new_chunks
 
-    def _open_arrays(self):
+    def _open_arrays(self) -> None:
         """Open arrays with requested backend."""
-        data_array_name = "_".join(["chunked", self.access_pattern])
-        header_array_name = "_".join(["chunked", self.access_pattern, "trace_headers"])
+        data_array_name = f"chunked_{self.access_pattern}"
+        header_array_name = f"chunked_{self.access_pattern}_trace_headers"
 
-        trace_kwargs = dict(
-            group_handle=self._data_group,
-            name=data_array_name,
-        )
+        trace_kwargs = {"group_handle": self._data_group, "name": data_array_name}
 
         if self._backend == "dask":
             trace_kwargs["chunks"] = self.chunks
@@ -247,13 +234,13 @@ class MDIOAccessor:
 
         if self._backend == "dask" and self._orig_chunks != self._chunks:
             dask_chunks = self._traces.chunks
-            logger.info(f"Setting MDIO in-memory chunks to {dask_chunks}")
+            logger.info("Setting MDIO in-memory chunks to %s", dask_chunks)
             self.chunks = dask_chunks
 
-        header_kwargs = dict(
-            group_handle=self._metadata_group,
-            name=header_array_name,
-        )
+        header_kwargs = {
+            "group_handle": self._metadata_group,
+            "name": header_array_name,
+        }
 
         if self._backend == "dask":
             header_kwargs["chunks"] = self.chunks[:-1]
@@ -264,12 +251,12 @@ class MDIOAccessor:
         self.live_mask = self.grid.live_mask
 
     @property
-    def live_mask(self) -> npt.ArrayLike | da.Array:
+    def live_mask(self) -> npt.ArrayLike | DaskArray:
         """Get live mask (i.e. not-null value mask)."""
         return self._live_mask
 
     @live_mask.setter
-    def live_mask(self, value: npt.ArrayLike | da.Array) -> None:
+    def live_mask(self, value: npt.ArrayLike | DaskArray) -> None:
         """Set live mask (i.e. not-null value mask)."""
         self._live_mask = value
 
@@ -292,7 +279,8 @@ class MDIOAccessor:
     def shape(self, value: tuple[int, ...]) -> None:
         """Validate and set shape of dataset."""
         if not isinstance(value, tuple):
-            raise AttributeError("Array shape needs to be a tuple")
+            msg = "Array shape needs to be a tuple"
+            raise AttributeError(msg)
         self._shape = value
 
     @property
@@ -304,7 +292,8 @@ class MDIOAccessor:
     def trace_count(self, value: int) -> None:
         """Validate and set trace count for seismic MDIO."""
         if not isinstance(value, int):
-            raise AttributeError("Live trace count needs to be an integer")
+            msg = "Live trace count needs to be an integer"
+            raise AttributeError(msg)
         self._trace_count = value
 
     @property
@@ -315,8 +304,9 @@ class MDIOAccessor:
     @text_header.setter
     def text_header(self, value: list) -> None:
         """Validate and set seismic text header."""
-        if not isinstance(value, list) or len(value) != 40:
-            raise AttributeError("Text header must be a list of str with 40 elements")
+        if not isinstance(value, list) or len(value) != TEXT_HEADER_ROWS:
+            msg = "Text header must be a list of str with 40 elements"
+            raise AttributeError(msg)
         self._metadata_group.attrs["text_header"] = value
         self._consolidate_metadata()
 
@@ -329,7 +319,8 @@ class MDIOAccessor:
     def binary_header(self, value: dict) -> None:
         """Validate and set seismic binary header metadata."""
         if not isinstance(value, dict):
-            raise AttributeError("Binary header has to be a dictionary type collection")
+            msg = "Binary header has to be a dictionary type collection"
+            raise AttributeError(msg)
         self._metadata_group.attrs["binary_header"] = value
         self._consolidate_metadata()
 
@@ -367,10 +358,10 @@ class MDIOAccessor:
         """Get data zarr.Group handle."""
         return self.root["data"]
 
-    def __getitem__(self, item: int | tuple) -> npt.ArrayLike | da.Array | tuple:
+    def __getitem__(self, item: int | tuple) -> npt.ArrayLike | DaskArray | tuple:
         """Data getter."""
         if self._return_metadata is True:
-            if isinstance(item, (int, slice)):
+            if isinstance(item, int | slice):
                 meta_index = item
             elif len(item) == len(self.shape):
                 meta_index = tuple(dim for dim in item[:-1])
@@ -392,7 +383,7 @@ class MDIOAccessor:
 
     def coord_to_index(
         self,
-        *args,
+        *args: list[int] | int,
         dimensions: str | list[str] | None = None,
     ) -> tuple[NDArray[int], ...]:
         """Convert dimension coordinate to zero-based index.
@@ -413,7 +404,7 @@ class MDIOAccessor:
         Multiple dimensions can be queried at the same time, see the examples.
 
         Args:
-            *args: Variable length argument queries.  # noqa: RST213
+            *args: Variable length argument queries.
             dimensions: Name of the dimensions to query. If not provided, it
                 will query all dimensions in the grid and will require
                 `len(args) == grid.ndim`
@@ -434,11 +425,11 @@ class MDIOAccessor:
             >>>
             >>> mdio = MDIOReader("path_to.mdio")
             >>> mdio.coord_to_index([10, 7, 15], dimensions='inline')
-            array([ 8,  5, 13], dtype=uint16)
+            array([ 8, 5, 13], dtype=uint16)
 
             >>> ils, xls = [10, 7, 15], [5, 10]
             >>> mdio.coord_to_index(ils, xls, dimensions=['inline', 'crossline'])
-            (array([ 8,  5, 13], dtype=uint16), array([3, 8], dtype=uint16))
+            (array([ 8, 5, 13], dtype=uint16), array([3, 8], dtype=uint16))
 
             With the above indices, we can slice the data:
 
@@ -467,10 +458,9 @@ class MDIOAccessor:
         ndim_expect = self.grid.ndim if dimensions is None else len(dimensions)
 
         if len(queries) != ndim_expect:
+            msg = "Coordinate queries not the same size as n_dimensions"
             raise ShapeError(
-                "Coordinate queries not the same size as n_dimensions",
-                ("# Coord Dims", "# Dimensions"),
-                (len(queries), ndim_expect),
+                msg, ("# Coord Dims", "# Dimensions"), (len(queries), ndim_expect)
             )
 
         if dimensions is None:
@@ -478,15 +468,12 @@ class MDIOAccessor:
         else:
             dims = [self.grid.select_dim(dim_name) for dim_name in dimensions]
 
-        dim_indices = tuple()
+        dim_indices = ()
         for mdio_dim, dim_query_coords in zip(dims, queries):  # noqa: B905
             # Make sure all coordinates exist.
             query_diff = np.setdiff1d(dim_query_coords, mdio_dim.coords)
             if len(query_diff) > 0:
-                msg = (
-                    f"{mdio_dim.name} dimension does not have "
-                    f"coordinate(s) {query_diff}"
-                )
+                msg = f"{mdio_dim.name} dimension does not have coordinate(s) {query_diff}"
                 raise ValueError(msg)
 
             sorter = mdio_dim.coords.argsort()
@@ -503,30 +490,22 @@ class MDIOReader(MDIOAccessor):
     For detailed documentation see MDIOAccessor.
 
     Args:
-        mdio_path_or_buffer: Store URL for MDIO file. This can be either on
-            a local disk, or a cloud object store.
-        access_pattern: Chunk access pattern, optional. Default is "012".
-            Examples: '012', '01', '01234'.
-        storage_options: Options for the storage backend. By default,
-            system-wide credentials will be used. If system-wide credentials
-            are not set and the source is not public, an authentication
-            error will be raised by the backend.
-        return_metadata: Flag for returning live mask, headers, and traces
-            or just the trace data. Default is False, which means just trace
-            data will be returned.
-        new_chunks: Chunk sizes used in Dask backend. Ignored for Zarr
-            backend. By default, the disk-chunks will be used. However, if
-            we want to stream groups of chunks to a Dask worker, we can
-            rechunk here. Then each Dask worker can asynchronously fetch
-            multiple chunks before working.
-        backend: Backend selection, optional. Default is "zarr". Must be
-            in {'zarr', 'dask'}.
-        disk_cache: Disk cache implemented by `fsspec`, optional. Default is
-            False, which turns off disk caching. See `simplecache` from
-            `fsspec` documentation for more details.
+        mdio_path_or_buffer: Store or URL for MDIO file.
+        access_pattern: Chunk access pattern, optional. Default is "012". Examples: '012', '01'.
+        storage_options: Options for the storage backend. By default, system-wide credentials
+            will be used.
+        return_metadata: Flag for returning live mask, headers, and traces or just the trace data.
+            Default is False, which means just trace data will be returned.
+        new_chunks: Chunk sizes used in Dask backend. Ignored for Zarr backend. By default, the
+            disk-chunks will be used. However, if we want to stream groups of chunks to a Dask
+            worker, we can rechunk here. Then each Dask worker can asynchronously fetch multiple
+            chunks before working.
+        backend: Backend selection, optional. Default is "zarr". Must be in {'zarr', 'dask'}.
+        disk_cache: Disk cache implemented by `fsspec`, optional. Default is False, which turns
+            off disk caching. See `simplecache` from `fsspec` documentation for more details.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mdio_path_or_buffer: str,
         access_pattern: str = "012",
@@ -535,7 +514,7 @@ class MDIOReader(MDIOAccessor):
         new_chunks: tuple[int, ...] = None,
         backend: str = "zarr",
         disk_cache: bool = False,
-    ):  # TODO: Disabled all caching by default, sometimes causes performance issues
+    ):
         """Initialize super class with `r` permission."""
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
@@ -555,30 +534,22 @@ class MDIOWriter(MDIOAccessor):
     For detailed documentation see MDIOAccessor.
 
     Args:
-        mdio_path_or_buffer: Store URL for MDIO file. This can be either on
-            a local disk, or a cloud object store.
-        access_pattern: Chunk access pattern, optional. Default is "012".
-            Examples: '012', '01', '01234'.
-        storage_options: Options for the storage backend. By default,
-            system-wide credentials will be used. If system-wide credentials
-            are not set and the source is not public, an authentication
-            error will be raised by the backend.
-        return_metadata: Flag for returning live mask, headers, and traces
-            or just the trace data. Default is False, which means just trace
-            data will be returned.
-        new_chunks: Chunk sizes used in Dask backend. Ignored for Zarr
-            backend. By default, the disk-chunks will be used. However, if
-            we want to stream groups of chunks to a Dask worker, we can
-            rechunk here. Then each Dask worker can asynchronously fetch
-            multiple chunks before working.
-        backend: Backend selection, optional. Default is "zarr". Must be
-            in {'zarr', 'dask'}.
-        disk_cache: Disk cache implemented by `fsspec`, optional. Default is
-            False, which turns off disk caching. See `simplecache` from
-            `fsspec` documentation for more details.
+        mdio_path_or_buffer: Store or URL for MDIO file.
+        access_pattern: Chunk access pattern, optional. Default is "012". Examples: '012', '01'.
+        storage_options: Options for the storage backend. By default, system-wide credentials
+            will be used.
+        return_metadata: Flag for returning live mask, headers, and traces or just the trace data.
+            Default is False, which means just trace data will be returned.
+        new_chunks: Chunk sizes used in Dask backend. Ignored for Zarr backend. By default, the
+            disk-chunks will be used. However, if we want to stream groups of chunks to a Dask
+            worker, we can rechunk here. Then each Dask worker can asynchronously fetch multiple
+            chunks before working.
+        backend: Backend selection, optional. Default is "zarr". Must be in {'zarr', 'dask'}.
+        disk_cache: Disk cache implemented by `fsspec`, optional. Default is False, which turns
+            off disk caching. See `simplecache` from `fsspec` documentation for more details.
     """
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         mdio_path_or_buffer: str,
         access_pattern: str = "012",
@@ -587,7 +558,7 @@ class MDIOWriter(MDIOAccessor):
         new_chunks: tuple[int, ...] = None,
         backend: str = "zarr",
         disk_cache: bool = False,
-    ):  # TODO: Disabled all caching by default, sometimes causes performance issues
+    ):
         """Initialize accessor class with `w` permission."""
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
