@@ -1,6 +1,6 @@
 [project]
 name = "multidimio"
-version = "0.9.0"
+version = "0.9.1"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = [{ name = "Altay Sansal", email = "altay.sansal@tgs.com" }]
 requires-python = ">=3.11,<3.14"
@@ -128,7 +128,7 @@ disallow_untyped_defs = true # for strict mypy: (this is the tricky one)
 plugins = ["numpy.typing.mypy_plugin"]
 
 [tool.bumpversion]
-current_version = "0.9.0"
+current_version = "0.9.1"
 allow_dirty = true
 commit = false
 tag = false
