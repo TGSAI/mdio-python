@@ -89,6 +89,7 @@ required-version = "0.6.11"
 [tool.ruff]
 target-version = "py311"
 src = ["src"]
+line-length = 100
 
 [tool.ruff.lint]
 select = [
