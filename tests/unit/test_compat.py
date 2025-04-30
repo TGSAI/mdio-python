@@ -12,7 +12,6 @@ from segy.standards import get_segy_standard
 from mdio import mdio_to_segy
 from mdio import segy_to_mdio
 
-
 # Constants
 MDIO_VERSIONS = ["0.7.4", "0.8.3"]
 SEGY_REVISIONS = [0.0, 0.1, 1.0, 1.1]
@@ -24,7 +23,7 @@ BINARY_HEADER_KEY = "binary_header"
 CHUNKED_TRACE_HEADERS_KEY = "chunked_012_trace_headers"
 
 
-def update_mdio_for_version_0_7_4(root_group: zarr.Group):
+def update_mdio_for_version_0_7_4(root_group: zarr.Group) -> None:
     """Update MDIO metadata to mimic version 0.7.4."""
     # Update binary header revision keys
     meta_group = root_group.require_group("metadata")
@@ -49,9 +48,7 @@ def update_mdio_for_version_0_7_4(root_group: zarr.Group):
 
 @pytest.mark.parametrize("mdio_version", MDIO_VERSIONS)
 @pytest.mark.parametrize("segy_revision", SEGY_REVISIONS)
-def test_revision_encode_decode(
-    mdio_version: str, segy_revision: float, tmp_path: Path
-) -> None:
+def test_revision_encode_decode(mdio_version: str, segy_revision: float, tmp_path: Path) -> None:
     """Test binary header major/minor revision roundtrip.
 
     After introducting TGSAI/segy, we changed the header names. Now we use
@@ -83,10 +80,8 @@ def test_revision_encode_decode(
     trace_buffer = factory.create_traces(header, data)
 
     # Update revision during bin hdr creation
-    bin_hdr_buffer = factory.create_binary_header(
-        update={"segy_revision": revision_code}
-    )
-    with open(segy_filename, mode="wb") as fp:
+    bin_hdr_buffer = factory.create_binary_header(update={"segy_revision": revision_code})
+    with segy_filename.open(mode="wb") as fp:
         fp.write(txt_buffer)
         fp.write(bin_hdr_buffer)
         fp.write(trace_buffer)
