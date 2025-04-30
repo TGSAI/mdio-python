@@ -1,7 +1,10 @@
 """Check lower-level serialization functions."""
 
+from __future__ import annotations
+
 from inspect import Parameter
 from inspect import Signature
+from typing import Any
 
 import pytest
 
@@ -11,7 +14,7 @@ from mdio.core.serialization import get_serializer
 
 
 @pytest.mark.parametrize(
-    "mappable, json_str",
+    ("mappable", "json_str"),
     [
         ({"a": 5}, '{"a": 5}'),
         ({"a": 5, "b": [-1, 5]}, '{"a": 5, "b": [-1, 5]}'),
@@ -23,19 +26,19 @@ from mdio.core.serialization import get_serializer
 class TestJSON:
     """JSON conversion and back."""
 
-    def test_json_serialize(self, mappable, json_str):
+    def test_json_serialize(self, mappable: dict[str, Any], json_str: str) -> None:
         """Dictionary to JSON."""
         serializer = get_serializer("json")
         assert serializer(mappable) == json_str
 
-    def test_json_deserialize(self, mappable, json_str):
+    def test_json_deserialize(self, mappable: dict[str, Any], json_str: str) -> None:
         """JSON to dictionary."""
         deserializer = get_deserializer("json")
         assert deserializer(json_str) == mappable
 
 
 @pytest.mark.parametrize(
-    "mappable, yaml_str",
+    ("mappable", "yaml_str"),
     [
         ({"a": 5}, "a: 5\n"),
         ({"a": 5, "b": [-1, 5]}, "a: 5\nb:\n- -1\n- 5\n"),
@@ -47,12 +50,12 @@ class TestJSON:
 class TestYAML:
     """YAML conversion and back."""
 
-    def test_yaml_serialize(self, mappable, yaml_str):
+    def test_yaml_serialize(self, mappable: dict[str, Any], yaml_str: str) -> None:
         """Dictionary to YAML."""
         serializer = get_serializer("yaml")
         assert serializer(mappable) == yaml_str
 
-    def test_yaml_deserialize(self, mappable, yaml_str):
+    def test_yaml_deserialize(self, mappable: dict[str, Any], yaml_str: str) -> None:
         """YAML to dictionary."""
         deserializer = get_deserializer("yaml")
         assert deserializer(yaml_str) == mappable
@@ -61,17 +64,17 @@ class TestYAML:
 class TestExceptions:
     """Test if exceptions are raised properly."""
 
-    def test_unsupported_format_serializer(self):
+    def test_unsupported_format_serializer(self) -> None:
         """Unknown serializer format."""
-        with pytest.raises(ValueError):
-            get_serializer("unsupported")
-
-    def test_unsupported_format_deserializer(self):
-        """Unknown deserializer format."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Unsupported serializer"):
             get_deserializer("unsupported")
 
-    def test_missing_key(self):
+    def test_unsupported_format_deserializer(self) -> None:
+        """Unknown deserializer format."""
+        with pytest.raises(ValueError, match="Unsupported deserializer"):
+            get_deserializer("unsupported")
+
+    def test_missing_key(self) -> None:
         """Raise if required key is missing."""
         mock_signature = Signature(
             [
