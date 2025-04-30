@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 from importlib import metadata
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from numpy.typing import NDArray
 
 from mdio import MDIOReader
 from mdio import MDIOWriter
@@ -18,6 +17,10 @@ from mdio.core.factory import MDIOVariableConfig
 from mdio.core.factory import create_empty
 from mdio.core.utils_write import write_attribute
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from numpy.typing import NDArray
 
 API_VERSION = metadata.version("multidimio")
 
@@ -35,7 +38,7 @@ def mock_grid() -> Grid:
 
 
 @pytest.fixture(scope="module")
-def mock_mdio_dir(tmp_path_factory) -> str:
+def mock_mdio_dir(tmp_path_factory: pytest.TempPathFactory) -> str:
     """Make a mocked MDIO dir for writing."""
     return str(tmp_path_factory.mktemp("mdio"))
 
@@ -50,9 +53,9 @@ def mock_ilxl_values(mock_grid: Grid) -> tuple[NDArray, ...]:
 
 
 @pytest.fixture
-def mock_bin():
+def mock_bin() -> dict[str, int]:
     """Make a mock binary header."""
-    return dict(bin_hdr1=5, bin_hdr2=10)
+    return {"bin_hdr1": 5, "bin_hdr2": 10}
 
 
 @pytest.fixture
@@ -61,9 +64,7 @@ def mock_data(mock_grid: Grid, mock_ilxl_values: tuple[NDArray, ...]) -> NDArray
     il_grid, xl_grid = mock_ilxl_values
     sample_axis = mock_grid.select_dim("sample").coords
     data = il_grid / xl_grid
-    data = data[..., None] + sample_axis[None, None, :]
-
-    return data
+    return data[..., None] + sample_axis[None, None, :]
 
 
 @pytest.fixture
