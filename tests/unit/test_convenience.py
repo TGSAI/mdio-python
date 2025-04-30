@@ -9,7 +9,7 @@ from mdio.api.convenience import copy_mdio
 from mdio.api.convenience import rechunk_batch
 
 
-def test_copy_without_data(mock_reader: MDIOReader):
+def test_copy_without_data(mock_reader: MDIOReader) -> None:
     """Test MDIO copy with data excluding the data copy operation."""
     # Define destination path for the new dataset
     dest_path = mock_reader.url + "_copy"
@@ -33,7 +33,7 @@ def test_copy_without_data(mock_reader: MDIOReader):
 
 
 @pytest.mark.dependency
-def test_copy_with_data(mock_reader: MDIOReader):
+def test_copy_with_data(mock_reader: MDIOReader) -> None:
     """Test MDIO copy with data included in the copy operation."""
     dest_path = mock_reader.url + "_copy2"
 
@@ -54,7 +54,7 @@ def test_copy_with_data(mock_reader: MDIOReader):
 
 
 @pytest.mark.dependency(depends=["test_copy_with_data"])
-def test_rechunk(mock_reader: MDIOReader):
+def test_rechunk(mock_reader: MDIOReader) -> None:
     """Test rechunking functionality."""
     dest_path = mock_reader.url + "_copy2"
 
