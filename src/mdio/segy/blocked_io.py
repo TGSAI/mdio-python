@@ -6,6 +6,7 @@ import multiprocessing as mp
 import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -14,7 +15,6 @@ from dask.array import map_blocks
 from psutil import cpu_count
 from tqdm.auto import tqdm
 
-from mdio.core import Grid
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker
 from mdio.segy.creation import SegyPartRecord
@@ -22,12 +22,12 @@ from mdio.segy.creation import concat_files
 from mdio.segy.creation import serialize_to_segy_stack
 from mdio.segy.utilities import find_trailing_ones_index
 
-
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
     from segy import SegyFile
 
+    from mdio.core import Grid
 
 default_cpus = cpu_count(logical=True)
 
@@ -53,9 +53,8 @@ def to_zarr(
     chunker = ChunkIterator(data_array, chunk_samples=False)
     num_chunks = len(chunker)
 
-    # For Unix async writes with s3fs/fsspec & multiprocessing,
-    # use 'spawn' instead of default 'fork' to avoid deadlocks
-    # on cloud stores. Slower but necessary. Default on Windows.
+    # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
+    # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
     num_workers = min(num_chunks, num_cpus)
     context = mp.get_context("spawn")
@@ -65,7 +64,7 @@ def to_zarr(
     pool_chunksize, extra = divmod(num_chunks, num_workers * 4)
     pool_chunksize += 1 if extra else pool_chunksize
 
-    tqdm_kw = dict(unit="block", dynamic_ncols=True)
+    tqdm_kw = {"unit": "block", "dynamic_ncols": True}
     with executor:
         lazy_work = executor.map(
             trace_worker,  # fn
@@ -89,9 +88,9 @@ def to_zarr(
 
     # This comes in as n_chunk x 5 columns.
     # Columns in order: count, sum, sum of squared, min, max.
-    # From here we can compute global mean, std, rms, min, max.
+    # We can compute global mean, std, rms, min, max.
     # Transposing because we want each statistic as a row to unpack later.
-    # REF: https://math.stackexchange.com/questions/1547141/aggregating-standard-deviation-to-a-summary-point  # noqa: B950
+    # REF: https://math.stackexchange.com/questions/1547141/aggregating-standard-deviation-to-a-summary-point  # noqa: E501
     # REF: https://www.mathwords.com/r/root_mean_square.htm
     chunk_stats = [stat for stat in chunk_stats if stat is not None]
 
@@ -113,15 +112,13 @@ def to_zarr(
     glob_min = glob_min.min().astype("float64")
     glob_max = glob_max.max().astype("float64")
 
-    stats = {
+    return {
         "mean": glob_mean,
         "std": glob_std,
         "rms": glob_rms,
         "min": glob_min,
         "max": glob_max,
     }
-
-    return stats
 
 
 def segy_record_concat(
@@ -131,9 +128,8 @@ def segy_record_concat(
 ) -> NDArray:
     """Concatenate partial ordered SEG-Y blocks on disk.
 
-    It will take an ND array SegyPartRecords. Goal is to preserve
-    the global order of traces when merging files. Order is assumed
-    to be correct at the block level (last dimension)
+    It will take an ND array SegyPartRecords. Goal is to preserve the global order of traces when
+    merging files. Order is assumed to be correct at the block level (last dimension).
 
     Args:
         block_records: Array indicating block file records.
@@ -147,7 +143,8 @@ def segy_record_concat(
         ValueError: If required `block_info` is not provided.
     """
     if block_info is None:
-        raise ValueError("block_info is required for global index computation.")
+        msg = "block_info is required for global index computation."
+        raise ValueError(msg)
 
     if np.count_nonzero(block_records) == 0:
         return np.zeros_like(block_records, shape=block_records.shape[:-1])
@@ -166,11 +163,9 @@ def segy_record_concat(
         if np.count_nonzero(rec_blocks) == 0:
             continue
 
-        global_index = tuple(
-            block_start[i] + rec_index[i] for i in range(len(record_shape))
-        )
+        global_index = tuple(block_start[i] + rec_index[i] for i in range(len(record_shape)))
         record_id_str = "/".join(map(str, global_index))
-        record_file_path = f"{file_root}/{record_id_str}.bin"
+        record_file_path = Path(file_root) / f"{record_id_str}.bin"
 
         records_metadata[rec_index] = SegyPartRecord(
             path=record_file_path,
@@ -200,19 +195,19 @@ def to_segy(
 ) -> Array:
     r"""Convert MDIO blocks to SEG-Y parts.
 
-    Blocks are written out in parallel via multiple workers, and then
-    djacent blocks are tracked and merged on disk via the `segy_trace_concat`
-    function. The adjacent are hierarchically merged, and it preserves order.
+    Blocks are written out in parallel via multiple workers, and then adjacent blocks are tracked
+    and merged on disk via the `segy_trace_concat` function. The adjacent are hierarchically
+    merged, and it preserves order.
 
-    Assume array with shape (4, 3, 2) with chunk sizes (1, 1, 2).
-    The chunk indices for this array would be:
+    Assume array with shape (4, 3, 2) with chunk sizes (1, 1, 2). The chunk indices for this
+    array would be:
 
     (0, 0, 0) (0, 1, 0) (0, 2, 0)
     (1, 0, 0) (1, 1, 0) (1, 2, 0)
     (2, 0, 0) (2, 1, 0) (2, 2, 0)
     (3, 0, 0) (3, 1, 0) (3, 2, 0)
 
-    let's rename them to this for convenience:
+    Let's rename them to this for convenience:
 
     a b c
     d e f
@@ -226,9 +221,8 @@ def to_segy(
       \/    \/    \/
      abc   def   ghi
 
-    During all the processing here, we keep track of logical indices of
-    chunks and written files so we can correctly combine them. The above
-    algorithm generalizes to higher dimensions.
+    During all the processing here, we keep track of logical indices of chunks and written files
+    so we can correctly combine them. The above algorithm generalizes to higher dimensions.
 
     Args:
         samples: Sample array.
@@ -244,9 +238,7 @@ def to_segy(
     num_blocks = samples.numblocks
     non_consecutive_axes = find_trailing_ones_index(num_blocks)
     reduce_axes = tuple(
-        i
-        for i in range(non_consecutive_axes - 1, len(num_blocks))
-        if num_blocks[i] == 1
+        i for i in range(non_consecutive_axes - 1, len(num_blocks)) if num_blocks[i] == 1
     )
 
     # Append headers, and write block as stack of SEG-Ys (full sample dim).
@@ -265,9 +257,8 @@ def to_segy(
         meta=meta,
     )
 
-    # Recursively combine SEG-Y files from last (fastest) consecutive dimension
-    # to first (slowest) dimension. End result will be the blocks with the
-    # size of the outermost dimension in ascending order.
+    # Recursively combine SEG-Y files from fastest consecutive dimension to first dimension.
+    # End result will be the blocks with the size of the outermost dimension in ascending order.
     while non_consecutive_axes > 1:
         current_chunks = block_io_records.chunks
 
