@@ -15,7 +15,6 @@ from mdio.core.factory import create_empty
 from mdio.core.factory import create_empty_like
 from mdio.core.grid import Grid
 
-
 __all__ = [
     "MDIOReader",
     "MDIOWriter",
