@@ -1,3 +1,12 @@
+"""
+Overloads for xarray.
+
+The intent of overloading here is:
+1. To provide a consistent mdio.* naming scheme.
+2. To simplify the API for users where it makes sense (e.g. MDIO v1 uses Zarr and not HDF5).
+"""
+
+
 import xarray as _xr
 from xarray import Dataset as _Dataset, DataArray as _DataArray
 
