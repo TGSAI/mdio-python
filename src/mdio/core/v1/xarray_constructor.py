@@ -8,6 +8,42 @@ from typing import Any
 from mdio.schema.v1.dataset import Dataset as MDIODataset
 from mdio.schema.dimension import NamedDimension
 from mdio.schema.dtype import ScalarType, StructuredType
+from mdio.schema.compressors import Blosc, ZFP
+from mdio.schema.v1.variable import Coordinate
+
+
+from numcodecs import Blosc as NumcodecsBlosc
+
+try:
+    import zfpy as BaseZFPY # Baser library
+    from numcodecs import ZFPY as NumcodecsZFPY  # Codec
+except ImportError:
+    print(f"Tried to import zfpy and numcodes zfpy but failed because {ImportError}")
+    BaseZFPY = None
+    NumcodecsZFPY = None
+
+def convert_compressor(model: Blosc | ZFP | None) -> NumcodecsBlosc | NumcodecsZFPY | None:
+    if isinstance(model, Blosc):
+        return NumcodecsBlosc(
+            cname=model.algorithm.value,
+            clevel=model.level,
+            shuffle=model.shuffle.value,
+            blocksize=model.blocksize if model.blocksize > 0 else 0
+        )
+    elif isinstance(model, ZFP):
+        if BaseZFPY is None or NumcodecsZFPY is None:
+            raise ImportError("zfpy and numcodecs are required to use ZFP compression")
+        return NumcodecsZFPY(
+            mode=model.mode.value,
+            tolerance=model.tolerance,
+            rate=model.rate,
+            precision=model.precision,
+            write_header=model.write_header
+        )
+    elif model is None:
+        return None
+    else:
+        raise TypeError(f"Unsupported compressor model: {type(model)}")
 
 
 def construct_xarray_dataset(mdio_ds: MDIODataset) -> xr.Dataset:
@@ -36,6 +72,24 @@ def construct_xarray_dataset(mdio_ds: MDIODataset) -> xr.Dataset:
         data_array = xr.DataArray(arr, dims=dim_names)
         # set default fill_value to zero instead of NaN
         data_array.encoding['fill_value'] = 0.0  # TODO: This seems to be ignored by xarray
+        
+        # Set long_name if present
+        if var.long_name is not None:
+            data_array.attrs["long_name"] = var.long_name
+            
+        # Set coordinates if present, excluding dimension names
+        if var.coordinates is not None:
+            # Get the set of dimension names for this variable
+            dim_set = set(dim_names)
+            # Filter out any coordinates that are also dimensions
+            coord_names = [
+                c.name if isinstance(c, Coordinate) else c 
+                for c in var.coordinates 
+                if (c.name if isinstance(c, Coordinate) else c) not in dim_set
+            ]
+            if coord_names:  # Only set coordinates if there are any non-dimension coordinates
+                data_array.attrs["coordinates"] = " ".join(coord_names)
+            
         # attach variable metadata into DataArray attributes, excluding nulls and chunkGrid
         if var.metadata is not None:
             md = var.metadata.model_dump(
@@ -43,6 +97,10 @@ def construct_xarray_dataset(mdio_ds: MDIODataset) -> xr.Dataset:
                 exclude_none=True,
                 exclude={"chunk_grid"},
             )
+            # Convert single-element lists to objects
+            for key, value in md.items():
+                if isinstance(value, list) and len(value) == 1:
+                    md[key] = value[0]
             data_array.attrs.update(md)
         data_vars[var.name] = data_array
 
@@ -50,6 +108,7 @@ def construct_xarray_dataset(mdio_ds: MDIODataset) -> xr.Dataset:
     # Attach metadata as attrs
     ds.attrs["apiVersion"] = mdio_ds.metadata.api_version
     ds.attrs["createdOn"] = str(mdio_ds.metadata.created_on)
+    ds.attrs["name"] = mdio_ds.metadata.name
     if mdio_ds.metadata.attributes:
         ds.attrs["attributes"] = mdio_ds.metadata.attributes
     return ds
@@ -78,6 +137,7 @@ def to_mdio_zarr(mdio_ds: MDIODataset, store: str, **kwargs: Any) -> xr.Dataset:
             # "chunk_key_encoding": enc,
             "_FillValue": fill_value,
             "dtype": var.data_type,
+            "compressors": convert_compressor(var.compressor),
         }
 
     ds.to_mdio(store, 
