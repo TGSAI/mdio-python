@@ -13,7 +13,7 @@ from mdio.schema.v1.template_factory import (
     make_dataset_metadata,
     make_dataset,
 )
-from mdio.core.v1.xarray_constructor import Write_MDIO_metadata
+from mdio.core.v1.constructor import Write_MDIO_metadata
 
 
 def build_toy_dataset():

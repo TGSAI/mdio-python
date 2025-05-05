@@ -13,7 +13,7 @@ from mdio.schema.v1.dataset import Dataset
 from mdio.schema.v1.variable import Variable, Coordinate
 from mdio.schema.compressors import Blosc, ZFP
 from mdio.schema.dtype import StructuredType
-from mdio.core.v1.xarray_constructor import Write_MDIO_metadata
+from mdio.core.v1.constructor import Write_MDIO_metadata
 
 
 def test_builder_initialization():
