@@ -13,7 +13,7 @@ from mdio.schema.v1.dataset import Dataset
 from mdio.schema.v1.variable import Variable, Coordinate
 from mdio.schema.compressors import Blosc, ZFP
 from mdio.schema.dtype import StructuredType
-from mdio.core.v1.xarray_constructor import to_mdio_zarr
+from mdio.core.v1.xarray_constructor import Write_MDIO_metadata
 
 
 def test_builder_initialization():
@@ -283,7 +283,7 @@ def test_toy_example():
     # print(dataset.model_dump_json(indent=2))
 
     path = "test.mdio1"
-    to_mdio_zarr(dataset, path)
+    Write_MDIO_metadata(dataset, path)
 
     # Verify dataset structure
     assert dataset.metadata.name == "campos_3d"

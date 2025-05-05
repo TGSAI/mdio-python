@@ -13,7 +13,7 @@ from mdio.schema.v1.template_factory import (
     make_dataset_metadata,
     make_dataset,
 )
-from mdio.core.v1.xarray_constructor import to_mdio_zarr
+from mdio.core.v1.xarray_constructor import Write_MDIO_metadata
 
 
 def build_toy_dataset():
@@ -136,7 +136,7 @@ def test_to_mdio_zarr_writes_and_returns_xarray(tmp_path):
     # store_path = tmp_path / "toy.zarr"
     store_path = "test.mdio1"
     # write to Zarr and get back xarray.Dataset
-    ds_out = to_mdio_zarr(ds_in, str(store_path))
+    ds_out = Write_MDIO_metadata(ds_in, str(store_path))
     # global attributes should be present on the returned Dataset
     assert ds_out.attrs["apiVersion"] == ds_in.metadata.api_version
     assert ds_out.attrs["createdOn"] == str(ds_in.metadata.created_on)

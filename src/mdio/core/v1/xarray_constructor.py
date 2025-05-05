@@ -22,7 +22,7 @@ except ImportError:
     BaseZFPY = None
     NumcodecsZFPY = None
 
-def convert_compressor(model: Blosc | ZFP | None) -> NumcodecsBlosc | NumcodecsZFPY | None:
+def _convert_compressor(model: Blosc | ZFP | None) -> NumcodecsBlosc | NumcodecsZFPY | None:
     if isinstance(model, Blosc):
         return NumcodecsBlosc(
             cname=model.algorithm.value,
@@ -45,8 +45,18 @@ def convert_compressor(model: Blosc | ZFP | None) -> NumcodecsBlosc | NumcodecsZ
         raise TypeError(f"Unsupported compressor model: {type(model)}")
 
 
-def construct_xarray_dataset(mdio_ds: MDIODataset) -> xr.Dataset:
-    """Build an empty xarray.Dataset with correct dimensions and dtypes."""
+def _construct_mdio_dataset(mdio_ds: MDIODataset) -> xr.Dataset:
+    """Build an MDIO dataset with correct dimensions and dtypes.
+    
+    This internal function constructs the underlying data structure for an MDIO dataset,
+    handling dimension mapping, data types, and metadata organization.
+    
+    Args:
+        mdio_ds: The source MDIO dataset to construct from.
+        
+    Returns:
+        The constructed dataset with proper MDIO structure and metadata.
+    """
     # Collect dimension sizes
     dims: dict[str, int] = {}
     for var in mdio_ds.variables:
@@ -70,7 +80,9 @@ def construct_xarray_dataset(mdio_ds: MDIODataset) -> xr.Dataset:
         arr = np.zeros(shape, dtype=dtype)
         data_array = xr.DataArray(arr, dims=dim_names)
         # set default fill_value to zero instead of NaN
-        data_array.encoding['fill_value'] = 0.0  # TODO: This seems to be ignored by xarray
+        # TODO: This seems to be ignored by xarray.
+        # Setting in the _generate_encodings() function does work though.
+        data_array.encoding['fill_value'] = 0.0
         
         # Set long_name if present
         if var.long_name is not None:
@@ -113,31 +125,44 @@ def construct_xarray_dataset(mdio_ds: MDIODataset) -> xr.Dataset:
     return ds
 
 
-def to_mdio_zarr(mdio_ds: MDIODataset, store: str, **kwargs: Any) -> xr.Dataset:
-    """Construct an xarray.Dataset and write it to a Zarr store. Returns the xarray.Dataset."""
-    ds = construct_xarray_dataset(mdio_ds)
-    # Write to Zarr format v2 with consolidated metadata and all attributes
-    enc = V2ChunkKeyEncoding(separator="/").to_dict()
-    global_encodings = {}
 
-    for var in mdio_ds.variables:
-        fill_value = 0
-        if isinstance(var.data_type, StructuredType):
-            # Create a structured fill value that matches the dtype
-            # fill_value = np.zeros(1, dtype=[(f.name, f.format.value) for f in var.data_type.fields])[0]
-            # TODO: Re-enable this once xarray supports this PR https://github.com/zarr-developers/zarr-python/pull/3015
-            continue
-        chunks = None
-        if var.metadata is not None and var.metadata.chunk_grid is not None:
-            chunks = var.metadata.chunk_grid.configuration.chunk_shape
-        global_encodings[var.name] = {
-            "chunks": chunks,
-            # TODO: Re-enable this once xarray supports this PR https://github.com/pydata/xarray/pull/10274
-            # "chunk_key_encoding": enc,
-            "_FillValue": fill_value,
-            "dtype": var.data_type,
-            "compressors": convert_compressor(var.compressor),
-        }
+
+def Write_MDIO_metadata(mdio_ds: MDIODataset, store: str, **kwargs: Any) -> xr.Dataset:
+    """Write MDIO metadata to a Zarr store and return the constructed xarray.Dataset.
+    
+    This function constructs an xarray.Dataset from the MDIO dataset and writes its metadata
+    to a Zarr store. The actual data is not written, only the metadata structure is created.
+    """
+    ds = _construct_mdio_dataset(mdio_ds)
+    # Write to Zarr format v2 with consolidated metadata and all attributes
+    
+    def _generate_encodings() -> dict:
+        """Generate encodings for each variable in the MDIO dataset.
+        
+        Returns:
+            Dictionary mapping variable names to their encoding configurations.
+        """
+        dimension_separator_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
+        global_encodings = {}
+        for var in mdio_ds.variables:
+            fill_value = 0
+            if isinstance(var.data_type, StructuredType):
+                # Create a structured fill value that matches the dtype
+                # fill_value = np.zeros(1, dtype=[(f.name, f.format.value) for f in var.data_type.fields])[0]
+                # TODO: Re-enable this once xarray supports this PR https://github.com/zarr-developers/zarr-python/pull/3015
+                continue
+            chunks = None
+            if var.metadata is not None and var.metadata.chunk_grid is not None:
+                chunks = var.metadata.chunk_grid.configuration.chunk_shape
+            global_encodings[var.name] = {
+                "chunks": chunks,
+                # TODO: Re-enable this once xarray supports this PR https://github.com/pydata/xarray/pull/10274
+                # "chunk_key_encoding": dimension_separator_encoding,
+                "_FillValue": fill_value,
+                "dtype": var.data_type,
+                "compressors": _convert_compressor(var.compressor),
+            }
+        return global_encodings
 
     ds.to_mdio(store, 
                mode="w", 
@@ -145,6 +170,6 @@ def to_mdio_zarr(mdio_ds: MDIODataset, store: str, **kwargs: Any) -> xr.Dataset:
                consolidated=True,
                safe_chunks=False,  # This ignores the Dask chunks
                compute=False,  # Ensures only the metadata is written
-               encoding=global_encodings,
+               encoding=_generate_encodings(),
                **kwargs)
     return ds
