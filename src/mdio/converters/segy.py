@@ -28,6 +28,7 @@ from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
+    from pathlib import Path
 
 try:
     import zfpy  # Base library
@@ -113,8 +114,8 @@ def get_compressor(lossless: bool, compression_tolerance: float = -1) -> Blosc |
 
 
 def segy_to_mdio(  # noqa: PLR0913, PLR0915
-    segy_path: str,
-    mdio_path_or_buffer: str,
+    segy_path: str | Path,
+    mdio_path_or_buffer: str | Path,
     index_bytes: Sequence[int],
     index_names: Sequence[str] | None = None,
     index_types: Sequence[str] | None = None,
