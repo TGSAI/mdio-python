@@ -123,6 +123,7 @@ select = [
     "LOG", # logging
     "G", # logging-format
     "PERF", # perflint
+    "FA",  # flake8-future-annotations
 ]
 
 ignore = [
