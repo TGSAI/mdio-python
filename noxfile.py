@@ -7,7 +7,6 @@ import sys
 from pathlib import Path
 from textwrap import dedent
 
-
 try:
     import nox
     from nox import Session
@@ -152,23 +151,7 @@ def precommit(session: Session) -> None:
         "--hook-stage=manual",
         "--show-diff-on-failure",
     ]
-    session_install_uv_package(
-        session,
-        [
-            "black",
-            "darglint",
-            "flake8",
-            "flake8-bandit",
-            "flake8-bugbear",
-            "flake8-docstrings",
-            "flake8-rst-docstrings",
-            "isort",
-            "pep8-naming",
-            "pre-commit",
-            "pre-commit-hooks",
-            "pyupgrade",
-        ],
-    )
+    session_install_uv_package(session, ["ruff", "pre-commit", "pre-commit-hooks"])
     session.run("pre-commit", *args)
     if args and args[0] == "install":
         activate_virtualenv_in_precommit_hooks(session)
@@ -183,8 +166,7 @@ def safety(session: Session) -> None:
     session.run_install(*export_args, silent=True, env=env)
     session_install_uv_package(session, ["safety"])
 
-    # TODO(Altay): Remove the CVE ignore once its resolved.
-    # It's not critical, so ignoring now.
+    # CVE-2019-8341, jinja2: not a problem for us
     ignore = ["70612"]
     session.run(
         "safety",
