@@ -38,7 +38,6 @@ def convert_compressor(model: Blosc | ZFP | None) -> NumcodecsBlosc | NumcodecsZ
             tolerance=model.tolerance,
             rate=model.rate,
             precision=model.precision,
-            write_header=model.write_header
         )
     elif model is None:
         return None
