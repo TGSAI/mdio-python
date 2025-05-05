@@ -452,7 +452,7 @@ class MDIOAccessor:
         if dimensions is not None and not isinstance(dimensions, list):
             dimensions = [dimensions]
 
-        # Ensure the query arrays and query dimensions match in size
+        # Ensure the query arrays and dimensions match size
         ndim_expect = self.grid.ndim if dimensions is None else len(dimensions)
 
         if len(queries) != ndim_expect:
