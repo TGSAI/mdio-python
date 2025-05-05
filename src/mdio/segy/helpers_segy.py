@@ -6,7 +6,6 @@ from zarr.errors import ContainsGroupError
 
 from mdio.core.exceptions import MDIOAlreadyExistsError
 
-
 if TYPE_CHECKING:
     from zarr import Group
 
