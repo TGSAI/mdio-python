@@ -19,7 +19,6 @@ from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError
 from mdio.segy.geometry import GridOverrider
 
-
 SHOTS = arange(100, 104, dtype="int32")
 CABLES = arange(11, 15, dtype="int32")
 RECEIVERS = arange(1, 6, dtype="int32")
@@ -47,7 +46,7 @@ def get_dims(headers: npt.NDArray) -> list[Dimension]:
     return dims
 
 
-@pytest.fixture()
+@pytest.fixture
 def mock_streamer_headers() -> npt.NDArray:
     """Generate dictionary of mocked streamer index headers."""
     grids = meshgrid(SHOTS, CABLES, RECEIVERS, indexing="ij")
@@ -211,14 +210,10 @@ class TestStreamerGridOverrides:
         overrider = GridOverrider()
 
         with pytest.raises(GridOverrideMissingParameterError):
-            overrider.run(
-                mock_streamer_headers, index_names, {"ChannelWrap": True}, chunksize
-            )
+            overrider.run(mock_streamer_headers, index_names, {"ChannelWrap": True}, chunksize)
 
         with pytest.raises(GridOverrideMissingParameterError):
-            overrider.run(
-                mock_streamer_headers, index_names, {"CalculateCable": True}, chunksize
-            )
+            overrider.run(mock_streamer_headers, index_names, {"CalculateCable": True}, chunksize)
 
     def test_incompatible_overrides(
         self,
@@ -246,6 +241,4 @@ class TestStreamerGridOverrides:
         chunksize = None
         overrider = GridOverrider()
         with pytest.raises(GridOverrideUnknownError):
-            overrider.run(
-                mock_streamer_headers, index_names, {"WrongCommand": True}, chunksize
-            )
+            overrider.run(mock_streamer_headers, index_names, {"WrongCommand": True}, chunksize)

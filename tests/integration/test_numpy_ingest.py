@@ -18,7 +18,6 @@ from mdio.converters.numpy import numpy_to_mdio
 from mdio.core.dimension import Dimension
 from mdio.core.grid import Grid
 
-
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
@@ -62,9 +61,7 @@ def test_npy_to_mdio_coords(mock_array: NDArray, mock_grid: Grid) -> None:
     """Test NumPy to MDIO conversion with custom coordinates."""
     index_names = mock_grid.dim_names
     index_coords = {dim.name: dim.coords for dim in mock_grid.dims}
-    numpy_to_mdio(
-        mock_array, "memory://npy_coord.mdio", CHUNK_SIZE, index_names, index_coords
-    )
+    numpy_to_mdio(mock_array, "memory://npy_coord.mdio", CHUNK_SIZE, index_names, index_coords)
     reader = MDIOReader("memory://npy_coord.mdio")
 
     npt.assert_array_equal(reader._traces, mock_array)
@@ -73,7 +70,7 @@ def test_npy_to_mdio_coords(mock_array: NDArray, mock_grid: Grid) -> None:
     assert reader.grid.dims == mock_grid.dims
 
 
-def test_npy_to_mdio_chunksize_mismatch(mock_array: NDArray, mock_grid: Grid) -> None:
+def test_npy_to_mdio_chunksize_mismatch(mock_array: NDArray) -> None:
     """Test error handling for mismatched chunk size dimensions."""
     with pytest.raises(ValueError, match="equal to array dimensions"):
         numpy_to_mdio(mock_array, "", (5, 10, 15, 20, 25))
