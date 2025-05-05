@@ -133,8 +133,7 @@ def build_toy_dataset():
 
 def test_to_mdio_zarr_writes_and_returns_xarray(tmp_path):
     ds_in = build_toy_dataset()
-    # store_path = tmp_path / "toy.zarr"
-    store_path = "test.mdio1"
+    store_path = tmp_path / "toy.mdio"
     # write to Zarr and get back xarray.Dataset
     ds_out = Write_MDIO_metadata(ds_in, str(store_path))
     # global attributes should be present on the returned Dataset

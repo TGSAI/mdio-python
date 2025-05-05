@@ -200,7 +200,7 @@ def test_build_order_enforcement():
         builder.build()
 
 
-def test_toy_example():
+def test_toy_example(tmp_path):
     """Test building a toy dataset with multiple variables and attributes."""
     dataset = (TemplateBuilder("campos_3d", attributes={
         "textHeader": [
@@ -282,7 +282,7 @@ def test_toy_example():
 
     # print(dataset.model_dump_json(indent=2))
 
-    path = "test.mdio1"
+    path = tmp_path / "toy.mdio"
     Write_MDIO_metadata(dataset, path)
 
     # Verify dataset structure
