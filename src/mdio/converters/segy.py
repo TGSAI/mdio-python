@@ -70,20 +70,20 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     sparsity_ratio = float("inf") if num_traces == 0 else grid_traces / num_traces
 
     # Fetch and validate environment variables
-    warning_ratio_env = os.getenv("MDIO__GRID__SPARSITY_WARNING_RATIO", "2")
-    error_ratio_env = os.getenv("MDIO__GRID__SPARSITY_ERROR_RATIO", "10")
+    warning_ratio_env = os.getenv("MDIO__GRID__SPARSITY_RATIO_WARN", "2")
+    error_ratio_env = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", "10")
     ignore_checks_env = os.getenv("MDIO_IGNORE_CHECKS", "false").lower()
     ignore_checks = ignore_checks_env in ("1", "true", "yes", "on")
 
     try:
         warning_ratio = float(warning_ratio_env)
     except ValueError as e:
-        raise EnvironmentFormatError("MDIO__GRID__SPARSITY_WARNING_RATIO", "float") from e  # noqa: EM101
+        raise EnvironmentFormatError("MDIO__GRID__SPARSITY_RATIO_WARN", "float") from e  # noqa: EM101
 
     try:
         error_ratio = float(error_ratio_env)
     except ValueError as e:
-        raise EnvironmentFormatError("MDIO__GRID__SPARSITY_ERROR_RATIO", "float") from e  # noqa: EM101
+        raise EnvironmentFormatError("MDIO__GRID__SPARSITY_RATIO_LIMIT", "float") from e  # noqa: EM101
 
     # Check sparsity and respond accordingly
     if sparsity_ratio > warning_ratio:
