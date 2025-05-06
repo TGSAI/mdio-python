@@ -31,7 +31,7 @@ dependencies = [
     "rich (>=13.9.4,<14.0.0)",
     "segy (>=0.4.0,<0.5.0)",
     "tqdm (>=4.67.0,<5.0.0)",
-    "zarr (>=3.0.3,<3.0.7)",
+    "zarr (>=3.0.4,<3.0.7)",
 ]
 
 [project.optional-dependencies]
@@ -56,29 +56,28 @@ mdio = "mdio.__main__:main"
 
 [dependency-groups]
 dev = [
-    "ruff>=0.11.7",
-    "coverage[toml]>=7.6.7,<8",
-    "darglint>=1.8.1,<2",
-    "mypy>=1.13.0,<2",
-    "pre-commit>=4.0.1,<5",
-    "pre-commit-hooks>=5.0.0,<6",
-    "pytest>=8.3.3,<9",
-    "pytest-dependency>=0.6.0,<0.7",
-    "safety>=3.2.3,<4",
-    "typeguard>=4.4.1,<5",
-    "xdoctest[colors]>=1.2.0,<2",
-    "Pygments>=2.18.0,<3",
+    "ruff (>=0.11.8)",
+    "coverage[toml] (>=7.6.7,<8)",
+    "mypy (>=1.13.0,<2)",
+    "pre-commit (>=4.0.1,<5)",
+    "pre-commit-hooks (>=5.0.0,<6)",
+    "pytest (>=8.3.3,<9)",
+    "pytest-dependency (>=0.6.0,<0.7)",
+    "safety (>=3.2.3,<4)",
+    "typeguard (>=4.4.1,<5)",
+    "xdoctest[colors] (>=1.2.0,<2)",
+    "Pygments (>=2.18.0,<3)",
 ]
 
 docs = [
-    "furo>=2024.8.6",
-    "linkify-it-py>=2.0.3",
-    "myst-nb>=1.2.0",
-    "sphinx>=8.2.3,<9",
-    "sphinx-autobuild>=2024.10.3",
-    "sphinx-click>=6.0.0,<7",
-    "sphinx-copybutton>=0.5.2,<0.6",
-    "sphinx-design>=0.6.1,<0.7",
+    "furo (>=2024.8.6)",
+    "linkify-it-py (>=2.0.3)",
+    "myst-nb (>=1.2.0)",
+    "sphinx (>=8.2.3,<9)",
+    "sphinx-autobuild (>=2024.10.3)",
+    "sphinx-click (>=6.0.0,<7)",
+    "sphinx-copybutton (>=0.5.2,<0.6)",
+    "sphinx-design (>=0.6.1,<0.7)",
 ]
 
 
@@ -148,6 +147,12 @@ force-single-line = true
 max-line-length = 100
 ignore-overlong-task-comments = true
 
+[tool.pydoclint]
+style = "google"
+arg-type-hints-in-docstring = false
+check-return-types = false
+check-yield-types = false
+
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]
 tests = ["tests", "*/tests"]
@@ -165,11 +170,6 @@ exclude_also = [
     "if TYPE_CHECKING:",
     "raise NotImplementedError",
 ]
-
-[tool.isort]
-profile = "black"
-force_single_line = true
-lines_after_imports = 2
 
 [tool.mypy]
 strict = true
