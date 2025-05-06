@@ -14,15 +14,10 @@ class ChunkIterator:
     It supports chunking all dimensions or taking the full extent of the last dimension.
 
     Args:
-        array (zarr.Array): The Zarr array to iterate over, providing shape and chunk sizes.
-        chunk_samples (bool): If True, chunks all dimensions. If False, takes the full extent
-            of the last dimension. Defaults to True.
+        array: The Zarr array to iterate, providing shape and chunk sizes.
+        chunk_samples: If True, chunks all dimensions. If False, takes the full extent of the
+            last dimension. Defaults to True.
 
-    Attributes:
-        arr_shape: Shape of the Zarr array.
-        len_chunks: Chunk sizes for each dimension.
-        dim_chunks: Number of chunks per dimension.
-        num_chunks: Total number of chunks to iterate over.
 
     Example:
         >>> import zarr
@@ -42,7 +37,6 @@ class ChunkIterator:
     """
 
     def __init__(self, array: Array, chunk_samples: bool = True):
-        """Initialize iterator."""
         self.arr_shape = array.shape
         self.len_chunks = array.chunks
 

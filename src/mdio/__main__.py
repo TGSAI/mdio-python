@@ -25,11 +25,12 @@ class MyCLI(click.MultiCommand):
     variable named `cli` for the command to be exposed.
 
     Args:
-    - plugin_folder: Path to the directory containing command modules.
+        plugin_folder: Path to the directory containing command modules
+        *args: Variable length argument list passed to the click.MultiCommand.
+        **kwargs: Arbitrary keyword arguments passed to the click.MultiCommand.
     """
 
     def __init__(self, plugin_folder: Path, *args: Any, **kwargs: Any):  # noqa: ANN401
-        """Initializer function."""
         super().__init__(*args, **kwargs)
         self.plugin_folder = plugin_folder
         self.known_modules = KNOWN_MODULES

@@ -581,7 +581,6 @@ class GridOverrider:
     """
 
     def __init__(self) -> None:
-        """Define allowed overrides and parameters here."""
         self.commands = {
             "AutoChannelWrap": AutoChannelWrap(),
             "AutoShotWrap": AutoShotWrap(),

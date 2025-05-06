@@ -24,7 +24,8 @@ class Grid:
     """N-dimensional grid class for managing bounds and increments.
 
     This class encapsulates an N-dimensional grid, storing dimension information and optional
-    mapping and live mask arrays for trace indexing.
+    mapping and live mask arrays for trace indexing. It provides access to dimension names, shape,
+    and number of dimensions as computed attributes.
 
     Args:
         dims: List of Dimension instances defining the grid axes.
@@ -32,9 +33,15 @@ class Grid:
         live_mask: Optional Zarr array indicating live traces. Defaults to None.
 
     Attributes:
-        dim_names: Names of the dimensions.
-        shape: Sizes of each dimension.
-        ndim: Number of dimensions.
+        dims: List of Dimension instances defining the grid axes.
+        map: Optional Zarr array for trace mapping, or None if not set.
+        live_mask: Optional Zarr array indicating live traces, or None if not set.
+
+    Notes:
+        Computed attributes available after initialization:
+        - `dim_names`: Tuple of dimension names.
+        - `shape`: Tuple of dimension sizes.
+        - `ndim`: Number of dimensions.
 
     Example:
         >>> from mdio.core import Dimension

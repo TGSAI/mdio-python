@@ -127,7 +127,6 @@ class MDIOAccessor:
         backend: str,
         disk_cache: bool,
     ):
-        """Accessor initialization function."""
         # Set public attributes
         self.url = mdio_path_or_buffer
         self.mode = mode
@@ -511,7 +510,6 @@ class MDIOReader(MDIOAccessor):
         backend: str = "zarr",
         disk_cache: bool = False,
     ):
-        """Initialize super class with `r` permission."""
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
             mode="r",
@@ -555,7 +553,6 @@ class MDIOWriter(MDIOAccessor):
         backend: str = "zarr",
         disk_cache: bool = False,
     ):
-        """Initialize accessor class with `w` permission."""
         super().__init__(
             mdio_path_or_buffer=mdio_path_or_buffer,
             mode="w",

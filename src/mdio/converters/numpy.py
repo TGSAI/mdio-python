@@ -59,9 +59,9 @@ def numpy_to_mdio(  # noqa: PLR0913
         overwrite: If True, overwrites existing MDIO file at the specified path.
 
     Raises:
-        ValueError: When length of `chunksize` does not match the number of dims in the input array.
-        ValueError: If an element of `index_names` is not included in the `index_coords` dictionary.
-        ValueError: When size of a coordinate array in does not match the corresponding dimension.
+        ValueError: When length of `chunksize` does not match the number of dims in the input array
+            or if an element of `index_names` not included in the `index_coords` dictionary. Also
+            raised when size of a coordinate array in does not match the corresponding dimension.
 
 
     Examples:

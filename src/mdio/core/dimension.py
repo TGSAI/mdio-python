@@ -26,6 +26,10 @@ class Dimension:
     Args:
         coords: Vector of coordinates.
         name: Name of the dimension.
+
+    Attributes:
+        coords: Vector of coordinates.
+        name: Name of the dimension.
     """
 
     coords: list | tuple | NDArray | range

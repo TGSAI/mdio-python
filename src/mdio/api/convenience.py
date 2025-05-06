@@ -44,11 +44,11 @@ def copy_mdio(  # noqa: PLR0913
     Args:
         source_path: Source MDIO path. Data will be copied from here
         target_path: Destination path. Could be any FSSpec mapping.
+        overwrite: Overwrite destination or not.
         copy_traces: Flag to enable copying trace data for all access patterns.
         copy_headers: Flag to enable copying headers for all access patterns.
         storage_options_input: Storage options for input MDIO.
         storage_options_output: Storage options for output MDIO.
-        overwrite: Overwrite destination or not.
 
     """
     storage_options_input = storage_options_input or {}
