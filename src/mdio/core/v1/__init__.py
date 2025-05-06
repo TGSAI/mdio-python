@@ -4,10 +4,26 @@ Exposes the MDIO overloads and core v1 functionality.
 """
 
 from ._overloads import mdio
+from .builder import Builder
 from .constructor import write_mdio_metadata
+from .factory import (
+    AbstractTemplateFactory,
+    make_coordinate,
+    make_dataset,
+    make_dataset_metadata,
+    make_named_dimension,
+    make_variable,
+)
 
 
 __all__ = [
+    "Builder",
+    "AbstractTemplateFactory",
+    "make_coordinate",
+    "make_dataset",
+    "make_dataset_metadata",
+    "make_named_dimension",
+    "make_variable",
     "mdio",
     "write_mdio_metadata",
 ]

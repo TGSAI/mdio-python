@@ -1,8 +1,9 @@
-"""Unit tests for MDIO v1 template_factory."""
+"""Unit tests for MDIO v1 factory."""
 
 from datetime import datetime
 from datetime import timezone
 
+import numpy as np
 import pytest
 from pydantic import ValidationError
 
@@ -11,11 +12,12 @@ from mdio.schema.compressors import Blosc
 from mdio.schema.dimension import NamedDimension
 from mdio.schema.dtype import ScalarType
 from mdio.schema.dtype import StructuredType
-from mdio.schema.v1.template_factory import make_coordinate
-from mdio.schema.v1.template_factory import make_dataset
-from mdio.schema.v1.template_factory import make_dataset_metadata
-from mdio.schema.v1.template_factory import make_named_dimension
-from mdio.schema.v1.template_factory import make_variable
+from mdio.schema.metadata import UserAttributes
+from mdio.core.v1.factory import make_coordinate
+from mdio.core.v1.factory import make_dataset
+from mdio.core.v1.factory import make_dataset_metadata
+from mdio.core.v1.factory import make_named_dimension
+from mdio.core.v1.factory import make_variable
 
 
 def test_make_named_dimension():
