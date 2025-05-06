@@ -3,21 +3,19 @@
 from datetime import datetime
 from datetime import timezone
 
-import numpy as np
 import pytest
 from pydantic import ValidationError
 
-from mdio.schema.compressors import ZFP
-from mdio.schema.compressors import Blosc
-from mdio.schema.dimension import NamedDimension
-from mdio.schema.dtype import ScalarType
-from mdio.schema.dtype import StructuredType
-from mdio.schema.metadata import UserAttributes
 from mdio.core.v1.factory import make_coordinate
 from mdio.core.v1.factory import make_dataset
 from mdio.core.v1.factory import make_dataset_metadata
 from mdio.core.v1.factory import make_named_dimension
 from mdio.core.v1.factory import make_variable
+from mdio.schema.compressors import ZFP
+from mdio.schema.compressors import Blosc
+from mdio.schema.dimension import NamedDimension
+from mdio.schema.dtype import ScalarType
+from mdio.schema.dtype import StructuredType
 
 
 def test_make_named_dimension():

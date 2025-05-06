@@ -16,6 +16,10 @@ from mdio.schema.dtype import ScalarType
 from mdio.schema.dtype import StructuredType
 from mdio.schema.metadata import UserAttributes
 from mdio.schema.v1.dataset import Dataset
+from mdio.schema.v1.units import AllUnits
+from mdio.schema.v1.variable import Coordinate
+from mdio.schema.v1.variable import Variable
+from mdio.schema.v1.variable import VariableMetadata
 
 # from mdio.schema.v1.dataset import DatasetMetadata
 from .factory import make_coordinate
@@ -23,10 +27,6 @@ from .factory import make_dataset
 from .factory import make_dataset_metadata
 from .factory import make_named_dimension
 from .factory import make_variable
-from mdio.schema.v1.units import AllUnits
-from mdio.schema.v1.variable import Coordinate
-from mdio.schema.v1.variable import Variable
-from mdio.schema.v1.variable import VariableMetadata
 
 
 # from pydantic import AwareDatetime
@@ -221,4 +221,4 @@ class Builder:
             )
             all_variables.append(coord_var)
 
-        return make_dataset(all_variables, metadata) 
+        return make_dataset(all_variables, metadata)

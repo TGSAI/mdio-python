@@ -1,17 +1,16 @@
 """Unit tests for MDIO v1 schema builder."""
 
 from datetime import datetime
-from datetime import timezone
 
 import pytest
 
+from mdio.core.v1.builder import Builder as TemplateBuilder
+from mdio.core.v1.builder import _BuilderState
+from mdio.core.v1.constructor import write_mdio_metadata
 from mdio.schema.compressors import Blosc
 from mdio.schema.dtype import ScalarType
 from mdio.schema.dtype import StructuredType
 from mdio.schema.v1.dataset import Dataset
-from mdio.core.v1.builder import Builder as TemplateBuilder
-from mdio.core.v1.builder import _BuilderState
-from mdio.core.v1.constructor import write_mdio_metadata
 
 
 def test_builder_initialization():

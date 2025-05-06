@@ -224,4 +224,4 @@ class AbstractTemplateFactory:
 
     def make_dataset(self, variables: List[Variable]) -> Dataset:
         """Create a Dataset with the given variables and metadata."""
-        return Dataset(variables=variables, metadata=self._compose_metadata()) 
+        return Dataset(variables=variables, metadata=self._compose_metadata())
