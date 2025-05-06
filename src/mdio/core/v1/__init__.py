@@ -4,7 +4,7 @@ Exposes the MDIO overloads and core v1 functionality.
 """
 
 from ._overloads import mdio
-from .builder import Builder
+from .builder import MDIODatasetBuilder
 from .builder import write_mdio_metadata
 from ._serializer import (
     make_coordinate,
@@ -17,7 +17,7 @@ from .factory import AbstractTemplateFactory
 
 
 __all__ = [
-    "Builder",
+    "MDIODatasetBuilder",
     "AbstractTemplateFactory",
     "make_coordinate",
     "make_dataset",

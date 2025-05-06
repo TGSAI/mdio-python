@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pytest
 
-from mdio.core.v1.builder import Builder as TemplateBuilder
+from mdio.core.v1.builder import MDIODatasetBuilder
 from mdio.core.v1.builder import _BuilderState
 from mdio.core.v1.builder import write_mdio_metadata
 from mdio.schema.compressors import Blosc
@@ -15,7 +15,7 @@ from mdio.schema.v1.dataset import Dataset
 
 def test_builder_initialization():
     """Test basic builder initialization."""
-    builder = TemplateBuilder("test_dataset")
+    builder = MDIODatasetBuilder("test_dataset")
     assert builder.name == "test_dataset"
     assert builder.api_version == "1.0.0"
     assert isinstance(builder.created_on, datetime)
@@ -27,7 +27,7 @@ def test_builder_initialization():
 
 def test_dimension_builder_state():
     """Test dimension builder state transitions and functionality."""
-    builder = TemplateBuilder("test_dataset")
+    builder = MDIODatasetBuilder("test_dataset")
 
     # First dimension should change state to HAS_DIMENSIONS and create a variable
     builder = builder.add_dimension("x", 100, long_name="X Dimension")
@@ -55,7 +55,7 @@ def test_dimension_builder_state():
 
 def test_dimension_with_metadata():
     """Test adding dimensions with custom metadata."""
-    builder = TemplateBuilder("test_dataset")
+    builder = MDIODatasetBuilder("test_dataset")
 
     # Add dimension with custom metadata
     builder = builder.add_dimension(
@@ -74,7 +74,7 @@ def test_dimension_with_metadata():
 
 def test_coordinate_builder_state():
     """Test coordinate builder state transitions and functionality."""
-    builder = TemplateBuilder("test_dataset")
+    builder = MDIODatasetBuilder("test_dataset")
 
     # Should not be able to add coordinates before dimensions
     with pytest.raises(
@@ -106,7 +106,7 @@ def test_coordinate_builder_state():
 
 def test_variable_builder_state():
     """Test variable builder state transitions and functionality."""
-    builder = TemplateBuilder("test_dataset")
+    builder = MDIODatasetBuilder("test_dataset")
 
     # Should not be able to add variables before dimensions
     with pytest.raises(
@@ -136,7 +136,7 @@ def test_variable_builder_state():
 def test_build_dataset():
     """Test building a complete dataset."""
     dataset = (
-        TemplateBuilder("test_dataset")
+        MDIODatasetBuilder("test_dataset")
         .add_dimension("x", 100)
         .add_dimension("y", 200)
         .add_coordinate("x_coord", dimensions=["x"])
@@ -159,7 +159,7 @@ def test_build_dataset():
 def test_auto_naming():
     """Test automatic naming of coordinates and variables."""
     dataset = (
-        TemplateBuilder("test_dataset")
+        MDIODatasetBuilder("test_dataset")
         .add_dimension("x", 100)
         .add_coordinate()  # Should be named "coord_0"
         .add_coordinate()  # Should be named "coord_1"
@@ -176,7 +176,7 @@ def test_auto_naming():
 def test_default_dimensions():
     """Test that coordinates and variables use all dimensions by default."""
     dataset = (
-        TemplateBuilder("test_dataset")
+        MDIODatasetBuilder("test_dataset")
         .add_dimension("x", 100)
         .add_dimension("y", 200)
         .add_coordinate()  # Should use both x and y dimensions
@@ -194,7 +194,7 @@ def test_default_dimensions():
 
 def test_build_order_enforcement():
     """Test that the builder enforces the correct build order."""
-    builder = TemplateBuilder("test_dataset")
+    builder = MDIODatasetBuilder("test_dataset")
 
     # Should not be able to add coordinates before dimensions
     with pytest.raises(
@@ -218,7 +218,7 @@ def test_build_order_enforcement():
 def test_toy_example(tmp_path):
     """Test building a toy dataset with multiple variables and attributes."""
     dataset = (
-        TemplateBuilder(
+        MDIODatasetBuilder(
             "campos_3d",
             attributes={
                 "textHeader": [

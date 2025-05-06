@@ -43,10 +43,11 @@ class _BuilderState(Enum):
     HAS_VARIABLES = auto()
 
 
-class Builder:
+class MDIODatasetBuilder:
     """Builder for creating MDIO datasets with enforced build order.
 
-    The build order is:
+    This builder implements the builder pattern to create MDIO datasets with a v1 schema.
+    It enforces a specific build order to ensure valid dataset construction:
     1. Must add dimensions first via add_dimension()
     2. Can optionally add coordinates via add_coordinate()
     3. Must add variables via add_variable()
@@ -77,7 +78,7 @@ class Builder:
         long_name: str = None,
         data_type: ScalarType | StructuredType = ScalarType.INT32,
         metadata: Optional[List[AllUnits | UserAttributes]] | Dict[str, Any] = None,
-    ) -> "Builder":
+    ) -> "MDIODatasetBuilder":
         """Add a dimension.
 
         This must be called at least once before adding coordinates or variables.
@@ -117,7 +118,7 @@ class Builder:
         dimensions: Optional[List[NamedDimension | str]] = None,
         data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
         metadata: Optional[List[AllUnits | UserAttributes]] | Dict[str, Any] = None,
-    ) -> "Builder":
+    ) -> "MDIODatasetBuilder":
         """Add a coordinate after adding at least one dimension."""
         if self._state == _BuilderState.INITIAL:
             raise ValueError(
@@ -164,7 +165,7 @@ class Builder:
         compressor: Blosc | ZFP | None = None,
         coordinates: Optional[List[Coordinate | str]] = None,
         metadata: Optional[VariableMetadata] = None,
-    ) -> "Builder":
+    ) -> "MDIODatasetBuilder":
         """Add a variable after adding at least one dimension."""
         if self._state == _BuilderState.INITIAL:
             raise ValueError("Must add at least one dimension before adding variables")
