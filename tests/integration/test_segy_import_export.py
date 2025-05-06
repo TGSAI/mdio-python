@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
 
 import dask
@@ -13,6 +14,7 @@ from segy import SegyFile
 from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.converters import segy_to_mdio
+from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Dimension
 from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.geometry import StreamerShotGeometryType
@@ -155,10 +157,6 @@ class TestImport4DSparse:
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
-        import os
-
-        from mdio.converters.exceptions import GridTraceSparsityError
-
         segy_path = segy_mock_4d_shots[chan_header_type]
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "1.1"
 

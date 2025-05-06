@@ -89,11 +89,9 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         logger.warning(msg)
 
     # Extreme case where the grid is very sparse (usually user error)
-    if grid_traces > grid_sparsity_ratio_limit_ * num_traces:
-        logger.warning("WARNING: Sparse mdio grid detected!")
-        if os.getenv("MDIO__IGNORE_CHECKS", "0"):
-            pass
-        else:
+    if grid_traces > grid_sparsity_ratio_limit * num_traces:
+        logger.warning("Sparse MDIO grid detected!")
+        if not os.getenv("MDIO_IGNORE_CHECKS", "0") == "1":
             raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
