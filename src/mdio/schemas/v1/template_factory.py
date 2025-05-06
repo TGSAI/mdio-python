@@ -1,17 +1,24 @@
 """Factory methods for MDIO v1 schema models."""
 
-from datetime import datetime, timezone
-from typing import Any, Optional, Union, List, Dict
+from datetime import datetime
+from datetime import timezone
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
-from pydantic import AwareDatetime
-
+from mdio.schema.compressors import ZFP
+from mdio.schema.compressors import Blosc
 from mdio.schema.dimension import NamedDimension
-from mdio.schema.compressors import Blosc, ZFP
-from mdio.schema.dtype import ScalarType, StructuredType
+from mdio.schema.dtype import ScalarType
+from mdio.schema.dtype import StructuredType
 from mdio.schema.metadata import UserAttributes
+from mdio.schema.v1.dataset import Dataset
+from mdio.schema.v1.dataset import DatasetMetadata
 from mdio.schema.v1.units import AllUnits
-from mdio.schema.v1.dataset import Dataset, DatasetMetadata
-from mdio.schema.v1.variable import Variable, Coordinate, VariableMetadata
+from mdio.schema.v1.variable import Coordinate
+from mdio.schema.v1.variable import Variable
+from mdio.schema.v1.variable import VariableMetadata
 
 
 def make_named_dimension(name: str, size: int) -> NamedDimension:
@@ -36,16 +43,34 @@ def make_coordinate(
     )
 
 
-def make_variable(
+def make_variable(  # noqa: C901
     name: str,
     dimensions: List[NamedDimension | str],
     data_type: ScalarType | StructuredType,
     long_name: str = None,
     compressor: Blosc | ZFP | None = None,
     coordinates: Optional[List[Coordinate | str]] = None,
-    metadata: Optional[List[AllUnits | UserAttributes] | Dict[str, Any] | VariableMetadata] = None,
+    metadata: Optional[
+        List[AllUnits | UserAttributes] | Dict[str, Any] | VariableMetadata
+    ] = None,
 ) -> Variable:
-    """Create a Variable with the given name, dimensions, data_type, compressor, coordinates, and metadata."""
+    """Create a Variable with the given parameters.
+
+    Args:
+        name: Name of the variable
+        dimensions: List of dimensions
+        data_type: Data type of the variable
+        long_name: Optional long name
+        compressor: Optional compressor
+        coordinates: Optional list of coordinates
+        metadata: Optional metadata
+
+    Returns:
+        Variable: A Variable instance with the specified parameters.
+
+    Raises:
+        TypeError: If the metadata type is not supported.
+    """
     # Convert metadata to VariableMetadata if needed
     var_metadata = None
     if metadata:
@@ -100,7 +125,7 @@ def make_variable(
 def make_dataset_metadata(
     name: str,
     api_version: str,
-    created_on: AwareDatetime,
+    created_on: datetime,
     attributes: Optional[Dict[str, Any]] = None,
 ) -> DatasetMetadata:
     """Create a DatasetMetadata with name, api_version, created_on, and optional attributes."""
@@ -124,57 +149,78 @@ def make_dataset(
 
 
 class AbstractTemplateFactory:
+    """Abstract factory for creating MDIO datasets."""
 
-    def __init__(self, name: str): 
+    def __init__(self, name: str):
+        """Initialize the factory.
+
+        Args:
+            name: Name of the dataset
+        """
         self.name = name
         self.api_version = "1.0.0"  # TODO: Pull from package metadata
         self.created_on = datetime.now(timezone.utc)
+        self.dimensions: List[NamedDimension] = []
+        self.coordinates: List[Coordinate] = []
+        self.variables: List[Variable] = []
 
-
-    def AddDimension(self, name: str, size: int) -> 'AbstractTemplateFactory':
+    def add_dimension(self, name: str, size: int) -> "AbstractTemplateFactory":
         """Add a dimension to the factory."""
         self.dimensions.append(make_named_dimension(name, size))
         return self
 
-
-    def AddCoordinate(self, 
+    def add_coordinate(
+        self,
         name: str = "",
-        dimensions: List[NamedDimension | str] = [],
+        dimensions: Optional[List[NamedDimension | str]] = None,
         data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
-        metadata: Optional[List[AllUnits | UserAttributes]] = None) -> 'AbstractTemplateFactory':
+        metadata: Optional[List[AllUnits | UserAttributes]] = None,
+    ) -> "AbstractTemplateFactory":
         """Add a coordinate to the factory."""
         if name == "":
             name = f"coord_{len(self.coordinates)}"
-        if dimensions == []:
+        if dimensions is None:
             dimensions = self.dimensions
         self.coordinates.append(make_coordinate(name, dimensions, data_type, metadata))
         return self
 
-    def AddVariable(self, name: str = "",
-            dimensions: List[NamedDimension | str] = [],
-            data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
-            compressor: Blosc | ZFP | None = None, 
-            coordinates: Optional[List[Coordinate | str]] = None, 
-            metadata: Optional[VariableMetadata] = None) -> 'AbstractTemplateFactory':
+    def add_variable(
+        self,
+        name: str = "",
+        dimensions: Optional[List[NamedDimension | str]] = None,
+        data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
+        compressor: Blosc | ZFP | None = None,
+        coordinates: Optional[List[Coordinate | str]] = None,
+        metadata: Optional[VariableMetadata] = None,
+    ) -> "AbstractTemplateFactory":
         """Add a variable to the factory."""
         if name == "":
             name = f"var_{len(self.variables)}"
-        if dimensions == []:
+        if dimensions is None:
             dimensions = self.dimensions
-        self.variables.append(make_variable(name, dimensions, data_type, compressor, coordinates, metadata))
+        self.variables.append(
+            make_variable(
+                name, dimensions, data_type, compressor, coordinates, metadata
+            )
+        )
         return self
 
     def _compose_metadata(self) -> DatasetMetadata:
         """Compose the DatasetMetadata with the given name, api_version, and created_on."""
         return make_dataset_metadata(self.name, self.api_version, self.created_on)
 
-
     def _compose_variables(self) -> List[Variable]:
-        """Compose the Variables with the given name, dimensions, data_type, compressor, coordinates, and metadata."""
+        """Compose the Variables with the given parameters."""
         return [
-            make_variable(self.name, self.dimensions, self.data_type, self.compressor, self.coordinates, self.metadata)
+            make_variable(
+                self.name,
+                self.dimensions,
+                self.data_type,
+                self.compressor,
+                self.coordinates,
+                self.metadata,
+            )
         ]
-
 
     def make_dataset(self, variables: List[Variable]) -> Dataset:
         """Create a Dataset with the given variables and metadata."""

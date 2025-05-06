@@ -1,40 +1,44 @@
 """Construct an MDIO dataset and write to Zarr."""
-import xarray as xr
-import numpy as np
-import dask.array as da
-from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
+
 from typing import Any
 
-from mdio.schema.v1.dataset import Dataset as MDIODataset
-from mdio.schema.dimension import NamedDimension
-from mdio.schema.dtype import ScalarType, StructuredType
-from mdio.schema.compressors import Blosc, ZFP
-from mdio.schema.v1.variable import Coordinate
-from mdio.core.v1._overloads import mdio
-
+import numpy as np
 from numcodecs import Blosc as NumcodecsBlosc
+from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding  # noqa: F401
+
+from mdio.core.v1._overloads import mdio
+from mdio.schema.compressors import ZFP
+from mdio.schema.compressors import Blosc
+from mdio.schema.dimension import NamedDimension
+from mdio.schema.dtype import ScalarType
+from mdio.schema.dtype import StructuredType
+from mdio.schema.v1.dataset import Dataset as MDIODataset
+from mdio.schema.v1.variable import Coordinate
+
 
 try:
-    import zfpy as BaseZFPY  # Base library
-    from numcodecs import ZFPY as NumcodecsZFPY  # Codec
+    import zfpy as zfpy_base  # Base library
+    from numcodecs import ZFPY  # Codec
 except ImportError:
     print(f"Tried to import zfpy and numcodecs zfpy but failed because {ImportError}")
-    BaseZFPY = None
-    NumcodecsZFPY = None
+    zfpy_base = None
+    ZFPY = None
 
 
-def _convert_compressor(model: Blosc | ZFP | None) -> NumcodecsBlosc | NumcodecsZFPY | None:
+def _convert_compressor(
+    model: Blosc | ZFP | None,
+) -> NumcodecsBlosc | ZFPY | None:
     if isinstance(model, Blosc):
         return NumcodecsBlosc(
             cname=model.algorithm.value,
             clevel=model.level,
             shuffle=model.shuffle.value,
-            blocksize=model.blocksize if model.blocksize > 0 else 0
+            blocksize=model.blocksize if model.blocksize > 0 else 0,
         )
     elif isinstance(model, ZFP):
-        if BaseZFPY is None or NumcodecsZFPY is None:
+        if zfpy_base is None or ZFPY is None:
             raise ImportError("zfpy and numcodecs are required to use ZFP compression")
-        return NumcodecsZFPY(
+        return ZFPY(
             mode=model.mode.value,
             tolerance=model.tolerance,
             rate=model.rate,
@@ -46,17 +50,20 @@ def _convert_compressor(model: Blosc | ZFP | None) -> NumcodecsBlosc | Numcodecs
         raise TypeError(f"Unsupported compressor model: {type(model)}")
 
 
-def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:
+def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:  # noqa: C901
     """Build an MDIO dataset with correct dimensions and dtypes.
-    
+
     This internal function constructs the underlying data structure for an MDIO dataset,
     handling dimension mapping, data types, and metadata organization.
-    
+
     Args:
         mdio_ds: The source MDIO dataset to construct from.
-        
+
     Returns:
         The constructed dataset with proper MDIO structure and metadata.
+
+    Raises:
+        TypeError: If an unsupported data type is encountered.
     """
     # Collect dimension sizes
     dims: dict[str, int] = {}
@@ -68,7 +75,9 @@ def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:
     # Build data variables
     data_vars: dict[str, mdio.DataArray] = {}
     for var in mdio_ds.variables:
-        dim_names = [d.name if isinstance(d, NamedDimension) else d for d in var.dimensions]
+        dim_names = [
+            d.name if isinstance(d, NamedDimension) else d for d in var.dimensions
+        ]
         shape = tuple(dims[name] for name in dim_names)
         dt = var.data_type
         if isinstance(dt, ScalarType):
@@ -79,23 +88,23 @@ def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:
             raise TypeError(f"Unsupported data_type: {dt}")
         arr = np.zeros(shape, dtype=dtype)
         data_array = mdio.DataArray(arr, dims=dim_names)
-        data_array.encoding['fill_value'] = 0.0
-        
+        data_array.encoding["fill_value"] = 0.0
+
         # Set long_name if present
         if var.long_name is not None:
             data_array.attrs["long_name"] = var.long_name
-            
+
         # Set coordinates if present, excluding dimension names
         if var.coordinates is not None:
             dim_set = set(dim_names)
             coord_names = [
-                c.name if isinstance(c, Coordinate) else c  
-                for c in var.coordinates  
+                c.name if isinstance(c, Coordinate) else c
+                for c in var.coordinates
                 if (c.name if isinstance(c, Coordinate) else c) not in dim_set
             ]
             if coord_names:
                 data_array.attrs["coordinates"] = " ".join(coord_names)
-            
+
         # Attach variable metadata into DataArray attributes
         if var.metadata is not None:
             md = var.metadata.model_dump(
@@ -119,21 +128,24 @@ def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:
     return ds
 
 
-def Write_MDIO_metadata(mdio_ds: MDIODataset, store: str, **kwargs: Any) -> mdio.Dataset:
+def write_mdio_metadata(
+    mdio_ds: MDIODataset, store: str, **kwargs: Any
+) -> mdio.Dataset:
     """Write MDIO metadata to a Zarr store and return the constructed mdio.Dataset.
-    
+
     This function constructs an mdio.Dataset from the MDIO dataset and writes its metadata
     to a Zarr store. The actual data is not written, only the metadata structure is created.
     """
     ds = _construct_mdio_dataset(mdio_ds)
-    
+
     def _generate_encodings() -> dict:
         """Generate encodings for each variable in the MDIO dataset.
-        
+
         Returns:
             Dictionary mapping variable names to their encoding configurations.
         """
-        dimension_separator_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
+        # TODO: Re-enable chunk_key_encoding when supported by xarray
+        # dimension_separator_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
         global_encodings = {}
         for var in mdio_ds.variables:
             fill_value = 0
@@ -160,6 +172,6 @@ def Write_MDIO_metadata(mdio_ds: MDIODataset, store: str, **kwargs: Any) -> mdio
         safe_chunks=False,
         compute=False,
         encoding=_generate_encodings(),
-        **kwargs
+        **kwargs,
     )
     return ds
