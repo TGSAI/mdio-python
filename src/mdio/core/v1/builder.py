@@ -9,6 +9,8 @@ from typing import Dict
 from typing import List
 from typing import Optional
 
+from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding  # noqa: F401
+
 from mdio.schema.compressors import ZFP
 from mdio.schema.compressors import Blosc
 from mdio.schema.dimension import NamedDimension
@@ -16,20 +18,20 @@ from mdio.schema.dtype import ScalarType
 from mdio.schema.dtype import StructuredType
 from mdio.schema.metadata import UserAttributes
 from mdio.schema.v1.dataset import Dataset
+
+# Import factory functions from serializer module
+from ._serializer import make_coordinate
+from ._serializer import make_dataset
+from ._serializer import make_dataset_metadata
+from ._serializer import make_named_dimension
+from ._serializer import make_variable
+from ._serializer import _convert_compressor
+from ._serializer import _construct_mdio_dataset
+from mdio.core.v1._overloads import mdio
 from mdio.schema.v1.units import AllUnits
 from mdio.schema.v1.variable import Coordinate
 from mdio.schema.v1.variable import Variable
 from mdio.schema.v1.variable import VariableMetadata
-
-# from mdio.schema.v1.dataset import DatasetMetadata
-from .factory import make_coordinate
-from .factory import make_dataset
-from .factory import make_dataset_metadata
-from .factory import make_named_dimension
-from .factory import make_variable
-
-
-# from pydantic import AwareDatetime
 
 
 class _BuilderState(Enum):
@@ -222,3 +224,60 @@ class Builder:
             all_variables.append(coord_var)
 
         return make_dataset(all_variables, metadata)
+
+
+def write_mdio_metadata(
+    mdio_ds: Dataset, store: str, **kwargs: Any
+) -> mdio.Dataset:
+    """Write MDIO metadata to a Zarr store and return the constructed mdio.Dataset.
+
+    This function constructs an mdio.Dataset from the MDIO dataset and writes its metadata
+    to a Zarr store. The actual data is not written, only the metadata structure is created.
+
+    Args:
+        mdio_ds: The MDIO dataset to serialize
+        store: Path to the Zarr store
+        **kwargs: Additional arguments to pass to to_zarr()
+
+    Returns:
+        The constructed xarray Dataset with MDIO extensions
+    """
+    ds = _construct_mdio_dataset(mdio_ds)
+
+    def _generate_encodings() -> dict:
+        """Generate encodings for each variable in the MDIO dataset.
+
+        Returns:
+            Dictionary mapping variable names to their encoding configurations.
+        """
+        # TODO: Re-enable chunk_key_encoding when supported by xarray
+        # dimension_separator_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
+        global_encodings = {}
+        for var in mdio_ds.variables:
+            fill_value = 0
+            if isinstance(var.data_type, StructuredType):
+                continue
+            chunks = None
+            if var.metadata is not None and var.metadata.chunk_grid is not None:
+                chunks = var.metadata.chunk_grid.configuration.chunk_shape
+            global_encodings[var.name] = {
+                "chunks": chunks,
+                # TODO: Re-enable chunk_key_encoding when supported by xarray
+                # "chunk_key_encoding": dimension_separator_encoding,
+                "_FillValue": fill_value,
+                "dtype": var.data_type,
+                "compressors": _convert_compressor(var.compressor),
+            }
+        return global_encodings
+
+    ds.to_mdio(
+        store,
+        mode="w",
+        zarr_format=2,
+        consolidated=True,
+        safe_chunks=False,
+        compute=False,
+        encoding=_generate_encodings(),
+        **kwargs,
+    )
+    return ds

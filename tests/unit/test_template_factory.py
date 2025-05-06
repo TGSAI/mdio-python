@@ -6,11 +6,11 @@ from datetime import timezone
 import pytest
 from pydantic import ValidationError
 
-from mdio.core.v1.factory import make_coordinate
-from mdio.core.v1.factory import make_dataset
-from mdio.core.v1.factory import make_dataset_metadata
-from mdio.core.v1.factory import make_named_dimension
-from mdio.core.v1.factory import make_variable
+from mdio.core.v1._serializer import make_coordinate
+from mdio.core.v1._serializer import make_dataset
+from mdio.core.v1._serializer import make_dataset_metadata
+from mdio.core.v1._serializer import make_named_dimension
+from mdio.core.v1._serializer import make_variable
 from mdio.schema.compressors import ZFP
 from mdio.schema.compressors import Blosc
 from mdio.schema.dimension import NamedDimension
