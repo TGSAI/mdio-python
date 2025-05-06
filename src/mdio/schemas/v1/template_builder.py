@@ -8,9 +8,6 @@ from typing import Any
 from typing import Dict
 from typing import List
 from typing import Optional
-from typing import Union
-
-from pydantic import AwareDatetime
 
 from mdio.schema.compressors import ZFP
 from mdio.schema.compressors import Blosc
@@ -19,7 +16,8 @@ from mdio.schema.dtype import ScalarType
 from mdio.schema.dtype import StructuredType
 from mdio.schema.metadata import UserAttributes
 from mdio.schema.v1.dataset import Dataset
-from mdio.schema.v1.dataset import DatasetMetadata
+
+# from mdio.schema.v1.dataset import DatasetMetadata
 from mdio.schema.v1.template_factory import make_coordinate
 from mdio.schema.v1.template_factory import make_dataset
 from mdio.schema.v1.template_factory import make_dataset_metadata
@@ -29,6 +27,9 @@ from mdio.schema.v1.units import AllUnits
 from mdio.schema.v1.variable import Coordinate
 from mdio.schema.v1.variable import Variable
 from mdio.schema.v1.variable import VariableMetadata
+
+
+# from pydantic import AwareDatetime
 
 
 class _BuilderState(Enum):
@@ -41,14 +42,22 @@ class _BuilderState(Enum):
 
 
 class TemplateBuilder:
-    """Builder for creating MDIO datasets with enforced build order:
+    """Builder for creating MDIO datasets with enforced build order.
+
+    The build order is:
     1. Must add dimensions first via add_dimension()
     2. Can optionally add coordinates via add_coordinate()
     3. Must add variables via add_variable()
-    4. Must call build() to create the dataset
+    4. Must call build() to create the dataset.
     """
 
     def __init__(self, name: str, attributes: Optional[Dict[str, Any]] = None):
+        """Initialize the builder.
+
+        Args:
+            name: Name of the dataset
+            attributes: Optional attributes for the dataset
+        """
         self.name = name
         self.api_version = "1.0.0"  # TODO: Pull from package metadata
         self.created_on = datetime.now(timezone.utc)
@@ -67,7 +76,9 @@ class TemplateBuilder:
         data_type: ScalarType | StructuredType = ScalarType.INT32,
         metadata: Optional[List[AllUnits | UserAttributes]] | Dict[str, Any] = None,
     ) -> "TemplateBuilder":
-        """Add a dimension. This must be called at least once before adding coordinates or variables.
+        """Add a dimension.
+
+        This must be called at least once before adding coordinates or variables.
 
         Args:
             name: Name of the dimension
@@ -75,6 +86,9 @@ class TemplateBuilder:
             long_name: Optional long name for the dimension variable
             data_type: Data type for the dimension variable (defaults to INT32)
             metadata: Optional metadata for the dimension variable
+
+        Returns:
+            self: Returns self for method chaining
         """
         # Create the dimension
         dimension = make_named_dimension(name, size)
@@ -98,7 +112,7 @@ class TemplateBuilder:
         name: str = "",
         *,
         long_name: str = None,
-        dimensions: List[NamedDimension | str] = [],
+        dimensions: Optional[List[NamedDimension | str]] = None,
         data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
         metadata: Optional[List[AllUnits | UserAttributes]] | Dict[str, Any] = None,
     ) -> "TemplateBuilder":
@@ -110,7 +124,7 @@ class TemplateBuilder:
 
         if name == "":
             name = f"coord_{len(self._coordinates)}"
-        if dimensions == []:
+        if dimensions is None:
             dimensions = self._dimensions
         if isinstance(metadata, dict):
             metadata = [metadata]
@@ -121,7 +135,7 @@ class TemplateBuilder:
             if isinstance(dim, str):
                 dim_obj = next((d for d in self._dimensions if d.name == dim), None)
                 if dim_obj is None:
-                    raise ValueError(f"Dimension '{dim}' not found")
+                    raise ValueError(f"Dimension {dim!r} not found")
                 dim_objects.append(dim_obj)
             else:
                 dim_objects.append(dim)
@@ -143,7 +157,7 @@ class TemplateBuilder:
         name: str = "",
         *,
         long_name: str = None,
-        dimensions: List[NamedDimension | str] = [],
+        dimensions: Optional[List[NamedDimension | str]] = None,
         data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
         compressor: Blosc | ZFP | None = None,
         coordinates: Optional[List[Coordinate | str]] = None,
@@ -156,7 +170,7 @@ class TemplateBuilder:
         if name == "":
             name = f"var_{self._unnamed_variable_counter}"
             self._unnamed_variable_counter += 1
-        if dimensions == []:
+        if dimensions is None:
             dimensions = self._dimensions
 
         # Convert string dimension names to NamedDimension objects
@@ -165,7 +179,7 @@ class TemplateBuilder:
             if isinstance(dim, str):
                 dim_obj = next((d for d in self._dimensions if d.name == dim), None)
                 if dim_obj is None:
-                    raise ValueError(f"Dimension '{dim}' not found")
+                    raise ValueError(f"Dimension {dim!r} not found")
                 dim_objects.append(dim_obj)
             else:
                 dim_objects.append(dim)
