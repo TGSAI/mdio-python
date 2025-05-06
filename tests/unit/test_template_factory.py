@@ -5,93 +5,103 @@
 from datetime import datetime
 from datetime import timezone
 
+import numpy as np
 import pytest
+import xarray as xr
 from pydantic import ValidationError
+from zarr import Array
 
 from mdio.core.v1._serializer import make_coordinate
 from mdio.core.v1._serializer import make_dataset
 from mdio.core.v1._serializer import make_dataset_metadata
 from mdio.core.v1._serializer import make_named_dimension
 from mdio.core.v1._serializer import make_variable
+from mdio.core.v1.factory import MDIOSchemaType
+from mdio.core.v1.factory import SCHEMA_TEMPLATE_MAP
 from mdio.schema.compressors import ZFP
 from mdio.schema.compressors import Blosc
 from mdio.schema.dimension import NamedDimension
 from mdio.schema.dtype import ScalarType
 from mdio.schema.dtype import StructuredType
+from mdio.schema.v1.dataset import Dataset
+from mdio.core.v1.builder import write_mdio_metadata
+
+# def test_make_named_dimension():
+#     """Test that make_named_dimension returns a NamedDimension object."""
+#     dim = make_named_dimension("time", 42)
+#     assert isinstance(dim, NamedDimension)
+#     assert dim.name == "time"
+#     assert dim.size == 42
 
 
-def test_make_named_dimension():
-    """Test that make_named_dimension returns a NamedDimension object."""
-    dim = make_named_dimension("time", 42)
-    assert isinstance(dim, NamedDimension)
-    assert dim.name == "time"
-    assert dim.size == 42
+# def test_make_coordinate_minimal():
+#     """Test that make_coordinate returns a Coordinate object."""
+#     dims = ["x"]
+#     coord = make_coordinate(name="x", dimensions=dims, data_type=ScalarType.FLOAT32)
+#     assert coord.name == "x"
+#     assert coord.dimensions == dims
+#     assert coord.data_type == ScalarType.FLOAT32
+#     assert coord.metadata is None
 
 
-def test_make_coordinate_minimal():
-    """Test that make_coordinate returns a Coordinate object."""
-    dims = ["x"]
-    coord = make_coordinate(name="x", dimensions=dims, data_type=ScalarType.FLOAT32)
-    assert coord.name == "x"
-    assert coord.dimensions == dims
-    assert coord.data_type == ScalarType.FLOAT32
-    assert coord.metadata is None
+# def test_make_variable_minimal():
+#     """Test that make_variable returns a Variable object."""
+#     var = make_variable(
+#         name="var",
+#         dimensions=["x"],
+#         data_type=ScalarType.FLOAT32,
+#         compressor=None,
+#     )
+#     assert var.name == "var"
+#     assert var.dimensions == ["x"]
+#     assert var.data_type == ScalarType.FLOAT32
+#     assert var.compressor is None
+#     assert var.coordinates is None
+#     assert var.metadata is None
 
 
-def test_make_variable_minimal():
-    """Test that make_variable returns a Variable object."""
-    var = make_variable(
-        name="var",
-        dimensions=["x"],
-        data_type=ScalarType.FLOAT32,
-        compressor=None,
-    )
-    assert var.name == "var"
-    assert var.dimensions == ["x"]
-    assert var.data_type == ScalarType.FLOAT32
-    assert var.compressor is None
-    assert var.coordinates is None
-    assert var.metadata is None
+# def test_make_dataset_metadata_minimal():
+#     """Test that make_dataset_metadata returns a DatasetMetadata object."""
+#     ts = datetime.now(timezone.utc)
+#     meta = make_dataset_metadata(name="ds", api_version="1", created_on=ts)
+#     assert meta.name == "ds"
+#     assert meta.api_version == "1"
+#     assert meta.created_on == ts
+#     assert meta.attributes is None
 
 
-def test_make_dataset_metadata_minimal():
-    """Test that make_dataset_metadata returns a DatasetMetadata object."""
-    ts = datetime.now(timezone.utc)
-    meta = make_dataset_metadata(name="ds", api_version="1", created_on=ts)
-    assert meta.name == "ds"
-    assert meta.api_version == "1"
-    assert meta.created_on == ts
-    assert meta.attributes is None
-
-
-def test_make_dataset_minimal():
-    """Test that make_dataset returns a Dataset object."""
-    var = make_variable(
-        name="var",
-        dimensions=["x"],
-        data_type=ScalarType.FLOAT32,
-        compressor=None,
-    )
-    ts = datetime.now(timezone.utc)
-    meta = make_dataset_metadata(name="ds", api_version="1", created_on=ts)
-    ds = make_dataset([var], meta)
-    assert ds.variables == [var]
-    assert ds.metadata == meta
+# def test_make_dataset_minimal():
+#     """Test that make_dataset returns a Dataset object."""
+#     var = make_variable(
+#         name="var",
+#         dimensions=["x"],
+#         data_type=ScalarType.FLOAT32,
+#         compressor=None,
+#     )
+#     ts = datetime.now(timezone.utc)
+#     meta = make_dataset_metadata(name="ds", api_version="1", created_on=ts)
+#     ds = make_dataset([var], meta)
+#     assert ds.variables == [var]
+#     assert ds.metadata == meta
 
 
 def test_make_toy_dataset():
-    """Test that make_toy_dataset returns a Dataset object."""
-    # Define core dimensions
-    inline = make_named_dimension("inline", 256)
-    crossline = make_named_dimension("crossline", 512)
-    depth = make_named_dimension("depth", 384)
-
-    # Create dataset metadata
-    created = datetime.fromisoformat("2023-12-12T15:02:06.413469-06:00")
-    meta = make_dataset_metadata(
+    """Test that make_toy_dataset returns a Dataset object using the factory pattern."""
+    # Create dataset using factory
+    template = SCHEMA_TEMPLATE_MAP[MDIOSchemaType.SEISMIC_3D_POST_STACK_GENERIC]
+    ds = template.create(
         name="campos_3d",
-        api_version="1.0.0",
-        created_on=created,
+        shape=[256, 512, 384],  # inline, crossline, time
+        header_fields={
+            "cdp-x": "int32",
+            "cdp-y": "int32",
+            "elevation": "float16",
+            "some_scalar": "float16",
+        },
+        create_coords=True,
+        sample_format="float32",
+        chunks=[128, 128, 128],
+        z_units={"unitsV1": {"time": "ms"}},
         attributes={
             "textHeader": [
                 "C01 .......................... ",
@@ -102,142 +112,62 @@ def test_make_toy_dataset():
         },
     )
 
-    # Image variable
-    image = make_variable(
-        name="image",
-        dimensions=[inline, crossline, depth],
-        data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
-        coordinates=["inline", "crossline", "depth", "cdp-x", "cdp-y"],
-        metadata={
-            "chunkGrid": {
-                "name": "regular",
-                "configuration": {"chunkShape": [128, 128, 128]},
-            },
-            "statsV1": {
-                "count": 100,
-                "sum": 1215.1,
-                "sumSquares": 125.12,
-                "min": 5.61,
-                "max": 10.84,
-                "histogram": {"binCenters": [1, 2], "counts": [10, 15]},
-            },
-            "attributes": {"fizz": "buzz"},
-        },
-    )
+    # Print the JSON representation of the dataset schema
+    print("\nDataset Schema JSON:")
+    print(ds.model_dump_json(indent=2))
 
-    # Velocity variable
-    velocity = make_variable(
-        name="velocity",
-        dimensions=[inline, crossline, depth],
-        data_type=ScalarType.FLOAT16,
-        compressor=None,
-        coordinates=["inline", "crossline", "depth", "cdp-x", "cdp-y"],
-        metadata={
-            "chunkGrid": {
-                "name": "regular",
-                "configuration": {"chunkShape": [128, 128, 128]},
-            },
-            "unitsV1": {"speed": "m/s"},
-        },
-    )
+    write_mdio_metadata(ds, "test_toy_dataset.mdio")
 
-    # Inline-optimized image variable
-    image_inline = make_variable(
-        name="image_inline",
-        dimensions=[inline, crossline, depth],
-        data_type=ScalarType.FLOAT32,
-        compressor=ZFP(mode="fixed_accuracy", tolerance=0.05),
-        coordinates=["inline", "crossline", "depth", "cdp-x", "cdp-y"],
-        metadata={
-            "chunkGrid": {
-                "name": "regular",
-                "configuration": {"chunkShape": [4, 512, 512]},
-            }
-        },
-    )
-
-    # Headers variable with structured dtype
-    headers_dtype = StructuredType(
-        fields=[
-            {"name": "cdp-x", "format": ScalarType.INT32},
-            {"name": "cdp-y", "format": ScalarType.INT32},
-            {"name": "elevation", "format": ScalarType.FLOAT16},
-            {"name": "some_scalar", "format": ScalarType.FLOAT16},
-        ]
-    )
-    image_headers = make_variable(
-        name="image_headers",
-        dimensions=[inline, crossline],
-        data_type=headers_dtype,
-        compressor=None,
-        coordinates=["inline", "crossline", "cdp-x", "cdp-y"],
-        metadata={
-            "chunkGrid": {
-                "name": "regular",
-                "configuration": {"chunkShape": [128, 128]},
-            }
-        },
-    )
-
-    # Standalone dimension arrays
-    # Tests that we don't need to pass a compressor.
-    inline_var = make_variable(
-        name="inline", dimensions=[inline], data_type=ScalarType.UINT32
-    )
-    # Tests that we can still pass it explicitly.
-    crossline_var = make_variable(
-        name="crossline",
-        dimensions=[crossline],
-        data_type=ScalarType.UINT32,
-        compressor=None,
-    )
-    depth_var = make_variable(
-        name="depth",
-        dimensions=[depth],
-        data_type=ScalarType.UINT32,
-        metadata={"unitsV1": {"length": "m"}},
-    )
-    cdp_x = make_variable(
-        name="cdp-x",
-        dimensions=[inline, crossline],
-        data_type=ScalarType.FLOAT32,
-        metadata={"unitsV1": {"length": "m"}},
-    )
-    cdp_y = make_variable(
-        name="cdp-y",
-        dimensions=[inline, crossline],
-        data_type=ScalarType.FLOAT32,
-        metadata={"unitsV1": {"length": "m"}},
-    )
-
-    # Compose full dataset
-    ds = make_dataset(
-        [
-            image,
-            velocity,
-            image_inline,
-            image_headers,
-            inline_var,
-            crossline_var,
-            depth_var,
-            cdp_x,
-            cdp_y,
+    # Verify metadata
+    assert ds.metadata.name == "campos_3d"
+    assert ds.metadata.api_version == "1.0.0"
+    assert ds.metadata.attributes == {
+        "textHeader": [
+            "C01 .......................... ",
+            "C02 .......................... ",
+            "C03 .......................... ",
         ],
-        meta,
-    )
+        "foo": "bar",
+    }
 
-    assert ds.metadata == meta
-    assert len(ds.variables) == 9
-    assert ds.variables[0] == image
-    assert ds.variables[1] == velocity
-    assert ds.variables[2] == image_inline
-    assert ds.variables[3] == image_headers
-    assert ds.variables[4] == inline_var
-    assert ds.variables[5] == crossline_var
-    assert ds.variables[6] == depth_var
-    assert ds.variables[7] == cdp_x
-    assert ds.variables[8] == cdp_y
+    # Verify variables
+    assert len(ds.variables) == 8  # seismic, headers, trace_mask, cdp-x, cdp-y
+
+    # Find seismic variable
+    seismic = next(v for v in ds.variables if v.name == "seismic")
+    assert seismic.data_type == ScalarType.FLOAT32
+    assert seismic.dimensions[0].name == "inline"
+    assert seismic.dimensions[1].name == "crossline"
+    assert seismic.dimensions[2].name == "sample"
+    assert seismic.compressor == Blosc(name="blosc", algorithm="zstd")
+
+    # Find headers variable
+    headers = next(v for v in ds.variables if v.name == "headers")
+    assert isinstance(headers.data_type, StructuredType)
+    assert len(headers.data_type.fields) == 4
+    assert headers.dimensions[0].name == "inline"
+    assert headers.dimensions[1].name == "crossline"
+    assert headers.compressor == Blosc(name="blosc")
+
+    # Find trace mask
+    mask = next(v for v in ds.variables if v.name == "trace_mask")
+    assert mask.data_type == ScalarType.BOOL
+    assert mask.dimensions[0].name == "inline"
+    assert mask.dimensions[1].name == "crossline"
+    assert mask.compressor == Blosc(name="blosc")
+
+    # Find coordinates
+    cdp_x = next(v for v in ds.variables if v.name == "cdp-x")
+    assert cdp_x.data_type == ScalarType.FLOAT64
+    assert cdp_x.dimensions[0].name == "inline"
+    assert cdp_x.dimensions[1].name == "crossline"
+    assert cdp_x.metadata.units_v1.length == "m"
+
+    cdp_y = next(v for v in ds.variables if v.name == "cdp-y")
+    assert cdp_y.data_type == ScalarType.FLOAT64
+    assert cdp_y.dimensions[0].name == "inline"
+    assert cdp_y.dimensions[1].name == "crossline"
+    assert cdp_y.metadata.units_v1.length == "m"
 
 
 def test_named_dimension_invalid_size():

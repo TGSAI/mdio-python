@@ -13,12 +13,11 @@ from ._serializer import (
     make_named_dimension,
     make_variable,
 )
-from .factory import AbstractTemplateFactory
-
+from .factory import MDIOSchemaType
+from .factory import SCHEMA_TEMPLATE_MAP
 
 __all__ = [
     "MDIODatasetBuilder",
-    "AbstractTemplateFactory",
     "make_coordinate",
     "make_dataset",
     "make_dataset_metadata",
@@ -26,4 +25,6 @@ __all__ = [
     "make_variable",
     "mdio",
     "write_mdio_metadata",
+    "MDIOSchemaType",
+    "SCHEMA_TEMPLATE_MAP",
 ]

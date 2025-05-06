@@ -1,105 +1,238 @@
-"""Factory implementation for MDIO v1 datasets."""
+"""MDIO factories for seismic data."""
 
+from __future__ import annotations
+
+import importlib
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
+from enum import Enum
+from enum import auto
+from typing import Any
+from typing import Dict
 from typing import List
 from typing import Optional
 
-from mdio.schema.compressors import ZFP
+from mdio.core.v1.builder import MDIODatasetBuilder
 from mdio.schema.compressors import Blosc
-from mdio.schema.dimension import NamedDimension
 from mdio.schema.dtype import ScalarType
 from mdio.schema.dtype import StructuredType
-from mdio.schema.metadata import UserAttributes
 from mdio.schema.v1.dataset import Dataset
 from mdio.schema.v1.units import AllUnits
-from mdio.schema.v1.variable import Coordinate
-from mdio.schema.v1.variable import Variable
-from mdio.schema.v1.variable import VariableMetadata
-
-from ._serializer import (
-    make_coordinate,
-    make_dataset,
-    make_dataset_metadata,
-    make_named_dimension,
-    make_variable,
-)
+from mdio.schema.v1.units import LengthUnitModel
 
 
-class AbstractTemplateFactory:
-    """Abstract factory for creating MDIO datasets."""
+class MDIOSchemaType(Enum):
+    """MDIO templates for specific data types."""
 
-    def __init__(self, name: str):
-        """Initialize the factory.
+    SEISMIC_3D_POST_STACK_GENERIC = auto()
+    SEISMIC_3D_POST_STACK_TIME = auto()
+    SEISMIC_3D_POST_STACK_DEPTH = auto()
+    SEISMIC_3D_PRE_STACK_CDP_TIME = auto()
+    SEISMIC_3D_PRE_STACK_CDP_DEPTH = auto()
+
+
+class Seismic3DPostStackGeneric:
+    """Generic 3D seismic post stack dataset."""
+
+    def __init__(self):
+        """Initialize generic post stack dataset."""
+        self._dim_names = ["inline", "crossline", "sample"]
+        self._chunks = [128, 128, 128]  # 8 mb
+        self._coords = {
+            "cdp-x": ("float32", {"unitsV1": {"length": "m"}}, self._dim_names[:-1]),
+            "cdp-y": ("float32", {"unitsV1": {"length": "m"}}, self._dim_names[:-1]),
+        }
+
+    def create(
+        self,
+        name: str,
+        shape: List[int],
+        header_fields: Dict[str, str],
+        create_coords: bool = False,
+        sample_format: Optional[str] = None,
+        chunks: Optional[List[int]] = None,
+        sample_units: Optional[Dict[str, str]] = None,
+        z_units: Optional[Dict[str, str]] = None,
+        attributes: Optional[Dict[str, Any]] = None,
+    ) -> Dataset:
+        """Create a generic seismic dataset schema.
 
         Args:
             name: Name of the dataset
+            shape: Shape of the dataset
+            header_fields: Header fields to include as a dict of field_name: dtype
+            create_coords: Whether to create coordinates
+            sample_format: Format of the samples
+            chunks: Chunk sizes
+            sample_units: Units for samples
+            z_units: Units for z-axis
+            attributes: Additional attributes to include in the dataset metadata
+
+        Returns:
+            Dataset: The created dataset
         """
-        self.name = name
-        self.api_version = "1.0.0"  # TODO: Pull from package metadata
-        self.created_on = datetime.now(timezone.utc)
-        self.dimensions: List[NamedDimension] = []
-        self.coordinates: List[Coordinate] = []
-        self.variables: List[Variable] = []
+        chunks = chunks or self._chunks
+        sample_format = sample_format or "float32"
 
-    def add_dimension(self, name: str, size: int) -> "AbstractTemplateFactory":
-        """Add a dimension to the factory."""
-        self.dimensions.append(make_named_dimension(name, size))
-        return self
-
-    def add_coordinate(
-        self,
-        name: str = "",
-        dimensions: Optional[List[NamedDimension | str]] = None,
-        data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
-        metadata: Optional[List[AllUnits | UserAttributes]] = None,
-    ) -> "AbstractTemplateFactory":
-        """Add a coordinate to the factory."""
-        if name == "":
-            name = f"coord_{len(self.coordinates)}"
-        if dimensions is None:
-            dimensions = self.dimensions
-        self.coordinates.append(make_coordinate(name, dimensions, data_type, metadata))
-        return self
-
-    def add_variable(
-        self,
-        name: str = "",
-        dimensions: Optional[List[NamedDimension | str]] = None,
-        data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
-        compressor: Blosc | ZFP | None = None,
-        coordinates: Optional[List[Coordinate | str]] = None,
-        metadata: Optional[VariableMetadata] = None,
-    ) -> "AbstractTemplateFactory":
-        """Add a variable to the factory."""
-        if name == "":
-            name = f"var_{len(self.variables)}"
-        if dimensions is None:
-            dimensions = self.dimensions
-        self.variables.append(
-            make_variable(
-                name, dimensions, data_type, compressor, coordinates, metadata
-            )
+        builder = MDIODatasetBuilder(
+            name=name,
+            attributes=attributes,
         )
-        return self
 
-    def _compose_metadata(self):
-        """Compose the DatasetMetadata with the given name, api_version, and created_on."""
-        return make_dataset_metadata(self.name, self.api_version, self.created_on)
-
-    def _compose_variables(self) -> List[Variable]:
-        """Compose the Variables with the given parameters."""
-        return [
-            make_variable(
-                self.name,
-                self.dimensions,
-                self.data_type,
-                self.compressor,
-                self.coordinates,
-                self.metadata,
+        # Add dimensions
+        for dim_name, dim_size in zip(self._dim_names, shape):
+            builder.add_dimension(
+                name=dim_name,
+                size=dim_size,
+                data_type=ScalarType.UINT32,
+                metadata=z_units if dim_name == "sample" else None,
             )
-        ]
 
-    def make_dataset(self, variables: List[Variable]) -> Dataset:
-        """Create a Dataset with the given variables and metadata."""
-        return Dataset(variables=variables, metadata=self._compose_metadata())
+        # Add coordinates if requested
+        if create_coords:
+            for coord_name, (format_, unit, coord_dims) in self._coords.items():
+                builder.add_coordinate(
+                    name=coord_name,
+                    data_type=ScalarType(format_),
+                    dimensions=coord_dims,
+                    metadata=unit,
+                )
+
+        # Add seismic variable
+        builder.add_variable(
+            name="seismic",
+            data_type=ScalarType(sample_format),
+            dimensions=self._dim_names,
+            compressor=Blosc(name="blosc", algorithm="zstd"),
+            metadata=sample_units,
+        )
+
+        # Add header variable with structured dtype
+        header_dtype = StructuredType(fields=[
+            {"name": field_name, "format": field_type}
+            for field_name, field_type in header_fields.items()
+        ])
+        builder.add_variable(
+            name="headers",
+            data_type=header_dtype,
+            dimensions=self._dim_names[:-1],
+            compressor=Blosc(name="blosc"),
+        )
+
+        # Add trace mask
+        builder.add_variable(
+            name="trace_mask",
+            data_type=ScalarType.BOOL,
+            dimensions=self._dim_names[:-1],
+            compressor=Blosc(name="blosc"),
+        )
+
+        return builder.build()
+
+
+class Seismic3DPostStack(Seismic3DPostStackGeneric):
+    """3D seismic post stack dataset with domain-specific attributes."""
+
+    def __init__(self, domain: str):
+        """Initialize post stack dataset.
+
+        Args:
+            domain: Domain of the dataset (time/depth)
+        """
+        super().__init__()
+        self._dim_names = ["inline", "crossline", domain]
+
+    def create(
+        self,
+        name: str,
+        shape: List[int],
+        header_fields: Dict[str, str],
+        create_coords: bool = False,
+        sample_format: Optional[str] = None,
+        chunks: Optional[List[int]] = None,
+        sample_units: Optional[Dict[str, str]] = None,
+        z_units: Optional[Dict[str, str]] = None,
+        attributes: Optional[Dict[str, Any]] = None,
+    ) -> Dataset:
+        """Create a seismic dataset schema with domain-specific attributes."""
+        # Add seismic-specific attributes
+        seismic_attrs = {
+            "surveyDimensionality": "3D",
+            "ensembleType": "line",
+            "processingStage": "post-stack",
+        }
+        if attributes:
+            seismic_attrs.update(attributes)
+
+        return super().create(
+            name=name,
+            shape=shape,
+            header_fields=header_fields,
+            create_coords=create_coords,
+            sample_format=sample_format,
+            chunks=chunks,
+            sample_units=sample_units,
+            z_units=z_units,
+            attributes=seismic_attrs,
+        )
+
+
+class Seismic3DPreStack(Seismic3DPostStackGeneric):
+    """3D seismic pre stack dataset."""
+
+    def __init__(self, domain: str):
+        """Initialize pre stack dataset.
+
+        Args:
+            domain: Domain of the dataset (time/depth)
+        """
+        super().__init__()
+        self._dim_names = ["inline", "crossline", "offset", domain]
+        self._chunks = [1, 1, 512, 4096]  # 8 mb
+        self._coords = {
+            "cdp-x": ("float32", {"length": "m"}, self._dim_names[:-2]),
+            "cdp-y": ("float32", {"length": "m"}, self._dim_names[:-2]),
+        }
+
+    def create(
+        self,
+        name: str,
+        shape: List[int],
+        header_fields: Dict[str, str],
+        create_coords: bool = False,
+        sample_format: Optional[str] = None,
+        chunks: Optional[List[int]] = None,
+        sample_units: Optional[Dict[str, str]] = None,
+        z_units: Optional[Dict[str, str]] = None,
+        attributes: Optional[Dict[str, Any]] = None,
+    ) -> Dataset:
+        """Create a seismic dataset schema with pre-stack attributes."""
+        # Add seismic-specific attributes
+        seismic_attrs = {
+            "surveyDimensionality": "3D",
+            "ensembleType": "cdp",
+            "processingStage": "pre-stack",
+        }
+        if attributes:
+            seismic_attrs.update(attributes)
+
+        return super().create(
+            name=name,
+            shape=shape,
+            header_fields=header_fields,
+            create_coords=create_coords,
+            sample_format=sample_format,
+            chunks=chunks,
+            sample_units=sample_units,
+            z_units=z_units,
+            attributes=seismic_attrs,
+        )
+
+
+SCHEMA_TEMPLATE_MAP = {
+    MDIOSchemaType.SEISMIC_3D_POST_STACK_GENERIC: Seismic3DPostStackGeneric(),
+    MDIOSchemaType.SEISMIC_3D_POST_STACK_TIME: Seismic3DPostStack("time"),
+    MDIOSchemaType.SEISMIC_3D_POST_STACK_DEPTH: Seismic3DPostStack("depth"),
+    MDIOSchemaType.SEISMIC_3D_PRE_STACK_CDP_TIME: Seismic3DPreStack("time"),
+    MDIOSchemaType.SEISMIC_3D_PRE_STACK_CDP_DEPTH: Seismic3DPreStack("depth"),
+}
