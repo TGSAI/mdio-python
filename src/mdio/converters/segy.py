@@ -49,8 +49,8 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     logged if the sparsity ratio (`grid_traces / num_traces`) exceeds a configurable threshold,
     indicating potential inefficiency or misconfiguration.
 
-    The warning threshold is set via the environment variable `MDIO__GRID__SPARSITY_WARNING_RATIO`
-    (default 2), and the error threshold via `MDIO__GRID__SPARSITY_ERROR_RATIO` (default 10). To
+    The warning threshold is set via the environment variable `MDIO__GRID__SPARSITY_RATIO_WARN`
+    (default 2), and the error threshold via `MDIO__GRID__SPARSITY_RATIO_LIMIT` (default 10). To
     suppress the exception (but still log warnings), set `MDIO_IGNORE_CHECKS=1`.
 
     Args:
@@ -58,10 +58,10 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         num_traces: Expected number of traces from the SEG-Y file.
 
     Raises:
-        GridTraceSparsityError: If the sparsity ratio exceeds `MDIO__GRID__SPARSITY_ERROR_RATIO`
+        GridTraceSparsityError: If the sparsity ratio exceeds `MDIO__GRID__SPARSITY_RATIO_LIMIT`
             and `MDIO_IGNORE_CHECKS` is not set to a truthy value (e.g., "1", "true").
-        EnvironmentFormatError: If `MDIO__GRID__SPARSITY_WARNING_RATIO` or
-            `MDIO__GRID__SPARSITY_ERROR_RATIO` cannot be converted to a float.
+        EnvironmentFormatError: If `MDIO__GRID__SPARSITY_RATIO_WARN` or
+            `MDIO__GRID__SPARSITY_RATIO_LIMIT` cannot be converted to a float.
     """
     # Calculate total possible traces in the grid (excluding sample dimension)
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)
@@ -85,21 +85,34 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     except ValueError as e:
         raise EnvironmentFormatError("MDIO__GRID__SPARSITY_RATIO_LIMIT", "float") from e  # noqa: EM101
 
-    # Check sparsity and respond accordingly
-    if sparsity_ratio > warning_ratio:
-        dims = dict(zip(grid.dim_names, grid.shape, strict=True))
-        msg = (
-            f"Proposed ingestion grid is sparse. Sparsity ratio: {sparsity_ratio:.2f}. "
-            f"Ingestion grid: {dims}. "
-            f"SEG-Y trace count: {num_traces}, grid trace count: {grid_traces}."
-        )
-        for dim_name in grid.dim_names:
-            dim_min = grid.get_min(dim_name)
-            dim_max = grid.get_max(dim_name)
-            msg += f"\n{dim_name} min: {dim_min} max: {dim_max}"
+    # Check sparsity
+    should_warn = sparsity_ratio > warning_ratio
+    should_error = sparsity_ratio > error_ratio and not ignore_checks
+
+    # Early return if everything is OK
+    # Prepare message for warning or error
+    if not should_warn and not should_error:
+        return
+
+    # Build warning / error message
+    dims = dict(zip(grid.dim_names, grid.shape, strict=True))
+    msg = (
+        f"Ingestion grid is sparse. Sparsity ratio: {sparsity_ratio:.2f}. "
+        f"Ingestion grid: {dims}. "
+        f"SEG-Y trace count: {num_traces}, grid trace count: {grid_traces}."
+    )
+    for dim_name in grid.dim_names:
+        dim_min = grid.get_min(dim_name)
+        dim_max = grid.get_max(dim_name)
+        msg += f"\n{dim_name} min: {dim_min} max: {dim_max}"
+
+    # Log warning if sparsity exceeds warning threshold
+    if should_warn:
         logger.warning(msg)
-        if sparsity_ratio > error_ratio and not ignore_checks:
-            raise GridTraceSparsityError(grid.shape, num_traces, msg)
+
+    # Raise error if sparsity exceeds error threshold and checks are not ignored
+    if should_error:
+        raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
 def get_compressor(lossless: bool, compression_tolerance: float = -1) -> Blosc | ZFPY | None:
