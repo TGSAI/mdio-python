@@ -107,7 +107,7 @@ jobs:
       - name: Install the pinned version of uv
         uses: astral-sh/setup-uv@v6
         with:
-          python-version: ${{ matrix.python }}
+          python-version: 3.13
           working-directory: ${{ github.workspace }}
 
       - name: Install Nox
