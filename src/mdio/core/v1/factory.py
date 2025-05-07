@@ -9,10 +9,10 @@ from enum import auto
 from typing import Any
 
 from mdio.core.v1.builder import MDIODatasetBuilder
-from mdio.schema.compressors import Blosc
-from mdio.schema.dtype import ScalarType
-from mdio.schema.dtype import StructuredType
-from mdio.schema.v1.dataset import Dataset
+from mdio.schemas.compressors import Blosc
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
+from mdio.schemas.v1.dataset import Dataset
 
 
 class MDIOSchemaType(Enum):

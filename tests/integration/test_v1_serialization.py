@@ -9,10 +9,10 @@ from mdio.core.v1._serializer import make_dataset_metadata
 from mdio.core.v1._serializer import make_named_dimension
 from mdio.core.v1._serializer import make_variable
 from mdio.core.v1.builder import write_mdio_metadata
-from mdio.schema.compressors import ZFP
-from mdio.schema.compressors import Blosc
-from mdio.schema.dtype import ScalarType
-from mdio.schema.dtype import StructuredType
+from mdio.schemas.compressors import ZFP
+from mdio.schemas.compressors import Blosc
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
 
 
 def build_toy_dataset():

@@ -14,18 +14,18 @@ import numpy as np
 from numcodecs import Blosc as NumcodecsBlosc
 
 from mdio.core.v1._overloads import mdio
-from mdio.schema.compressors import ZFP
-from mdio.schema.compressors import Blosc
-from mdio.schema.dimension import NamedDimension
-from mdio.schema.dtype import ScalarType
-from mdio.schema.dtype import StructuredType
-from mdio.schema.metadata import UserAttributes
-from mdio.schema.v1.dataset import Dataset as MDIODataset
-from mdio.schema.v1.dataset import DatasetMetadata
-from mdio.schema.v1.units import AllUnits
-from mdio.schema.v1.variable import Coordinate
-from mdio.schema.v1.variable import Variable
-from mdio.schema.v1.variable import VariableMetadata
+from mdio.schemas.compressors import ZFP
+from mdio.schemas.compressors import Blosc
+from mdio.schemas.dimension import NamedDimension
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
+from mdio.schemas.metadata import UserAttributes
+from mdio.schemas.v1.dataset import Dataset as MDIODataset
+from mdio.schemas.v1.dataset import DatasetMetadata
+from mdio.schemas.v1.units import AllUnits
+from mdio.schemas.v1.variable import Coordinate
+from mdio.schemas.v1.variable import Variable
+from mdio.schemas.v1.variable import VariableMetadata
 
 
 try:
