@@ -1,6 +1,6 @@
 """Unit tests for MDIO v1 factory."""
 
-# TODO(BrianMichell): Update this to use canonical factory functions.
+# TODO(BrianMichell, #535): Update this to use canonical factory functions.
 
 from datetime import UTC
 from datetime import datetime
@@ -21,7 +21,7 @@ from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
 
 
-def test_make_toy_dataset():
+def test_make_toy_dataset() -> None:
     """Test that make_toy_dataset returns a Dataset object using the factory pattern."""
     # Create dataset using factory
     template = SCHEMA_TEMPLATE_MAP[MDIOSchemaType.SEISMIC_3D_POST_STACK_GENERIC]
@@ -66,8 +66,8 @@ def test_make_toy_dataset():
         "foo": "bar",
     }
 
-    # Verify variables
-    assert len(ds.variables) == 8  # seismic, headers, trace_mask, cdp-x, cdp-y
+    # Verify variables, coordinates, and dimensions
+    assert len(ds.variables) == 8  # noqa: PLR2004
 
     # Find seismic variable
     seismic = next(v for v in ds.variables if v.name == "seismic")
@@ -80,7 +80,7 @@ def test_make_toy_dataset():
     # Find headers variable
     headers = next(v for v in ds.variables if v.name == "headers")
     assert isinstance(headers.data_type, StructuredType)
-    assert len(headers.data_type.fields) == 4
+    assert len(headers.data_type.fields) == 4  # noqa: PLR2004
     assert headers.dimensions[0].name == "inline"
     assert headers.dimensions[1].name == "crossline"
     assert headers.compressor == Blosc(name="blosc")
@@ -106,7 +106,7 @@ def test_make_toy_dataset():
     assert cdp_y.metadata.units_v1.length == "m"
 
 
-def test_named_dimension_invalid_size():
+def test_named_dimension_invalid_size() -> None:
     """Test that make_named_dimension raises a ValidationError for invalid size."""
     with pytest.raises(ValidationError):
         make_named_dimension("dim", 0)
@@ -114,7 +114,7 @@ def test_named_dimension_invalid_size():
         make_named_dimension("dim", -1)
 
 
-def test_make_coordinate_invalid_types():
+def test_make_coordinate_invalid_types() -> None:
     """Test that make_coordinate raises a ValidationError for invalid types."""
     # dimensions must be a list of NamedDimension or str
     with pytest.raises(ValidationError):
@@ -124,7 +124,7 @@ def test_make_coordinate_invalid_types():
         make_coordinate(name="coord", dimensions=["x"], data_type="notatype")
 
 
-def test_make_variable_invalid_args():
+def test_make_variable_invalid_args() -> None:
     """Test that make_variable raises a ValidationError for invalid types."""
     # compressor must be Blosc, ZFP or None
     with pytest.raises(ValidationError):
@@ -145,14 +145,14 @@ def test_make_variable_invalid_args():
         )
 
 
-def test_make_dataset_metadata_invalid_created_on():
+def test_make_dataset_metadata_invalid_created_on() -> None:
     """Test that make_dataset_metadata raises a ValidationError for invalid created_on."""
     # created_on must be an aware datetime
     with pytest.raises(ValidationError):
         make_dataset_metadata(name="ds", api_version="1", created_on="not-a-date")
 
 
-def test_make_dataset_invalid_variables_and_metadata_types():
+def test_make_dataset_invalid_variables_and_metadata_types() -> None:
     """Test that make_dataset raises a ValidationError."""
     ts = datetime.now(UTC)
     meta = make_dataset_metadata(name="ds", api_version="1", created_on=ts)

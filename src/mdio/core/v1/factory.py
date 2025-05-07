@@ -1,18 +1,21 @@
 """MDIO factories for seismic data."""
 
-# TODO(BrianMichell): Add implementations for other canonical datasets.
+# TODO(BrianMichell, #535): Add implementations for other canonical datasets.
 
 from __future__ import annotations
 
 from enum import Enum
 from enum import auto
+from typing import TYPE_CHECKING
 from typing import Any
 
 from mdio.core.v1.builder import MDIODatasetBuilder
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
-from mdio.schemas.v1.dataset import Dataset
+
+if TYPE_CHECKING:
+    from mdio.schemas.v1.dataset import Dataset
 
 
 class MDIOSchemaType(Enum):
@@ -28,7 +31,7 @@ class MDIOSchemaType(Enum):
 class Seismic3DPostStackGeneric:
     """Generic 3D seismic post stack dataset."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self._dim_names = ["inline", "crossline", "sample"]
         self._chunks = [128, 128, 128]  # 8 mb
         self._coords = {
@@ -36,7 +39,7 @@ class Seismic3DPostStackGeneric:
             "cdp-y": ("float64", {"unitsV1": {"length": "m"}}, self._dim_names[:-1]),
         }
 
-    def create(
+    def create(  # noqa: PLR0913
         self,
         name: str,
         shape: list[int],
@@ -128,11 +131,11 @@ class Seismic3DPostStackGeneric:
 class Seismic3DPostStack(Seismic3DPostStackGeneric):
     """3D seismic post stack dataset with domain-specific attributes."""
 
-    def __init__(self, domain: str):
+    def __init__(self, domain: str) -> None:
         super().__init__()
         self._dim_names = ["inline", "crossline", domain]
 
-    def create(
+    def create(  # noqa: PLR0913
         self,
         name: str,
         shape: list[int],
@@ -170,7 +173,7 @@ class Seismic3DPostStack(Seismic3DPostStackGeneric):
 class Seismic3DPreStack(Seismic3DPostStackGeneric):
     """3D seismic pre stack dataset."""
 
-    def __init__(self, domain: str):
+    def __init__(self, domain: str) -> None:
         super().__init__()
         self._dim_names = ["inline", "crossline", "offset", domain]
         self._chunks = [1, 1, 512, 4096]  # 8 mb
@@ -179,7 +182,7 @@ class Seismic3DPreStack(Seismic3DPostStackGeneric):
             "cdp-y": ("float64", {"length": "m"}, self._dim_names[:-2]),
         }
 
-    def create(
+    def create(  # noqa: PLR0913
         self,
         name: str,
         shape: list[int],

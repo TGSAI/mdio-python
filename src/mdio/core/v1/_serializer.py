@@ -55,7 +55,7 @@ def make_coordinate(
     )
 
 
-def make_variable(  # noqa: C901
+def make_variable(  # noqa: PLR0913 PLR0912
     name: str,
     dimensions: list[NamedDimension | str],
     data_type: ScalarType | StructuredType,
@@ -118,7 +118,8 @@ def make_variable(  # noqa: C901
         elif isinstance(metadata, VariableMetadata):
             var_metadata = metadata
         else:
-            raise TypeError(f"Unsupported metadata type: {type(metadata)}")
+            msg = f"Unsupported metadata type: {type(metadata)}"
+            raise TypeError(msg)
 
     # Create the variable with all attributes explicitly set
     return Variable(
@@ -170,7 +171,8 @@ def _convert_compressor(
         )
     if isinstance(model, ZFP):
         if zfpy_base is None or ZFPY is None:
-            raise ImportError("zfpy and numcodecs are required to use ZFP compression")
+            msg = "zfpy and numcodecs are required to use ZFP compression"
+            raise ImportError(msg)
         return ZFPY(
             mode=model.mode.value,
             tolerance=model.tolerance,
@@ -179,10 +181,11 @@ def _convert_compressor(
         )
     if model is None:
         return None
-    raise TypeError(f"Unsupported compressor model: {type(model)}")
+    msg = f"Unsupported compressor model: {type(model)}"
+    raise TypeError(msg)
 
 
-def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:  # noqa: C901
+def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:  # noqa: PLR0912
     """Build an MDIO dataset with correct dimensions and dtypes.
 
     This internal function constructs the underlying data structure for an MDIO dataset,
@@ -215,7 +218,8 @@ def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:  # noqa: C901
         elif isinstance(dt, StructuredType):
             dtype = np.dtype([(f.name, f.format.value) for f in dt.fields])
         else:
-            raise TypeError(f"Unsupported data_type: {dt}")
+            msg = f"Unsupported data_type: {dt}"
+            raise TypeError(msg)
         arr = np.zeros(shape, dtype=dtype)
         data_array = mdio.DataArray(arr, dims=dim_names)
         data_array.encoding["fill_value"] = 0.0

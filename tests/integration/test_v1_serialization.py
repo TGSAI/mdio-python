@@ -1,9 +1,11 @@
 """Integration test for MDIO v1 Xarray Zarr constructor."""
 
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 
+from mdio.core.v1._overloads import MDIODataset
 from mdio.core.v1._serializer import make_dataset
 from mdio.core.v1._serializer import make_dataset_metadata
 from mdio.core.v1._serializer import make_named_dimension
@@ -15,7 +17,7 @@ from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
 
 
-def build_toy_dataset():
+def build_toy_dataset() -> MDIODataset:
     """Build a toy dataset for testing."""
     # core dimensions
     inline = make_named_dimension("inline", 256)
@@ -165,7 +167,7 @@ def build_toy_dataset():
     )
 
 
-def test_to_mdio_writes_and_returns_mdio(tmp_path):
+def test_to_mdio_writes_and_returns_mdio(tmp_path: Path) -> None:
     """Test that to_mdio writes and returns an mdio.Dataset."""
     ds_in = build_toy_dataset()
     store_path = tmp_path / "toy.mdio"

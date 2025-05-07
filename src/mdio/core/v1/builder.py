@@ -1,5 +1,6 @@
 """Builder pattern implementation for MDIO v1 schema models."""
 
+from collections.abc import Mapping
 from datetime import UTC
 from datetime import datetime
 from enum import Enum
@@ -53,7 +54,7 @@ class MDIODatasetBuilder:
 
     def __init__(self, name: str, attributes: dict[str, Any] | None = None):
         self.name = name
-        self.api_version = "1.0.0"  # TODO: Pull from package metadata
+        self.api_version = "1.0.0"  # TODO(BrianMichell, #0): Pull from package metadata
         self.created_on = datetime.now(UTC)
         self.attributes = attributes
         self._dimensions: list[NamedDimension] = []
@@ -62,7 +63,7 @@ class MDIODatasetBuilder:
         self._state = _BuilderState.INITIAL
         self._unnamed_variable_counter = 0
 
-    def add_dimension(
+    def add_dimension(  # noqa: PLR0913
         self,
         name: str,
         size: int,
@@ -101,7 +102,7 @@ class MDIODatasetBuilder:
         self._state = _BuilderState.HAS_DIMENSIONS
         return self
 
-    def add_coordinate(
+    def add_coordinate(  # noqa: PLR0913
         self,
         name: str = "",
         *,
@@ -112,7 +113,8 @@ class MDIODatasetBuilder:
     ) -> "MDIODatasetBuilder":
         """Add a coordinate after adding at least one dimension."""
         if self._state == _BuilderState.INITIAL:
-            raise ValueError("Must add at least one dimension before adding coordinates")
+            msg = "Must add at least one dimension before adding coordinates"
+            raise ValueError(msg)
 
         if name == "":
             name = f"coord_{len(self._coordinates)}"
@@ -127,7 +129,8 @@ class MDIODatasetBuilder:
             if isinstance(dim, str):
                 dim_obj = next((d for d in self._dimensions if d.name == dim), None)
                 if dim_obj is None:
-                    raise ValueError(f"Dimension {dim!r} not found")
+                    msg = f"Dimension {dim!r} not found"
+                    raise ValueError(msg)
                 dim_objects.append(dim_obj)
             else:
                 dim_objects.append(dim)
@@ -144,7 +147,7 @@ class MDIODatasetBuilder:
         self._state = _BuilderState.HAS_COORDINATES
         return self
 
-    def add_variable(
+    def add_variable(  # noqa: PLR0913
         self,
         name: str = "",
         *,
@@ -157,7 +160,8 @@ class MDIODatasetBuilder:
     ) -> "MDIODatasetBuilder":
         """Add a variable after adding at least one dimension."""
         if self._state == _BuilderState.INITIAL:
-            raise ValueError("Must add at least one dimension before adding variables")
+            msg = "Must add at least one dimension before adding variables"
+            raise ValueError(msg)
 
         if name == "":
             name = f"var_{self._unnamed_variable_counter}"
@@ -171,7 +175,8 @@ class MDIODatasetBuilder:
             if isinstance(dim, str):
                 dim_obj = next((d for d in self._dimensions if d.name == dim), None)
                 if dim_obj is None:
-                    raise ValueError(f"Dimension {dim!r} not found")
+                    msg = f"Dimension {dim!r} not found"
+                    raise ValueError(msg)
                 dim_objects.append(dim_obj)
             else:
                 dim_objects.append(dim)
@@ -193,7 +198,8 @@ class MDIODatasetBuilder:
     def build(self) -> Dataset:
         """Build the final dataset."""
         if self._state == _BuilderState.INITIAL:
-            raise ValueError("Must add at least one dimension before building")
+            msg = "Must add at least one dimension before building"
+            raise ValueError(msg)
 
         metadata = make_dataset_metadata(
             self.name, self.api_version, self.created_on, self.attributes
@@ -216,7 +222,11 @@ class MDIODatasetBuilder:
         return make_dataset(all_variables, metadata)
 
 
-def write_mdio_metadata(mdio_ds: Dataset, store: str, **kwargs: Any) -> mdio.Dataset:
+def write_mdio_metadata(
+    mdio_ds: Dataset,
+    store: str,
+    **kwargs: Mapping[str, str | int | float | bool],
+) -> mdio.Dataset:
     """Write MDIO metadata to a Zarr store and return the constructed mdio.Dataset.
 
     This function constructs an mdio.Dataset from the MDIO dataset and writes its metadata
@@ -238,7 +248,7 @@ def write_mdio_metadata(mdio_ds: Dataset, store: str, **kwargs: Any) -> mdio.Dat
         Returns:
             Dictionary mapping variable names to their encoding configurations.
         """
-        # TODO: Re-enable chunk_key_encoding when supported by xarray
+        # TODO(Anybody, #10274): Re-enable chunk_key_encoding when supported by xarray
         # dimension_separator_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
         global_encodings = {}
         for var in mdio_ds.variables:
@@ -250,7 +260,7 @@ def write_mdio_metadata(mdio_ds: Dataset, store: str, **kwargs: Any) -> mdio.Dat
                 chunks = var.metadata.chunk_grid.configuration.chunk_shape
             global_encodings[var.name] = {
                 "chunks": chunks,
-                # TODO: Re-enable chunk_key_encoding when supported by xarray
+                # TODO(Anybody, #10274): Re-enable chunk_key_encoding when supported by xarray
                 # "chunk_key_encoding": dimension_separator_encoding,
                 "_FillValue": fill_value,
                 "dtype": var.data_type,
