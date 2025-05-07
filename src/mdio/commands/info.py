@@ -45,11 +45,7 @@ def info(mdio_path: str, output_format: str, access_pattern: str) -> None:
     """
     from mdio import MDIOReader
 
-    reader = MDIOReader(
-        mdio_path,
-        access_pattern=access_pattern,
-        return_metadata=True,
-    )
+    reader = MDIOReader(mdio_path, access_pattern=access_pattern, return_metadata=True)
 
     grid_dict = parse_grid(reader.grid)
     stats_dict = cast_stats(reader.stats)

@@ -32,12 +32,7 @@ if TYPE_CHECKING:
 default_cpus = cpu_count(logical=True)
 
 
-def to_zarr(
-    segy_file: SegyFile,
-    grid: Grid,
-    data_array: Array,
-    header_array: Array,
-) -> dict:
+def to_zarr(segy_file: SegyFile, grid: Grid, data_array: Array, header_array: Array) -> dict:
     """Blocked I/O from SEG-Y to chunked `zarr.core.Array`.
 
     Args:
@@ -112,13 +107,7 @@ def to_zarr(
     glob_min = glob_min.min().astype("float64")
     glob_max = glob_max.max().astype("float64")
 
-    return {
-        "mean": glob_mean,
-        "std": glob_std,
-        "rms": glob_rms,
-        "min": glob_min,
-        "max": glob_max,
-    }
+    return {"mean": glob_mean, "std": glob_std, "rms": glob_rms, "min": glob_min, "max": glob_max}
 
 
 def segy_record_concat(

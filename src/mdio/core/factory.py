@@ -171,13 +171,7 @@ def create_empty(
             chunk_key_encoding={"name": "v2", "separator": "/"},
         )
 
-    stats = {
-        "mean": 0,
-        "std": 0,
-        "rms": 0,
-        "min": 0,
-        "max": 0,
-    }
+    stats = {"mean": 0, "std": 0, "rms": 0, "min": 0, "max": 0}
 
     for key, value in stats.items():
         write_attribute(name=key, zarr_group=root_group, attribute=value)
@@ -238,11 +232,7 @@ def create_empty_like(
 
     config = MDIOCreateConfig(path=dest_path, grid=grid, variables=variables)
 
-    create_empty(
-        config=config,
-        overwrite=overwrite,
-        storage_options=storage_options_output,
-    )
+    create_empty(config=config, overwrite=overwrite, storage_options=storage_options_output)
 
     writer = MDIOWriter(dest_path, storage_options=storage_options_output)
     writer.text_header = src_meta_grp.attrs["text_header"]

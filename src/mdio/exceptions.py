@@ -44,7 +44,6 @@ class WrongTypeError(MDIOError):
     def __init__(self, message: str, name: str = None, expected: str = None):
         if name is not None and expected is not None:
             extras = f"Got: {name} Expected: {expected}"
-
             message = f"{message} - {extras}"
 
         super().__init__(message)
