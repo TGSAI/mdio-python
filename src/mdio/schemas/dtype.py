@@ -50,6 +50,4 @@ class StructuredType(CamelCaseStrictModel):
 class DataTypeModel(CamelCaseStrictModel):
     """Structured array type with fields and total item size."""
 
-    data_type: ScalarType | StructuredType = Field(
-        ..., description="Type of the array."
-    )
+    data_type: ScalarType | StructuredType = Field(..., description="Type of the array.")

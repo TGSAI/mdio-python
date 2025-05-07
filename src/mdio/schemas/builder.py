@@ -15,7 +15,6 @@ class VariableBuilder:
     """Dataset builder."""
 
     def __init__(self) -> None:
-        """Initialize the builder."""
         self.name = None
         self.long_name = None
         self.dtype = None
@@ -126,7 +125,6 @@ class DatasetBuilder:
     """Dataset builder."""
 
     def __init__(self) -> None:
-        """Initialize the builder."""
         self.variables = []
         self.name = None
         self.metadata = None

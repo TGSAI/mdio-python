@@ -42,13 +42,9 @@ class DatasetMetadataModelV0(StrictModel):
     )
 
     # Statistical information
-    std: float | None = Field(
-        default=None, description="Standard deviation of the samples."
-    )
+    std: float | None = Field(default=None, description="Standard deviation of the samples.")
 
-    rms: float | None = Field(
-        default=None, description="Root mean squared value of the samples."
-    )
+    rms: float | None = Field(default=None, description="Root mean squared value of the samples.")
 
     min: float | None = Field(
         default=None,
@@ -60,9 +56,7 @@ class DatasetMetadataModelV0(StrictModel):
         description="Maximum value of the samples.",
     )
 
-    trace_count: int | None = Field(
-        default=None, description="Number of traces in the SEG-Y file."
-    )
+    trace_count: int | None = Field(default=None, description="Number of traces in the SEG-Y file.")
 
 
 class VariableModelV0(BaseArray):

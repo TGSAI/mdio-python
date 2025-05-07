@@ -10,7 +10,6 @@ from mdio.schemas.core import CamelCaseStrictModel
 from mdio.schemas.dimension import NamedDimension
 from mdio.schemas.dtype import DataTypeModel
 
-
 JSON_SCHEMA_DIALECT = GenerateJsonSchema.schema_dialect
 
 
@@ -31,9 +30,7 @@ class BaseArray(DataTypeModel, CamelCaseStrictModel):
     dimensions: list[NamedDimension] | list[str] = Field(
         ..., description="List of Dimension collection or reference to dimension names."
     )
-    compressor: Blosc | ZFP | None = Field(
-        default=None, description="Compression settings."
-    )
+    compressor: Blosc | ZFP | None = Field(default=None, description="Compression settings.")
 
 
 class NamedArray(BaseArray):
