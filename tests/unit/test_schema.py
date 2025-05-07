@@ -2,7 +2,6 @@
 
 from mdio.schemas.v1 import Dataset as V1Dataset
 
-
 TEST_SCHEMA = {
     "metadata": {
         "name": "test_dataset",
@@ -49,6 +48,6 @@ TEST_SCHEMA = {
 }
 
 
-def test_dataset_schema_validation():
+def test_dataset_schema_validation() -> None:
     """Test that the dataset schema validates correctly."""
     V1Dataset.model_validate(TEST_SCHEMA)

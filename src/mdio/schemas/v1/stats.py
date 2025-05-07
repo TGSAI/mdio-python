@@ -41,12 +41,8 @@ class CenteredBinHistogram(BaseHistogram):
 class EdgeDefinedHistogram(BaseHistogram):
     """A class representing an edge-defined histogram."""
 
-    bin_edges: list[float | int] = Field(
-        ..., description="The left edges of the histogram bins."
-    )
-    bin_widths: list[float | int] = Field(
-        ..., description="The widths of the histogram bins."
-    )
+    bin_edges: list[float | int] = Field(..., description="The left edges of the histogram bins.")
+    bin_widths: list[float | int] = Field(..., description="The widths of the histogram bins.")
 
 
 Histogram: TypeAlias = CenteredBinHistogram | EdgeDefinedHistogram

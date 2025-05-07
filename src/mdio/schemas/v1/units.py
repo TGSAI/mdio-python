@@ -11,7 +11,6 @@ from mdio.schemas.metadata import VersionedMetadataConvention
 from mdio.schemas.units import UnitEnum
 from mdio.schemas.units import create_unit_model
 
-
 ureg = UnitRegistry()
 ureg.default_format = "~C"  # compact, abbreviated (symbol).
 
@@ -30,9 +29,7 @@ class LengthUnitEnum(UnitEnum):
     MILE = ureg.mile
 
 
-LengthUnitModel = create_unit_model(
-    LengthUnitEnum, "LengthUnitModel", "length", __name__
-)
+LengthUnitModel = create_unit_model(LengthUnitEnum, "LengthUnitModel", "length", __name__)
 
 
 class TimeUnitEnum(UnitEnum):
@@ -58,9 +55,7 @@ class DensityUnitEnum(UnitEnum):
     POUNDS_PER_GAL = ureg.pounds / ureg.gallon
 
 
-DensityUnitModel = create_unit_model(
-    DensityUnitEnum, "DensityUnitModel", "density", __name__
-)
+DensityUnitModel = create_unit_model(DensityUnitEnum, "DensityUnitModel", "density", __name__)
 
 
 class SpeedUnitEnum(UnitEnum):
@@ -102,9 +97,7 @@ class VoltageUnitEnum(UnitEnum):
     VOLT = ureg.volt
 
 
-VoltageUnitModel = create_unit_model(
-    VoltageUnitEnum, "VoltageUnitModel", "voltage", __name__
-)
+VoltageUnitModel = create_unit_model(VoltageUnitEnum, "VoltageUnitModel", "voltage", __name__)
 
 
 # Composite model types

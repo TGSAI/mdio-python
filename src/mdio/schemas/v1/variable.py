@@ -50,6 +50,4 @@ class Variable(NamedArray):
         default=None,
         description="Coordinates of the MDIO variable dimensions.",
     )
-    metadata: VariableMetadata | None = Field(
-        default=None, description="Variable metadata."
-    )
+    metadata: VariableMetadata | None = Field(default=None, description="Variable metadata.")

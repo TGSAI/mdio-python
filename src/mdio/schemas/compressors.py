@@ -154,6 +154,4 @@ class ZFP(CamelCaseStrictModel):
 class CompressorModel(CamelCaseStrictModel):
     """Model representing compressor configuration."""
 
-    compressor: Blosc | ZFP | None = Field(
-        default=None, description="Compression settings."
-    )
+    compressor: Blosc | ZFP | None = Field(default=None, description="Compression settings.")
