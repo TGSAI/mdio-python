@@ -147,11 +147,7 @@ def numpy_to_mdio(  # noqa: PLR0913
     )
 
     dims = [Dimension(name=name, coords=index_coords[name]) for name in index_names]
-    create_conf = MDIOCreateConfig(
-        path=mdio_path_or_buffer,
-        grid=Grid(dims),
-        variables=[mdio_var],
-    )
+    create_conf = MDIOCreateConfig(path=mdio_path_or_buffer, grid=Grid(dims), variables=[mdio_var])
     create_empty(create_conf, overwrite, storage_options)
 
     writer = MDIOWriter(mdio_path_or_buffer, suffix, storage_options)

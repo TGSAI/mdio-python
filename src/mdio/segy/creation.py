@@ -26,10 +26,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def make_segy_factory(
-    mdio: MDIOReader,
-    spec: SegySpec,
-) -> SegyFactory:
+def make_segy_factory(mdio: MDIOReader, spec: SegySpec) -> SegyFactory:
     """Generate SEG-Y factory from MDIO metadata."""
     grid = mdio.grid
     sample_dim = grid.select_dim("sample")

@@ -17,10 +17,7 @@ if TYPE_CHECKING:
     from mdio.core import Grid
 
 
-def header_scan_worker(
-    segy_file: SegyFile,
-    trace_range: tuple[int, int],
-) -> HeaderArray:
+def header_scan_worker(segy_file: SegyFile, trace_range: tuple[int, int]) -> HeaderArray:
     """Header scan worker.
 
     If SegyFile is not open, it can either accept a path string or a handle that was opened in
@@ -90,7 +87,6 @@ def trace_worker(
     seq_trace_indices = grid.map[chunk_indices[:-1]]
 
     tmp_data = np.zeros(seq_trace_indices.shape + (grid.shape[-1],), dtype=data_array.dtype)
-
     tmp_metadata = np.zeros(seq_trace_indices.shape, dtype=metadata_array.dtype)
 
     del grid  # To save some memory
