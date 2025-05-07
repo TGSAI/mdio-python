@@ -1,88 +1,24 @@
 """Unit tests for MDIO v1 factory."""
 
-# TODO(BrianMichell): Update this to use canonical factory functions. 
+# TODO(BrianMichell): Update this to use canonical factory functions.
 
 from datetime import datetime
 from datetime import timezone
 
-import numpy as np
 import pytest
-import xarray as xr
 from pydantic import ValidationError
-from zarr import Array
 
 from mdio.core.v1._serializer import make_coordinate
 from mdio.core.v1._serializer import make_dataset
 from mdio.core.v1._serializer import make_dataset_metadata
 from mdio.core.v1._serializer import make_named_dimension
 from mdio.core.v1._serializer import make_variable
-from mdio.core.v1.factory import MDIOSchemaType
+from mdio.core.v1.builder import write_mdio_metadata
 from mdio.core.v1.factory import SCHEMA_TEMPLATE_MAP
-from mdio.schema.compressors import ZFP
+from mdio.core.v1.factory import MDIOSchemaType
 from mdio.schema.compressors import Blosc
-from mdio.schema.dimension import NamedDimension
 from mdio.schema.dtype import ScalarType
 from mdio.schema.dtype import StructuredType
-from mdio.schema.v1.dataset import Dataset
-from mdio.core.v1.builder import write_mdio_metadata
-
-# def test_make_named_dimension():
-#     """Test that make_named_dimension returns a NamedDimension object."""
-#     dim = make_named_dimension("time", 42)
-#     assert isinstance(dim, NamedDimension)
-#     assert dim.name == "time"
-#     assert dim.size == 42
-
-
-# def test_make_coordinate_minimal():
-#     """Test that make_coordinate returns a Coordinate object."""
-#     dims = ["x"]
-#     coord = make_coordinate(name="x", dimensions=dims, data_type=ScalarType.FLOAT32)
-#     assert coord.name == "x"
-#     assert coord.dimensions == dims
-#     assert coord.data_type == ScalarType.FLOAT32
-#     assert coord.metadata is None
-
-
-# def test_make_variable_minimal():
-#     """Test that make_variable returns a Variable object."""
-#     var = make_variable(
-#         name="var",
-#         dimensions=["x"],
-#         data_type=ScalarType.FLOAT32,
-#         compressor=None,
-#     )
-#     assert var.name == "var"
-#     assert var.dimensions == ["x"]
-#     assert var.data_type == ScalarType.FLOAT32
-#     assert var.compressor is None
-#     assert var.coordinates is None
-#     assert var.metadata is None
-
-
-# def test_make_dataset_metadata_minimal():
-#     """Test that make_dataset_metadata returns a DatasetMetadata object."""
-#     ts = datetime.now(timezone.utc)
-#     meta = make_dataset_metadata(name="ds", api_version="1", created_on=ts)
-#     assert meta.name == "ds"
-#     assert meta.api_version == "1"
-#     assert meta.created_on == ts
-#     assert meta.attributes is None
-
-
-# def test_make_dataset_minimal():
-#     """Test that make_dataset returns a Dataset object."""
-#     var = make_variable(
-#         name="var",
-#         dimensions=["x"],
-#         data_type=ScalarType.FLOAT32,
-#         compressor=None,
-#     )
-#     ts = datetime.now(timezone.utc)
-#     meta = make_dataset_metadata(name="ds", api_version="1", created_on=ts)
-#     ds = make_dataset([var], meta)
-#     assert ds.variables == [var]
-#     assert ds.metadata == meta
 
 
 def test_make_toy_dataset():

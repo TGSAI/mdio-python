@@ -4,11 +4,14 @@ This module contains internal implementation details for serializing MDIO schema
 to Zarr storage. This API is not considered stable and may change without notice.
 """
 
-from typing import Any, Dict, List, Optional
+from datetime import datetime
+from typing import Any
+from typing import Dict
+from typing import List
+from typing import Optional
 
 import numpy as np
 from numcodecs import Blosc as NumcodecsBlosc
-from datetime import datetime
 
 from mdio.core.v1._overloads import mdio
 from mdio.schema.compressors import ZFP

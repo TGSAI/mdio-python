@@ -1,24 +1,18 @@
 """MDIO factories for seismic data."""
 
+# TODO(BrianMichell): Add implementations for other canonical datasets.
+
 from __future__ import annotations
 
-import importlib
-from datetime import UTC
-from datetime import datetime
 from enum import Enum
 from enum import auto
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 
 from mdio.core.v1.builder import MDIODatasetBuilder
 from mdio.schema.compressors import Blosc
 from mdio.schema.dtype import ScalarType
 from mdio.schema.dtype import StructuredType
 from mdio.schema.v1.dataset import Dataset
-from mdio.schema.v1.units import AllUnits
-from mdio.schema.v1.units import LengthUnitModel
 
 
 class MDIOSchemaType(Enum):
@@ -46,14 +40,14 @@ class Seismic3DPostStackGeneric:
     def create(
         self,
         name: str,
-        shape: List[int],
-        header_fields: Dict[str, str],
+        shape: list[int],
+        header_fields: dict[str, str],
         create_coords: bool = False,
-        sample_format: Optional[str] = None,
-        chunks: Optional[List[int]] = None,
-        sample_units: Optional[Dict[str, str]] = None,
-        z_units: Optional[Dict[str, str]] = None,
-        attributes: Optional[Dict[str, Any]] = None,
+        sample_format: str | None = None,
+        chunks: list[int] | None = None,
+        sample_units: dict[str, str] | None = None,
+        z_units: dict[str, str] | None = None,
+        attributes: dict[str, Any] | None = None,
     ) -> Dataset:
         """Create a generic seismic dataset schema.
 
@@ -80,7 +74,7 @@ class Seismic3DPostStackGeneric:
         )
 
         # Add dimensions
-        for dim_name, dim_size in zip(self._dim_names, shape):
+        for dim_name, dim_size in zip(self._dim_names, shape, strict=True):
             builder.add_dimension(
                 name=dim_name,
                 size=dim_size,
@@ -108,10 +102,12 @@ class Seismic3DPostStackGeneric:
         )
 
         # Add header variable with structured dtype
-        header_dtype = StructuredType(fields=[
-            {"name": field_name, "format": field_type}
-            for field_name, field_type in header_fields.items()
-        ])
+        header_dtype = StructuredType(
+            fields=[
+                {"name": field_name, "format": field_type}
+                for field_name, field_type in header_fields.items()
+            ]
+        )
         builder.add_variable(
             name="headers",
             data_type=header_dtype,
@@ -145,14 +141,14 @@ class Seismic3DPostStack(Seismic3DPostStackGeneric):
     def create(
         self,
         name: str,
-        shape: List[int],
-        header_fields: Dict[str, str],
+        shape: list[int],
+        header_fields: dict[str, str],
         create_coords: bool = False,
-        sample_format: Optional[str] = None,
-        chunks: Optional[List[int]] = None,
-        sample_units: Optional[Dict[str, str]] = None,
-        z_units: Optional[Dict[str, str]] = None,
-        attributes: Optional[Dict[str, Any]] = None,
+        sample_format: str | None = None,
+        chunks: list[int] | None = None,
+        sample_units: dict[str, str] | None = None,
+        z_units: dict[str, str] | None = None,
+        attributes: dict[str, Any] | None = None,
     ) -> Dataset:
         """Create a seismic dataset schema with domain-specific attributes."""
         # Add seismic-specific attributes
@@ -197,14 +193,14 @@ class Seismic3DPreStack(Seismic3DPostStackGeneric):
     def create(
         self,
         name: str,
-        shape: List[int],
-        header_fields: Dict[str, str],
+        shape: list[int],
+        header_fields: dict[str, str],
         create_coords: bool = False,
-        sample_format: Optional[str] = None,
-        chunks: Optional[List[int]] = None,
-        sample_units: Optional[Dict[str, str]] = None,
-        z_units: Optional[Dict[str, str]] = None,
-        attributes: Optional[Dict[str, Any]] = None,
+        sample_format: str | None = None,
+        chunks: list[int] | None = None,
+        sample_units: dict[str, str] | None = None,
+        z_units: dict[str, str] | None = None,
+        attributes: dict[str, Any] | None = None,
     ) -> Dataset:
         """Create a seismic dataset schema with pre-stack attributes."""
         # Add seismic-specific attributes
