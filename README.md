@@ -20,7 +20,7 @@
 [![Read the documentation at https://mdio-python.readthedocs.io/](https://img.shields.io/readthedocs/mdio-python/latest.svg?label=Read%20the%20Docs)][read the docs]
 
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)][pre-commit]
-[![Black](https://img.shields.io/badge/code%20style-black-000000.svg)][black]
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)][ruff]
 
 [![PyPI Downloads](https://static.pepy.tech/personalized-badge/multidimio?period=total&units=international_system&left_color=grey&right_color=blue&left_text=PyPI%20downloads)][pypi_]
 [![Conda Downloads](https://img.shields.io/conda/dn/conda-forge/multidimio?label=Conda%20downloads&style=flat)][conda-forge_]
@@ -33,7 +33,7 @@
 [tests]: https://github.com/TGSAI/mdio-python/actions?workflow=Tests
 [codecov]: https://app.codecov.io/gh/TGSAI/mdio-python
 [pre-commit]: https://github.com/pre-commit/pre-commit
-[black]: https://github.com/psf/black
+[ruff]: https://github.com/astral-sh/ruff
 [install_pip]: https://mdio-python.readthedocs.io/en/latest/installation.html#using-pip-and-virtualenv
 [install_conda]: https://mdio-python.readthedocs.io/en/latest/installation.html#using-conda
 
