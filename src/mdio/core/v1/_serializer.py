@@ -6,9 +6,6 @@ to Zarr storage. This API is not considered stable and may change without notice
 
 from datetime import datetime
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 
 import numpy as np
 from numcodecs import Blosc as NumcodecsBlosc
@@ -27,7 +24,6 @@ from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import Variable
 from mdio.schemas.v1.variable import VariableMetadata
 
-
 try:
     import zfpy as zfpy_base  # Base library
     from numcodecs import ZFPY  # Codec
@@ -44,10 +40,10 @@ def make_named_dimension(name: str, size: int) -> NamedDimension:
 
 def make_coordinate(
     name: str,
-    dimensions: List[NamedDimension | str],
+    dimensions: list[NamedDimension | str],
     data_type: ScalarType | StructuredType,
     long_name: str = None,
-    metadata: Optional[List[AllUnits | UserAttributes]] = None,
+    metadata: list[AllUnits | UserAttributes] | None = None,
 ) -> Coordinate:
     """Create a Coordinate with the given name, dimensions, data_type, and metadata."""
     return Coordinate(
@@ -61,14 +57,12 @@ def make_coordinate(
 
 def make_variable(  # noqa: C901
     name: str,
-    dimensions: List[NamedDimension | str],
+    dimensions: list[NamedDimension | str],
     data_type: ScalarType | StructuredType,
     long_name: str = None,
     compressor: Blosc | ZFP | None = None,
-    coordinates: Optional[List[Coordinate | str]] = None,
-    metadata: Optional[
-        List[AllUnits | UserAttributes] | Dict[str, Any] | VariableMetadata
-    ] = None,
+    coordinates: list[Coordinate | str] | None = None,
+    metadata: list[AllUnits | UserAttributes] | dict[str, Any] | VariableMetadata | None = None,
 ) -> Variable:
     """Create a Variable with the given parameters.
 
@@ -142,7 +136,7 @@ def make_dataset_metadata(
     name: str,
     api_version: str,
     created_on: datetime,
-    attributes: Optional[Dict[str, Any]] = None,
+    attributes: dict[str, Any] | None = None,
 ) -> DatasetMetadata:
     """Create a DatasetMetadata with name, api_version, created_on, and optional attributes."""
     return DatasetMetadata(
@@ -154,7 +148,7 @@ def make_dataset_metadata(
 
 
 def make_dataset(
-    variables: List[Variable],
+    variables: list[Variable],
     metadata: DatasetMetadata,
 ) -> MDIODataset:
     """Create a Dataset with the given variables and metadata."""
@@ -174,7 +168,7 @@ def _convert_compressor(
             shuffle=model.shuffle.value,
             blocksize=model.blocksize if model.blocksize > 0 else 0,
         )
-    elif isinstance(model, ZFP):
+    if isinstance(model, ZFP):
         if zfpy_base is None or ZFPY is None:
             raise ImportError("zfpy and numcodecs are required to use ZFP compression")
         return ZFPY(
@@ -183,10 +177,9 @@ def _convert_compressor(
             rate=model.rate,
             precision=model.precision,
         )
-    elif model is None:
+    if model is None:
         return None
-    else:
-        raise TypeError(f"Unsupported compressor model: {type(model)}")
+    raise TypeError(f"Unsupported compressor model: {type(model)}")
 
 
 def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:  # noqa: C901
@@ -214,9 +207,7 @@ def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:  # noqa: C901
     # Build data variables
     data_vars: dict[str, mdio.DataArray] = {}
     for var in mdio_ds.variables:
-        dim_names = [
-            d.name if isinstance(d, NamedDimension) else d for d in var.dimensions
-        ]
+        dim_names = [d.name if isinstance(d, NamedDimension) else d for d in var.dimensions]
         shape = tuple(dims[name] for name in dim_names)
         dt = var.data_type
         if isinstance(dt, ScalarType):

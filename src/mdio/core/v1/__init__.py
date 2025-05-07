@@ -14,7 +14,6 @@ from .builder import write_mdio_metadata
 from .factory import SCHEMA_TEMPLATE_MAP
 from .factory import MDIOSchemaType
 
-
 __all__ = [
     "MDIODatasetBuilder",
     "make_coordinate",

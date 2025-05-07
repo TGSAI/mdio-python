@@ -87,9 +87,7 @@ def test_coordinate_builder_state():
     builder = builder.add_dimension("y", 200)
 
     # Adding coordinate should change state to HAS_COORDINATES
-    builder = builder.add_coordinate(
-        "x_coord", dimensions=["x"], long_name="X Coordinate"
-    )
+    builder = builder.add_coordinate("x_coord", dimensions=["x"], long_name="X Coordinate")
     assert builder._state == _BuilderState.HAS_COORDINATES
     assert len(builder._coordinates) == 1
     assert builder._coordinates[0].name == "x_coord"
@@ -109,9 +107,7 @@ def test_variable_builder_state():
     builder = MDIODatasetBuilder("test_dataset")
 
     # Should not be able to add variables before dimensions
-    with pytest.raises(
-        ValueError, match="Must add at least one dimension before adding variables"
-    ):
+    with pytest.raises(ValueError, match="Must add at least one dimension before adding variables"):
         builder.add_variable("data", dimensions=["x"])
 
     # Add dimension first
@@ -203,15 +199,11 @@ def test_build_order_enforcement():
         builder.add_coordinate("x_coord", dimensions=["x"])
 
     # Should not be able to add variables before dimensions
-    with pytest.raises(
-        ValueError, match="Must add at least one dimension before adding variables"
-    ):
+    with pytest.raises(ValueError, match="Must add at least one dimension before adding variables"):
         builder.add_variable("data", dimensions=["x"])
 
     # Should not be able to build without dimensions
-    with pytest.raises(
-        ValueError, match="Must add at least one dimension before building"
-    ):
+    with pytest.raises(ValueError, match="Must add at least one dimension before building"):
         builder.build()
 
 

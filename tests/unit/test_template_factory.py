@@ -2,8 +2,8 @@
 
 # TODO(BrianMichell): Update this to use canonical factory functions.
 
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 
 import pytest
 from pydantic import ValidationError
@@ -118,9 +118,7 @@ def test_make_coordinate_invalid_types():
     """Test that make_coordinate raises a ValidationError for invalid types."""
     # dimensions must be a list of NamedDimension or str
     with pytest.raises(ValidationError):
-        make_coordinate(
-            name="coord", dimensions="notalist", data_type=ScalarType.FLOAT32
-        )
+        make_coordinate(name="coord", dimensions="notalist", data_type=ScalarType.FLOAT32)
     # data_type must be a valid ScalarType
     with pytest.raises(ValidationError):
         make_coordinate(name="coord", dimensions=["x"], data_type="notatype")
@@ -156,7 +154,7 @@ def test_make_dataset_metadata_invalid_created_on():
 
 def test_make_dataset_invalid_variables_and_metadata_types():
     """Test that make_dataset raises a ValidationError."""
-    ts = datetime.now(timezone.utc)
+    ts = datetime.now(UTC)
     meta = make_dataset_metadata(name="ds", api_version="1", created_on=ts)
     var = make_variable(
         name="var",

@@ -29,7 +29,6 @@ class Seismic3DPostStackGeneric:
     """Generic 3D seismic post stack dataset."""
 
     def __init__(self):
-        """Initialize generic post stack dataset."""
         self._dim_names = ["inline", "crossline", "sample"]
         self._chunks = [128, 128, 128]  # 8 mb
         self._coords = {
@@ -130,11 +129,6 @@ class Seismic3DPostStack(Seismic3DPostStackGeneric):
     """3D seismic post stack dataset with domain-specific attributes."""
 
     def __init__(self, domain: str):
-        """Initialize post stack dataset.
-
-        Args:
-            domain: Domain of the dataset (time/depth)
-        """
         super().__init__()
         self._dim_names = ["inline", "crossline", domain]
 
@@ -177,11 +171,6 @@ class Seismic3DPreStack(Seismic3DPostStackGeneric):
     """3D seismic pre stack dataset."""
 
     def __init__(self, domain: str):
-        """Initialize pre stack dataset.
-
-        Args:
-            domain: Domain of the dataset (time/depth)
-        """
         super().__init__()
         self._dim_names = ["inline", "crossline", "offset", domain]
         self._chunks = [1, 1, 512, 4096]  # 8 mb

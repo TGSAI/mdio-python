@@ -1,13 +1,10 @@
 """Builder pattern implementation for MDIO v1 schema models."""
 
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 from enum import Enum
 from enum import auto
 from typing import Any
-from typing import Dict
-from typing import List
-from typing import Optional
 
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding  # noqa: F401
 
@@ -54,20 +51,14 @@ class MDIODatasetBuilder:
     4. Must call build() to create the dataset.
     """
 
-    def __init__(self, name: str, attributes: Optional[Dict[str, Any]] = None):
-        """Initialize the builder.
-
-        Args:
-            name: Name of the dataset
-            attributes: Optional attributes for the dataset
-        """
+    def __init__(self, name: str, attributes: dict[str, Any] | None = None):
         self.name = name
         self.api_version = "1.0.0"  # TODO: Pull from package metadata
-        self.created_on = datetime.now(timezone.utc)
+        self.created_on = datetime.now(UTC)
         self.attributes = attributes
-        self._dimensions: List[NamedDimension] = []
-        self._coordinates: List[Coordinate] = []
-        self._variables: List[Variable] = []
+        self._dimensions: list[NamedDimension] = []
+        self._coordinates: list[Coordinate] = []
+        self._variables: list[Variable] = []
         self._state = _BuilderState.INITIAL
         self._unnamed_variable_counter = 0
 
@@ -77,7 +68,7 @@ class MDIODatasetBuilder:
         size: int,
         long_name: str = None,
         data_type: ScalarType | StructuredType = ScalarType.INT32,
-        metadata: Optional[List[AllUnits | UserAttributes]] | Dict[str, Any] = None,
+        metadata: list[AllUnits | UserAttributes] | None | dict[str, Any] = None,
     ) -> "MDIODatasetBuilder":
         """Add a dimension.
 
@@ -115,15 +106,13 @@ class MDIODatasetBuilder:
         name: str = "",
         *,
         long_name: str = None,
-        dimensions: Optional[List[NamedDimension | str]] = None,
+        dimensions: list[NamedDimension | str] | None = None,
         data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
-        metadata: Optional[List[AllUnits | UserAttributes]] | Dict[str, Any] = None,
+        metadata: list[AllUnits | UserAttributes] | None | dict[str, Any] = None,
     ) -> "MDIODatasetBuilder":
         """Add a coordinate after adding at least one dimension."""
         if self._state == _BuilderState.INITIAL:
-            raise ValueError(
-                "Must add at least one dimension before adding coordinates"
-            )
+            raise ValueError("Must add at least one dimension before adding coordinates")
 
         if name == "":
             name = f"coord_{len(self._coordinates)}"
@@ -160,11 +149,11 @@ class MDIODatasetBuilder:
         name: str = "",
         *,
         long_name: str = None,
-        dimensions: Optional[List[NamedDimension | str]] = None,
+        dimensions: list[NamedDimension | str] | None = None,
         data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
         compressor: Blosc | ZFP | None = None,
-        coordinates: Optional[List[Coordinate | str]] = None,
-        metadata: Optional[VariableMetadata] = None,
+        coordinates: list[Coordinate | str] | None = None,
+        metadata: VariableMetadata | None = None,
     ) -> "MDIODatasetBuilder":
         """Add a variable after adding at least one dimension."""
         if self._state == _BuilderState.INITIAL:
@@ -236,7 +225,7 @@ def write_mdio_metadata(mdio_ds: Dataset, store: str, **kwargs: Any) -> mdio.Dat
     Args:
         mdio_ds: The MDIO dataset to serialize
         store: Path to the Zarr store
-        kwargs: Additional arguments to pass to to_mdio()
+        **kwargs: Additional arguments to pass to to_mdio()
 
     Returns:
         The constructed xarray Dataset with MDIO extensions
