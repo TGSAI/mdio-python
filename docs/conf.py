@@ -17,6 +17,7 @@ extensions = [
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
     "sphinx.ext.autosummary",
+    "sphinxcontrib.autodoc_pydantic",
     "sphinx.ext.autosectionlabel",
     "sphinx_click",
     "sphinx_copybutton",
@@ -38,6 +39,7 @@ exclude_patterns = [
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "pydantic": ("https://docs.pydantic.dev/latest/", None),
     "zarr": ("https://zarr.readthedocs.io/en/stable/", None),
 }
 
@@ -49,6 +51,14 @@ autodoc_typehints_format = "short"
 autodoc_member_order = "groupwise"
 autoclass_content = "class"
 autosectionlabel_prefix_document = True
+
+autodoc_pydantic_field_list_validators = False
+autodoc_pydantic_field_swap_name_and_alias = True
+autodoc_pydantic_field_show_alias = False
+autodoc_pydantic_model_show_config_summary = False
+autodoc_pydantic_model_show_validator_summary = False
+autodoc_pydantic_model_show_validator_members = False
+autodoc_pydantic_model_show_field_summary = False
 
 html_theme = "furo"
 
