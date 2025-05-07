@@ -33,8 +33,8 @@ class Seismic3DPostStackGeneric:
         self._dim_names = ["inline", "crossline", "sample"]
         self._chunks = [128, 128, 128]  # 8 mb
         self._coords = {
-            "cdp-x": ("float32", {"unitsV1": {"length": "m"}}, self._dim_names[:-1]),
-            "cdp-y": ("float32", {"unitsV1": {"length": "m"}}, self._dim_names[:-1]),
+            "cdp-x": ("float64", {"unitsV1": {"length": "m"}}, self._dim_names[:-1]),
+            "cdp-y": ("float64", {"unitsV1": {"length": "m"}}, self._dim_names[:-1]),
         }
 
     def create(
@@ -186,8 +186,8 @@ class Seismic3DPreStack(Seismic3DPostStackGeneric):
         self._dim_names = ["inline", "crossline", "offset", domain]
         self._chunks = [1, 1, 512, 4096]  # 8 mb
         self._coords = {
-            "cdp-x": ("float32", {"length": "m"}, self._dim_names[:-2]),
-            "cdp-y": ("float32", {"length": "m"}, self._dim_names[:-2]),
+            "cdp-x": ("float64", {"length": "m"}, self._dim_names[:-2]),
+            "cdp-y": ("float64", {"length": "m"}, self._dim_names[:-2]),
         }
 
     def create(
