@@ -16,9 +16,9 @@ def runner() -> CliRunner:
 
 
 @pytest.mark.dependency
-def test_main_succeeds(runner: CliRunner, segy_input: str, zarr_tmp: Path) -> None:
+def test_main_succeeds(runner: CliRunner, segy_input: Path, zarr_tmp: Path) -> None:
     """It exits with a status code of zero."""
-    cli_args = ["segy", "import", segy_input, str(zarr_tmp)]
+    cli_args = ["segy", "import", str(segy_input), str(zarr_tmp)]
     cli_args.extend(["--header-locations", "181,185"])
     cli_args.extend(["--header-names", "inline,crossline"])
 
@@ -30,7 +30,7 @@ def test_main_succeeds(runner: CliRunner, segy_input: str, zarr_tmp: Path) -> No
 def test_main_cloud(runner: CliRunner, segy_input_uri: str, zarr_tmp: Path) -> None:
     """It exits with a status code of zero."""
     os.environ["MDIO__IMPORT__CLOUD_NATIVE"] = "true"
-    cli_args = ["segy", "import", str(segy_input_uri), str(zarr_tmp)]
+    cli_args = ["segy", "import", segy_input_uri, str(zarr_tmp)]
     cli_args.extend(["--header-locations", "181,185"])
     cli_args.extend(["--header-names", "inline,crossline"])
     cli_args.extend(["--overwrite"])
