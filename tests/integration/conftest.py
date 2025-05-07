@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import os
+from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
@@ -13,19 +13,22 @@ from segy.standards import get_segy_standard
 
 from mdio.segy.geometry import StreamerShotGeometryType
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def create_segy_mock_4d(
-    fake_segy_tmp: str,
+
+def create_segy_mock_4d(  # noqa: PLR0913
+    fake_segy_tmp: Path,
     num_samples: int,
-    shots: list,
-    cables: list,
-    receivers_per_cable: list,
-    guns: list | None = None,
+    shots: list[int],
+    cables: list[int],
+    receivers_per_cable: list[int],
+    guns: list[int] | None = None,
     chan_header_type: StreamerShotGeometryType = StreamerShotGeometryType.A,
     index_receivers: bool = True,
-) -> str:
+) -> Path:
     """Dummy 4D SEG-Y file for use in tests."""
-    segy_path = os.path.join(fake_segy_tmp, f"4d_type_{chan_header_type}.sgy")
+    segy_path = fake_segy_tmp / f"4d_type_{chan_header_type}.sgy"
 
     shot_count = len(shots)
     total_chan = np.sum(receivers_per_cable)
@@ -35,8 +38,7 @@ def create_segy_mock_4d(
     cable_headers = []
     channel_headers = []
 
-    # TODO: Add strict=True and remove noqa when minimum Python is 3.10
-    for cable, num_rec in zip(cables, receivers_per_cable):  # noqa: B905
+    for cable, num_rec in zip(cables, receivers_per_cable, strict=True):
         cable_headers.append(np.repeat(cable, num_rec))
 
         channel_headers.append(np.arange(num_rec) + 1)
@@ -53,9 +55,7 @@ def create_segy_mock_4d(
 
     shot_headers = np.hstack([np.repeat(shot, total_chan) for shot in shots])
 
-    gun_per_shot = []
-    for shot in shots:
-        gun_per_shot.append(guns[(shot % len(guns))])
+    gun_per_shot = [guns[shot % len(guns)] for shot in shots]
     gun_headers = np.hstack([np.repeat(gun, total_chan) for gun in gun_per_shot])
 
     cable_headers = np.tile(cable_headers, shot_count)
@@ -105,7 +105,7 @@ def create_segy_mock_4d(
         headers[fields][trc_idx] = header_data
         samples[trc_idx] = np.linspace(start=shot, stop=shot + 1, num=num_samples)
 
-    with open(segy_path, mode="wb") as fp:
+    with segy_path.open(mode="wb") as fp:
         fp.write(factory.create_textual_header())
         fp.write(factory.create_binary_header())
         fp.write(factory.create_traces(headers, samples))
@@ -114,7 +114,7 @@ def create_segy_mock_4d(
 
 
 @pytest.fixture(scope="module")
-def segy_mock_4d_shots(fake_segy_tmp: str) -> dict[StreamerShotGeometryType, str]:
+def segy_mock_4d_shots(fake_segy_tmp: Path) -> dict[StreamerShotGeometryType, Path]:
     """Generate mock 4D shot SEG-Y files."""
     num_samples = 25
     shots = [2, 3, 5, 6, 7, 8, 9]

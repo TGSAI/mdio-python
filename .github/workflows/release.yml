@@ -17,10 +17,10 @@ jobs:
           fetch-depth: 2
 
       - name: Install the pinned version of uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v6
         with:
           python-version: 3.13
-          pyproject-file: "${{ github.workspace }}/pyproject.toml"
+          working-directory: ${{ github.workspace }}
 
       - name: Install bumpversion
         run: |

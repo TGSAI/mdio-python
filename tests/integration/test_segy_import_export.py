@@ -1,6 +1,9 @@
 """End to end testing for SEG-Y to MDIO conversion and back."""
 
-from os.path import getsize
+from __future__ import annotations
+
+import os
+from typing import TYPE_CHECKING
 
 import dask
 import numpy as np
@@ -11,10 +14,13 @@ from segy import SegyFile
 from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.converters import segy_to_mdio
+from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core import Dimension
 from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.geometry import StreamerShotGeometryType
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
 dask.config.set(scheduler="synchronous")
 
@@ -29,16 +35,16 @@ dask.config.set(scheduler="synchronous")
 class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
 
-    def test_import_4d_segy(
+    def test_import_4d_segy(  # noqa: PLR0913
         self,
-        segy_mock_4d_shots,
-        zarr_tmp,
-        index_bytes,
-        index_names,
-        index_types,
-        grid_overrides,
-        chan_header_type,
-    ):
+        segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
+        zarr_tmp: Path,
+        index_bytes: tuple[int, ...],
+        index_names: tuple[str, ...],
+        index_types: tuple[str, ...],
+        grid_overrides: dict[str, bool | int],
+        chan_header_type: StreamerShotGeometryType,
+    ) -> None:
         """Test importing a SEG-Y file to MDIO."""
         segy_path = segy_mock_4d_shots[chan_header_type]
 
@@ -83,16 +89,16 @@ class TestImport4DNonReg:
 class TestImport4D:
     """Test for 4D segy import with grid overrides."""
 
-    def test_import_4d_segy(
+    def test_import_4d_segy(  # noqa: PLR0913
         self,
-        segy_mock_4d_shots,
-        zarr_tmp,
-        index_bytes,
-        index_names,
-        index_types,
-        grid_overrides,
-        chan_header_type,
-    ):
+        segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
+        zarr_tmp: Path,
+        index_bytes: tuple[int, ...],
+        index_names: tuple[str, ...],
+        index_types: tuple[str, ...],
+        grid_overrides: dict[str, bool | int],
+        chan_header_type: StreamerShotGeometryType,
+    ) -> None:
         """Test importing a SEG-Y file to MDIO."""
         segy_path = segy_mock_4d_shots[chan_header_type]
 
@@ -137,26 +143,20 @@ class TestImport4D:
 @pytest.mark.parametrize("index_bytes", [(17, 137, 13)])
 @pytest.mark.parametrize("index_names", [("shot_point", "cable", "channel")])
 @pytest.mark.parametrize("index_types", [("int32", "int16", "int32")])
-@pytest.mark.parametrize("grid_overrides", [None])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A])
 class TestImport4DSparse:
     """Test for 4D segy import with grid overrides."""
 
-    def test_import_4d_segy(
+    def test_import_4d_segy(  # noqa: PLR0913
         self,
-        segy_mock_4d_shots,
-        zarr_tmp,
-        index_bytes,
-        index_names,
-        index_types,
-        grid_overrides,
-        chan_header_type,
-    ):
+        segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
+        zarr_tmp: Path,
+        index_bytes: tuple[int, ...],
+        index_names: tuple[str, ...],
+        index_types: tuple[str, ...],
+        chan_header_type: StreamerShotGeometryType,
+    ) -> None:
         """Test importing a SEG-Y file to MDIO."""
-        import os
-
-        from mdio.converters.exceptions import GridTraceSparsityError
-
         segy_path = segy_mock_4d_shots[chan_header_type]
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "1.1"
 
@@ -169,40 +169,34 @@ class TestImport4DSparse:
                 index_types=index_types,
                 chunksize=(8, 2, 128, 1024),
                 overwrite=True,
-                grid_overrides=grid_overrides,
             )
 
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "10"
-        assert (
-            "This grid is very sparse and most likely user error with indexing."
-            in str(execinfo.value)
+        assert "This grid is very sparse and most likely user error with indexing." in str(
+            execinfo.value
         )
 
 
 @pytest.mark.parametrize("index_bytes", [(133, 171, 17, 137, 13)])
-@pytest.mark.parametrize(
-    "index_names", [("shot_line", "gun", "shot_point", "cable", "channel")]
-)
+@pytest.mark.parametrize("index_names", [("shot_line", "gun", "shot_point", "cable", "channel")])
 @pytest.mark.parametrize("index_types", [("int16", "int16", "int32", "int16", "int32")])
-@pytest.mark.parametrize(
-    "grid_overrides", [{"AutoChannelWrap": True, "AutoShotWrap": True}, None]
-)
+@pytest.mark.parametrize("grid_overrides", [{"AutoChannelWrap": True, "AutoShotWrap": True}, None])
 @pytest.mark.parametrize(
     "chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B]
 )
 class TestImport6D:
     """Test for 6D segy import with grid overrides."""
 
-    def test_import_6d_segy(
+    def test_import_6d_segy(  # noqa: PLR0913
         self,
-        segy_mock_4d_shots,
-        zarr_tmp,
-        index_bytes,
-        index_names,
-        index_types,
-        grid_overrides,
-        chan_header_type,
-    ):
+        segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
+        zarr_tmp: Path,
+        index_bytes: tuple[int, ...],
+        index_names: tuple[str, ...],
+        index_types: tuple[str, ...],
+        grid_overrides: dict[str, bool] | None,
+        chan_header_type: StreamerShotGeometryType,
+    ) -> None:
         """Test importing a SEG-Y file to MDIO."""
         segy_path = segy_mock_4d_shots[chan_header_type]
 
@@ -255,7 +249,12 @@ class TestImport6D:
 @pytest.mark.dependency
 @pytest.mark.parametrize("index_bytes", [(17, 13)])
 @pytest.mark.parametrize("index_names", [("inline", "crossline")])
-def test_3d_import(segy_input, zarr_tmp, index_bytes, index_names):
+def test_3d_import(
+    segy_input: Path,
+    zarr_tmp: Path,
+    index_bytes: tuple[int, ...],
+    index_names: tuple[str, ...],
+) -> None:
     """Test importing a SEG-Y file to MDIO."""
     segy_to_mdio(
         segy_path=segy_input.__str__(),
@@ -270,13 +269,13 @@ def test_3d_import(segy_input, zarr_tmp, index_bytes, index_names):
 class TestReader:
     """Test reader functionality."""
 
-    def test_meta_read(self, zarr_tmp):
+    def test_meta_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         mdio = MDIOReader(zarr_tmp.__str__())
-        assert mdio.binary_header["samples_per_trace"] == 1501
-        assert mdio.binary_header["sample_interval"] == 2000
+        assert mdio.binary_header["samples_per_trace"] == 1501  # noqa: PLR2004
+        assert mdio.binary_header["sample_interval"] == 2000  # noqa: PLR2004
 
-    def test_grid(self, zarr_tmp):
+    def test_grid(self, zarr_tmp: Path) -> None:
         """Grid reading tests."""
         mdio = MDIOReader(zarr_tmp.__str__())
         grid = mdio.grid
@@ -285,7 +284,7 @@ class TestReader:
         assert grid.select_dim("crossline") == Dimension(range(1, 189), "crossline")
         assert grid.select_dim("sample") == Dimension(range(0, 3002, 2), "sample")
 
-    def test_get_data(self, zarr_tmp):
+    def test_get_data(self, zarr_tmp: Path) -> None:
         """Data retrieval tests."""
         mdio = MDIOReader(zarr_tmp.__str__())
 
@@ -294,7 +293,7 @@ class TestReader:
         assert mdio[:, 0, :].shape == (345, 1501)
         assert mdio[:, :, 0].shape == (345, 188)
 
-    def test_inline(self, zarr_tmp):
+    def test_inline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 inlines' mean and std. dev."""
         mdio = MDIOReader(zarr_tmp.__str__())
 
@@ -303,7 +302,7 @@ class TestReader:
 
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
 
-    def test_crossline(self, zarr_tmp):
+    def test_crossline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
         mdio = MDIOReader(zarr_tmp.__str__())
 
@@ -312,7 +311,7 @@ class TestReader:
 
         npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01])
 
-    def test_zslice(self, zarr_tmp):
+    def test_zslice(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
         mdio = MDIOReader(zarr_tmp.__str__())
 
@@ -326,18 +325,18 @@ class TestReader:
 class TestExport:
     """Test SEG-Y exporting functionaliy."""
 
-    def test_3d_export(self, zarr_tmp, segy_export_tmp):
+    def test_3d_export(self, zarr_tmp: Path, segy_export_tmp: Path) -> None:
         """Test 3D export to IBM and IEEE."""
         mdio_to_segy(
             mdio_path_or_buffer=zarr_tmp.__str__(),
             output_segy_path=segy_export_tmp.__str__(),
         )
 
-    def test_size_equal(self, segy_input, segy_export_tmp):
+    def test_size_equal(self, segy_input: Path, segy_export_tmp: Path) -> None:
         """Check if file sizes match on IBM file."""
-        assert getsize(segy_input) == getsize(segy_export_tmp)
+        assert segy_input.stat().st_size == segy_export_tmp.stat().st_size
 
-    def test_rand_equal(self, segy_input, segy_export_tmp):
+    def test_rand_equal(self, segy_input: Path, segy_export_tmp: Path) -> None:
         """IBM. Is random original traces and headers match round-trip file?"""
         spec = mdio_segy_spec()
 

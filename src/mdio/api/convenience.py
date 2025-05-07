@@ -7,13 +7,11 @@ from typing import TYPE_CHECKING
 import zarr
 from numcodecs import Blosc
 from tqdm.auto import tqdm
-from zarr.core.array import CompressorsLike
 
 from mdio import MDIOReader
 from mdio import MDIOWriter
 from mdio.core.factory import create_empty_like
 from mdio.core.indexing import ChunkIterator
-
 
 if TYPE_CHECKING:
     from typing import Any
@@ -21,6 +19,7 @@ if TYPE_CHECKING:
     from numcodecs.abc import Codec
     from numpy.typing import NDArray
     from zarr import Array
+    from zarr.core.array import CompressorsLike
 
     from mdio import MDIOAccessor
 
@@ -36,20 +35,20 @@ def copy_mdio(  # noqa: PLR0913
 ) -> None:
     """Copy MDIO file.
 
-    Can also copy with empty data to be filled later. See `excludes`
-    and `includes` parameters.
-
-    More documentation about `excludes` and `includes` can be found
-    in Zarr's documentation in `zarr.convenience.copy_store`.
+    This function copies an MDIO file from a source path to a target path, optionally including
+    trace data, headers, or both, for all access patterns. It creates a new MDIO file at the target
+    path with the same structure as the source, and selectively copies data based on the provided
+    flags. The function supports custom storage options for both input and output, enabling
+    compatibility with various filesystems via FSSpec.
 
     Args:
         source_path: Source MDIO path. Data will be copied from here
         target_path: Destination path. Could be any FSSpec mapping.
+        overwrite: Overwrite destination or not.
         copy_traces: Flag to enable copying trace data for all access patterns.
         copy_headers: Flag to enable copying headers for all access patterns.
         storage_options_input: Storage options for input MDIO.
         storage_options_output: Storage options for output MDIO.
-        overwrite: Overwrite destination or not.
 
     """
     storage_options_input = storage_options_input or {}

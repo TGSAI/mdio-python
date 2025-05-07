@@ -14,11 +14,9 @@ from click_params import JSON
 from click_params import IntListParamType
 from click_params import StringListParamType
 
-
 SEGY_HELP = """
-MDIO and SEG-Y conversion utilities. Below is general information
-about the SEG-Y format and MDIO features. For import or export
-specific functionality check the import or export modules:
+MDIO and SEG-Y conversion utilities. Below is general information about the SEG-Y format and MDIO
+features. For import or export specific functionality check the import or export modules:
 
 \b
 mdio segy import --help
@@ -26,20 +24,17 @@ mdio segy export --help
 
 MDIO can import SEG-Y files to a modern, chunked format.
 
-The SEG-Y format is defined by the Society of Exploration Geophysicists
-as a data transmission format and has its roots back to 1970s. There are
-currently multiple revisions of the SEG-Y format.
+The SEG-Y format is defined by the Society of Exploration Geophysicists as a data transmission
+format and has its roots back to 1970s. There are currently multiple revisions of the SEG-Y format.
 
-MDIO can unravel and index any SEG-Y file that is on a regular grid.
-There is no limitation to dimensionality of the data, as long as it can
-be represented on a regular grid. Most seismic surveys are on a regular
-grid of unique shot/receiver IDs or  are imaged on regular CDP or
+MDIO can unravel and index any SEG-Y file that is on a regular grid. There is no limitation to
+dimensionality of the data, as long as it can be represented on a regular grid. Most seismic
+surveys are on a regular grid of unique shot/receiver IDs or  are imaged on regular CDP or
 INLINE/CROSSLINE grids.
 
-The SEG-Y headers are used as identifiers to take the flattened SEG-Y
-data and convert it to the multi-dimensional tensor representation. An
-example of ingesting a 3-D Post-Stack seismic data can be though as the
-following, per the SEG-Y Rev1 standard:
+The SEG-Y headers are used as identifiers to take the flattened SEG-Y data and convert it to the
+multi-dimensional tensor representation. An example of ingesting a 3-D Post-Stack seismic data can
+be though as the following, per the SEG-Y Rev1 standard:
 
 \b
 --header-names inline,crossline
@@ -53,13 +48,12 @@ Our recommended chunk sizes are:
 3D: 64 x 64 x 64
 2D: 512 x 512
 
-The 4D+ datasets chunking recommendation depends on the type of
-4D+ dataset (i.e. SHOT vs CDP data will have different chunking).
+The 4D+ datasets chunking recommendation depends on the type of 4D+ dataset (i.e. SHOT vs CDP data
+will have different chunking).
 
-MDIO also import or export big and little endian coded IBM or IEEE floating
-point formatted SEG-Y files. MDIO can also build a grid from arbitrary header
-locations for indexing. However, the headers are stored as the SEG-Y Rev 1
-after ingestion.
+MDIO also import or export big and little endian coded IBM or IEEE floating point formatted SEG-Y
+files. MDIO can also build a grid from arbitrary header locations for indexing. However, the
+headers are stored as the SEG-Y Rev 1 after ingestion.
 """
 
 cli = Group(name="segy", help=SEGY_HELP)
@@ -142,7 +136,7 @@ cli = Group(name="segy", help=SEGY_HELP)
     help="Option to add grid overrides.",
     type=JSON,
 )
-def segy_import(
+def segy_import(  # noqa: PLR0913
     segy_path: str,
     mdio_path: str,
     header_locations: list[int],
@@ -155,24 +149,19 @@ def segy_import(
     storage_options_output: dict[str, Any],
     overwrite: bool,
     grid_overrides: dict[str, Any],
-):
-    """Ingest SEG-Y file to MDIO.
+) -> None:
+    r"""Ingest SEG-Y file to MDIO.
 
-    SEG-Y format is explained in the "segy" group of the command line
-    interface. To see additional information run:
+    SEG-Y format is explained in the "segy" group of the command line interface. To see additional
+    information run:
 
     mdio segy --help
 
-    MDIO allows ingesting flattened seismic surveys in SEG-Y format
-    into a multidimensional tensor that represents the correct
-    geometry of the seismic dataset.
+    MDIO allows ingesting flattened seismic surveys in SEG-Y format into a multidimensional
+    tensor that represents the correct geometry of the seismic dataset.
 
-    The SEG-Y file must be on disk, MDIO currently does not support
-    reading SEG-Y directly from the cloud object store.
-
-    The output MDIO file can be local or on the cloud. For local
-    files, a UNIX or Windows path is sufficient. However, for cloud
-    stores, an appropriate protocol must be provided. Some examples:
+    The output MDIO file can be local or on the cloud. For local files, a UNIX or Windows path is
+    sufficient. However, for cloud stores, an appropriate protocol must be provided. Some examples:
 
     File Path Patterns:
 
@@ -196,36 +185,28 @@ def segy_import(
         --input_segy_path local_seismic.segy
         --output-mdio-path abfs://bucket/local_seismic.mdio
 
-    The SEG-Y headers for indexing must also be specified. The
-    index byte locations (starts from 1) are the minimum amount
-    of information needed to index the file. However, we suggest
-    giving names to the index dimensions, and if needed providing
-    the header types if they are not standard. By default, all header
-    entries are assumed to be 4-byte long (int32).
+    The SEG-Y headers for indexing must also be specified. The index byte locations (starts from 1)
+    are the minimum amount of information needed to index the file. However, we suggest giving
+    names to the index dimensions, and if needed providing the header types if they are not
+    standard. By default, all header entries are assumed to be 4-byte long (int32).
 
-    The chunk size depends on the data type, however, it can be
-    chosen to accommodate any workflow's access patterns. See examples
-    below for some common use cases.
+    The chunk size depends on the data type, however, it can be chosen to accommodate any
+    workflow's access patterns. See examples below for some common use cases.
 
-    By default, the data is ingested with LOSSLESS compression. This
-    saves disk space in the range of 20% to 40%. MDIO also allows
-    data to be compressed using the ZFP compressor's fixed accuracy
-    lossy compression. If lossless parameter is set to False and MDIO
-    was installed using the lossy extra; then the data will be compressed
-    to approximately 30% of its original size and will be perceptually
-    lossless. The compression amount can be adjusted using the option
-    compression_tolerance (float). Values less than 1 gives good results.
-    The higher the value, the more compression, but will introduce artifacts.
-    The default value is 0.01 tolerance, however we get good results
-    up to 0.5; where data is almost compressed to 10% of its original size.
-    NOTE: This assumes data has amplitudes normalized to have approximately
-    standard deviation of 1. If dataset has values smaller than this
-    tolerance, a lot of loss may occur.
+    By default, the data is ingested with LOSSLESS compression. This saves disk space in the range
+    of 20% to 40%. MDIO also allows data to be compressed using the ZFP compressor's fixed
+    accuracy lossy compression. If lossless parameter is set to False and MDIO was installed using
+    the lossy extra; then the data will be compressed to approximately 30% of its original size and
+    will be perceptually lossless. The compression amount can be adjusted using the option
+    compression_tolerance (float). Values less than 1 gives good results. The higher the value, the
+    more compression, but will introduce artifacts. The default value is 0.01 tolerance, however we
+    get good results up to 0.5; where data is almost compressed to 10% of its original size. NOTE:
+    This assumes data has amplitudes normalized to have approximately standard deviation of 1. If
+    dataset has values smaller than this tolerance, a lot of loss may occur.
 
     Usage:
 
-        Below are some examples of ingesting standard SEG-Y files per
-        the SEG-Y Revision 1 and 2 formats.
+        Below are some examples of ingesting standard SEG-Y files per the SEG-Y Revision 1 and 2.
 
         \b
         3D Seismic Post-Stack:
@@ -258,16 +239,13 @@ def segy_import(
         --header-types int32,int16,int32
         --chunk-size 8,2,256,512
 
-    We can override the dataset grid by the `grid_overrides` parameter.
-    This allows us to ingest files that don't conform to the true
-    geometry of the seismic acquisition.
+    We can override the dataset grid by the `grid_overrides` parameter. This allows us to ingest
+    files that don't conform to the true geometry of the seismic acquisition.
 
-    For example if we are ingesting 3D seismic shots that don't have
-    a cable number and channel numbers are sequential (i.e. each cable
-    doesn't start with channel number 1; we can tell MDIO to ingest
-    this with the correct geometry by calculating cable numbers and
-    wrapped channel numbers. Note the missing byte location and type
-    for the "cable" index.
+    For example if we are ingesting 3D seismic shots that don't have a cable number and channel
+    numbers are sequential (i.e. each cable doesn't start with channel number 1; we can tell MDIO
+    to ingest this with the correct geometry by calculating cable numbers and wrapped channel
+    numbers. Note the missing byte location and type for the "cable" index.
 
 
     Usage:
@@ -283,36 +261,31 @@ def segy_import(
                            "CalculateCable": True}'
 
         \b
-        If we do have cable numbers in the headers, but channels are still
-        sequential (aka. unwrapped), we can still ingest it like this.
+        If we do have cable numbers in the headers, but channels are still sequential (aka.
+        unwrapped), we can still ingest it like this.
         --header-locations 9,213,13
         --header-names shot,cable,chan
         --header-types int32,int16,int32
         --chunk-size 8,2,256,512
         --grid-overrides '{"ChannelWrap":True, "ChannelsPerCable": 800}'
         \b
-        For shot gathers with channel numbers and wrapped channels, no
-        grid overrides are necessary.
+        No grid overrides are necessary for shot gathers with channel numbers and wrapped channels.
 
-        In cases where the user does not know if the input has unwrapped
-        channels but desires to store with wrapped channel index use:
-        --grid-overrides '{"AutoChannelWrap": True}'
+        In cases where the user does not know if the input has unwrapped channels but desires to
+        store with wrapped channel index use: --grid-overrides '{"AutoChannelWrap": True}'
 
         \b
-        For cases with no well-defined trace header for indexing a NonBinned
-        grid override is provided.This creates the index and attributes an
-        incrementing integer to the trace for the index based on first in first
-        out. For example a CDP and Offset keyed file might have a header for offset
-        as real world offset which would result in a very sparse populated index.
-        Instead, the following override will create a new index from 1 to N, where
-        N is the number of offsets within a CDP ensemble. The index to be auto
-        generated is called "trace". Note the required "chunksize" parameter in
-        the grid override. This is due to the non-binned ensemble chunksize is
-        irrelevant to the index dimension chunksizes and has to be specified
-        in the grid override itself. Note the lack of offset, only indexing CDP,
-        providing CDP header type, and chunksize for only CDP and Sample
-        dimension. The chunksize for non-binned dimension is in the grid overrides
-        as described above. The below configuration will yield 1MB chunks.
+        For cases with no well-defined trace header for indexing a NonBinned grid override is
+        provided.This creates the index and attributes an incrementing integer to the trace for the
+        index based on first in first out. For example a CDP and Offset keyed file might have a
+        header for offset as real world offset which would result in a very sparse populated index.
+        Instead, the following override will create a new index from 1 to N, where N is the number
+        of offsets within a CDP ensemble. The index to be auto generated is called "trace". Note
+        the required "chunksize" parameter in the grid override. This is due to the non-binned
+        ensemble chunksize is irrelevant to the index dimension chunksizes and has to be specified
+        in the grid override itself. Note the lack of offset, only indexing CDP, providing CDP
+        header type, and chunksize for only CDP and Sample dimension. The chunksize for non-binned
+        dimension is in grid overrides. Below configuration will yield 1MB chunks.
         \b
         --header-locations 21
         --header-names cdp
@@ -321,10 +294,9 @@ def segy_import(
         --grid-overrides '{"NonBinned": True, "chunksize": 64}'
 
         \b
-        A more complicated case where you may have a 5D dataset that is not
-        binned in Offset and Azimuth directions can be ingested like below.
-        However, the Offset and Azimuth dimensions will be combined to "trace"
-        dimension. The below configuration will yield 1MB chunks.
+        A more complicated case where you may have a 5D dataset that is not binned in Offset and
+        Azimuth directions can be ingested like below. However, the Offset and Azimuth dimensions
+        will be combined to "trace" dimension. The below configuration will yield 1MB chunks.
         \b
         --header-locations 189,193
         --header-names inline,crossline
@@ -333,10 +305,9 @@ def segy_import(
         --grid-overrides '{"NonBinned": True, "chunksize": 16}'
 
         \b
-        For dataset with expected duplicate traces we have the following
-        parameterization. This will use the same logic as NonBinned with
-        a fixed chunksize of 1. The other keys are still important. The
-        below example allows multiple traces per receiver (i.e. reshoot).
+        For dataset with expected duplicate traces we have the following parameterization. This
+        will use the same logic as NonBinned with a fixed chunksize of 1. The other keys are still
+        important. The below example allows multiple traces per receiver (i.e. reshoot).
         \b
         --header-locations 9,213,13
         --header-names shot,cable,chan
@@ -397,26 +368,23 @@ def segy_export(
     access_pattern: str,
     storage_options: dict[str, Any],
     endian: str,
-):
+) -> None:
     """Export MDIO file to SEG-Y.
 
-    SEG-Y format is explained in the "segy" group of the command line
-    interface. To see additional information run:
+    SEG-Y format is explained in the "segy" group of the command line interface. To see
+    additional information run:
 
     mdio segy --help
 
-    MDIO allows exporting multidimensional seismic data back to the flattened
-    seismic format SEG-Y, to be used in data transmission.
+    MDIO allows exporting multidimensional seismic data back to the flattened seismic format
+    SEG-Y, to be used in data transmission.
 
-    The input headers are preserved as is, and will be transferred to the
-    output file.
+    The input headers are preserved as is, and will be transferred to the output file.
 
-    The user has control over the endianness, and the floating point data
-    type. However, by default we export as Big-Endian IBM float, per the
-    SEG-Y format's default.
+    The user has control over the endianness, and the floating point data type. However, by default
+    we export as Big-Endian IBM float, per the SEG-Y format's default.
 
-    The input MDIO can be local or cloud based. However, the output SEG-Y
-    will be generated locally.
+    The input MDIO can be local or cloud based. However, the output SEG-Y will be generated locally.
     """
     from mdio import mdio_to_segy
 

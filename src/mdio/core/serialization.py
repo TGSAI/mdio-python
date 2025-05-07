@@ -18,15 +18,10 @@ class Serializer(ABC):
     Here we define the interface for any serializer implementation.
 
     Args:
-        stream_format: Format of the stream for serialization.
+        stream_format: Stream format. Must be in {"JSON", "YAML"}.
     """
 
     def __init__(self, stream_format: str) -> None:
-        """Initialize serializer.
-
-        Args:
-            stream_format: Stream format. Must be in {"JSON", "YAML"}.
-        """
         self.format = stream_format
         self.serialize_func = get_serializer(stream_format)
         self.deserialize_func = get_deserializer(stream_format)
@@ -46,7 +41,8 @@ class Serializer(ABC):
         expected = set(signature.parameters)
 
         if not expected.issubset(observed):
-            raise KeyError(f"Key mismatch: {observed}, expected {expected}")
+            msg = f"Key mismatch: {observed}, expected {expected}"
+            raise KeyError(msg)
 
         if len(observed) != len(expected):
             print(f"Ignoring extra key: {observed - expected}")
@@ -60,10 +56,10 @@ def get_serializer(stream_format: str) -> Callable:
     stream_format = stream_format.upper()
     if stream_format == "JSON":
         return _serialize_to_json
-    elif stream_format == "YAML":
+    if stream_format == "YAML":
         return _serialize_to_yaml
-    else:
-        raise ValueError(stream_format)
+    msg = f"Unsupported serializer for format: {stream_format}"
+    raise ValueError(msg)
 
 
 def get_deserializer(stream_format: str) -> Callable:
@@ -71,10 +67,10 @@ def get_deserializer(stream_format: str) -> Callable:
     stream_format = stream_format.upper()
     if stream_format == "JSON":
         return _deserialize_json
-    elif stream_format == "YAML":
+    if stream_format == "YAML":
         return _deserialize_yaml
-    else:
-        raise ValueError(stream_format)
+    msg = f"Unsupported deserializer for format: {stream_format}"
+    raise ValueError(msg)
 
 
 def _serialize_to_json(payload: dict) -> str:

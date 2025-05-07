@@ -11,7 +11,6 @@ from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
 from mdio.core.utils_write import get_live_mask_chunksize
 
-
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
 

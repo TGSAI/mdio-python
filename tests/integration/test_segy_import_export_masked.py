@@ -1,19 +1,19 @@
 """Test module for masked export of n-D SEG-Y files to MDIO.
 
-We procedurally generate n-D SEG-Y files, import them and export both ways
-with and without selection masks. We then compare the resulting SEG-Y files
-to ensure they're identical to expected full or partial files.
+We procedurally generate n-D SEG-Y files, import them and export both ways with and without
+selection masks. We then compare the resulting SEG-Y files to ensure they're identical to
+expected full or partial files.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Iterable
+from typing import TYPE_CHECKING
 
 import fsspec
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
-from numpy.typing import NDArray
 from segy import SegyFile
 from segy.factory import SegyFactory
 from segy.schema import HeaderField
@@ -23,6 +23,12 @@ from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio import segy_to_mdio
 from mdio.segy.utilities import segy_export_rechunker
+
+if TYPE_CHECKING:
+    from collections.abc import Iterable
+    from pathlib import Path
+
+    from numpy.typing import NDArray
 
 
 @dataclass
@@ -67,6 +73,9 @@ class SelectionMaskConfig:
     remove_frac: float | int
 
 
+MaskedExportConfigTypes = GridConfig | SegyFactoryConfig | SegyToMdioConfig | SelectionMaskConfig
+
+
 @dataclass
 class MaskedExportConfig:
     """Configuration class for a masked export test, combining above configs."""
@@ -76,7 +85,7 @@ class MaskedExportConfig:
     segy_to_mdio_conf: SegyToMdioConfig
     selection_conf: SelectionMaskConfig
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[MaskedExportConfigTypes]:
         """Allows for unpacking this dataclass in a test."""
         yield self.grid_conf
         yield self.segy_factory_conf

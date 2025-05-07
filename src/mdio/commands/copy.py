@@ -46,7 +46,7 @@ from click_params import JSON
     help="Flag to overwrite the MDIO file if it exists",
     show_default=True,
 )
-def copy(
+def copy(  # noqa: PLR0913
     source_mdio_path: str,
     target_mdio_path: str,
     with_traces: bool = False,
@@ -57,11 +57,11 @@ def copy(
 ) -> None:
     """Copy an MDIO dataset to another MDIO dataset.
 
-    You can also copy empty data to be filled in later. See `excludes`
-    and `includes` parameters.
-
-    More documentation about `excludes` and `includes` can be found
-    in Zarr's documentation in `zarr.convenience.copy_store`.
+    This command copies an MDIO file from a source path to a target path, optionally including
+    trace data, headers, or both, for all access patterns. It creates a new MDIO file at the target
+    path with the same structure as the source, and selectively copies data based on the provided
+    flags. The function supports custom storage options for both input and output, enabling
+    compatibility with various filesystems via FSSpec.
     """
     from mdio.api.convenience import copy_mdio
 

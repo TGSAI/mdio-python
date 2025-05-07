@@ -8,11 +8,10 @@ from typing import Any
 from typing import cast
 
 import numpy as np
-from segy.arrays import HeaderArray
-
 
 if TYPE_CHECKING:
     from segy import SegyFile
+    from segy.arrays import HeaderArray
     from zarr import Array
 
     from mdio.core import Grid
@@ -24,13 +23,8 @@ def header_scan_worker(
 ) -> HeaderArray:
     """Header scan worker.
 
-    Can accept file path or segyio.SegyFile.
-
-    segyio.SegyFile is recommended in case it is called from another process
-    that already opened the file (i.e. trace_worker).
-
-    If SegyFile is not open, it can either accept a path string or a handle
-    that was opened in a different context manager.
+    If SegyFile is not open, it can either accept a path string or a handle that was opened in
+    a different context manager.
 
     Args:
         segy_file: SegyFile instance.
@@ -53,11 +47,11 @@ def header_scan_worker(
     non_void_fields = [(name, dtype) for name, (dtype, _) in fields.items()]
     new_dtype = np.dtype(non_void_fields)
 
-    # Copy to non-padded memory, ndmin is to handle the case where there is
-    # 1 trace in block (singleton) so we can concat and assign stuff later.
+    # Copy to non-padded memory, ndmin is to handle the case where there is 1 trace in block
+    # (singleton) so we can concat and assign stuff later.
     trace_header = np.array(trace_header, dtype=new_dtype, ndmin=1)
 
-    return cast(HeaderArray, trace_header)
+    return cast("HeaderArray", trace_header)
 
 
 def trace_worker(
@@ -69,24 +63,19 @@ def trace_worker(
 ) -> tuple[Any, ...] | None:
     """Worker function for multi-process enabled blocked SEG-Y I/O.
 
-    Performance of `zarr.Array` writes are very slow if data being written is
-    not aligned with the chunk boundaries. Because of this, we sacrifice
-    sequential reads of SEG-Y files. However, won't be an issue if we have
-    SSDs or are on cloud.
+    Performance of `zarr.Array` writes is slow if data isn't aligned with chunk boundaries,
+    sacrificing sequential reads of SEG-Y files. This won't be an issue with SSDs or cloud.
 
-    It takes the trace numbers from grid and gets the current chunk's trace
-    indices (on SEG-Y). Then we fill a temporary array in memory and do a
-    write to the `zarr.Array` chunk. In this case we take full slices across
-    sample dimension because SEG-Y data is not chunked, so we don't have to
-    worry about it.
+    It retrieves trace numbers from the grid and gathers the current chunk's SEG-Y trace indices.
+    Then, it fills a temporary array in memory and writes to the `zarr.Array` chunk. We take full
+    slices across the sample dimension since SEG-Y data isn't chunked, eliminating concern.
 
     Args:
         segy_file: SegyFile instance.
         data_array: Handle for zarr.Array we are writing traces to
         metadata_array: Handle for zarr.Array we are writing trace headers
         grid: mdio.Grid instance
-        chunk_indices: Tuple consisting of the chunk slice indices for
-            each dimension
+        chunk_indices: Tuple consisting of the chunk slice indices for each dimension
 
     Returns:
         Partial statistics for chunk, or None
@@ -100,9 +89,7 @@ def trace_worker(
     # Let's get trace numbers from grid map using the chunk indices.
     seq_trace_indices = grid.map[chunk_indices[:-1]]
 
-    tmp_data = np.zeros(
-        seq_trace_indices.shape + (grid.shape[-1],), dtype=data_array.dtype
-    )
+    tmp_data = np.zeros(seq_trace_indices.shape + (grid.shape[-1],), dtype=data_array.dtype)
 
     tmp_metadata = np.zeros(seq_trace_indices.shape, dtype=metadata_array.dtype)
 
@@ -118,10 +105,7 @@ def trace_worker(
     tmp_data[live_subset] = samples
 
     # Flush metadata to zarr
-    metadata_array.set_basic_selection(
-        selection=chunk_indices[:-1],
-        value=tmp_metadata,
-    )
+    metadata_array.set_basic_selection(selection=chunk_indices[:-1], value=tmp_metadata)
 
     nonzero_mask = samples != 0
     nonzero_count = nonzero_mask.sum(dtype="uint32")
@@ -129,10 +113,7 @@ def trace_worker(
     if nonzero_count == 0:
         return None
 
-    data_array.set_basic_selection(
-        selection=chunk_indices,
-        value=tmp_data,
-    )
+    data_array.set_basic_selection(selection=chunk_indices, value=tmp_data)
 
     # Calculate statistics
     tmp_data = samples[nonzero_mask]

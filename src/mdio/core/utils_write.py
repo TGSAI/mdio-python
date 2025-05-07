@@ -1,11 +1,9 @@
 """Convenience utilities for writing to Zarr."""
 
 from typing import TYPE_CHECKING
-from typing import Any
 
 from dask.array.core import normalize_chunks
 from dask.array.rechunk import _balance_chunksizes
-
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
@@ -14,8 +12,12 @@ if TYPE_CHECKING:
 
 MAX_SIZE_LIVE_MASK = 512 * 1024**2
 
+JsonSerializable = (
+    str | int | float | bool | None | dict[str, "JsonSerializable"] | list["JsonSerializable"]
+)
 
-def write_attribute(name: str, attribute: Any, zarr_group: "Group") -> None:
+
+def write_attribute(name: str, attribute: JsonSerializable, zarr_group: "Group") -> None:
     """Write a mappable to Zarr array or group attribute.
 
     Args:
@@ -30,7 +32,7 @@ def get_constrained_chunksize(
     shape: tuple[int, ...],
     dtype: "DTypeLike",
     max_bytes: int,
-) -> tuple[int]:
+) -> tuple[int, ...]:
     """Calculate the optimal chunk size for N-D array based on max_bytes.
 
     Args:

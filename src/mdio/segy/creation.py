@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
-import os
 from dataclasses import dataclass
+from pathlib import Path
 from shutil import copyfileobj
 from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 from segy.factory import SegyFactory
@@ -17,7 +18,6 @@ from tqdm.auto import tqdm
 from mdio.api.accessor import MDIOReader
 from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.compat import revision_encode
-
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -43,36 +43,35 @@ def make_segy_factory(
     )
 
 
-def mdio_spec_to_segy(
-    mdio_path_or_buffer,
-    output_segy_path,
-    access_pattern,
-    output_endian,
-    storage_options,
-    new_chunks,
-    backend,
-):
+def mdio_spec_to_segy(  # noqa: PLR0913
+    mdio_path_or_buffer: str,
+    output_segy_path: Path,
+    access_pattern: str,
+    output_endian: str,
+    storage_options: dict[str, Any],
+    new_chunks: tuple[int, ...],
+    backend: str,
+) -> tuple[MDIOReader, SegyFactory]:
     """Create SEG-Y file without any traces given MDIO specification.
 
-    This function opens an MDIO file, gets some relevant information for SEG-Y files,
-    then creates a SEG-Y file with the specification it read from the MDIO file.
+    This function opens an MDIO file, gets some relevant information for SEG-Y files, then creates
+    a SEG-Y file with the specification it read from the MDIO file.
 
-    It then returns the `MDIOReader` instance, and the parsed floating point format
-    `sample_format` for further use.
+    It then returns the `MDIOReader` instance, and the parsed floating point format `sample_format`
+    for further use.
 
-    Function will attempt to read text, and binary headers, and some grid information
-    from the MDIO file. If these don't exist, the process will fail.
+    Function will attempt to read text, and binary headers, and some grid information from the MDIO
+    file. If these don't exist, the process will fail.
 
     Args:
-        mdio_path_or_buffer: Input path where the MDIO is located.
+        mdio_path_or_buffer: Store or URL for MDIO file.
         output_segy_path: Path to the output SEG-Y file.
-        access_pattern: This specificies the chunk access pattern.
-            Underlying zarr.Array must exist. Examples: '012', '01'.
+        access_pattern: Chunk access pattern, optional. Default is "012". Examples: '012', '01'.
         output_endian: Endianness of the output file.
-        storage_options: Storage options for the cloud storage backend.
-            Default: None (will assume anonymous)
+        storage_options: Options for the storage backend. By default, system-wide credentials
+            will be used.
         new_chunks: Set manual chunksize. For development purposes only.
-        backend: Eager (zarr) or lazy but more flexible 'dask' backend.
+        backend: Backend selection, optional. Default is "zarr". Must be in {'zarr', 'dask'}.
 
     Returns:
         Initialized MDIOReader for MDIO file and return SegyFactory
@@ -98,7 +97,7 @@ def mdio_spec_to_segy(
     binary_header = revision_encode(mdio.binary_header, mdio_file_version)
     bin_hdr_bytes = factory.create_binary_header(binary_header)
 
-    with open(output_segy_path, mode="wb") as fp:
+    with output_segy_path.open(mode="wb") as fp:
         fp.write(text_bytes)
         fp.write(bin_hdr_bytes)
 
@@ -109,11 +108,11 @@ def mdio_spec_to_segy(
 class SegyPartRecord:
     """Dataclass that holds partial SEG-Y record path and its global index."""
 
-    path: str
+    path: Path
     index: tuple[int, ...]
 
 
-def serialize_to_segy_stack(
+def serialize_to_segy_stack(  # noqa: PLR0913
     samples: NDArray,
     headers: NDArray,
     live_mask: NDArray,
@@ -147,7 +146,8 @@ def serialize_to_segy_stack(
         ValueError: If required `block_info` is not provided.
     """
     if block_info is None:
-        raise ValueError("block_info is required for global index computation.")
+        msg = "block_info is required for global index computation."
+        raise ValueError(msg)
 
     # Drop map_blocks padded dim
     live_mask = live_mask[..., 0]
@@ -157,7 +157,8 @@ def serialize_to_segy_stack(
     info = block_info[0]
     block_start = [loc[0] for loc in info["array-location"]]
 
-    if samples.ndim == 2:  # 2D data special case for less disk I/O
+    if samples.ndim == 2:  # noqa: PLR2004
+        # 2D data special case for less disk I/O
         # Shortcut if whole chunk is empty
         if np.count_nonzero(live_mask) == 0:
             return np.array(0, dtype=object)
@@ -169,9 +170,9 @@ def serialize_to_segy_stack(
 
         global_index = block_start[0]
         record_id_str = str(global_index)
-        record_file_path = f"{file_root}/{record_id_str}.bin"
-        os.makedirs(os.path.dirname(record_file_path), exist_ok=True)
-        with open(record_file_path, mode="wb") as fp:
+        record_file_path = Path(file_root) / f"{record_id_str}.bin"
+        record_file_path.parent.mkdir(parents=True, exist_ok=True)
+        with record_file_path.open(mode="wb") as fp:
             fp.write(buffer)
 
         record_metadata = SegyPartRecord(
@@ -199,26 +200,19 @@ def serialize_to_segy_stack(
 
             buffer = segy_factory.create_traces(rec_headers, rec_samples)
 
-            global_index = tuple(
-                block_start[i] + rec_index[i] for i in range(record_ndim)
-            )
+            global_index = tuple(block_start[i] + rec_index[i] for i in range(record_ndim))
             record_id_str = "/".join(map(str, global_index))
-            record_file_path = f"{file_root}/{record_id_str}.bin"
-            os.makedirs(os.path.dirname(record_file_path), exist_ok=True)
-            with open(record_file_path, mode="wb") as fp:
+            record_file_path = Path(file_root) / f"{record_id_str}.bin"
+            record_file_path.parent.mkdir(parents=True, exist_ok=True)
+            with record_file_path.open(mode="wb") as fp:
                 fp.write(buffer)
 
-            records_metadata[rec_index] = SegyPartRecord(
-                path=record_file_path,
-                index=global_index,
-            )
+            records_metadata[rec_index] = SegyPartRecord(path=record_file_path, index=global_index)
 
     return records_metadata
 
 
-# TODO: Abstract this to support various implementations by
-#  object stores and file systems. Probably fsspec solution.
-def concat_files(paths: list[str], progress=False) -> str:
+def concat_files(paths: list[Path], progress: bool = False) -> Path:
     """Concatenate files on disk, sequentially in given order.
 
     This function takes files on disk, and it combines them by
@@ -240,11 +234,11 @@ def concat_files(paths: list[str], progress=False) -> str:
     if progress is True:
         paths = tqdm(paths, desc="Merging lines")
 
-    with open(first_file, "ab+") as first_fp:
+    with first_file.open(mode="ab+") as first_fp:
         for next_file in paths:
-            with open(next_file, "rb") as next_fp:
+            with next_file.open(mode="rb") as next_fp:
                 copyfileobj(next_fp, first_fp)
 
-            os.remove(next_file)
+            Path(next_file).unlink()
 
     return first_file

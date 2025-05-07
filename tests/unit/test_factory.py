@@ -6,9 +6,9 @@ from mdio import MDIOReader
 from mdio.core.factory import create_empty_like
 
 
-def test_create_empty_like(mock_reader: MDIOReader):
+def test_create_empty_like(mock_reader: MDIOReader) -> None:
     """Test create_empty_like function to ensure it replicates an existing MDIO dataset."""
-    # Define destination path for the new dataset
+    # Define a destination path for the new dataset
     dest_path = mock_reader.url + "_copy"
 
     # Call create_empty_like

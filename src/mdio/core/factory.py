@@ -19,8 +19,8 @@ For detailed usage and parameters, see the docstring of the `create_empty` funct
 """
 
 from dataclasses import dataclass
+from datetime import UTC
 from datetime import datetime
-from datetime import timezone
 from importlib import metadata
 from typing import Any
 
@@ -38,7 +38,6 @@ from mdio.core.utils_write import get_live_mask_chunksize
 from mdio.core.utils_write import write_attribute
 from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.helpers_segy import create_zarr_hierarchy
-
 
 try:
     API_VERSION = metadata.version("multidimio")
@@ -132,7 +131,7 @@ def create_empty(
     data_group = root_group["data"]
 
     # Get UTC time, then add local timezone information offset.
-    iso_datetime = datetime.now(timezone.utc).isoformat()
+    iso_datetime = datetime.now(UTC).isoformat()
     dimensions_dict = [dim.to_dict() for dim in config.grid.dims]
 
     write_attribute(name="created", zarr_group=root_group, attribute=iso_datetime)

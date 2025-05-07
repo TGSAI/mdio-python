@@ -5,6 +5,7 @@ from __future__ import annotations
 import itertools
 import logging
 from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 from dask.array.core import normalize_chunks
@@ -12,7 +13,6 @@ from dask.array.core import normalize_chunks
 from mdio.core import Dimension
 from mdio.segy.geometry import GridOverrider
 from mdio.segy.parsers import parse_index_headers
-
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
@@ -27,11 +27,8 @@ def get_grid_plan(  # noqa:  C901
     segy_file: SegyFile,
     chunksize: list[int],
     return_headers: bool = False,
-    grid_overrides: dict | None = None,
-) -> (
-    tuple[list[Dimension], tuple[int, ...]]
-    | tuple[list[Dimension], tuple[int, ...], HeaderArray]
-):
+    grid_overrides: dict[str, Any] | None = None,
+) -> tuple[list[Dimension], tuple[int, ...]] | tuple[list[Dimension], tuple[int, ...], HeaderArray]:
     """Infer dimension ranges, and increments.
 
     Generates multiple dimensions with the following steps:
@@ -43,19 +40,17 @@ def get_grid_plan(  # noqa:  C901
     Args:
         segy_file: SegyFile instance.
         chunksize:  Chunk sizes to be used in grid plan.
-        return_headers: Option to return parsed headers with `Dimension` objects.
-            Default is False.
+        return_headers: Option to return parsed headers with `Dimension` objects. Default is False.
         grid_overrides: Option to add grid overrides. See main documentation.
 
     Returns:
-        All index dimensions and chunksize or dimensions and chunksize together
-            with header values.
+        All index dimensions and chunksize or dimensions and chunksize together with header values.
     """
     if grid_overrides is None:
         grid_overrides = {}
 
     index_headers = parse_index_headers(segy_file=segy_file)
-    index_names = [name for name in index_headers.dtype.names]
+    index_names = list(index_headers.dtype.names)
 
     dims = []
 
@@ -121,18 +116,15 @@ def segy_export_rechunker(
 ) -> tuple[tuple[int, ...], ...]:
     """Determine chunk sizes for writing out SEG-Y given limit.
 
-    This module finds the desired chunk sizes for given chunk size
-    `limit` in a depth first order.
+    This module finds the desired chunk sizes for given chunk size `limit` in a depth first order.
 
-    On disk chunks for MDIO are mainly optimized for visualization
-    and ML applications. When we want to do export back to SEG-Y, it
-    makes sense to have larger virtual chunks for processing of traces.
-    We also recursively merge multiple files to reduce memory footprint.
+    On disk chunks for MDIO are mainly optimized for visualization and ML applications. When we
+    want to do export back to SEG-Y, it makes sense to have larger virtual chunks for processing
+    of traces. We also recursively merge multiple files to reduce memory footprint.
 
-    We choose to adjust chunks to be approx. 300 MB. We also need to do
-    this in the order of fastest changing axis to the slowest changing
-    axis becase the traces are expected to be serialized in the natural
-    data order.
+    We choose to adjust chunks to be approx. 300 MB. We also need to do this in the order of
+    fastest changing axis to the slowest changing axis becase the traces are expected to be
+    serialized in the natural data order.
 
     Args:
         chunks: The chunk sizes on disk.
@@ -148,7 +140,7 @@ def segy_export_rechunker(
     # set sample chunks to max
     prev_chunks = chunks[:-1] + (shape[-1],)
 
-    new_chunks = tuple()
+    new_chunks = ()
     for idx in range(ndim, -1, -1):
         tmp_chunks = prev_chunks[:idx] + ("auto",) + prev_chunks[idx + 1 :]
 
@@ -160,12 +152,11 @@ def segy_export_rechunker(
             dtype=dtype,
         )
 
-        # Ensure it is integers
         prev_chunks = new_chunks
 
     # Ensure the sample (last dim) is single chunk.
     if len(new_chunks[-1]) != 1:
         new_chunks = new_chunks[:-1] + (shape[-1],)
 
-    logger.debug(f"Auto export rechunking to: {new_chunks}")
+    logger.debug("Auto export rechunking to: %s", new_chunks)
     return new_chunks
