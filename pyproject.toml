@@ -35,7 +35,7 @@ dependencies = [
     "segy (>=0.4.0,<0.5.0)",
     "tqdm (>=4.67.0,<5.0.0)",
     "xarray>=2025.3.1",
-    "zarr (>=3.0.4,<3.0.7)",
+    "zarr (>=3.0.8,<4.0.0)",
 ]
 
 [project.optional-dependencies]
