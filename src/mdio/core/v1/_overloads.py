@@ -25,6 +25,11 @@ class MDIODataset(_Dataset):
     ) -> None:
         """Alias for `.to_zarr()`, prints a greeting, and writes to Zarr store."""
         print("👋 hello world from mdio.to_mdio!")
+        # Ensure zarr_version=2 by default unless explicitly overridden
+        zarr_version = kwargs.get("zarr_version", 2)
+        if zarr_version != 2:
+            raise ValueError("MDIO only supports zarr_version=2")
+        kwargs["zarr_version"] = zarr_version
         return super().to_zarr(*args, store=store, **kwargs)
 
 
@@ -41,6 +46,11 @@ class MDIODataArray(_DataArray):
     ) -> None:
         """Alias for `.to_zarr()`, prints a greeting, and writes to Zarr store."""
         print("👋 hello world from mdio.to_mdio!")
+        # Ensure zarr_version=2 by default unless explicitly overridden
+        zarr_version = kwargs.get("zarr_version", 2)
+        if zarr_version != 2:
+            raise ValueError("MDIO only supports zarr_version=2")
+        kwargs["zarr_version"] = zarr_version
         return super().to_zarr(*args, store=store, **kwargs)
 
 
