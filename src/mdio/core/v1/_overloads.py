@@ -83,9 +83,10 @@ class MDIO:
         # Cast Dataset to MDIODataset
         ds.__class__ = MDIODataset
         # Cast each DataArray in data_vars and coords
-        for _name, var in ds.data_vars.values():
+
+        for _name, var in ds.data_vars.items():
             var.__class__ = MDIODataArray
-        for _name, coord in ds.coords.values():
+        for _name, coord in ds.coords.items():
             coord.__class__ = MDIODataArray
         return ds
 
