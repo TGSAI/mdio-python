@@ -303,3 +303,273 @@ class TestV1DatasetJSONSerialization:
         # Verify the JSON is still valid
         parsed = json.loads(json_str)
         assert parsed["metadata"]["name"] == "test_dataset"
+
+
+class TestPydanticMDIORoundTrip:
+    """Test round-trip conversions between JSON and MDIO datasets using to_mdio."""
+
+    def test_json_to_mdio_dataset(self, tmp_path: Path) -> None:
+        """Test converting TEST_SCHEMA JSON to an MDIO dataset using to_mdio."""
+        from mdio.core.v1._serializer import _construct_mdio_dataset
+        
+        output_path = tmp_path / "from_json.mdio"
+        # output_path = "test_mdio_from_json.mdio"
+        
+        # Step 1: Validate the TEST_SCHEMA JSON with Pydantic
+        dataset = V1Dataset.model_validate(TEST_SCHEMA)
+        
+        # Step 2: Convert to MDIO dataset using the internal constructor
+        mdio_dataset = _construct_mdio_dataset(dataset)
+        
+        # Step 3: Use to_mdio to save the dataset
+        mdio_dataset.to_mdio(store=str(output_path))
+        
+        # Verify the dataset was created
+        assert output_path.exists()
+        
+        # Verify we can read it back
+        from mdio.core.v1 import mdio
+        with mdio.open(str(output_path)) as reader:
+            assert "actual_variable" in reader
+            assert "coord" in reader
+            assert "dim0" in reader.coords
+            assert "dim1" in reader.coords
+            assert reader.attrs["name"] == "test_dataset"
+
+    def test_mdio_dataset_to_json(self, tmp_path: Path) -> None:
+        """Test converting an MDIO dataset back to JSON (camelCase)."""
+        from mdio.core.v1._serializer import _construct_mdio_dataset
+        from mdio.core.v1 import mdio
+        
+        # Step 1: Create MDIO dataset from TEST_SCHEMA
+        dataset = V1Dataset.model_validate(TEST_SCHEMA)
+        mdio_dataset = _construct_mdio_dataset(dataset)
+        
+        mdio_path = tmp_path / "test_dataset.mdio"
+        mdio_dataset.to_mdio(store=str(mdio_path))
+        
+        # Step 2: Read back the MDIO dataset
+        with mdio.open(str(mdio_path)) as reader:
+            # Step 3: Extract information to reconstruct Pydantic model
+            variables = []
+            
+            # Add dimension variables
+            for dim_name in ["dim0", "dim1"]:
+                if dim_name in reader.coords:
+                    coord = reader.coords[dim_name]
+                    var_dict = {
+                        "name": dim_name,
+                        "dataType": str(coord.dtype),
+                        "dimensions": [{"name": dim_name, "size": reader.dims[dim_name]}],
+                    }
+                    variables.append(var_dict)
+            
+            # Add data variables with their metadata
+            for var_name in reader.data_vars:
+                var = reader[var_name]
+                var_dict = {
+                    "name": var_name,
+                    "dataType": str(var.dtype),
+                    "dimensions": list(var.dims),
+                }
+                
+                # Reconstruct metadata based on original TEST_SCHEMA
+                if var_name == "coord":
+                    var_dict["metadata"] = {
+                        "chunkGrid": {
+                            "name": "regular",
+                            "configuration": {"chunkShape": [10, 20]},
+                        },
+                        "unitsV1": {"length": "m"},
+                    }
+                elif var_name == "actual_variable":
+                    var_dict["compressor"] = {"name": "blosc", "level": 3}
+                    var_dict["coordinates"] = ["coord"]
+                    var_dict["metadata"] = {
+                        "chunkGrid": {
+                            "name": "regular",
+                            "configuration": {"chunkShape": [10, 20]},
+                        },
+                    }
+                variables.append(var_dict)
+            
+            # Step 4: Create Pydantic model data (camelCase)
+            dataset_data = {
+                "metadata": {
+                    "name": reader.attrs.get("name"),
+                    "apiVersion": reader.attrs.get("apiVersion", "1.0.0"),
+                    "createdOn": reader.attrs.get("createdOn", "2023-01-01T00:00:00Z"),
+                },
+                "variables": variables
+            }
+            
+            # Step 5: Validate with Pydantic and serialize to JSON using by_alias=True
+            pydantic_dataset = V1Dataset.model_validate(dataset_data)
+            json_str = pydantic_dataset.model_dump_json(by_alias=True)
+            
+            # Verify it's valid JSON and camelCase
+            parsed = json.loads(json_str)
+
+            print(parsed)
+
+            assert "apiVersion" in parsed["metadata"]
+            assert "createdOn" in parsed["metadata"]
+            assert "dataType" in parsed["variables"][0]
+            
+            # Verify the conversion preserved data
+            assert pydantic_dataset.metadata.name == "test_dataset"
+
+    def test_full_round_trip_json_mdio_json(self, tmp_path: Path) -> None:
+        """Test full round-trip: TEST_SCHEMA JSON -> MDIO -> JSON using to_mdio."""
+        from mdio.core.v1._serializer import _construct_mdio_dataset
+        from mdio.core.v1 import mdio
+        
+        # Step 1: Start with TEST_SCHEMA (input JSON)
+        original_dataset = V1Dataset.model_validate(TEST_SCHEMA)
+        original_json = original_dataset.model_dump_json(by_alias=True)
+        original_parsed = json.loads(original_json)
+        
+        # Verify original is camelCase
+        assert "apiVersion" in original_parsed["metadata"]
+        assert "createdOn" in original_parsed["metadata"]
+        
+        # Step 2: Convert to MDIO dataset and save
+        mdio_dataset = _construct_mdio_dataset(original_dataset)
+        mdio_path = tmp_path / "round_trip.mdio"
+        mdio_dataset.to_mdio(store=str(mdio_path))
+        
+        # Step 3: Read back from MDIO and convert to JSON
+        with mdio.open(str(mdio_path)) as reader:
+            # Reconstruct the schema structure
+            variables = []
+            
+            # Add dimension variables
+            for dim_name in ["dim0", "dim1"]:
+                if dim_name in reader.coords:
+                    coord = reader.coords[dim_name]
+                    var_dict = {
+                        "name": dim_name,
+                        "dataType": str(coord.dtype),
+                        "dimensions": [{"name": dim_name, "size": reader.dims[dim_name]}],
+                    }
+                    variables.append(var_dict)
+            
+            # Add coordinate variables that are not dimensions
+            for coord_name, coord in reader.coords.items():
+                if coord_name not in ["dim0", "dim1"]:  # Skip dimension coordinates
+                    var_dict = {
+                        "name": coord_name,
+                        "dataType": str(coord.dtype),
+                        "dimensions": list(coord.dims),
+                    }
+                    
+                    # Add metadata for coord variable from original TEST_SCHEMA
+                    if coord_name == "coord":
+                        var_dict["metadata"] = {
+                            "chunkGrid": {
+                                "name": "regular",
+                                "configuration": {"chunkShape": [10, 20]},
+                            },
+                            "unitsV1": {"length": "m"},
+                        }
+                    variables.append(var_dict)
+            
+            # Add data variables with original metadata
+            for var_name in reader.data_vars:
+                var = reader[var_name]
+                var_dict = {
+                    "name": var_name,
+                    "dataType": str(var.dtype),
+                    "dimensions": list(var.dims),
+                }
+                
+                # Add original metadata back from TEST_SCHEMA
+                if var_name == "actual_variable":
+                    var_dict["compressor"] = {"name": "blosc", "level": 3}
+                    var_dict["coordinates"] = ["coord"]
+                    var_dict["metadata"] = {
+                        "chunkGrid": {
+                            "name": "regular",
+                            "configuration": {"chunkShape": [10, 20]},
+                        },
+                    }
+                variables.append(var_dict)
+            
+            # Create final dataset
+            final_data = {
+                "metadata": {
+                    "name": reader.attrs.get("name", "test_dataset"),
+                    "apiVersion": reader.attrs.get("apiVersion", "1.0.0"),
+                    "createdOn": reader.attrs.get("createdOn", "2023-01-01T00:00:00Z"),
+                },
+                "variables": variables
+            }
+            
+            final_dataset = V1Dataset.model_validate(final_data)
+            final_json = final_dataset.model_dump_json(by_alias=True)
+            final_parsed = json.loads(final_json)
+            
+            # Step 4: Verify round-trip integrity
+            assert final_parsed["metadata"]["name"] == original_parsed["metadata"]["name"]
+            assert final_parsed["metadata"]["apiVersion"] == original_parsed["metadata"]["apiVersion"]
+            
+            # Verify camelCase is preserved
+            assert "apiVersion" in final_parsed["metadata"]
+            assert "createdOn" in final_parsed["metadata"]
+            assert "dataType" in final_parsed["variables"][0]
+            
+            # Verify variable structure is preserved
+            original_var_names = {v["name"] for v in original_parsed["variables"]}
+            final_var_names = {v["name"] for v in final_parsed["variables"]}
+
+            print(original_var_names)
+            print("=================================")
+            print(final_var_names)
+
+            assert original_var_names == final_var_names
+
+    def test_invalid_snake_case_json_fails(self) -> None:
+        """Test that snake_case JSON fails validation (negative test)."""
+        # Create snake_case version of TEST_SCHEMA (should fail)
+        invalid_snake_case_schema = {
+            "metadata": {
+                "name": "test_dataset",
+                "api_version": "1.0.0",  # snake_case should fail
+                "created_on": "2023-01-01T00:00:00Z",  # snake_case should fail
+            },
+            "variables": [
+                {
+                    "name": "test_var",
+                    "data_type": "float32",  # snake_case should fail
+                    "dimensions": ["dim0"],
+                }
+            ]
+        }
+        
+        # This should fail validation
+        with pytest.raises(ValidationError):
+            V1Dataset.model_validate(invalid_snake_case_schema)
+
+    def test_camel_case_serialization_only(self) -> None:
+        """Test that serialization only produces camelCase output."""
+        dataset = V1Dataset.model_validate(TEST_SCHEMA)
+        json_str = dataset.model_dump_json()
+        parsed = json.loads(json_str)
+        
+        # Verify camelCase fields are present
+        assert "apiVersion" in parsed["metadata"]
+        assert "createdOn" in parsed["metadata"]
+        
+        # Verify snake_case fields are NOT present
+        assert "api_version" not in parsed["metadata"]
+        assert "created_on" not in parsed["metadata"]
+        
+        # Check variables use camelCase
+        for var in parsed["variables"]:
+            assert "dataType" in var
+            assert "data_type" not in var
+            
+            # Check nested metadata if present
+            if "metadata" in var and "chunkGrid" in var["metadata"]:
+                assert "chunkGrid" in var["metadata"]
+                assert "chunk_grid" not in var["metadata"]

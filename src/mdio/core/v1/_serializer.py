@@ -23,6 +23,8 @@ from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import Variable
 from mdio.schemas.v1.variable import VariableMetadata
+from mdio.schemas.chunk_grid import *
+from mdio.schemas.v1.stats import *
 
 try:
     import zfpy as zfpy_base  # Base library
@@ -46,13 +48,14 @@ def make_coordinate(
     metadata: list[AllUnits | UserAttributes] | None = None,
 ) -> Coordinate:
     """Create a Coordinate with the given name, dimensions, data_type, and metadata."""
-    return Coordinate(
-        name=name,
-        long_name=long_name,
-        dimensions=dimensions,
-        data_type=data_type,
-        metadata=metadata,
-    )
+    coordinate_dict = {
+        "name": name,
+        "longName": long_name,
+        "dimensions": dimensions,
+        "dataType": data_type,
+        "metadata": metadata,
+    }
+    return Coordinate(**coordinate_dict)
 
 
 def make_variable(  # noqa: PLR0913 PLR0912
@@ -81,52 +84,48 @@ def make_variable(  # noqa: PLR0913 PLR0912
     Raises:
         TypeError: If the metadata type is not supported.
     """
-    # Convert metadata to VariableMetadata if needed
+
+    # TODO(BrianMichell) #0: I suspect that this is only partially correct...
+
+    def _to_serializable(val: Any) -> Any:
+        return val.model_dump(mode="json", by_alias=True) if hasattr(val, "model_dump") else val
+
     var_metadata = None
     if metadata:
         if isinstance(metadata, list):
-            # Convert list of metadata to dict
             metadata_dict = {}
             for md in metadata:
                 if isinstance(md, AllUnits):
-                    # For units_v1, if it's a single element, use it directly
-                    if isinstance(md.units_v1, list) and len(md.units_v1) == 1:
-                        metadata_dict["units_v1"] = md.units_v1[0]
-                    else:
-                        metadata_dict["units_v1"] = md.units_v1
+                    val = md.units_v1
+                    if isinstance(val, list) and len(val) == 1:
+                        val = val[0]
+                    metadata_dict["unitsV1"] = val
                 elif isinstance(md, UserAttributes):
-                    # For attributes, if it's a single element, use it directly
-                    attrs = md.model_dump(by_alias=True)
-                    if isinstance(attrs, list) and len(attrs) == 1:
-                        metadata_dict["attributes"] = attrs[0]
-                    else:
-                        metadata_dict["attributes"] = attrs
+                    attrs = _to_serializable(md)
+                    metadata_dict["attributes"] = attrs[0] if isinstance(attrs, list) and len(attrs) == 1 else attrs
             var_metadata = VariableMetadata(**metadata_dict)
+
         elif isinstance(metadata, dict):
-            # Convert camelCase keys to snake_case for VariableMetadata
             converted_dict = {}
             for key, value in metadata.items():
                 if key == "unitsV1":
-                    # For units_v1, if it's a single element array, use the element directly
-                    if isinstance(value, list) and len(value) == 1:
-                        converted_dict["units_v1"] = value[0]
-                    else:
-                        converted_dict["units_v1"] = value
+                    val = value[0] if isinstance(value, list) and len(value) == 1 else value
+                    converted_dict["unitsV1"] = _to_serializable(val)
                 else:
                     converted_dict[key] = value
             var_metadata = VariableMetadata(**converted_dict)
+
         elif isinstance(metadata, VariableMetadata):
             var_metadata = metadata
-        else:
-            msg = f"Unsupported metadata type: {type(metadata)}"
-            raise TypeError(msg)
 
-    # Create the variable with all attributes explicitly set
+        else:
+            raise TypeError(f"Unsupported metadata type: {type(metadata)}")
+
     return Variable(
         name=name,
-        long_name=long_name,
+        longName=long_name,
         dimensions=dimensions,
-        data_type=data_type,
+        dataType=data_type,
         compressor=compressor,
         coordinates=coordinates,
         metadata=var_metadata,
@@ -140,12 +139,13 @@ def make_dataset_metadata(
     attributes: dict[str, Any] | None = None,
 ) -> DatasetMetadata:
     """Create a DatasetMetadata with name, api_version, created_on, and optional attributes."""
-    return DatasetMetadata(
-        name=name,
-        api_version=api_version,
-        created_on=created_on,
-        attributes=attributes,
-    )
+    dataset_metadata_dict = {
+        "name": name,
+        "apiVersion": api_version,
+        "createdOn": created_on,
+        "attributes": attributes,
+    }
+    return DatasetMetadata(**dataset_metadata_dict)
 
 
 def make_dataset(
