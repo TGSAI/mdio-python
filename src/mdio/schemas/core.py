@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from typing import Any
-from typing import get_type_hints
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
-from pydantic.alias_generators import to_camel
 from pydantic import Field
+from pydantic.alias_generators import to_camel
+
 
 def model_fields(model: type[BaseModel]) -> dict[str, tuple[Any, Any]]:
     """Extract Pydantic BaseModel fields.
@@ -57,7 +57,7 @@ class CamelCaseStrictModel(StrictModel):
         ser_json_by_alias=True,
     )
 
-    def model_dump_json(self, *args, **kwargs):  # type: ignore[override]
+    def model_dump_json(self, *args, **kwargs) -> dict:  # noqa: ANN201 ANN001 ANN002 ANN003
         """Dump JSON using camelCase aliases and excluding None values by default."""
         # Ensure camelCase aliases
         if "by_alias" not in kwargs:

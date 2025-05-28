@@ -11,6 +11,7 @@ import numpy as np
 from numcodecs import Blosc as NumcodecsBlosc
 
 from mdio.core.v1._overloads import mdio
+from mdio.schemas.chunk_grid import *  # noqa: F403
 from mdio.schemas.compressors import ZFP
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.dimension import NamedDimension
@@ -19,20 +20,16 @@ from mdio.schemas.dtype import StructuredType
 from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.dataset import Dataset as MDIODataset
 from mdio.schemas.v1.dataset import DatasetMetadata
+from mdio.schemas.v1.stats import *  # noqa: F403
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import Variable
 from mdio.schemas.v1.variable import VariableMetadata
-from mdio.schemas.chunk_grid import *
-from mdio.schemas.v1.stats import *
-
-import logging
 
 try:
     import zfpy as zfpy_base  # Base library
     from numcodecs import ZFPY  # Codec
 except ImportError:
-    logging.warning(f"Tried to import zfpy and numcodecs zfpy but failed because {ImportError}")
     zfpy_base = None
     ZFPY = None
 
@@ -87,9 +84,7 @@ def make_variable(  # noqa: PLR0913 PLR0912
         TypeError: If the metadata type is not supported.
     """
 
-    # TODO(BrianMichell) #0: I suspect that this is only partially correct...
-
-    def _to_serializable(val: Any) -> Any:
+    def _to_serializable(val: object) -> dict[str, Any] | object:
         return val.model_dump(mode="json", by_alias=True) if hasattr(val, "model_dump") else val
 
     var_metadata = None
@@ -104,7 +99,9 @@ def make_variable(  # noqa: PLR0913 PLR0912
                     metadata_dict["unitsV1"] = val
                 elif isinstance(md, UserAttributes):
                     attrs = _to_serializable(md)
-                    metadata_dict["attributes"] = attrs[0] if isinstance(attrs, list) and len(attrs) == 1 else attrs
+                    metadata_dict["attributes"] = (
+                        attrs[0] if isinstance(attrs, list) and len(attrs) == 1 else attrs
+                    )
             var_metadata = VariableMetadata(**metadata_dict)
 
         elif isinstance(metadata, dict):
@@ -121,7 +118,8 @@ def make_variable(  # noqa: PLR0913 PLR0912
             var_metadata = metadata
 
         else:
-            raise TypeError(f"Unsupported metadata type: {type(metadata)}")
+            msg = f"Unsupported metadata type: {type(metadata)}"
+            raise TypeError(msg)
 
     return Variable(
         name=name,

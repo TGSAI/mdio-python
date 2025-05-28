@@ -25,8 +25,9 @@ class MDIODataset(_Dataset):
         """Alias for `.to_zarr()`."""
         # Ensure zarr_version=2 by default unless explicitly overridden
         zarr_version = kwargs.get("zarr_version", 2)
-        if zarr_version != 2:
-            raise ValueError("MDIO only supports zarr_version=2")
+        if zarr_version != 2:  # noqa: PLR2004
+            msg = "MDIO only supports zarr_version=2"
+            raise ValueError(msg)
         kwargs["zarr_version"] = zarr_version
         return super().to_zarr(*args, store=store, **kwargs)
 
@@ -45,8 +46,9 @@ class MDIODataArray(_DataArray):
         """Alias for `.to_zarr()`, and writes to Zarr store."""
         # Ensure zarr_version=2 by default unless explicitly overridden
         zarr_version = kwargs.get("zarr_version", 2)
-        if zarr_version != 2:
-            raise ValueError("MDIO only supports zarr_version=2")
+        if zarr_version != 2:  # noqa: PLR2004
+            msg = "MDIO only supports zarr_version=2"
+            raise ValueError(msg)
         kwargs["zarr_version"] = zarr_version
         return super().to_zarr(*args, store=store, **kwargs)
 
@@ -80,9 +82,9 @@ class MDIO:
         ds.__class__ = MDIODataset
         # Cast each DataArray in data_vars and coords
 
-        for _name, var in ds.data_vars.items():
+        for _name, var in ds.data_vars.items():  # noqa: PERF102 .values() failed tests
             var.__class__ = MDIODataArray
-        for _name, coord in ds.coords.items():
+        for _name, coord in ds.coords.items():  # noqa: PERF102 .values() failed tests
             coord.__class__ = MDIODataArray
         return ds
 

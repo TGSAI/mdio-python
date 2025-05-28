@@ -30,6 +30,7 @@ def test_main_succeeds(runner: CliRunner, segy_input: Path, zarr_tmp: Path) -> N
 def test_main_cloud(runner: CliRunner, segy_input_uri: str, zarr_tmp: Path) -> None:
     """It exits with a status code of zero."""
     os.environ["MDIO__IMPORT__CLOUD_NATIVE"] = "true"
+    os.environ["MDIO__IMPORT__CPU_COUNT"] = "1"
     cli_args = ["segy", "import", segy_input_uri, str(zarr_tmp)]
     cli_args.extend(["--header-locations", "181,185"])
     cli_args.extend(["--header-names", "inline,crossline"])
