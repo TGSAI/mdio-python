@@ -10,44 +10,24 @@ from pydantic import ConfigDict
 from pydantic.alias_generators import to_camel
 from pydantic import Field
 
-
-# def model_fields(model: type[BaseModel]) -> dict[str, tuple[Any, Any]]:
-#     """Extract Pydantic BaseModel fields.
-
-#     Args:
-#         model: (Type) The model object for which the fields will be extracted.
-
-#     Returns:
-#         A dictionary containing the fields of the model along with
-#         their corresponding types and default values.
-
-#     Example:
-#         >>> class MyModel(BaseModel):
-#         ...     name: str
-#         ...     age: int = 0
-#         ...
-#         >>> model_fields(MyModel)
-#         {'name': (str, <default_value>), 'age': (int, 0)}
-#     """
-#     annotations = get_type_hints(model)
-
-#     fields = {}
-#     for field_name, field in model.model_fields.items():
-#         fields[field_name] = (annotations[field_name], field)
-
-#     return fields
-
-# def model_fields(model: type[BaseModel]) -> dict[str, tuple[Any, Any]]:
-#     """Return fields suitable for use in create_model with correct types and defaults."""
-#     fields = {}
-#     for field_name, field_info in model.model_fields.items():
-#         annotated_type = field_info.annotation
-#         default = field_info.default if field_info.default is not None else ...
-#         fields[field_name] = (annotated_type, Field(default, description=field_info.description))
-#     return fields
-
 def model_fields(model: type[BaseModel]) -> dict[str, tuple[Any, Any]]:
-    """Safely extract fields for create_model, preserving optionality and default behavior."""
+    """Extract Pydantic BaseModel fields.
+
+    Args:
+        model: (Type) The model object for which the fields will be extracted.
+
+    Returns:
+        A dictionary containing the fields of the model along with
+        their corresponding types and default values.
+
+    Example:
+        >>> class MyModel(BaseModel):
+        ...     name: str
+        ...     age: int = 0
+        ...
+        >>> model_fields(MyModel)
+        {'name': (str, <default_value>), 'age': (int, 0)}
+    """
     fields = {}
     for field_name, field_info in model.model_fields.items():
         annotated_type = field_info.annotation
