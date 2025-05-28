@@ -4,6 +4,7 @@
 
 from datetime import UTC
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
@@ -21,7 +22,7 @@ from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
 
 
-def test_make_toy_dataset() -> None:
+def test_make_toy_dataset(tmp_path: Path) -> None:
     """Test that make_toy_dataset returns a Dataset object using the factory pattern."""
     # Create dataset using factory
     template = SCHEMA_TEMPLATE_MAP[MDIOSchemaType.SEISMIC_3D_POST_STACK_GENERIC]
@@ -52,7 +53,8 @@ def test_make_toy_dataset() -> None:
     print("\nDataset Schema JSON:")
     print(ds.model_dump_json(indent=2))
 
-    write_mdio_metadata(ds, "test_toy_dataset.mdio")
+    mdio_path = tmp_path / "test_toy_dataset.mdio"
+    write_mdio_metadata(ds, str(mdio_path))
 
     # Verify metadata
     assert ds.metadata.name == "campos_3d"
