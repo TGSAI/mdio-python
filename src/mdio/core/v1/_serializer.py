@@ -30,7 +30,7 @@ try:
     import zfpy as zfpy_base  # Base library
     from numcodecs import ZFPY  # Codec
 except ImportError:
-    print(f"Tried to import zfpy and numcodecs zfpy but failed because {ImportError}")
+    logging.warning(f"Tried to import zfpy and numcodecs zfpy but failed because {ImportError}")
     zfpy_base = None
     ZFPY = None
 

@@ -2,7 +2,6 @@
 
 The intent of overloading here is:
 1. To provide a consistent mdio.* naming scheme.
-2. To simplify the API for users where it makes sense (e.g. MDIO v1 uses Zarr and not HDF5).
 """
 
 from collections.abc import Mapping
@@ -23,8 +22,7 @@ class MDIODataset(_Dataset):
         *args: str | int | float | bool,
         **kwargs: Mapping[str, str | int | float | bool],
     ) -> None:
-        """Alias for `.to_zarr()`, prints a greeting, and writes to Zarr store."""
-        print("👋 hello world from mdio.to_mdio!")
+        """Alias for `.to_zarr()`."""
         # Ensure zarr_version=2 by default unless explicitly overridden
         zarr_version = kwargs.get("zarr_version", 2)
         if zarr_version != 2:
@@ -44,8 +42,7 @@ class MDIODataArray(_DataArray):
         *args: str | int | float | bool,
         **kwargs: Mapping[str, str | int | float | bool],
     ) -> None:
-        """Alias for `.to_zarr()`, prints a greeting, and writes to Zarr store."""
-        print("👋 hello world from mdio.to_mdio!")
+        """Alias for `.to_zarr()`, and writes to Zarr store."""
         # Ensure zarr_version=2 by default unless explicitly overridden
         zarr_version = kwargs.get("zarr_version", 2)
         if zarr_version != 2:
@@ -72,7 +69,6 @@ class MDIO:
 
         Casts the returned xarray.Dataset (and its variables) to the MDIO subclasses.
         """
-        print("👋 hello world from mdio.open!")
         ds = xr.open_dataset(
             store,
             *args,
