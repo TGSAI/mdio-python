@@ -26,6 +26,8 @@ from mdio.schemas.v1.variable import VariableMetadata
 from mdio.schemas.chunk_grid import *
 from mdio.schemas.v1.stats import *
 
+import logging
+
 try:
     import zfpy as zfpy_base  # Base library
     from numcodecs import ZFPY  # Codec
