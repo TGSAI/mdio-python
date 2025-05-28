@@ -10,7 +10,6 @@ from ._serializer import make_dataset_metadata
 from ._serializer import make_named_dimension
 from ._serializer import make_variable
 from .builder import MDIODatasetBuilder
-from .builder import write_mdio_metadata
 from .factory import SCHEMA_TEMPLATE_MAP
 from .factory import MDIOSchemaType
 
@@ -22,7 +21,6 @@ __all__ = [
     "make_named_dimension",
     "make_variable",
     "mdio",
-    "write_mdio_metadata",
     "MDIOSchemaType",
     "SCHEMA_TEMPLATE_MAP",
 ]
