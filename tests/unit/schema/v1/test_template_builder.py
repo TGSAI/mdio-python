@@ -31,7 +31,7 @@ def test_dimension_builder_state() -> None:
     builder = MDIODatasetBuilder("test_dataset")
 
     # First dimension should change state to HAS_DIMENSIONS and create a variable
-    builder = builder.add_dimension("x", 100, long_name="X Dimension")
+    builder.add_dimension("x", 100, long_name="X Dimension")
     assert builder._state == _BuilderState.HAS_DIMENSIONS
     assert len(builder._dimensions) == 1  # noqa: PLR2004
     assert len(builder._variables) == 1  # noqa: PLR2004
@@ -43,7 +43,7 @@ def test_dimension_builder_state() -> None:
     assert builder._variables[0].dimensions[0].name == "x"
 
     # Adding another dimension should maintain state and create another variable
-    builder = builder.add_dimension("y", 200, data_type=ScalarType.UINT32)
+    builder.add_dimension("y", 200, data_type=ScalarType.UINT32)
     assert builder._state == _BuilderState.HAS_DIMENSIONS
     assert len(builder._dimensions) == 2  # noqa: PLR2004
     assert len(builder._variables) == 2  # noqa: PLR2004
@@ -54,12 +54,12 @@ def test_dimension_builder_state() -> None:
     assert builder._variables[1].dimensions[0].name == "y"
 
 
-def test_dimension_with_metadata() -> None:
+def test_dimension_with_units() -> None:
     """Test adding dimensions with custom metadata."""
     builder = MDIODatasetBuilder("test_dataset")
 
     # Add dimension with custom metadata
-    builder = builder.add_dimension(
+    builder.add_dimension(
         "depth",
         size=100,
         data_type=ScalarType.FLOAT32,
@@ -71,6 +71,214 @@ def test_dimension_with_metadata() -> None:
     assert depth_var.name == "depth"
     assert depth_var.data_type == ScalarType.FLOAT32
     assert depth_var.metadata.units_v1.length == "m"
+
+
+def test_dimension_with_attributes() -> None:
+    """Test adding dimensions with attributes."""
+    builder = MDIODatasetBuilder("test_dataset")
+
+    # Add dimension with attributes
+    builder.add_dimension(
+        "depth",
+        size=100,
+        data_type=ScalarType.FLOAT32,
+        metadata={"attributes": {"MGA": 51}},
+    )
+
+    assert len(builder._variables) == 1
+    depth_var = builder._variables[0]
+    assert depth_var.name == "depth"
+    assert depth_var.data_type == ScalarType.FLOAT32
+    assert depth_var.metadata.attributes["MGA"] == 51
+
+
+def test_dimension_with_chunk_grid() -> None:
+    """Test adding dimensions with chunk grid."""
+    builder = MDIODatasetBuilder("test_dataset")
+
+    # Add dimension with chunk grid
+    builder.add_dimension(
+        "depth",
+        size=100,
+        data_type=ScalarType.FLOAT32,
+        metadata={"chunkGrid": {"name": "regular", "configuration": {"chunkShape": [20]}}},
+    )
+
+    assert len(builder._variables) == 1
+    depth_var = builder._variables[0]
+    assert depth_var.name == "depth"
+    assert depth_var.data_type == ScalarType.FLOAT32
+    assert depth_var.metadata.chunk_grid.name == "regular"
+    assert depth_var.metadata.chunk_grid.configuration.chunk_shape == [20]
+
+
+def test_dimension_with_stats() -> None:
+    """Test adding dimensions with stats."""
+    builder = MDIODatasetBuilder("test_dataset")
+
+    # Add dimension with stats
+    builder.add_dimension(
+        "depth",
+        size=100,
+        data_type=ScalarType.FLOAT32,
+        metadata={
+            "statsV1": {
+                "count": 100,
+                "sum": 1215.1,
+                "sumSquares": 125.12,
+                "min": 5.61,
+                "max": 10.84,
+                "histogram": {"binCenters": [1, 2], "counts": [10, 15]},
+            }
+        },
+    )
+
+    assert len(builder._variables) == 1
+    depth_var = builder._variables[0]
+    assert depth_var.name == "depth"
+    assert depth_var.data_type == ScalarType.FLOAT32
+    assert depth_var.metadata.stats_v1.count == 100
+    assert depth_var.metadata.stats_v1.sum == 1215.1
+
+
+def test_dimension_with_full_metadata() -> None:
+    """Test adding dimensions with all metadata."""
+    builder = MDIODatasetBuilder("test_dataset")
+
+    # Add dimension with all metadata
+    builder.add_dimension(
+        "depth",
+        size=100,
+        data_type=ScalarType.FLOAT32,
+        metadata={
+            "unitsV1": {"length": "m"},
+            "attributes": {"MGA": 51},
+            "chunkGrid": {"name": "regular", "configuration": {"chunkShape": [20]}},
+            "statsV1": {
+                "count": 100,
+                "sum": 1215.1,
+                "sumSquares": 125.12,
+                "min": 5.61,
+                "max": 10.84,
+                "histogram": {"binCenters": [1, 2], "counts": [10, 15]},
+            },
+        },
+    )
+
+    assert len(builder._variables) == 1
+    depth_var = builder._variables[0]
+    assert depth_var.name == "depth"
+    assert depth_var.data_type == ScalarType.FLOAT32
+    assert depth_var.metadata.units_v1.length == "m"
+    assert depth_var.metadata.attributes["MGA"] == 51
+    assert depth_var.metadata.chunk_grid.name == "regular"
+    assert depth_var.metadata.chunk_grid.configuration.chunk_shape == [20]
+    assert depth_var.metadata.stats_v1.count == 100
+    assert depth_var.metadata.stats_v1.sum == 1215.1
+    assert depth_var.metadata.stats_v1.sum_squares == 125.12
+    assert depth_var.metadata.stats_v1.min == 5.61
+    assert depth_var.metadata.stats_v1.max == 10.84
+    assert depth_var.metadata.stats_v1.histogram.bin_centers == [1, 2]
+    assert depth_var.metadata.stats_v1.histogram.counts == [10, 15]
+
+    j = builder.build().json()
+    print(j)
+
+
+def test_coordiante_with_units() -> None:
+    """Test adding coordinates with units."""
+    builder = MDIODatasetBuilder("test_dataset")
+    builder.add_dimension("inline", 100)
+    builder.add_dimension("crossline", 100)
+
+    # Add coordinate with units
+    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"unitsV1": {"length": "m"}})
+
+    assert len(builder._variables) == 2
+    assert len(builder._coordinates) == 1
+    cdp_var = builder._coordinates[0]
+    assert cdp_var.name == "cdp"
+    assert cdp_var.data_type == ScalarType.FLOAT32
+    assert cdp_var.metadata.units_v1.length == "m"
+
+def test_coordinate_with_attributes() -> None:
+    """Test adding coordinates with attributes."""
+    builder = MDIODatasetBuilder("test_dataset")
+    builder.add_dimension("inline", 100)
+    builder.add_dimension("crossline", 100)
+
+    # Add coordinate with attributes
+    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"attributes": {"MGA": 51}})
+
+    assert len(builder._variables) == 2
+    assert len(builder._coordinates) == 1
+    cdp_var = builder._coordinates[0]
+    assert cdp_var.name == "cdp"
+    assert cdp_var.data_type == ScalarType.FLOAT32
+    assert cdp_var.metadata.attributes["MGA"] == 51
+
+def test_coordinate_with_chunk_grid() -> None:
+    """Test adding coordinates with chunk grid."""
+    builder = MDIODatasetBuilder("test_dataset")
+    builder.add_dimension("inline", 100)
+    builder.add_dimension("crossline", 100)
+
+    # Add coordinate with chunk grid
+    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"chunkGrid": {"name": "regular", "configuration": {"chunkShape": [20, 20]}}})
+
+    assert len(builder._variables) == 2
+    assert len(builder._coordinates) == 1
+    cdp_var = builder._coordinates[0]
+    assert cdp_var.name == "cdp"
+    assert cdp_var.data_type == ScalarType.FLOAT32
+    assert cdp_var.metadata.chunk_grid.name == "regular"
+    assert cdp_var.metadata.chunk_grid.configuration.chunk_shape == [20, 20]
+
+def test_coordinate_with_stats() -> None:
+    """Test adding coordinates with stats."""
+    builder = MDIODatasetBuilder("test_dataset")
+    builder.add_dimension("inline", 100)
+    builder.add_dimension("crossline", 100)
+
+    # Add coordinate with stats
+    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"statsV1": {"count": 100, "sum": 1215.1, "sumSquares": 125.12, "min": 5.61, "max": 10.84, "histogram": {"binCenters": [1, 2], "counts": [10, 15]}}})
+
+    assert len(builder._variables) == 2
+    assert len(builder._coordinates) == 1
+    cdp_var = builder._coordinates[0]
+    assert cdp_var.name == "cdp"
+    assert cdp_var.data_type == ScalarType.FLOAT32
+    assert cdp_var.metadata.stats_v1.count == 100
+    assert cdp_var.metadata.stats_v1.sum == 1215.1
+
+def test_coordinate_with_full_metadata() -> None:
+    """Test adding coordinates with all metadata."""
+    builder = MDIODatasetBuilder("test_dataset")
+    builder.add_dimension("inline", 100)
+    builder.add_dimension("crossline", 100)
+
+    # Add coordinate with all metadata
+    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"unitsV1": {"length": "m"}, "attributes": {"MGA": 51}, "chunkGrid": {"name": "regular", "configuration": {"chunkShape": [20]}}, "statsV1": {"count": 100, "sum": 1215.1, "sumSquares": 125.12, "min": 5.61, "max": 10.84, "histogram": {"binCenters": [1, 2], "counts": [10, 15]}}})
+
+    assert len(builder._variables) == 2
+    assert len(builder._coordinates) == 1
+    cdp_var = builder._coordinates[0]
+    assert cdp_var.name == "cdp"
+    assert cdp_var.data_type == ScalarType.FLOAT32
+    assert cdp_var.metadata.units_v1.length == "m"
+    assert cdp_var.metadata.attributes["MGA"] == 51
+    assert cdp_var.metadata.chunk_grid.name == "regular"
+    assert cdp_var.metadata.chunk_grid.configuration.chunk_shape == [20]
+    assert cdp_var.metadata.stats_v1.count == 100
+    assert cdp_var.metadata.stats_v1.sum == 1215.1
+    assert cdp_var.metadata.stats_v1.sum_squares == 125.12
+    assert cdp_var.metadata.stats_v1.min == 5.61
+    assert cdp_var.metadata.stats_v1.max == 10.84
+    assert cdp_var.metadata.stats_v1.histogram.bin_centers == [1, 2]
+    assert cdp_var.metadata.stats_v1.histogram.counts == [10, 15]
+
+    j = builder.build().json()
+    print(j)
 
 
 def test_coordinate_builder_state() -> None:
