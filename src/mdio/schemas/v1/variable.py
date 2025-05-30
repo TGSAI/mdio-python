@@ -33,7 +33,10 @@ CoordinateMetadata = create_model(
 
 
 class Coordinate(NamedArray):
-    """A simple MDIO Coordinate array with metadata. For large or complex Coordinates, define a Variable instead."""
+    """A simple MDIO Coordinate array with metadata.
+
+    For large or complex Coordinates, define a Variable instead.
+    """
 
     data_type: ScalarType = Field(..., description="Data type of Coordinate.")
     metadata: CoordinateMetadata | None = Field(default=None, description="Coordinate Metadata.")
