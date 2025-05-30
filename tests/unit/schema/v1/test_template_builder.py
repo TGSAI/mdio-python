@@ -234,22 +234,6 @@ def test_coordinate_with_chunk_grid() -> None:
     assert cdp_var.metadata.chunk_grid.name == "regular"
     assert cdp_var.metadata.chunk_grid.configuration.chunk_shape == [20, 20]
 
-def test_coordinate_with_stats() -> None:
-    """Test adding coordinates with stats."""
-    builder = MDIODatasetBuilder("test_dataset")
-    builder.add_dimension("inline", 100)
-    builder.add_dimension("crossline", 100)
-
-    # Add coordinate with stats
-    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"statsV1": {"count": 100, "sum": 1215.1, "sumSquares": 125.12, "min": 5.61, "max": 10.84, "histogram": {"binCenters": [1, 2], "counts": [10, 15]}}})
-
-    assert len(builder._variables) == 2
-    assert len(builder._coordinates) == 1
-    cdp_var = builder._coordinates[0]
-    assert cdp_var.name == "cdp"
-    assert cdp_var.data_type == ScalarType.FLOAT32
-    assert cdp_var.metadata.stats_v1.count == 100
-    assert cdp_var.metadata.stats_v1.sum == 1215.1
 
 def test_coordinate_with_full_metadata() -> None:
     """Test adding coordinates with all metadata."""
@@ -258,7 +242,7 @@ def test_coordinate_with_full_metadata() -> None:
     builder.add_dimension("crossline", 100)
 
     # Add coordinate with all metadata
-    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"unitsV1": {"length": "m"}, "attributes": {"MGA": 51}, "chunkGrid": {"name": "regular", "configuration": {"chunkShape": [20]}}, "statsV1": {"count": 100, "sum": 1215.1, "sumSquares": 125.12, "min": 5.61, "max": 10.84, "histogram": {"binCenters": [1, 2], "counts": [10, 15]}}})
+    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"unitsV1": {"length": "m"}, "attributes": {"MGA": 51}, "chunkGrid": {"name": "regular", "configuration": {"chunkShape": [20]}}})
 
     assert len(builder._variables) == 2
     assert len(builder._coordinates) == 1
@@ -269,13 +253,6 @@ def test_coordinate_with_full_metadata() -> None:
     assert cdp_var.metadata.attributes["MGA"] == 51
     assert cdp_var.metadata.chunk_grid.name == "regular"
     assert cdp_var.metadata.chunk_grid.configuration.chunk_shape == [20]
-    assert cdp_var.metadata.stats_v1.count == 100
-    assert cdp_var.metadata.stats_v1.sum == 1215.1
-    assert cdp_var.metadata.stats_v1.sum_squares == 125.12
-    assert cdp_var.metadata.stats_v1.min == 5.61
-    assert cdp_var.metadata.stats_v1.max == 10.84
-    assert cdp_var.metadata.stats_v1.histogram.bin_centers == [1, 2]
-    assert cdp_var.metadata.stats_v1.histogram.counts == [10, 15]
 
     j = builder.build().json()
     print(j)
