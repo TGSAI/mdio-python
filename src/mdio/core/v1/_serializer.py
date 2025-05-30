@@ -44,17 +44,41 @@ def make_coordinate(
     dimensions: list[NamedDimension | str],
     data_type: ScalarType | StructuredType,
     long_name: str = None,
-    metadata: list[AllUnits | UserAttributes] | None = None,
+    metadata: list[AllUnits | UserAttributes] | dict[str, Any] | None = None,
 ) -> Coordinate:
     """Create a Coordinate with the given name, dimensions, data_type, and metadata."""
-    coordinate_dict = {
-        "name": name,
-        "longName": long_name,
-        "dimensions": dimensions,
-        "dataType": data_type,
-        "metadata": metadata,
-    }
-    return Coordinate(**coordinate_dict)
+    # Build metadata list of AllUnits or UserAttributes to satisfy Coordinate.schema
+    coord_meta_list: list[AllUnits | UserAttributes] | None = None
+    if metadata is not None:
+        items: list[AllUnits | UserAttributes] = []
+        # single dict input
+        if isinstance(metadata, dict):
+            if "unitsV1" in metadata:
+                items.append(AllUnits(**{"unitsV1": metadata["unitsV1"]}))
+            if "attributes" in metadata:
+                items.append(UserAttributes(**{"attributes": metadata["attributes"]}))
+        # list input may contain dict or model instances
+        elif isinstance(metadata, list):
+            for md in metadata:
+                if isinstance(md, AllUnits) or isinstance(md, UserAttributes):
+                    items.append(md)
+                elif isinstance(md, dict):
+                    if "unitsV1" in md:
+                        items.append(AllUnits(**{"unitsV1": md["unitsV1"]}))
+                    if "attributes" in md:
+                        items.append(UserAttributes(**{"attributes": md["attributes"]}))
+                else:
+                    raise TypeError(f"Unsupported metadata element type for coordinate: {type(md)}")
+        else:
+            raise TypeError(f"Unsupported metadata type for coordinate: {type(metadata)}")
+        coord_meta_list = items or None
+    return Coordinate(
+        name=name,
+        longName=long_name,
+        dimensions=dimensions,
+        dataType=data_type,
+        metadata=coord_meta_list,
+    )
 
 
 def make_variable(  # noqa: PLR0913 PLR0912
@@ -115,7 +139,12 @@ def make_variable(  # noqa: PLR0913 PLR0912
             var_metadata = VariableMetadata(**converted_dict)
 
         elif isinstance(metadata, VariableMetadata):
-            var_metadata = metadata
+            # Flatten any single-element list fields in metadata
+            md = metadata.model_dump(by_alias=True, exclude_none=True)
+            for key, value in list(md.items()):
+                if isinstance(value, list) and len(value) == 1:
+                    md[key] = value[0]
+            var_metadata = VariableMetadata(**md)
 
         else:
             msg = f"Unsupported metadata type: {type(metadata)}"
