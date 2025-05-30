@@ -28,6 +28,7 @@ CoordinateMetadata = create_model(
     **model_fields(AllUnits),
     **model_fields(UserAttributes),
     __base__=CamelCaseStrictModel,
+    __doc__="Reduced Metadata, perfect for simple Coordinate arrays.",
 )
 
 
@@ -45,6 +46,7 @@ VariableMetadata = create_model(
     **model_fields(StatisticsMetadata),
     **model_fields(UserAttributes),
     __base__=CamelCaseStrictModel,
+    __doc__="Complete Metadata for Variables and complex or large Coordinates.",
 )
 
 
