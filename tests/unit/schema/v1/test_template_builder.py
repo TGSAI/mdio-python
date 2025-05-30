@@ -224,6 +224,7 @@ def test_coordinate_with_attributes() -> None:
     # assert cdp_var.metadata.attributes["MGA"] == 51  # noqa: PLR2004
     assert cdp_var.metadata[0].attributes["MGA"] == 51  # noqa: PLR2004
 
+
 def test_coordinate_with_full_metadata() -> None:
     """Test adding coordinates with all metadata."""
     builder = MDIODatasetBuilder("test_dataset")
