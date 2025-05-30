@@ -28,15 +28,15 @@ CoordinateMetadata = create_model(
     **model_fields(AllUnits),
     **model_fields(UserAttributes),
     __base__=CamelCaseStrictModel,
-    __doc__="Reduced Metadata, perfect for simple Coordinate arrays.",
+    __doc__="Reduced Metadata, perfect for simple Coordinates.",
 )
 
 
 class Coordinate(NamedArray):
-    """An MDIO coordinate array with metadata."""
+    """A simple MDIO Coordinate array with metadata. For large or complex Coordinates, define a Variable instead."""
 
-    data_type: ScalarType = Field(..., description="Data type of coordinate.")
-    metadata: CoordinateMetadata | None = Field(default=None, description="Coordinate metadata.")
+    data_type: ScalarType = Field(..., description="Data type of Coordinate.")
+    metadata: CoordinateMetadata | None = Field(default=None, description="Coordinate Metadata.")
 
 
 VariableMetadata = create_model(
@@ -51,10 +51,10 @@ VariableMetadata = create_model(
 
 
 class Variable(NamedArray):
-    """An MDIO variable that has coordinates and metadata."""
+    """An MDIO Variable that has coordinates and metadata."""
 
     coordinates: list[Coordinate] | list[str] | None = Field(
         default=None,
-        description="Coordinates of the MDIO variable dimensions.",
+        description="Coordinates of the MDIO Variable dimensions.",
     )
-    metadata: VariableMetadata | None = Field(default=None, description="Variable metadata.")
+    metadata: VariableMetadata | None = Field(default=None, description="Variable Metadata.")
