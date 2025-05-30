@@ -201,7 +201,8 @@ def test_coordiante_with_units() -> None:
     cdp_var = builder._coordinates[0]
     assert cdp_var.name == "cdp"
     assert cdp_var.data_type == ScalarType.FLOAT32
-    assert cdp_var.metadata.units_v1.length == "m"
+    # assert cdp_var.metadata.units_v1.length == "m"
+    assert cdp_var.metadata[0].units_v1.length == "m"
 
 
 def test_coordinate_with_attributes() -> None:
@@ -220,8 +221,8 @@ def test_coordinate_with_attributes() -> None:
     cdp_var = builder._coordinates[0]
     assert cdp_var.name == "cdp"
     assert cdp_var.data_type == ScalarType.FLOAT32
-    assert cdp_var.metadata.attributes["MGA"] == 51  # noqa: PLR2004
-
+    # assert cdp_var.metadata.attributes["MGA"] == 51  # noqa: PLR2004
+    assert cdp_var.metadata[0].attributes["MGA"] == 51  # noqa: PLR2004
 
 def test_coordinate_with_full_metadata() -> None:
     """Test adding coordinates with all metadata."""
@@ -241,8 +242,13 @@ def test_coordinate_with_full_metadata() -> None:
     cdp_var = builder._coordinates[0]
     assert cdp_var.name == "cdp"
     assert cdp_var.data_type == ScalarType.FLOAT32
-    assert cdp_var.metadata.units_v1.length == "m"
-    assert cdp_var.metadata.attributes["MGA"] == 51  # noqa: PLR2004
+
+    # TODO(BrianMichell): #553 - If this PR is merged, we can remove the subscripting
+
+    # assert cdp_var.metadata.units_v1.length == "m"
+    assert cdp_var.metadata[0].units_v1.length == "m"
+    # assert cdp_var.metadata.attributes["MGA"] == 51  # noqa: PLR2004
+    assert cdp_var.metadata[1].attributes["MGA"] == 51  # noqa: PLR2004
 
 
 def test_coordinate_builder_state() -> None:
