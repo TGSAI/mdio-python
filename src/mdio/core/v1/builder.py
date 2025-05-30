@@ -221,10 +221,26 @@ class MDIODatasetBuilder:
 
         return make_dataset(all_variables, metadata)
 
+    def to_mdio(
+        self,
+        store: str,
+        mode: str = "w",
+        compute: bool = False,
+        **kwargs: Mapping[str, str | int | float | bool],
+    ) -> Dataset:
+        """Write the dataset to a Zarr store and return the constructed mdio.Dataset.
+
+        This function constructs an mdio.Dataset from the MDIO dataset and writes its metadata
+        to a Zarr store. The actual data is not written, only the metadata structure is created.
+        """
+        return write_mdio_metadata(self.build(), store, mode, compute, **kwargs)
+
 
 def write_mdio_metadata(
     mdio_ds: Dataset,
     store: str,
+    mode: str = "w",
+    compute: bool = False,
     **kwargs: Mapping[str, str | int | float | bool],
 ) -> mdio.Dataset:
     """Write MDIO metadata to a Zarr store and return the constructed mdio.Dataset.
@@ -234,7 +250,9 @@ def write_mdio_metadata(
 
     Args:
         mdio_ds: The MDIO dataset to serialize
-        store: Path to the Zarr store
+        store: Path to the Zarr or .mdio store
+        mode: Write mode to pass to to_mdio(), e.g. 'w' or 'a'
+        compute: Whether to compute (write) array chunks (True) or only metadata (False)
         **kwargs: Additional arguments to pass to to_mdio()
 
     Returns:
@@ -270,11 +288,11 @@ def write_mdio_metadata(
 
     ds.to_mdio(
         store,
-        mode="w",
+        mode=mode,
         zarr_format=2,
         consolidated=True,
         safe_chunks=False,
-        compute=False,
+        compute=compute,
         encoding=_generate_encodings(),
         **kwargs,
     )
