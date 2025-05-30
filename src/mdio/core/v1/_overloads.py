@@ -23,12 +23,12 @@ class MDIODataset(_Dataset):
         **kwargs: Mapping[str, str | int | float | bool],
     ) -> None:
         """Alias for `.to_zarr()`."""
-        # Ensure zarr_version=2 by default unless explicitly overridden
-        zarr_version = kwargs.get("zarr_version", 2)
-        if zarr_version != 2:  # noqa: PLR2004
-            msg = "MDIO only supports zarr_version=2"
+        # Ensure zarr_format=2 by default unless explicitly overridden
+        zarr_format = kwargs.get("zarr_format", 2)
+        if zarr_format != 2:  # noqa: PLR2004
+            msg = "MDIO only supports zarr_format=2"
             raise ValueError(msg)
-        kwargs["zarr_version"] = zarr_version
+        kwargs["zarr_format"] = zarr_format
         return super().to_zarr(*args, store=store, **kwargs)
 
 
@@ -44,12 +44,12 @@ class MDIODataArray(_DataArray):
         **kwargs: Mapping[str, str | int | float | bool],
     ) -> None:
         """Alias for `.to_zarr()`, and writes to Zarr store."""
-        # Ensure zarr_version=2 by default unless explicitly overridden
-        zarr_version = kwargs.get("zarr_version", 2)
-        if zarr_version != 2:  # noqa: PLR2004
-            msg = "MDIO only supports zarr_version=2"
+        # Ensure zarr_format=2 by default unless explicitly overridden
+        zarr_format = kwargs.get("zarr_format", 2)
+        if zarr_format != 2:  # noqa: PLR2004
+            msg = "MDIO only supports zarr_format=2"
             raise ValueError(msg)
-        kwargs["zarr_version"] = zarr_version
+        kwargs["zarr_format"] = zarr_format
         return super().to_zarr(*args, store=store, **kwargs)
 
 
