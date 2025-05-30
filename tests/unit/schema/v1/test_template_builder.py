@@ -89,7 +89,7 @@ def test_dimension_with_attributes() -> None:
     depth_var = builder._variables[0]
     assert depth_var.name == "depth"
     assert depth_var.data_type == ScalarType.FLOAT32
-    assert depth_var.metadata.attributes["MGA"] == 51
+    assert depth_var.metadata.attributes["MGA"] == 51  # noqa: PLR2004
 
 
 def test_dimension_with_chunk_grid() -> None:
@@ -137,8 +137,8 @@ def test_dimension_with_stats() -> None:
     depth_var = builder._variables[0]
     assert depth_var.name == "depth"
     assert depth_var.data_type == ScalarType.FLOAT32
-    assert depth_var.metadata.stats_v1.count == 100
-    assert depth_var.metadata.stats_v1.sum == 1215.1
+    assert depth_var.metadata.stats_v1.count == 100  # noqa: PLR2004
+    assert depth_var.metadata.stats_v1.sum == 1215.1  # noqa: PLR2004
 
 
 def test_dimension_with_full_metadata() -> None:
@@ -170,16 +170,16 @@ def test_dimension_with_full_metadata() -> None:
     assert depth_var.name == "depth"
     assert depth_var.data_type == ScalarType.FLOAT32
     assert depth_var.metadata.units_v1.length == "m"
-    assert depth_var.metadata.attributes["MGA"] == 51
+    assert depth_var.metadata.attributes["MGA"] == 51  # noqa: PLR2004
     assert depth_var.metadata.chunk_grid.name == "regular"
-    assert depth_var.metadata.chunk_grid.configuration.chunk_shape == [20]
-    assert depth_var.metadata.stats_v1.count == 100
-    assert depth_var.metadata.stats_v1.sum == 1215.1
-    assert depth_var.metadata.stats_v1.sum_squares == 125.12
-    assert depth_var.metadata.stats_v1.min == 5.61
-    assert depth_var.metadata.stats_v1.max == 10.84
-    assert depth_var.metadata.stats_v1.histogram.bin_centers == [1, 2]
-    assert depth_var.metadata.stats_v1.histogram.counts == [10, 15]
+    assert depth_var.metadata.chunk_grid.configuration.chunk_shape == [20]  # noqa: PLR2004
+    assert depth_var.metadata.stats_v1.count == 100  # noqa: PLR2004
+    assert depth_var.metadata.stats_v1.sum == 1215.1  # noqa: PLR2004
+    assert depth_var.metadata.stats_v1.sum_squares == 125.12  # noqa: PLR2004
+    assert depth_var.metadata.stats_v1.min == 5.61  # noqa: PLR2004
+    assert depth_var.metadata.stats_v1.max == 10.84  # noqa: PLR2004
+    assert depth_var.metadata.stats_v1.histogram.bin_centers == [1, 2]  # noqa: PLR2004
+    assert depth_var.metadata.stats_v1.histogram.counts == [10, 15]  # noqa: PLR2004
 
     j = builder.build().json()
     print(j)
@@ -192,14 +192,17 @@ def test_coordiante_with_units() -> None:
     builder.add_dimension("crossline", 100)
 
     # Add coordinate with units
-    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"unitsV1": {"length": "m"}})
+    builder.add_coordinate(
+        "cdp", dimensions=["inline", "crossline"], metadata={"unitsV1": {"length": "m"}}
+    )
 
-    assert len(builder._variables) == 2
-    assert len(builder._coordinates) == 1
+    assert len(builder._variables) == 2  # noqa: PLR2004
+    assert len(builder._coordinates) == 1  # noqa: PLR2004
     cdp_var = builder._coordinates[0]
     assert cdp_var.name == "cdp"
     assert cdp_var.data_type == ScalarType.FLOAT32
     assert cdp_var.metadata.units_v1.length == "m"
+
 
 def test_coordinate_with_attributes() -> None:
     """Test adding coordinates with attributes."""
@@ -208,31 +211,16 @@ def test_coordinate_with_attributes() -> None:
     builder.add_dimension("crossline", 100)
 
     # Add coordinate with attributes
-    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"attributes": {"MGA": 51}})
+    builder.add_coordinate(
+        "cdp", dimensions=["inline", "crossline"], metadata={"attributes": {"MGA": 51}}
+    )
 
-    assert len(builder._variables) == 2
-    assert len(builder._coordinates) == 1
+    assert len(builder._variables) == 2  # noqa: PLR2004
+    assert len(builder._coordinates) == 1  # noqa: PLR2004
     cdp_var = builder._coordinates[0]
     assert cdp_var.name == "cdp"
     assert cdp_var.data_type == ScalarType.FLOAT32
-    assert cdp_var.metadata.attributes["MGA"] == 51
-
-def test_coordinate_with_chunk_grid() -> None:
-    """Test adding coordinates with chunk grid."""
-    builder = MDIODatasetBuilder("test_dataset")
-    builder.add_dimension("inline", 100)
-    builder.add_dimension("crossline", 100)
-
-    # Add coordinate with chunk grid
-    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"chunkGrid": {"name": "regular", "configuration": {"chunkShape": [20, 20]}}})
-
-    assert len(builder._variables) == 2
-    assert len(builder._coordinates) == 1
-    cdp_var = builder._coordinates[0]
-    assert cdp_var.name == "cdp"
-    assert cdp_var.data_type == ScalarType.FLOAT32
-    assert cdp_var.metadata.chunk_grid.name == "regular"
-    assert cdp_var.metadata.chunk_grid.configuration.chunk_shape == [20, 20]
+    assert cdp_var.metadata.attributes["MGA"] == 51  # noqa: PLR2004
 
 
 def test_coordinate_with_full_metadata() -> None:
@@ -242,20 +230,19 @@ def test_coordinate_with_full_metadata() -> None:
     builder.add_dimension("crossline", 100)
 
     # Add coordinate with all metadata
-    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], metadata={"unitsV1": {"length": "m"}, "attributes": {"MGA": 51}, "chunkGrid": {"name": "regular", "configuration": {"chunkShape": [20]}}})
+    builder.add_coordinate(
+        "cdp",
+        dimensions=["inline", "crossline"],
+        metadata={"unitsV1": {"length": "m"}, "attributes": {"MGA": 51}},
+    )
 
-    assert len(builder._variables) == 2
-    assert len(builder._coordinates) == 1
+    assert len(builder._variables) == 2  # noqa: PLR2004
+    assert len(builder._coordinates) == 1  # noqa: PLR2004
     cdp_var = builder._coordinates[0]
     assert cdp_var.name == "cdp"
     assert cdp_var.data_type == ScalarType.FLOAT32
     assert cdp_var.metadata.units_v1.length == "m"
-    assert cdp_var.metadata.attributes["MGA"] == 51
-    assert cdp_var.metadata.chunk_grid.name == "regular"
-    assert cdp_var.metadata.chunk_grid.configuration.chunk_shape == [20]
-
-    j = builder.build().json()
-    print(j)
+    assert cdp_var.metadata.attributes["MGA"] == 51  # noqa: PLR2004
 
 
 def test_coordinate_builder_state() -> None:

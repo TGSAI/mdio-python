@@ -54,23 +54,25 @@ def make_coordinate(
         # single dict input
         if isinstance(metadata, dict):
             if "unitsV1" in metadata:
-                items.append(AllUnits(**{"unitsV1": metadata["unitsV1"]}))
+                items.append(AllUnits(unitsV1=metadata["unitsV1"]))
             if "attributes" in metadata:
-                items.append(UserAttributes(**{"attributes": metadata["attributes"]}))
+                items.append(UserAttributes(attributes=metadata["attributes"]))
         # list input may contain dict or model instances
         elif isinstance(metadata, list):
             for md in metadata:
-                if isinstance(md, AllUnits) or isinstance(md, UserAttributes):
+                if isinstance(md, AllUnits) or isinstance(md, UserAttributes):  # noqa: SIM101
                     items.append(md)
                 elif isinstance(md, dict):
                     if "unitsV1" in md:
-                        items.append(AllUnits(**{"unitsV1": md["unitsV1"]}))
+                        items.append(AllUnits(unitsV1=md["unitsV1"]))
                     if "attributes" in md:
-                        items.append(UserAttributes(**{"attributes": md["attributes"]}))
+                        items.append(UserAttributes(attributes=md["attributes"]))
                 else:
-                    raise TypeError(f"Unsupported metadata element type for coordinate: {type(md)}")
+                    msg = f"Unsupported metadata element type for coordinate: {type(md)}"
+                    raise TypeError(msg)
         else:
-            raise TypeError(f"Unsupported metadata type for coordinate: {type(metadata)}")
+            msg = f"Unsupported metadata type for coordinate: {type(metadata)}"
+            raise TypeError(msg)
         coord_meta_list = items or None
     return Coordinate(
         name=name,
