@@ -23,14 +23,19 @@ from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.stats import StatisticsMetadata
 from mdio.schemas.v1.units import AllUnits
 
+CoordinateMetadata = create_model(
+    "CoordinateMetadata",
+    **model_fields(AllUnits),
+    **model_fields(UserAttributes),
+    __base__=CamelCaseStrictModel,
+)
+
 
 class Coordinate(NamedArray):
     """An MDIO coordinate array with metadata."""
 
     data_type: ScalarType = Field(..., description="Data type of coordinate.")
-    metadata: list[AllUnits | UserAttributes] | None = Field(
-        default=None, description="Coordinate metadata."
-    )
+    metadata: CoordinateMetadata | None = Field(default=None, description="Coordinate metadata.")
 
 
 VariableMetadata = create_model(
