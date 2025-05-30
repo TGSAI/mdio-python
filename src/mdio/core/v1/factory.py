@@ -17,6 +17,39 @@ from mdio.schemas.dtype import StructuredType
 if TYPE_CHECKING:
     from mdio.schemas.v1.dataset import Dataset
 
+import json
+
+from pydantic import ValidationError
+
+
+def from_contract(store: str, contract: str | dict) -> Dataset:
+    """Creates an MDIO Dataset from the contract and writes the metadata to the store.
+
+    Args:
+        store: The store to write the metadata to.
+        contract: The contract to create the dataset from.
+
+    Raises:
+        ValueError: If the contract cannot be validated successfully.
+
+    Returns:
+        The created MDIO Dataset.
+    """
+    from mdio.core.v1._serializer import _construct_mdio_dataset
+    from mdio.schemas.v1 import Dataset as V1Dataset
+
+    if isinstance(contract, str):
+        contract = json.loads(contract)
+
+    try:
+        V1Dataset.model_validate(contract)
+    except ValidationError as e:
+        msg = f"Failed to validate the input contract: {e}"
+        raise ValueError(msg) from e
+
+    ds = _construct_mdio_dataset(contract)
+    return ds.to_mdio(store)
+
 
 class MDIOSchemaType(Enum):
     """MDIO templates for specific data types."""
