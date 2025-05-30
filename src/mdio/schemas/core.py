@@ -66,3 +66,9 @@ class CamelCaseStrictModel(StrictModel):
         if "exclude_none" not in kwargs:
             kwargs["exclude_none"] = True
         return super().model_dump_json(*args, **kwargs)
+
+    def json(self, *args, **kwargs) -> dict:  # noqa: ANN201 ANN001 ANN002 ANN003
+        """Dump JSON using camelCase aliases and excluding None values by default."""
+        if "by_alias" not in kwargs:
+            kwargs["by_alias"] = True
+        return self.model_dump_json(*args, **kwargs)
