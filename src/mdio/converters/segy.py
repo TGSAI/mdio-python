@@ -354,6 +354,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
+    print("Entering segy_to_mdio")
     index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
     index_types = index_types or ["int32"] * len(index_bytes)
 
@@ -368,6 +369,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     storage_options_input = storage_options_input or {}
     storage_options_output = storage_options_output or {}
 
+    print("pre-setup")
     # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
     mdio_spec = mdio_segy_spec()
     segy_settings = SegySettings(storage_options=storage_options_input)
@@ -377,13 +379,15 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     binary_header = segy.binary_header
     num_traces = segy.num_traces
 
+    print("pre-index")
     # Index the dataset using a spec that interprets the user provided index headers.
-    index_fields = []
+    index_fields: list[HeaderField] = []
     for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
         index_fields.append(HeaderField(name=name, byte=byte, format=format_))
     mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
     segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid, settings=segy_settings)
 
+    print("pre-get_grid_plan")
     dimensions, chunksize, index_headers = get_grid_plan(
         segy_file=segy_grid,
         return_headers=True,
@@ -391,17 +395,27 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         grid_overrides=grid_overrides,
     )
     grid = Grid(dims=dimensions)
+    print("pre-grid_density_qc")
     grid_density_qc(grid, num_traces)
+    print("pre-build_map")
     grid.build_map(index_headers)
 
-    # Check grid validity by comparing trace numbers
-    if np.sum(grid.live_mask) != num_traces:
+    print("pre-valid_mask")
+    # Check grid validity by ensuring every trace's header-index is within dimension bounds
+    valid_mask = np.ones(grid.num_traces, dtype=bool)
+    for d_idx in range(len(grid.header_index_arrays)):
+        coords = grid.header_index_arrays[d_idx]
+        valid_mask &= (coords < grid.shape[d_idx])
+    valid_count = int(np.count_nonzero(valid_mask))
+    if valid_count != num_traces:
         for dim_name in grid.dim_names:
-            dim_min, dim_max = grid.get_min(dim_name), grid.get_max(dim_name)
+            dim_min = grid.get_min(dim_name)
+            dim_max = grid.get_max(dim_name)
             logger.warning("%s min: %s max: %s", dim_name, dim_min, dim_max)
         logger.warning("Ingestion grid shape: %s.", grid.shape)
-        raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
+        raise GridTraceCountError(valid_count, num_traces)
 
+    print("pre-chunksize")
     if chunksize is None:
         dim_count = len(index_names) + 1
         if dim_count == 2:  # noqa: PLR2004
@@ -424,6 +438,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         suffix = [str(idx) for idx, value in enumerate(suffix) if value is not None]
         suffix = "".join(suffix)
 
+    print("pre-compressors")
     compressors = get_compressor(lossless, compression_tolerance)
     header_dtype = segy.spec.trace.header.dtype.newbyteorder("=")
     var_conf = MDIOVariableConfig(
@@ -435,6 +450,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     )
     config = MDIOCreateConfig(path=mdio_path_or_buffer, grid=grid, variables=[var_conf])
 
+    print("pre-create_empty")
     root_group = create_empty(
         config,
         overwrite=overwrite,
@@ -446,23 +462,61 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     data_array = data_group[f"chunked_{suffix}"]
     header_array = meta_group[f"chunked_{suffix}_trace_headers"]
 
-    # Write actual live mask and metadata to empty MDIO
-    meta_group["live_mask"][:] = grid.live_mask[:]
-    nonzero_count = np.count_nonzero(grid.live_mask)
+    print("pre-live_mask")
+    live_mask_array = meta_group["live_mask"]
+    # 'live_mask_array' has the same first N–1 dims as 'grid.shape[:-1]'
+    # Build a ChunkIterator over the live_mask (no sample axis)
+    from mdio.core.indexing import ChunkIterator
+
+    chunker = ChunkIterator(live_mask_array, chunk_samples=False)
+    for chunk_indices in chunker:
+        # chunk_indices is a tuple of N–1 slice objects
+        trace_ids = grid.get_traces_for_chunk(chunk_indices)
+        if trace_ids.size == 0:
+            continue
+
+        # Build a temporary boolean block of shape = chunk shape
+        block_shape = tuple(sl.stop - sl.start for sl in chunk_indices)
+        block = np.zeros(block_shape, dtype=bool)
+
+        # Compute local coords within this block for each trace_id
+        local_coords: list[np.ndarray] = []
+        for dim_idx, sl in enumerate(chunk_indices):
+            hdr_arr = grid.header_index_arrays[dim_idx]
+            local_idx = (hdr_arr[trace_ids] - sl.start).astype(int)
+            local_coords.append(local_idx)
+
+        # Mark live cells in the temporary block
+        block[tuple(local_coords)] = True
+
+        # Write the entire block to Zarr at once
+        live_mask_array.set_basic_selection(selection=chunk_indices, value=block)
+
+    nonzero_count = grid.num_traces
+
+    print("pre-write_attribute")
     write_attribute(name="trace_count", zarr_group=root_group, attribute=nonzero_count)
     write_attribute(name="text_header", zarr_group=meta_group, attribute=text_header.split("\n"))
     write_attribute(name="binary_header", zarr_group=meta_group, attribute=binary_header.to_dict())
 
+    print("pre-to_zarr")
     # Write traces
+    zarr_root = mdio_path_or_buffer  # the same path you passed earlier to create_empty
+    data_var = f"data/chunked_{suffix}"
+    header_var = f"metadata/chunked_{suffix}_trace_headers"
+
     stats = blocked_io.to_zarr(
         segy_file=segy,
         grid=grid,
-        data_array=data_array,
-        header_array=header_array,
+        zarr_root_path=zarr_root,
+        data_var_path=data_var,
+        header_var_path=header_var,
     )
 
+    print("pre-write_attribute")
     # Write actual stats
     for key, value in stats.items():
         write_attribute(name=key, zarr_group=root_group, attribute=value)
 
+    print("pre-consolidate_metadata")
     zarr.consolidate_metadata(root_group.store)
