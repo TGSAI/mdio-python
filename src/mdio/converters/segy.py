@@ -369,7 +369,6 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     storage_options_input = storage_options_input or {}
     storage_options_output = storage_options_output or {}
 
-    print("pre-setup")
     # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
     mdio_spec = mdio_segy_spec()
     segy_settings = SegySettings(storage_options=storage_options_input)
@@ -379,7 +378,6 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     binary_header = segy.binary_header
     num_traces = segy.num_traces
 
-    print("pre-index")
     # Index the dataset using a spec that interprets the user provided index headers.
     index_fields: list[HeaderField] = []
     for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
@@ -387,7 +385,6 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
     segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid, settings=segy_settings)
 
-    print("pre-get_grid_plan")
     dimensions, chunksize, index_headers = get_grid_plan(
         segy_file=segy_grid,
         return_headers=True,
@@ -395,12 +392,9 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         grid_overrides=grid_overrides,
     )
     grid = Grid(dims=dimensions)
-    print("pre-grid_density_qc")
     grid_density_qc(grid, num_traces)
-    print("pre-build_map")
     grid.build_map(index_headers)
 
-    print("pre-valid_mask")
     # Check grid validity by ensuring every trace's header-index is within dimension bounds
     valid_mask = np.ones(grid.num_traces, dtype=bool)
     for d_idx in range(len(grid.header_index_arrays)):
@@ -415,7 +409,6 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         logger.warning("Ingestion grid shape: %s.", grid.shape)
         raise GridTraceCountError(valid_count, num_traces)
 
-    print("pre-chunksize")
     if chunksize is None:
         dim_count = len(index_names) + 1
         if dim_count == 2:  # noqa: PLR2004
@@ -438,7 +431,6 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         suffix = [str(idx) for idx, value in enumerate(suffix) if value is not None]
         suffix = "".join(suffix)
 
-    print("pre-compressors")
     compressors = get_compressor(lossless, compression_tolerance)
     header_dtype = segy.spec.trace.header.dtype.newbyteorder("=")
     var_conf = MDIOVariableConfig(
@@ -450,7 +442,6 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     )
     config = MDIOCreateConfig(path=mdio_path_or_buffer, grid=grid, variables=[var_conf])
 
-    print("pre-create_empty")
     root_group = create_empty(
         config,
         overwrite=overwrite,
@@ -462,7 +453,6 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     data_array = data_group[f"chunked_{suffix}"]
     header_array = meta_group[f"chunked_{suffix}_trace_headers"]
 
-    print("pre-live_mask")
     live_mask_array = meta_group["live_mask"]
     # 'live_mask_array' has the same first N–1 dims as 'grid.shape[:-1]'
     # Build a ChunkIterator over the live_mask (no sample axis)
@@ -494,12 +484,10 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
 
     nonzero_count = grid.num_traces
 
-    print("pre-write_attribute")
     write_attribute(name="trace_count", zarr_group=root_group, attribute=nonzero_count)
     write_attribute(name="text_header", zarr_group=meta_group, attribute=text_header.split("\n"))
     write_attribute(name="binary_header", zarr_group=meta_group, attribute=binary_header.to_dict())
 
-    print("pre-to_zarr")
     # Write traces
     zarr_root = mdio_path_or_buffer  # the same path you passed earlier to create_empty
     data_var = f"data/chunked_{suffix}"
@@ -513,10 +501,8 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         header_var_path=header_var,
     )
 
-    print("pre-write_attribute")
     # Write actual stats
     for key, value in stats.items():
         write_attribute(name=key, zarr_group=root_group, attribute=value)
 
-    print("pre-consolidate_metadata")
     zarr.consolidate_metadata(root_group.store)

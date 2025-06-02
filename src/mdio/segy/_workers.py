@@ -77,8 +77,6 @@ def trace_worker(
     Returns:
         Partial statistics for chunk, or None
     """
-    from time import time
-    start_time = time()
     # Determine which trace IDs fall into this chunk
     trace_ids = grid.get_traces_for_chunk(chunk_indices[:-1])
     if trace_ids.size == 0:
@@ -125,5 +123,4 @@ def trace_worker(
     min_val = float(flattened_nonzero.min())
     max_val = float(flattened_nonzero.max())
 
-    print(f"Time taken: {time() - start_time} seconds")
     return (nonzero_count, chunk_sum, chunk_sum_squares, min_val, max_val)
