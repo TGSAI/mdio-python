@@ -1,32 +1,5 @@
 """Functions for doing blocked I/O from SEG-Y."""
 
-# from __future__ import annotations
-
-# import multiprocessing as mp
-# import os
-# from concurrent.futures import ProcessPoolExecutor
-# from itertools import repeat
-# from typing import TYPE_CHECKING, Any
-
-# import numpy as np
-# from psutil import cpu_count
-# from tqdm.auto import tqdm
-# import zarr
-
-# # from mdio.core.indexing import ChunkIterator
-# # from mdio.segy._workers import trace_worker
-
-# from mdio.core.indexing import ChunkIterator
-# from mdio.segy._workers import trace_worker
-# from mdio.segy.creation import SegyPartRecord
-# from mdio.segy.creation import concat_files
-# from mdio.segy.creation import serialize_to_segy_stack
-# from mdio.segy.utilities import find_trailing_ones_index
-
-# if TYPE_CHECKING:
-#     from segy import SegyFile
-#     from mdio.core import Grid
-
 from __future__ import annotations
 
 import multiprocessing as mp
@@ -35,6 +8,7 @@ from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 from dask.array import Array
@@ -55,61 +29,33 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
     from segy import SegyFile
+    from zarr import Array as ZarrArray
 
     from mdio.core import Grid
 
 default_cpus = cpu_count(logical=True)
 
 
-def _worker_reopen(
-    zarr_root_path: str,
-    data_var_path: str,
-    header_var_path: str,
-    segy_file: SegyFile,
-    grid: Grid,
-    chunk_indices: tuple[slice, ...],
-) -> tuple[Any, ...] | None:
-    """
-    Worker function that reopens the Zarr store in this process,
-    obtains fresh array handles, and calls the real trace_worker.
-    """
-    root = zarr.open_group(zarr_root_path, mode="r+")
-    data_arr = root[data_var_path]
-    header_arr = root[header_var_path]
-    result = trace_worker(segy_file, data_arr, header_arr, grid, chunk_indices)
-    root.store.close()
-    return result
-
-
 def to_zarr(
     segy_file: SegyFile,
     grid: Grid,
-    zarr_root_path: str,
-    data_var_path: str,
-    header_var_path: str,
+    data_array: ZarrArray,
+    header_array: ZarrArray,
 ) -> dict[str, Any]:
     """Blocked I/O from SEG-Y to chunked `zarr.core.Array`.
-
-    Each worker reopens the Zarr store independently to avoid lock contention when writing.
 
     Args:
         segy_file: SEG-Y file instance.
         grid: mdio.Grid instance.
-        zarr_root_path: Filesystem path (or URI) to the root of the MDIO Zarr store.
-        data_var_path: Path within the Zarr group for the data array (e.g., "data/chunked_012").
-        header_var_path: Path within the Zarr group for the header array
-                         (e.g., "metadata/chunked_012_trace_headers").
+        data_array: Zarr array for storing trace data.
+        header_array: Zarr array for storing trace headers.
 
     Returns:
         Global statistics for the SEG-Y as a dictionary.
     """
-    # Open Zarr store only in the main process to retrieve shape/metadata
-    root = zarr.open_group(zarr_root_path, mode="r")
-    data_array_meta = root[data_var_path]  # only for shape info
     # Initialize chunk iterator (returns next chunk slice indices each iteration)
-    chunker = ChunkIterator(data_array_meta, chunk_samples=False)
+    chunker = ChunkIterator(data_array, chunk_samples=False)
     num_chunks = len(chunker)
-    root.store.close()  # close immediately
 
     # Determine number of workers
     num_cpus_env = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
@@ -125,11 +71,10 @@ def to_zarr(
     # Launch multiprocessing pool
     with ProcessPoolExecutor(max_workers=num_workers, mp_context=context) as executor:
         lazy_work = executor.map(
-            _worker_reopen,
-            repeat(zarr_root_path),
-            repeat(data_var_path),
-            repeat(header_var_path),
+            trace_worker,
             repeat(segy_file),
+            repeat(data_array),
+            repeat(header_array),
             repeat(grid),
             chunker,
             chunksize=pool_chunksize,
@@ -164,7 +109,6 @@ def to_zarr(
     glob_max = float(glob_max)
 
     return {"mean": glob_mean, "std": glob_std, "rms": glob_rms, "min": glob_min, "max": glob_max}
-
 
 
 def segy_record_concat(

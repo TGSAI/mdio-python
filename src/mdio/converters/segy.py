@@ -354,7 +354,6 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
-    print("Entering segy_to_mdio")
     index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
     index_types = index_types or ["int32"] * len(index_bytes)
 
@@ -379,7 +378,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     num_traces = segy.num_traces
 
     # Index the dataset using a spec that interprets the user provided index headers.
-    index_fields: list[HeaderField] = []
+    index_fields = []
     for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
         index_fields.append(HeaderField(name=name, byte=byte, format=format_))
     mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
@@ -489,16 +488,11 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     write_attribute(name="binary_header", zarr_group=meta_group, attribute=binary_header.to_dict())
 
     # Write traces
-    zarr_root = mdio_path_or_buffer  # the same path you passed earlier to create_empty
-    data_var = f"data/chunked_{suffix}"
-    header_var = f"metadata/chunked_{suffix}_trace_headers"
-
     stats = blocked_io.to_zarr(
         segy_file=segy,
         grid=grid,
-        zarr_root_path=zarr_root,
-        data_var_path=data_var,
-        header_var_path=header_var,
+        data_array=data_array,
+        header_array=header_array,
     )
 
     # Write actual stats
