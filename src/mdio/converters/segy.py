@@ -457,7 +457,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     # Build a ChunkIterator over the live_mask (no sample axis)
     from mdio.core.indexing import ChunkIterator
 
-    chunker = ChunkIterator(live_mask_array, chunk_samples=False)
+    chunker = ChunkIterator(live_mask_array, chunk_samples=True)
     for chunk_indices in chunker:
         # chunk_indices is a tuple of N–1 slice objects
         trace_ids = grid.get_traces_for_chunk(chunk_indices)
