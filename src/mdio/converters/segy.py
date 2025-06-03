@@ -511,6 +511,16 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     local_time = datetime.fromtimestamp(time.time())
     print(f"The livemask was written at time: {local_time.strftime('%H:%M:%S.%f')}")
 
+    # Clean up live mask related variables
+    del live_mask_array
+    del chunker
+    del block
+    del local_coords
+    del trace_ids
+    del chunk_indices
+    import gc
+    gc.collect()
+
     print(f"Starting trace writing at: {datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.%f')}")
 
     # Write traces
