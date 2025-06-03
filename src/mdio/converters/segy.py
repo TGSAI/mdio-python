@@ -472,7 +472,14 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         local_coords: list[np.ndarray] = []
         for dim_idx, sl in enumerate(chunk_indices):
             hdr_arr = grid.header_index_arrays[dim_idx]
-            local_idx = (hdr_arr[trace_ids] - sl.start).astype(int)
+            # Optimize memory usage: hdr_arr and trace_ids are already uint32,
+            # sl.start is int, so result should naturally be int32/uint32.
+            # Avoid unnecessary astype conversion to int64.
+            indexed_coords = hdr_arr[trace_ids]  # uint32 array
+            local_idx = indexed_coords - sl.start  # remains uint32
+            # Only convert dtype if necessary for indexing (numpy requires int for indexing)
+            if local_idx.dtype != np.intp:
+                local_idx = local_idx.astype(np.intp)
             local_coords.append(local_idx)
 
         # Mark live cells in the temporary block
@@ -486,6 +493,10 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     write_attribute(name="trace_count", zarr_group=root_group, attribute=nonzero_count)
     write_attribute(name="text_header", zarr_group=meta_group, attribute=text_header.split("\n"))
     write_attribute(name="binary_header", zarr_group=meta_group, attribute=binary_header.to_dict())
+
+    from datetime import datetime
+
+    print("The livemask was written at time:", datetime.now().strftime("%H:%M:%S"))
 
     # Write traces
     stats = blocked_io.to_zarr(
