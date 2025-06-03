@@ -354,6 +354,12 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
+    from datetime import datetime
+    import time
+
+    start_time = datetime.fromtimestamp(time.time())
+    print(f"Starting SEG-Y to MDIO conversion at: {start_time.strftime('%H:%M:%S.%f')}")
+
     index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
     index_types = index_types or ["int32"] * len(index_bytes)
 
@@ -377,6 +383,8 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     binary_header = segy.binary_header
     num_traces = segy.num_traces
 
+    print(f"SEG-Y file opened with {num_traces} traces at: {datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.%f')}")
+
     # Index the dataset using a spec that interprets the user provided index headers.
     index_fields = []
     for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
@@ -393,6 +401,8 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     grid = Grid(dims=dimensions)
     grid_density_qc(grid, num_traces)
     grid.build_map(index_headers)
+
+    print(f"Grid built and mapped at: {datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.%f')}")
 
     # Check grid validity by ensuring every trace's header-index is within dimension bounds
     valid_mask = np.ones(grid.num_traces, dtype=bool)
@@ -441,6 +451,8 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     )
     config = MDIOCreateConfig(path=mdio_path_or_buffer, grid=grid, variables=[var_conf])
 
+    print(f"Starting MDIO file creation at: {datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.%f')}")
+
     root_group = create_empty(
         config,
         overwrite=overwrite,
@@ -456,6 +468,8 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     # 'live_mask_array' has the same first N–1 dims as 'grid.shape[:-1]'
     # Build a ChunkIterator over the live_mask (no sample axis)
     from mdio.core.indexing import ChunkIterator
+
+    print(f"Starting live mask creation at: {datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.%f')}")
 
     chunker = ChunkIterator(live_mask_array, chunk_samples=False)
     for chunk_indices in chunker:
@@ -494,9 +508,10 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     write_attribute(name="text_header", zarr_group=meta_group, attribute=text_header.split("\n"))
     write_attribute(name="binary_header", zarr_group=meta_group, attribute=binary_header.to_dict())
 
-    from datetime import datetime
+    local_time = datetime.fromtimestamp(time.time())
+    print(f"The livemask was written at time: {local_time.strftime('%H:%M:%S.%f')}")
 
-    print("The livemask was written at time:", datetime.now().strftime("%H:%M:%S"))
+    print(f"Starting trace writing at: {datetime.fromtimestamp(time.time()).strftime('%H:%M:%S.%f')}")
 
     # Write traces
     stats = blocked_io.to_zarr(
@@ -511,3 +526,8 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         write_attribute(name=key, zarr_group=root_group, attribute=value)
 
     zarr.consolidate_metadata(root_group.store)
+
+    end_time = datetime.fromtimestamp(time.time())
+    print(f"SEG-Y to MDIO conversion completed at: {end_time.strftime('%H:%M:%S.%f')}")
+    duration = end_time - start_time
+    print(f"Total conversion time: {duration.total_seconds():.2f} seconds")
