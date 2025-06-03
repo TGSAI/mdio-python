@@ -89,6 +89,9 @@ def to_zarr(
 
         chunk_stats = list(lazy_work)
 
+    # Transposing because we want each statistic as a row to unpack later.
+    # REF: https://math.stackexchange.com/questions/1547141/aggregating-standard-deviation-to-a-summary-point  # noqa: E501
+    # REF: https://www.mathwords.com/r/root_mean_square.htm
     # Aggregate statistics
     chunk_stats = [stat for stat in chunk_stats if stat is not None]
     # Each stat: (count, sum, sum_sq, min, max). Transpose to unpack rows.
