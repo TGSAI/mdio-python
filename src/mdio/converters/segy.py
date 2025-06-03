@@ -456,17 +456,19 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     # 'live_mask_array' has the same first N–1 dims as 'grid.shape[:-1]'
     # Build a ChunkIterator over the live_mask (no sample axis)
     from mdio.core.indexing import ChunkIterator
+    import gc
 
     chunker = ChunkIterator(live_mask_array, chunk_samples=True)
     for chunk_indices in chunker:
         # chunk_indices is a tuple of N–1 slice objects
         trace_ids = grid.get_traces_for_chunk(chunk_indices)
         if trace_ids.size == 0:
+            # Free memory immediately for empty chunks
+            del trace_ids
             continue
 
         # Build a temporary boolean block of shape = chunk shape
-        block_shape = tuple(sl.stop - sl.start for sl in chunk_indices)
-        block = np.zeros(block_shape, dtype=bool)
+        block = np.zeros(tuple(sl.stop - sl.start for sl in chunk_indices), dtype=bool)
 
         # Compute local coords within this block for each trace_id
         local_coords: list[np.ndarray] = []
@@ -477,32 +479,43 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
             # Avoid unnecessary astype conversion to int64.
             indexed_coords = hdr_arr[trace_ids]  # uint32 array
             local_idx = indexed_coords - sl.start  # remains uint32
+            # Free indexed_coords immediately
+            del indexed_coords
+            
             # Only convert dtype if necessary for indexing (numpy requires int for indexing)
             if local_idx.dtype != np.intp:
                 local_idx = local_idx.astype(np.intp)
             local_coords.append(local_idx)
+            # local_idx is now owned by local_coords list, safe to continue
+
+        # Free trace_ids as soon as we're done with it
+        del trace_ids
 
         # Mark live cells in the temporary block
         block[tuple(local_coords)] = True
+        
+        # Free local_coords immediately after use
+        del local_coords
 
         # Write the entire block to Zarr at once
         live_mask_array.set_basic_selection(selection=chunk_indices, value=block)
+        
+        # Free block immediately after writing
+        del block
+        
+        # Force garbage collection periodically to free memory aggressively
+        gc.collect()
+
+    # Final cleanup
+    del live_mask_array
+    del chunker
+    gc.collect()
 
     nonzero_count = grid.num_traces
 
     write_attribute(name="trace_count", zarr_group=root_group, attribute=nonzero_count)
     write_attribute(name="text_header", zarr_group=meta_group, attribute=text_header.split("\n"))
     write_attribute(name="binary_header", zarr_group=meta_group, attribute=binary_header.to_dict())
-
-    # Clean up live mask related variables
-    del live_mask_array
-    del chunker
-    del block
-    del local_coords
-    del trace_ids
-    del chunk_indices
-    import gc
-    gc.collect()
 
     # Write traces
     stats = blocked_io.to_zarr(
