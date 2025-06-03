@@ -60,13 +60,16 @@ def to_zarr(
     # Determine number of workers
     num_cpus_env = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
     num_workers = min(num_chunks, num_cpus_env)
-    context = mp.get_context("spawn")
 
     # Chunksize here is for multiprocessing, not Zarr chunksize.
     pool_chunksize, extra = divmod(num_chunks, num_workers * 4)
     pool_chunksize += 1 if extra else 0
 
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
+
+    # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
+    # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows
+    context = mp.get_context("spawn")
 
     # Launch multiprocessing pool
     with ProcessPoolExecutor(max_workers=num_workers, mp_context=context) as executor:
