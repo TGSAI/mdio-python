@@ -61,7 +61,8 @@ def to_zarr(
 
     # Chunksize here is for multiprocessing, not Zarr chunksize.
     pool_chunksize, extra = divmod(num_chunks, num_workers * 4)
-    pool_chunksize += 1 if extra else 0
+    if extra:
+        pool_chunksize += 1
 
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
 
