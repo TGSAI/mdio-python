@@ -408,6 +408,10 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         logger.warning("Ingestion grid shape: %s.", grid.shape)
         raise GridTraceCountError(valid_count, num_traces)
 
+    import gc
+    del valid_mask
+    gc.collect()
+
     if chunksize is None:
         dim_count = len(index_names) + 1
         if dim_count == 2:  # noqa: PLR2004
@@ -456,7 +460,6 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     # 'live_mask_array' has the same first N–1 dims as 'grid.shape[:-1]'
     # Build a ChunkIterator over the live_mask (no sample axis)
     from mdio.core.indexing import ChunkIterator
-    import gc
 
     chunker = ChunkIterator(live_mask_array, chunk_samples=True)
     for chunk_indices in chunker:
