@@ -7,14 +7,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
-import zarr
 
-from mdio.constants import UINT32_MAX
 from mdio.core import Dimension
 from mdio.core.serialization import Serializer
-from mdio.core.utils_write import get_constrained_chunksize
 
 if TYPE_CHECKING:
+    import zarr
     from segy.arrays import HeaderArray
     from zarr import Array as ZarrArray
 
@@ -112,8 +110,8 @@ class Grid:
         """Compute per-trace grid coordinates (lazy map).
 
         Instead of allocating a full `self.map` and `self.live_mask`, this computes, for each trace,
-        its integer index along each dimension (excluding the final sample dimension) and stores them in
-        `self.header_index_arrays`. The full mapping can then be derived chunk-by-chunk when writing.
+        its integer index along each dimension (excluding the sample dimension) and stores them in
+        `self.header_index_arrays`. The full mapping can then be derived chunkwise when writing.
 
         Args:
             index_headers: Header array containing dimension indices (length = number of traces).
@@ -126,8 +124,8 @@ class Grid:
         # Cast to uint32.
         idx_arrays: list[np.ndarray] = []
         for dim in self.dims[:-1]:
-            hdr_vals = index_headers[dim.name]         # shape: (num_traces,)
-            coords = np.searchsorted(dim, hdr_vals)    # integer indices
+            hdr_vals = index_headers[dim.name]  # shape: (num_traces,)
+            coords = np.searchsorted(dim, hdr_vals)  # integer indices
             coords = coords.astype(np.uint32)
             idx_arrays.append(coords)
 
@@ -136,7 +134,6 @@ class Grid:
 
         # We no longer allocate `self.map` or `self.live_mask` here.
         # The full grid shape is `self.shape`, but mapping is done lazily per chunk.
-        return
 
     def get_traces_for_chunk(self, chunk_slices: tuple[slice, ...]) -> np.ndarray:
         """Return all trace IDs whose grid-coordinates fall inside the given chunk slices.
@@ -157,16 +154,15 @@ class Grid:
             arr = self.header_index_arrays[dim_idx]  # shape: (num_traces,)
             start, stop = sl.start, sl.stop
             if start is not None:
-                mask &= (arr >= start)
+                mask &= arr >= start
             if stop is not None:
-                mask &= (arr < stop)
+                mask &= arr < stop
             if not mask.any():
                 # No traces remain after this dimension's filtering
                 return np.empty((0,), dtype=np.uint32)
 
         # Gather the trace IDs that survived all dimension tests
-        trace_ids = np.nonzero(mask)[0].astype(np.uint32)
-        return trace_ids
+        return np.nonzero(mask)[0].astype(np.uint32)
 
 
 class GridSerializer(Serializer):

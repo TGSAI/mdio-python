@@ -23,8 +23,6 @@ from mdio.segy.creation import concat_files
 from mdio.segy.creation import serialize_to_segy_stack
 from mdio.segy.utilities import find_trailing_ones_index
 
-import zarr
-
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
@@ -98,7 +96,7 @@ def to_zarr(
     # Aggregate statistics
     chunk_stats = [stat for stat in chunk_stats if stat is not None]
     # Each stat: (count, sum, sum_sq, min, max). Transpose to unpack rows.
-    glob_count, glob_sum, glob_sum_square, glob_min, glob_max = zip(*chunk_stats)
+    glob_count, glob_sum, glob_sum_square, glob_min, glob_max = zip(*chunk_stats, strict=False)
 
     glob_count = np.sum(np.array(glob_count, dtype=np.uint64))
     glob_sum = np.sum(np.array(glob_sum, dtype=np.float64))

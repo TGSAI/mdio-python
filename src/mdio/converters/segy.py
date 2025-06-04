@@ -131,7 +131,7 @@ def get_compressor(lossless: bool, compression_tolerance: float = -1) -> Blosc |
     return compressor
 
 
-def segy_to_mdio(  # noqa: PLR0913, PLR0915
+def segy_to_mdio(  # noqa: PLR0913, PLR0915, PLR0912
     segy_path: str | Path,
     mdio_path_or_buffer: str | Path,
     index_bytes: Sequence[int],
@@ -398,7 +398,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     valid_mask = np.ones(grid.num_traces, dtype=bool)
     for d_idx in range(len(grid.header_index_arrays)):
         coords = grid.header_index_arrays[d_idx]
-        valid_mask &= (coords < grid.shape[d_idx])
+        valid_mask &= coords < grid.shape[d_idx]
     valid_count = int(np.count_nonzero(valid_mask))
     if valid_count != num_traces:
         for dim_name in grid.dim_names:
@@ -409,6 +409,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         raise GridTraceCountError(valid_count, num_traces)
 
     import gc
+
     del valid_mask
     gc.collect()
 
@@ -484,7 +485,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
             local_idx = indexed_coords - sl.start  # remains uint32
             # Free indexed_coords immediately
             del indexed_coords
-            
+
             # Only convert dtype if necessary for indexing (numpy requires int for indexing)
             if local_idx.dtype != np.intp:
                 local_idx = local_idx.astype(np.intp)
@@ -496,16 +497,16 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
 
         # Mark live cells in the temporary block
         block[tuple(local_coords)] = True
-        
+
         # Free local_coords immediately after use
         del local_coords
 
         # Write the entire block to Zarr at once
         live_mask_array.set_basic_selection(selection=chunk_indices, value=block)
-        
+
         # Free block immediately after writing
         del block
-        
+
         # Force garbage collection periodically to free memory aggressively
         gc.collect()
 
