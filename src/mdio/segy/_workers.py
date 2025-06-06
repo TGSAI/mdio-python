@@ -77,45 +77,57 @@ def trace_worker(
     Returns:
         Partial statistics for chunk, or None
     """
-    # Special case where there are no traces inside chunk.
-    live_subset = grid.live_mask[chunk_indices[:-1]]
-
-    if np.count_nonzero(live_subset) == 0:
+    # Determine which trace IDs fall into this chunk
+    trace_ids = grid.get_traces_for_chunk(chunk_indices[:-1])
+    if trace_ids.size == 0:
         return None
 
-    # Let's get trace numbers from grid map using the chunk indices.
-    seq_trace_indices = grid.map[chunk_indices[:-1]]
-
-    tmp_data = np.zeros(seq_trace_indices.shape + (grid.shape[-1],), dtype=data_array.dtype)
-    tmp_metadata = np.zeros(seq_trace_indices.shape, dtype=metadata_array.dtype)
-
-    del grid  # To save some memory
-
-    # Read headers and traces for block
-    valid_indices = seq_trace_indices[live_subset]
-
-    traces = segy_file.trace[valid_indices.tolist()]
+    # Read headers and traces for the selected trace IDs
+    traces = segy_file.trace[trace_ids.tolist()]
     headers, samples = traces["header"], traces["data"]
 
-    tmp_metadata[live_subset] = headers.view(tmp_metadata.dtype)
-    tmp_data[live_subset] = samples
+    # Build a temporary buffer for data and metadata for this chunk
+    chunk_shape = tuple(sli.stop - sli.start for sli in chunk_indices[:-1]) + (grid.shape[-1],)
+    tmp_data = np.zeros(chunk_shape, dtype=data_array.dtype)
+    meta_shape = tuple(sli.stop - sli.start for sli in chunk_indices[:-1])
+    tmp_metadata = np.zeros(meta_shape, dtype=metadata_array.dtype)
 
-    # Flush metadata to zarr
+    # Compute local coordinates within the chunk for each trace
+    local_coords: list[np.ndarray] = []
+    for dim_idx, sl in enumerate(chunk_indices[:-1]):
+        hdr_arr = grid.header_index_arrays[dim_idx]
+        # Optimize memory usage: hdr_arr and trace_ids are already uint32,
+        # sl.start is int, so result should naturally be int32/uint32.
+        # Avoid unnecessary astype conversion to int64.
+        indexed_coords = hdr_arr[trace_ids]  # uint32 array
+        local_idx = indexed_coords - sl.start  # remains uint32
+        # Only convert dtype if necessary for indexing (numpy requires int for indexing)
+        if local_idx.dtype != np.intp:
+            local_idx = local_idx.astype(np.intp)
+        local_coords.append(local_idx)
+    full_idx = tuple(local_coords) + (slice(None),)
+
+    # Populate the temporary buffers
+    tmp_data[full_idx] = samples
+    tmp_metadata[tuple(local_coords)] = headers.view(tmp_metadata.dtype)
+
+    # Flush metadata to Zarr
     metadata_array.set_basic_selection(selection=chunk_indices[:-1], value=tmp_metadata)
 
+    # Determine nonzero samples and early-exit if none
     nonzero_mask = samples != 0
-    nonzero_count = nonzero_mask.sum(dtype="uint32")
-
+    nonzero_count = int(nonzero_mask.sum())
     if nonzero_count == 0:
         return None
 
+    # Flush data to Zarr
     data_array.set_basic_selection(selection=chunk_indices, value=tmp_data)
 
     # Calculate statistics
-    tmp_data = samples[nonzero_mask]
-    chunk_sum = tmp_data.sum(dtype="float64")
-    chunk_sum_squares = np.square(tmp_data, dtype="float64").sum()
-    min_val = tmp_data.min()
-    max_val = tmp_data.max()
+    flattened_nonzero = samples[nonzero_mask]
+    chunk_sum = float(flattened_nonzero.sum(dtype="float64"))
+    chunk_sum_squares = float(np.square(flattened_nonzero, dtype="float64").sum())
+    min_val = float(flattened_nonzero.min())
+    max_val = float(flattened_nonzero.max())
 
-    return nonzero_count, chunk_sum, chunk_sum_squares, min_val, max_val
+    return (nonzero_count, chunk_sum, chunk_sum_squares, min_val, max_val)

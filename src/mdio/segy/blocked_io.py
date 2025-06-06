@@ -8,6 +8,7 @@ from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from pathlib import Path
 from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 from dask.array import Array
@@ -26,20 +27,26 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
     from segy import SegyFile
+    from zarr import Array as ZarrArray
 
     from mdio.core import Grid
 
 default_cpus = cpu_count(logical=True)
 
 
-def to_zarr(segy_file: SegyFile, grid: Grid, data_array: Array, header_array: Array) -> dict:
+def to_zarr(
+    segy_file: SegyFile,
+    grid: Grid,
+    data_array: ZarrArray,
+    header_array: ZarrArray,
+) -> dict[str, Any]:
     """Blocked I/O from SEG-Y to chunked `zarr.core.Array`.
 
     Args:
         segy_file: SEG-Y file instance.
-        grid: mdio.Grid instance
-        data_array: Handle for zarr.core.Array we are writing trace data
-        header_array: Handle for zarr.core.Array we are writing trace headers
+        grid: mdio.Grid instance.
+        data_array: Zarr array for storing trace data.
+        header_array: Zarr array for storing trace headers.
 
     Returns:
         Global statistics for the SEG-Y as a dictionary.
@@ -48,21 +55,25 @@ def to_zarr(segy_file: SegyFile, grid: Grid, data_array: Array, header_array: Ar
     chunker = ChunkIterator(data_array, chunk_samples=False)
     num_chunks = len(chunker)
 
-    # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
-    # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
-    num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
-    num_workers = min(num_chunks, num_cpus)
-    context = mp.get_context("spawn")
-    executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
+    # Determine number of workers
+    num_cpus_env = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
+    num_workers = min(num_chunks, num_cpus_env)
 
     # Chunksize here is for multiprocessing, not Zarr chunksize.
     pool_chunksize, extra = divmod(num_chunks, num_workers * 4)
-    pool_chunksize += 1 if extra else pool_chunksize
+    if extra:
+        pool_chunksize += 1
 
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
-    with executor:
+
+    # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
+    # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows
+    context = mp.get_context("spawn")
+
+    # Launch multiprocessing pool
+    with ProcessPoolExecutor(max_workers=num_workers, mp_context=context) as executor:
         lazy_work = executor.map(
-            trace_worker,  # fn
+            trace_worker,
             repeat(segy_file),
             repeat(data_array),
             repeat(header_array),
@@ -78,34 +89,29 @@ def to_zarr(segy_file: SegyFile, grid: Grid, data_array: Array, header_array: Ar
             **tqdm_kw,
         )
 
-        # This executes the lazy work.
         chunk_stats = list(lazy_work)
 
-    # This comes in as n_chunk x 5 columns.
-    # Columns in order: count, sum, sum of squared, min, max.
-    # We can compute global mean, std, rms, min, max.
     # Transposing because we want each statistic as a row to unpack later.
     # REF: https://math.stackexchange.com/questions/1547141/aggregating-standard-deviation-to-a-summary-point  # noqa: E501
     # REF: https://www.mathwords.com/r/root_mean_square.htm
+    # Aggregate statistics
     chunk_stats = [stat for stat in chunk_stats if stat is not None]
+    # Each stat: (count, sum, sum_sq, min, max). Transpose to unpack rows.
+    glob_count, glob_sum, glob_sum_square, glob_min, glob_max = zip(*chunk_stats, strict=False)
 
-    chunk_stats = zip(*chunk_stats)  # noqa: B905
-    glob_count, glob_sum, glob_sum_square, glob_min, glob_max = chunk_stats
-
-    glob_count = np.sum(glob_count)  # Comes in as `uint32`
-    glob_sum = np.sum(glob_sum)  # `float64`
-    glob_sum_square = np.sum(glob_sum_square)  # `float64`
-    glob_min = np.min(glob_min)  # `float32`
-    glob_max = np.max(glob_max)  # `float32`
+    glob_count = np.sum(np.array(glob_count, dtype=np.uint64))
+    glob_sum = np.sum(np.array(glob_sum, dtype=np.float64))
+    glob_sum_square = np.sum(np.array(glob_sum_square, dtype=np.float64))
+    glob_min = np.min(np.array(glob_min, dtype=np.float32))
+    glob_max = np.max(np.array(glob_max, dtype=np.float32))
 
     glob_mean = glob_sum / glob_count
     glob_std = np.sqrt(glob_sum_square / glob_count - (glob_sum / glob_count) ** 2)
     glob_rms = np.sqrt(glob_sum_square / glob_count)
 
-    # We need to write these as float64 because float32 is not JSON serializable
-    # Trace data is originally float32, hence min/max
-    glob_min = glob_min.min().astype("float64")
-    glob_max = glob_max.max().astype("float64")
+    # Convert to float64 for JSON compatibility
+    glob_min = float(glob_min)
+    glob_max = float(glob_max)
 
     return {"mean": glob_mean, "std": glob_std, "rms": glob_rms, "min": glob_min, "max": glob_max}
 

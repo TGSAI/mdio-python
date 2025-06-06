@@ -131,7 +131,7 @@ def get_compressor(lossless: bool, compression_tolerance: float = -1) -> Blosc |
     return compressor
 
 
-def segy_to_mdio(  # noqa: PLR0913, PLR0915
+def segy_to_mdio(  # noqa: PLR0913, PLR0915, PLR0912
     segy_path: str | Path,
     mdio_path_or_buffer: str | Path,
     index_bytes: Sequence[int],
@@ -354,6 +354,13 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
+    import os
+
+    from zarr.core.config import config as zarr_config
+
+    num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", "1"))
+    zarr_config.set({"threading.max_workers": num_cpus})
+
     index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
     index_types = index_types or ["int32"] * len(index_bytes)
 
@@ -394,13 +401,24 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     grid_density_qc(grid, num_traces)
     grid.build_map(index_headers)
 
-    # Check grid validity by comparing trace numbers
-    if np.sum(grid.live_mask) != num_traces:
+    # Check grid validity by ensuring every trace's header-index is within dimension bounds
+    valid_mask = np.ones(grid.num_traces, dtype=bool)
+    for d_idx in range(len(grid.header_index_arrays)):
+        coords = grid.header_index_arrays[d_idx]
+        valid_mask &= coords < grid.shape[d_idx]
+    valid_count = int(np.count_nonzero(valid_mask))
+    if valid_count != num_traces:
         for dim_name in grid.dim_names:
-            dim_min, dim_max = grid.get_min(dim_name), grid.get_max(dim_name)
+            dim_min = grid.get_min(dim_name)
+            dim_max = grid.get_max(dim_name)
             logger.warning("%s min: %s max: %s", dim_name, dim_min, dim_max)
         logger.warning("Ingestion grid shape: %s.", grid.shape)
-        raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
+        raise GridTraceCountError(valid_count, num_traces)
+
+    import gc
+
+    del valid_mask
+    gc.collect()
 
     if chunksize is None:
         dim_count = len(index_names) + 1
@@ -446,13 +464,71 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915
     data_array = data_group[f"chunked_{suffix}"]
     header_array = meta_group[f"chunked_{suffix}_trace_headers"]
 
-    # Write actual live mask and metadata to empty MDIO
-    meta_group["live_mask"][:] = grid.live_mask[:]
-    nonzero_count = np.count_nonzero(grid.live_mask)
+    live_mask_array = meta_group["live_mask"]
+    # 'live_mask_array' has the same first N–1 dims as 'grid.shape[:-1]'
+    # Build a ChunkIterator over the live_mask (no sample axis)
+    from mdio.core.indexing import ChunkIterator
+
+    chunker = ChunkIterator(live_mask_array, chunk_samples=True)
+    for chunk_indices in chunker:
+        # chunk_indices is a tuple of N–1 slice objects
+        trace_ids = grid.get_traces_for_chunk(chunk_indices)
+        if trace_ids.size == 0:
+            # Free memory immediately for empty chunks
+            del trace_ids
+            continue
+
+        # Build a temporary boolean block of shape = chunk shape
+        block = np.zeros(tuple(sl.stop - sl.start for sl in chunk_indices), dtype=bool)
+
+        # Compute local coords within this block for each trace_id
+        local_coords: list[np.ndarray] = []
+        for dim_idx, sl in enumerate(chunk_indices):
+            hdr_arr = grid.header_index_arrays[dim_idx]
+            # Optimize memory usage: hdr_arr and trace_ids are already uint32,
+            # sl.start is int, so result should naturally be int32/uint32.
+            # Avoid unnecessary astype conversion to int64.
+            indexed_coords = hdr_arr[trace_ids]  # uint32 array
+            local_idx = indexed_coords - sl.start  # remains uint32
+            # Free indexed_coords immediately
+            del indexed_coords
+
+            # Only convert dtype if necessary for indexing (numpy requires int for indexing)
+            if local_idx.dtype != np.intp:
+                local_idx = local_idx.astype(np.intp)
+            local_coords.append(local_idx)
+            # local_idx is now owned by local_coords list, safe to continue
+
+        # Free trace_ids as soon as we're done with it
+        del trace_ids
+
+        # Mark live cells in the temporary block
+        block[tuple(local_coords)] = True
+
+        # Free local_coords immediately after use
+        del local_coords
+
+        # Write the entire block to Zarr at once
+        live_mask_array.set_basic_selection(selection=chunk_indices, value=block)
+
+        # Free block immediately after writing
+        del block
+
+        # Force garbage collection periodically to free memory aggressively
+        gc.collect()
+
+    # Final cleanup
+    del live_mask_array
+    del chunker
+    gc.collect()
+
+    nonzero_count = grid.num_traces
+
     write_attribute(name="trace_count", zarr_group=root_group, attribute=nonzero_count)
     write_attribute(name="text_header", zarr_group=meta_group, attribute=text_header.split("\n"))
     write_attribute(name="binary_header", zarr_group=meta_group, attribute=binary_header.to_dict())
 
+    zarr_config.set({"threading.max_workers": 1})
     # Write traces
     stats = blocked_io.to_zarr(
         segy_file=segy,
