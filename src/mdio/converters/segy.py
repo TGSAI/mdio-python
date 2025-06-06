@@ -354,6 +354,11 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915, PLR0912
         ...     grid_overrides={"HasDuplicates": True},
         ... )
     """
+    from zarr.core.config import config as zarr_config
+    import os
+    num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", 1))
+    zarr_config.set({"threading.max_workers": num_cpus})
+    
     index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
     index_types = index_types or ["int32"] * len(index_bytes)
 
@@ -521,6 +526,7 @@ def segy_to_mdio(  # noqa: PLR0913, PLR0915, PLR0912
     write_attribute(name="text_header", zarr_group=meta_group, attribute=text_header.split("\n"))
     write_attribute(name="binary_header", zarr_group=meta_group, attribute=binary_header.to_dict())
 
+    zarr_config.set({"threading.max_workers": 1})
     # Write traces
     stats = blocked_io.to_zarr(
         segy_file=segy,
