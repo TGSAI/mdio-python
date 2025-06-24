@@ -1,0 +1,49 @@
+# HOW TO BUILD AND RUN THIS DOCKERFILE
+# 1. Make sure you have Docker installed and running.
+# 2. Clone mdio-python and build the Docker image:
+#    git clone https://github.com/TGSAI/mdio-python.git
+#    cd mdio-python
+#    docker build -t mdio-nox -f .devcontainer/Dockerfile.nox .
+# 3. Run /bin/bash in the Docker container :
+#    LOCAL_DATA_DIR=$(pwd); \
+#    docker run -it --rm -v $LOCAL_DATA_DIR:/DATA --entrypoint /bin/bash --name mdio-nox mdio-nox
+#
+# USAGE:
+#   docker run -it --rm mdio-nox --list
+#   docker run -it --rm mdio-nox -s tests-3.13
+#   docker run -it --rm mdio-nox --no-stop-on-first-error
+#
+# NOTE: nox will fail if run in the directory mounted from the host machine
+ARG PYTHON_VERSION="3.13"
+ARG LINUX_DISTRO="bookworm"
+ARG UV_VERSION="0.6.11"
+ARG NOX_VERSION="2025.2.9"
+FROM python:${PYTHON_VERSION}-${LINUX_DISTRO}
+ARG PYTHON_VERSION
+ARG LINUX_DISTRO
+RUN echo "Using python:${PYTHON_VERSION}-${LINUX_DISTRO}"
+# Create the user (https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user)
+ENV USERNAME=python
+ENV USER_UID=1000
+ENV USER_GID=$USER_UID
+RUN groupadd --gid $USER_GID $USERNAME && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME
+# Set the default non-root user
+USER $USERNAME
+
+# Add path to the user-installed packages
+ENV PYTHONUSERBASE=/home/$USERNAME/.local
+ENV PATH="$PYTHONUSERBASE/bin:$PATH"
+
+COPY --chown=$USERNAME:$USERNAME ./ /home/$USERNAME/mdio-python
+
+WORKDIR /home/$USERNAME/mdio-python
+RUN pip install .
+
+# Install UV dependency manager and Nox test automator
+ARG UV_VERSION
+ARG NOX_VERSION
+RUN echo "Using uv: $UV_VERSION and nox: $NOX_VERSION"
+RUN python3 -m pip install uv==${UV_VERSION} nox==${NOX_VERSION} msgpack ipykernel
+
+ENTRYPOINT ["nox"]
+CMD ["--list"]
