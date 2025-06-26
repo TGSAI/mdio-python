@@ -315,7 +315,8 @@ def segy_import(  # noqa: PLR0913
         --chunk-size 8,2,256,512
         --grid-overrides '{"HasDuplicates": True}'
     """
-    from mdio import segy_to_mdio
+    # Lazy import to reduce CLI startup time
+    from mdio import segy_to_mdio  # noqa: PLC0415
 
     segy_to_mdio(
         segy_path=segy_path,
@@ -386,7 +387,8 @@ def segy_export(
 
     The input MDIO can be local or cloud based. However, the output SEG-Y will be generated locally.
     """
-    from mdio import mdio_to_segy
+    # Lazy import to reduce CLI startup time
+    from mdio import mdio_to_segy  # noqa: PLC0415
 
     mdio_to_segy(
         mdio_path_or_buffer=mdio_file,
