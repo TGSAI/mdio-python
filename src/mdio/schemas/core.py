@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 from typing import Any
-from typing import get_type_hints
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
+from pydantic import Field
 from pydantic.alias_generators import to_camel
 
 
@@ -28,12 +28,16 @@ def model_fields(model: type[BaseModel]) -> dict[str, tuple[Any, Any]]:
         >>> model_fields(MyModel)
         {'name': (str, <default_value>), 'age': (int, 0)}
     """
-    annotations = get_type_hints(model)
-
     fields = {}
-    for field_name, field in model.model_fields.items():
-        fields[field_name] = (annotations[field_name], field)
-
+    for field_name, field_info in model.model_fields.items():
+        annotated_type = field_info.annotation
+        if field_info.is_required():
+            fields[field_name] = (annotated_type, ...)
+        else:
+            fields[field_name] = (
+                annotated_type,
+                Field(field_info.default, description=field_info.description),
+            )
     return fields
 
 
@@ -46,4 +50,25 @@ class StrictModel(BaseModel):
 class CamelCaseStrictModel(StrictModel):
     """A model with forbidden extras and camel case aliases."""
 
-    model_config = ConfigDict(alias_generator=to_camel)
+    model_config = ConfigDict(
+        extra="forbid",
+        populate_by_name=False,
+        alias_generator=to_camel,
+        ser_json_by_alias=True,
+    )
+
+    def model_dump_json(self, *args, **kwargs) -> dict:  # noqa: ANN201 ANN001 ANN002 ANN003
+        """Dump JSON using camelCase aliases and excluding None values by default."""
+        # Ensure camelCase aliases
+        if "by_alias" not in kwargs:
+            kwargs["by_alias"] = True
+        # Exclude None fields to avoid nulls in output
+        if "exclude_none" not in kwargs:
+            kwargs["exclude_none"] = True
+        return super().model_dump_json(*args, **kwargs)
+
+    def json(self, *args, **kwargs) -> dict:  # noqa: ANN201 ANN001 ANN002 ANN003
+        """Dump JSON using camelCase aliases and excluding None values by default."""
+        if "by_alias" not in kwargs:
+            kwargs["by_alias"] = True
+        return self.model_dump_json(*args, **kwargs)

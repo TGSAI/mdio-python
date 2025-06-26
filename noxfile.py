@@ -200,6 +200,7 @@ def tests(session: Session) -> None:
             "pygments",
             "pytest-dependency",
             "s3fs",
+            "zfpy",  # TODO(BrianMichell): #0 Ensure this is pulling from the pyproject.toml
         ],
     )
 

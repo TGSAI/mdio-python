@@ -1,0 +1,293 @@
+"""Internal serialization module for MDIO v1 datasets.
+
+This module contains internal implementation details for serializing MDIO schema models
+to Zarr storage. This API is not considered stable and may change without notice.
+"""
+
+from datetime import datetime
+from typing import Any
+
+import numpy as np
+from numcodecs import Blosc as NumcodecsBlosc
+
+from mdio.core.v1._overloads import mdio
+from mdio.schemas.chunk_grid import *  # noqa: F403
+from mdio.schemas.compressors import ZFP
+from mdio.schemas.compressors import Blosc
+from mdio.schemas.dimension import NamedDimension
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
+from mdio.schemas.metadata import UserAttributes
+from mdio.schemas.v1.dataset import Dataset as MDIODataset
+from mdio.schemas.v1.dataset import DatasetMetadata
+from mdio.schemas.v1.stats import *  # noqa: F403
+from mdio.schemas.v1.units import AllUnits
+from mdio.schemas.v1.variable import Coordinate
+from mdio.schemas.v1.variable import Variable
+from mdio.schemas.v1.variable import VariableMetadata
+
+try:
+    import zfpy as zfpy_base  # Base library
+    from numcodecs import ZFPY  # Codec
+except ImportError:
+    zfpy_base = None
+    ZFPY = None
+
+
+def make_named_dimension(name: str, size: int) -> NamedDimension:
+    """Create a NamedDimension with the given name and size."""
+    return NamedDimension(name=name, size=size)
+
+
+def make_coordinate(
+    name: str,
+    dimensions: list[NamedDimension | str],
+    data_type: ScalarType | StructuredType,
+    long_name: str = None,
+    metadata: list[AllUnits | UserAttributes] | dict[str, Any] | None = None,
+) -> Coordinate:
+    """Create a Coordinate with the given name, dimensions, data_type, and metadata."""
+    # Build metadata list of AllUnits or UserAttributes to satisfy Coordinate.schema
+    coord_meta_list: list[AllUnits | UserAttributes] | None = None
+    if metadata is not None:
+        items: list[AllUnits | UserAttributes] = []
+        # single dict input
+        if isinstance(metadata, dict):
+            if "unitsV1" in metadata:
+                items.append(AllUnits(unitsV1=metadata["unitsV1"]))
+            if "attributes" in metadata:
+                items.append(UserAttributes(attributes=metadata["attributes"]))
+        # list input may contain dict or model instances
+        elif isinstance(metadata, list):
+            for md in metadata:
+                if isinstance(md, AllUnits) or isinstance(md, UserAttributes):  # noqa: SIM101
+                    items.append(md)
+                elif isinstance(md, dict):
+                    if "unitsV1" in md:
+                        items.append(AllUnits(unitsV1=md["unitsV1"]))
+                    if "attributes" in md:
+                        items.append(UserAttributes(attributes=md["attributes"]))
+                else:
+                    msg = f"Unsupported metadata element type for coordinate: {type(md)}"
+                    raise TypeError(msg)
+        else:
+            msg = f"Unsupported metadata type for coordinate: {type(metadata)}"
+            raise TypeError(msg)
+        coord_meta_list = items or None
+    return Coordinate(
+        name=name,
+        longName=long_name,
+        dimensions=dimensions,
+        dataType=data_type,
+        metadata=coord_meta_list,
+    )
+
+
+def make_variable(  # noqa: PLR0913 PLR0912
+    name: str,
+    dimensions: list[NamedDimension | str],
+    data_type: ScalarType | StructuredType,
+    long_name: str = None,
+    compressor: Blosc | ZFP | None = None,
+    coordinates: list[Coordinate | str] | None = None,
+    metadata: list[AllUnits | UserAttributes] | dict[str, Any] | VariableMetadata | None = None,
+) -> Variable:
+    """Create a Variable with the given parameters.
+
+    Args:
+        name: Name of the variable
+        dimensions: List of dimensions
+        data_type: Data type of the variable
+        long_name: Optional long name
+        compressor: Optional compressor
+        coordinates: Optional list of coordinates
+        metadata: Optional metadata
+
+    Returns:
+        Variable: A Variable instance with the specified parameters.
+
+    Raises:
+        TypeError: If the metadata type is not supported.
+    """
+
+    def _to_serializable(val: object) -> dict[str, Any] | object:
+        return val.model_dump(mode="json", by_alias=True) if hasattr(val, "model_dump") else val
+
+    var_metadata = None
+    if metadata:
+        if isinstance(metadata, list):
+            metadata_dict = {}
+            for md in metadata:
+                if isinstance(md, AllUnits):
+                    val = md.units_v1
+                    if isinstance(val, list) and len(val) == 1:
+                        val = val[0]
+                    metadata_dict["unitsV1"] = val
+                elif isinstance(md, UserAttributes):
+                    attrs = _to_serializable(md)
+                    metadata_dict["attributes"] = (
+                        attrs[0] if isinstance(attrs, list) and len(attrs) == 1 else attrs
+                    )
+            var_metadata = VariableMetadata(**metadata_dict)
+
+        elif isinstance(metadata, dict):
+            converted_dict = {}
+            for key, value in metadata.items():
+                if key == "unitsV1":
+                    val = value[0] if isinstance(value, list) and len(value) == 1 else value
+                    converted_dict["unitsV1"] = _to_serializable(val)
+                else:
+                    converted_dict[key] = value
+            var_metadata = VariableMetadata(**converted_dict)
+
+        elif isinstance(metadata, VariableMetadata):
+            # Flatten any single-element list fields in metadata
+            md = metadata.model_dump(by_alias=True, exclude_none=True)
+            for key, value in list(md.items()):
+                if isinstance(value, list) and len(value) == 1:
+                    md[key] = value[0]
+            var_metadata = VariableMetadata(**md)
+
+        else:
+            msg = f"Unsupported metadata type: {type(metadata)}"
+            raise TypeError(msg)
+
+    return Variable(
+        name=name,
+        longName=long_name,
+        dimensions=dimensions,
+        dataType=data_type,
+        compressor=compressor,
+        coordinates=coordinates,
+        metadata=var_metadata,
+    )
+
+
+def make_dataset_metadata(
+    name: str,
+    api_version: str,
+    created_on: datetime,
+    attributes: dict[str, Any] | None = None,
+) -> DatasetMetadata:
+    """Create a DatasetMetadata with name, api_version, created_on, and optional attributes."""
+    dataset_metadata_dict = {
+        "name": name,
+        "apiVersion": api_version,
+        "createdOn": created_on,
+        "attributes": attributes,
+    }
+    return DatasetMetadata(**dataset_metadata_dict)
+
+
+def make_dataset(
+    variables: list[Variable],
+    metadata: DatasetMetadata,
+) -> MDIODataset:
+    """Create a Dataset with the given variables and metadata."""
+    return MDIODataset(
+        variables=variables,
+        metadata=metadata,
+    )
+
+
+def _convert_compressor(
+    model: Blosc | ZFP | None,
+) -> NumcodecsBlosc | ZFPY | None:
+    if isinstance(model, Blosc):
+        return NumcodecsBlosc(
+            cname=model.algorithm.value,
+            clevel=model.level,
+            shuffle=model.shuffle.value,
+            blocksize=model.blocksize if model.blocksize > 0 else 0,
+        )
+    if isinstance(model, ZFP):
+        if zfpy_base is None or ZFPY is None:
+            msg = "zfpy and numcodecs are required to use ZFP compression"
+            raise ImportError(msg)
+        return ZFPY(
+            mode=model.mode.value,
+            tolerance=model.tolerance,
+            rate=model.rate,
+            precision=model.precision,
+        )
+    if model is None:
+        return None
+    msg = f"Unsupported compressor model: {type(model)}"
+    raise TypeError(msg)
+
+
+def _construct_mdio_dataset(mdio_ds: MDIODataset) -> mdio.Dataset:  # noqa: PLR0912
+    """Build an MDIO dataset with correct dimensions and dtypes.
+
+    This internal function constructs the underlying data structure for an MDIO dataset,
+    handling dimension mapping, data types, and metadata organization.
+
+    Args:
+        mdio_ds: The source MDIO dataset to construct from.
+
+    Returns:
+        The constructed dataset with proper MDIO structure and metadata.
+
+    Raises:
+        TypeError: If an unsupported data type is encountered.
+    """
+    # Collect dimension sizes
+    dims: dict[str, int] = {}
+    for var in mdio_ds.variables:
+        for d in var.dimensions:
+            if isinstance(d, NamedDimension):
+                dims[d.name] = d.size
+
+    # Build data variables
+    data_vars: dict[str, mdio.DataArray] = {}
+    for var in mdio_ds.variables:
+        dim_names = [d.name if isinstance(d, NamedDimension) else d for d in var.dimensions]
+        shape = tuple(dims[name] for name in dim_names)
+        dt = var.data_type
+        if isinstance(dt, ScalarType):
+            dtype = np.dtype(dt.value)
+        elif isinstance(dt, StructuredType):
+            dtype = np.dtype([(f.name, f.format.value) for f in dt.fields])
+        else:
+            msg = f"Unsupported data_type: {dt}"
+            raise TypeError(msg)
+        arr = np.zeros(shape, dtype=dtype)
+        data_array = mdio.DataArray(arr, dims=dim_names)
+        data_array.encoding["fill_value"] = 0.0
+
+        # Set long_name if present
+        if var.long_name is not None:
+            data_array.attrs["long_name"] = var.long_name
+
+        # Set coordinates if present, excluding dimension names
+        if var.coordinates is not None:
+            dim_set = set(dim_names)
+            coord_names = [
+                c.name if isinstance(c, Coordinate) else c
+                for c in var.coordinates
+                if (c.name if isinstance(c, Coordinate) else c) not in dim_set
+            ]
+            if coord_names:
+                data_array.attrs["coordinates"] = " ".join(coord_names)
+
+        # Attach variable metadata into DataArray attributes
+        if var.metadata is not None:
+            md = var.metadata.model_dump(
+                by_alias=True,
+                exclude_none=True,
+                exclude={"chunk_grid"},
+            )
+            for key, value in md.items():
+                if isinstance(value, list) and len(value) == 1:
+                    md[key] = value[0]
+            data_array.attrs.update(md)
+        data_vars[var.name] = data_array
+
+    ds = mdio.Dataset(data_vars)
+    # Attach dataset metadata
+    ds.attrs["apiVersion"] = mdio_ds.metadata.api_version
+    ds.attrs["createdOn"] = str(mdio_ds.metadata.created_on)
+    ds.attrs["name"] = mdio_ds.metadata.name
+    if mdio_ds.metadata.attributes:
+        ds.attrs["attributes"] = mdio_ds.metadata.attributes
+    return ds
