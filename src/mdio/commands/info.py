@@ -43,7 +43,8 @@ def info(mdio_path: str, output_format: str, access_pattern: str) -> None:
     By default, this returns human-readable information about the grid and stats for the dataset.
     If output-format is set to 'json' then a JSON is returned to facilitate parsing.
     """
-    from mdio import MDIOReader
+    # Lazy import to reduce CLI startup time
+    from mdio import MDIOReader  # noqa: PLC0415
 
     reader = MDIOReader(mdio_path, access_pattern=access_pattern, return_metadata=True)
 
@@ -101,17 +102,19 @@ def parse_access_patterns(reader: MDIOReader) -> dict[str, Any]:
 
 def json_print(mdio_info: dict[str, Any]) -> None:
     """Convert MDIO Info to JSON and pretty print."""
-    from json import dumps as json_dumps
+    # Lazy import to reduce CLI startup time
+    from json import dumps as json_dumps  # noqa: PLC0415
 
-    from rich import print  # noqa: A004
+    from rich import print  # noqa: A004, PLC0415
 
     print(json_dumps(mdio_info, indent=2))
 
 
 def pretty_print(mdio_info: dict[str, Any]) -> None:
     """Print pretty MDIO Info table to console."""
-    from rich.console import Console
-    from rich.table import Table
+    # Lazy import to reduce CLI startup time
+    from rich.console import Console  # noqa: PLC0415
+    from rich.table import Table  # noqa: PLC0415
 
     console = Console()
 
