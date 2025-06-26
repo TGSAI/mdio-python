@@ -23,14 +23,23 @@ from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.stats import StatisticsMetadata
 from mdio.schemas.v1.units import AllUnits
 
+CoordinateMetadata = create_model(
+    "CoordinateMetadata",
+    **model_fields(AllUnits),
+    **model_fields(UserAttributes),
+    __base__=CamelCaseStrictModel,
+    __doc__="Reduced Metadata, perfect for simple Coordinates.",
+)
+
 
 class Coordinate(NamedArray):
-    """An MDIO coordinate array with metadata."""
+    """A simple MDIO Coordinate array with metadata.
 
-    data_type: ScalarType = Field(..., description="Data type of coordinate.")
-    metadata: list[AllUnits | UserAttributes] | None = Field(
-        default=None, description="Coordinate metadata."
-    )
+    For large or complex Coordinates, define a Variable instead.
+    """
+
+    data_type: ScalarType = Field(..., description="Data type of Coordinate.")
+    metadata: CoordinateMetadata | None = Field(default=None, description="Coordinate Metadata.")
 
 
 VariableMetadata = create_model(
@@ -40,14 +49,15 @@ VariableMetadata = create_model(
     **model_fields(StatisticsMetadata),
     **model_fields(UserAttributes),
     __base__=CamelCaseStrictModel,
+    __doc__="Complete Metadata for Variables and complex or large Coordinates.",
 )
 
 
 class Variable(NamedArray):
-    """An MDIO variable that has coordinates and metadata."""
+    """An MDIO Variable that has coordinates and metadata."""
 
     coordinates: list[Coordinate] | list[str] | None = Field(
         default=None,
-        description="Coordinates of the MDIO variable dimensions.",
+        description="Coordinates of the MDIO Variable dimensions.",
     )
-    metadata: VariableMetadata | None = Field(default=None, description="Variable metadata.")
+    metadata: VariableMetadata | None = Field(default=None, description="Variable Metadata.")
