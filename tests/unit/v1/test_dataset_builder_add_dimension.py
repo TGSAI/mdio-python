@@ -40,17 +40,10 @@ def test_add_dimension() -> None:
     assert builder._dimensions[0] == NamedDimension(name="x", size=100)
     assert len(builder._variables) == 1  
 
-    # Adding a dimension with the same name as an existing dimension.
-    # Currently, it does not raise an error, but just ignores this call
-    builder.add_dimension("x", 100, var_long_name="X Dimension")
-    assert builder._state == _BuilderState.HAS_DIMENSIONS
-    assert len(builder._dimensions) == 1  
-    assert len(builder._variables) == 1  
-
-    # Adding a dimension with the same name and different size throws an error
-    err_msg = "Dimension 'x' found but size 100 does not match expected size 200"
-    with pytest.raises(ValueError, match=err_msg):
-        builder.add_dimension("x", 200, var_long_name="X Dimension")
+    # Adding dimension with the same name twice
+    msg="Adding dimension with the same name twice is not allowed"
+    with pytest.raises(ValueError, match=msg):
+        builder.add_dimension("x", 200)
 
 def test_add_dimension_with_defaults() -> None:
     """Test dimension builder state transitions and functionality."""

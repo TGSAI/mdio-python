@@ -6,17 +6,10 @@
 
 import pytest
 
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.chunk_grid import RegularChunkShape
-from mdio.schemas.dimension import NamedDimension
 from mdio.schemas.dtype import ScalarType
-from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder, contains_dimension
+from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
 from mdio.schemas.v1.dataset_builder import _BuilderState
-from mdio.schemas.v1.stats import CenteredBinHistogram
-from mdio.schemas.v1.stats import StatisticsMetadata
-from mdio.schemas.v1.stats import SummaryStatistics
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
@@ -27,8 +20,9 @@ def test_add_coordinate() -> None:
     builder = MDIODatasetBuilder("test_dataset")
     assert builder._state == _BuilderState.INITIAL
     
-    with pytest.raises(ValueError, match="Must add at least one dimension before adding coordinates"):
-        builder.add_coordinate("amplitude", dimensions=["speed"])
+    msg = "Must add at least one dimension before adding coordinates"
+    with pytest.raises(ValueError, match=msg):
+        builder.add_coordinate("cdp", dimensions=["inline", "crossline"])
 
     builder.add_dimension("inline", 100)
     builder.add_dimension("crossline", 100)
@@ -49,6 +43,11 @@ def test_add_coordinate() -> None:
     assert len(builder._variables) == 2 
     assert len(builder._coordinates) == 1  
 
+    # Adding coordinate with the same name twice
+    msg="Adding coordinate with the same name twice is not allowed"
+    with pytest.raises(ValueError, match=msg):
+        builder.add_coordinate("cdp", dimensions=["inline", "crossline"])
+
 def test_add_coordinate_with_defaults() -> None:
     """Test adding coordinates with default arguments."""
     builder = MDIODatasetBuilder("test_dataset")
@@ -59,10 +58,10 @@ def test_add_coordinate_with_defaults() -> None:
     assert len(builder._dimensions) == 2 
     assert len(builder._variables) == 2 
     assert len(builder._coordinates) == 1
-    # NOTE: add_variable() stores dimensions as names
     crd0 = next((e for e in builder._coordinates if e.name == "cdp"), None)
     assert crd0 is not None
-    assert set(crd0.dimensions) == set(["inline", "crossline"])
+    # NOTE: add_variable() stores dimensions as names
+    assert set(crd0.dimensions) == {"inline", "crossline"}
     assert crd0.long_name is None               # Default value
     assert crd0.data_type == ScalarType.FLOAT32 # Default value
     assert crd0.metadata is None                # Default value
@@ -81,10 +80,10 @@ def test_coordinate_with_units() -> None:
     assert len(builder._dimensions) == 2 
     assert len(builder._variables) == 2  
     assert len(builder._coordinates) == 1 
-    # NOTE: add_coordinate() stores dimensions as names
     crd0 = next((e for e in builder._coordinates if e.name == "cdp"), None)
     assert crd0 is not None
-    assert set(crd0.dimensions) == set(["inline", "crossline"])
+    # NOTE: add_coordinate() stores dimensions as names
+    assert set(crd0.dimensions) == {"inline", "crossline"}
     assert crd0.long_name is None               # Default value
     assert crd0.data_type == ScalarType.FLOAT32 # Default value
     assert crd0.metadata.attributes is None
@@ -108,7 +107,7 @@ def test_coordinate_with_attributes() -> None:
     # NOTE: add_coordinate() stores dimensions as names
     crd0 = next((e for e in builder._coordinates if e.name == "cdp"), None)
     assert crd0 is not None
-    assert set(crd0.dimensions) == set(["inline", "crossline"])
+    assert set(crd0.dimensions) == {"inline", "crossline"}
     assert crd0.long_name is None               # Default value
     assert crd0.data_type == ScalarType.FLOAT32 # Default value
     assert crd0.metadata.attributes["MGA"] == 51
@@ -135,7 +134,7 @@ def test_coordinate_with_full_metadata() -> None:
     # NOTE: add_coordinate() stores dimensions as names
     crd0 = next((e for e in builder._coordinates if e.name == "cdp"), None)
     assert crd0 is not None
-    assert set(crd0.dimensions) == set(["inline", "crossline"])
+    assert set(crd0.dimensions) == {"inline", "crossline"}
     assert crd0.long_name is None               # Default value
     assert crd0.data_type == ScalarType.FLOAT32 # Default value
     assert crd0.metadata.attributes["MGA"] == 51

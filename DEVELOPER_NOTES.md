@@ -85,9 +85,11 @@ builder.add_dimension(
 * When a coordinate or a variable is created, their schema allows to store their dimensions either as
     * list of dimensions name `list[str]`, where the names refer to the dimensions defined in the builder._dimensions 
     * list of named dimensions `list[NamedDimension]`, which duplicate the dimensions defined in the builder._dimensions
-    * Mixture of the two above `list[NamedDimension | str]`  
+    * Mixture of the two above `list[NamedDimension | str]` 
 
-    We will be using the first approach.  
+    which approach should be used?  
+    
+    `RESOLUTION: We will be using the first approach.`
 
     **IMPORTANT: For binary compatibility, We need to ensure that the C++ code follows the same logic**
 
@@ -98,20 +100,25 @@ builder.add_dimension(
     def make_coordinate_metadata_list_from_dict(metadata: dict[str, Any]) -> CoordinateMetadataList:
         # Implementation goes here
     ```
+    `RESOLUTION: The approach confirmed.`
 
 ## Schema V1 questions
 
 * add_dimension(): Can a dimension with the same name be added multiple times. Options:
    * Allowed: the second request is ignored (current implementation)
-      * Adding a dimension with the same name, but the different size currently throws an error
    * Not Allowed: should it raise an error?
+
+    `RESOLUTION: The dimensions with the same name are not allowed`
 * The pydantic attribute names are different from the v1 schema attributes names.  What are the repercussions?
     ```
     'statsV1' <-> 'stats_v1'
     'unitsV1' <-> 'units_v1'
     'chunkGrid' <-> 'chunk_grid'
     ```
+    `Under investigation`
 * Should histogram (e.g., SummaryStatistics) have a `histogram_type` attribute?
+
+  `Under investigation`
 * Units
   * Why 'ftUS' is not supported by the schema? U.S. survey foot vs the International Foot:  
     *"The U.S. survey foot is defined as 1200/3937 meters, while the international foot is defined as exactly 0.3048 meters.
@@ -120,7 +127,10 @@ builder.add_dimension(
     This ... moves a State Plane coordinate position 4 feet by 12 feet."*
   * Why there are no dimensionless unis (for seismic amplitudes, inlines, etc.)
 
+  `Under investigation`
+
 ## Design suggestions
 * Should we rename add_dimension to add_dimension_variable (or similar) to indicate that we not just providing the dimension name, but also creating the dimension variable
 
+    `RESOLUTION: Shorter names are preferable for public API. The function behavior will be described in the docs`
 

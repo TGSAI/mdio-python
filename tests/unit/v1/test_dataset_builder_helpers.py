@@ -10,30 +10,34 @@ from datetime import datetime
 import pytest
 from pydantic import Field
 
-from mdio.schemas.chunk_grid import RegularChunkGrid, RegularChunkShape
+from mdio.schemas.chunk_grid import RegularChunkGrid
+from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.core import StrictModel
 from mdio.schemas.dimension import NamedDimension
 from mdio.schemas.metadata import ChunkGridMetadata
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder, _make_coordinate_metadata
-from mdio.schemas.v1.dataset_builder import get_dimension_names
+from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
+from mdio.schemas.v1.dataset_builder import _make_coordinate_metadata
 from mdio.schemas.v1.dataset_builder import _make_variable_metadata
 from mdio.schemas.v1.dataset_builder import _to_dictionary
 from mdio.schemas.v1.dataset_builder import contains_dimension
 from mdio.schemas.v1.dataset_builder import get_dimension
-from mdio.schemas.v1.stats import CenteredBinHistogram, StatisticsMetadata, SummaryStatistics
+from mdio.schemas.v1.dataset_builder import get_dimension_names
+from mdio.schemas.v1.stats import CenteredBinHistogram
+from mdio.schemas.v1.stats import StatisticsMetadata
+from mdio.schemas.v1.stats import SummaryStatistics
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.v1.variable import AllUnits, CoordinateMetadata
+from mdio.schemas.v1.variable import AllUnits
+from mdio.schemas.v1.variable import CoordinateMetadata
 from mdio.schemas.v1.variable import UserAttributes
 from mdio.schemas.v1.variable import VariableMetadata
 
 
-def test__get_dimension() -> None:
+def test__get_dimension_by_name() -> None:
     """Test getting a dimension by name from the list of dimensions."""
     dimensions = [NamedDimension(name="inline", size=2), NamedDimension(name="crossline", size=3)]
 
     assert get_dimension([], "inline") is None
-
     assert get_dimension(dimensions, "inline") == NamedDimension(name="inline", size=2)
     assert get_dimension(dimensions, "crossline") == NamedDimension(name="crossline", size=3)
     assert get_dimension(dimensions, "time") is None
@@ -70,7 +74,6 @@ def test__contains_dimension() -> None:
 
 def test_get_dimension_names() -> None:
     """Test getting a list of dimension names from list[NamedDimension | str]."""
-
     empty_list = get_dimension_names(None)
     assert empty_list is not None
     assert isinstance(empty_list, list)
@@ -88,7 +91,7 @@ def test_get_dimension_names() -> None:
     ])
     assert dim_list is not None
     assert isinstance(dim_list, list)
-    assert set(dim_list) == set(["inline", "amplitude", "crossline"])
+    assert set(dim_list) == {"inline", "amplitude", "crossline"}
 
 
 def test_add_dimensions_if_needed() -> None:
