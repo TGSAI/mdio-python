@@ -214,6 +214,14 @@ def test__to_dictionary() -> None:
     assert isinstance(result, dict)
     assert result == {"count": 3, "created": "2023-10-01T12:00:00Z", "samples": [1.0, 2.0, 3.0]}
 
+    d = {
+        "count": 3,
+        "samples": [1.0, 2.0, 3.0],
+        "created": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)}
+    result = _to_dictionary(m)
+    assert isinstance(result, dict)
+    assert result == {"count": 3, "created": "2023-10-01T12:00:00Z", "samples": [1.0, 2.0, 3.0]}
+
 
 def test__make_coordinate_metadata() -> None:
     """Test creating VariableMetadata from a strongly-typed list of AllUnits or UserAttributes."""

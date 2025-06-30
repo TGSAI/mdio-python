@@ -7,6 +7,8 @@ from enum import auto
 from typing import Any
 from typing import TypeAlias
 
+import xarray as xr
+
 from pydantic import BaseModel
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding  # noqa: F401
 
@@ -23,6 +25,8 @@ from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import CoordinateMetadata
 from mdio.schemas.v1.variable import Variable
 from mdio.schemas.v1.variable import VariableMetadata
+from mdio.schemas.v1.dataset import Dataset, DatasetInfo
+from mdio.schemas.v1.dataset import DatasetMetadata
 
 CoordinateMetadataList: TypeAlias = list[AllUnits |
                                          UserAttributes]
@@ -30,8 +34,8 @@ VariableMetadataList: TypeAlias = list[AllUnits |
                                        UserAttributes |
                                        ChunkGridMetadata |
                                        StatisticsMetadata]
-
-
+DatasetMetadataList: TypeAlias = list[DatasetInfo |
+                                       UserAttributes ]
 class _BuilderState(Enum):
     """States for the template builder."""
 
@@ -87,12 +91,14 @@ def get_dimension_names(dimensions: list[NamedDimension | str]) -> list[str]:
     return names
 
 
-def _to_dictionary(val: BaseModel) -> dict[str, Any]:
-    """Convert a pydantic BaseModel to a dictionary."""
-    if not isinstance(val, BaseModel):
-        msg = f"Expected BaseModel, got {type(val).__name__}"
-        raise TypeError(msg)
-    return val.model_dump(mode="json", by_alias=True)
+def _to_dictionary(val: BaseModel | dict[str, Any]) -> dict[str, Any]:
+    """Convert a dictionary or pydantic BaseModel to a dictionary."""
+    if isinstance(val, BaseModel):
+        return val.model_dump(mode="json", by_alias=True)
+    if isinstance(val, dict):
+        return val
+    msg = f"Expected BaseModel, got {type(val).__name__}"
+    raise TypeError(msg)
 
 
 def _make_coordinate_metadata(metadata: CoordinateMetadataList | None) -> CoordinateMetadata | None:
@@ -104,11 +110,10 @@ def _make_coordinate_metadata(metadata: CoordinateMetadataList | None) -> Coordi
         # NOTE: the pydantic attribute names are different from the v1 schema attributes names
         #       'unitsV1' <-> 'units_v1'
         if isinstance(md, AllUnits):
-            val = md.units_v1
-            metadata_dict["unitsV1"] = _to_dictionary(val)
+            metadata_dict["unitsV1"] = _to_dictionary(md.units_v1)
         elif isinstance(md, UserAttributes):
             # NOTE: md.attributes is not pydantic type, but a dictionary
-            metadata_dict["attributes"] = _to_dictionary(md)["attributes"]
+            metadata_dict["attributes"] = _to_dictionary(md.attributes)
         else:
             msg = f"Unsupported metadata type: {type(md)}"
             raise TypeError(msg)
@@ -124,22 +129,38 @@ def _make_variable_metadata(metadata: VariableMetadataList | None) -> VariableMe
         # NOTE: the pydantic attribute names are different from the v1 schema attributes names
         #       'statsV1' <-> 'stats_v1', 'unitsV1' <-> 'units_v1', 'chunkGrid' <-> 'chunk_grid'
         if isinstance(md, AllUnits):
-            val = md.units_v1
-            metadata_dict["unitsV1"] = _to_dictionary(val)
+            metadata_dict["unitsV1"] = _to_dictionary(md.units_v1)
         elif isinstance(md, UserAttributes):
             # NOTE: md.attributes is not pydantic type, but a dictionary
-            metadata_dict["attributes"] = _to_dictionary(md)["attributes"]
+            metadata_dict["attributes"] = _to_dictionary(md.attributes)
         elif isinstance(md, ChunkGridMetadata):
-            val = md.chunk_grid
-            metadata_dict["chunkGrid"] = _to_dictionary(val)
+            metadata_dict["chunkGrid"] = _to_dictionary(md.chunk_grid)
         elif isinstance(md, StatisticsMetadata):
-            val = md.stats_v1
-            metadata_dict["statsV1"] = _to_dictionary(val)
+            metadata_dict["statsV1"] = _to_dictionary(md.stats_v1)
         else:
             msg = f"Unsupported metadata type: {type(md)}"
             raise TypeError(msg)
     return VariableMetadata(**metadata_dict)
 
+def _make_datasetinfo_metadata(metadata: DatasetInfo | None) -> DatasetMetadata | None:
+    if metadata is None or not metadata:
+        return None
+
+    metadata_dict = {}
+    for md in metadata:
+        # NOTE: the pydantic attribute names are different from the v1 schema attributes names
+        #       'apiVersion' <-> 'api_version', 'created_on' <-> 'createdOn'
+        if isinstance(md, DatasetInfo):
+            metadata_dict["name"] = md.name
+            metadata_dict["apiVersion"] = _to_dictionary(md.api_version)
+            metadata_dict["createdOn"] = _to_dictionary(md.created_on)
+        elif isinstance(md, UserAttributes):
+            # NOTE: md.attributes is not pydantic type, but a dictionary
+            metadata_dict["attributes"] = _to_dictionary(md.attributes)
+        else:
+            msg = f"Unsupported metadata type: {type(md)}"
+            raise TypeError(msg)
+    return DatasetMetadata(**metadata_dict)
 
 class MDIODatasetBuilder:
     """Builder for creating MDIO datasets with enforced build order.
@@ -152,12 +173,14 @@ class MDIODatasetBuilder:
     4. Must call build() to create the dataset.
     """
 
-    def __init__(self, name: str, attributes: dict[str, Any] | None = None):
-        self.name = name
+    def __init__(self, name: str, attributes: UserAttributes | None = None):
+
         # TODO(BrianMichell, #0): Pull from package metadata
-        self.api_version = "1.0.0"
-        self.created_on = datetime.now(UTC)
-        self.attributes = attributes
+        self._info = DatasetInfo(
+            name=name,
+            api_version="1.0.0",
+            created_on= datetime.now(UTC)),
+        self._attributes = attributes
         self._dimensions: list[NamedDimension] = []
         self._coordinates: list[Coordinate] = []
         self._variables: list[Variable] = []
@@ -317,3 +340,104 @@ class MDIODatasetBuilder:
         )
         self._state = _BuilderState.HAS_VARIABLES
         return self
+
+    def build(self) -> Dataset:
+        """Build the final dataset."""
+        if self._state == _BuilderState.INITIAL:
+            msg = "Must add at least one dimension before building"
+            raise ValueError(msg)
+
+        return Dataset(
+            variables=self._variables,
+            metadata=DatasetMetadata(self._info, 
+                                     self._attributes)
+        )
+
+
+    # def to_mdio(
+    #     self,
+    #     store: str,
+    #     mode: str = "w",
+    #     compute: bool = False,
+    #     **kwargs: Mapping[str, str | int | float | bool],
+    # ) -> Dataset:
+    #     """Write the dataset to a Zarr store and return the constructed mdio.Dataset.
+
+    #     This function constructs an mdio.Dataset from the MDIO dataset and writes its metadata
+    #     to a Zarr store. The actual data is not written, only the metadata structure is created.
+    #     """
+    #     return write_mdio_metadata(self.build(), store, mode, compute, **kwargs)
+
+# def write_mdio_metadata(
+#     mdio_ds: Dataset,
+#     store: str,
+#     mode: str = "w",
+#     compute: bool = False,
+#     **kwargs: Mapping[str, str | int | float | bool],
+# ) -> mdio.Dataset:
+#     """Write MDIO metadata to a Zarr store and return the constructed mdio.Dataset.
+
+#     This function constructs an mdio.Dataset from the MDIO dataset and writes its metadata
+#     to a Zarr store. The actual data is not written, only the metadata structure is created.
+
+#     Args:
+#         mdio_ds: The MDIO dataset to serialize
+#         store: Path to the Zarr or .mdio store
+#         mode: Write mode to pass to to_mdio(), e.g. 'w' or 'a'
+#         compute: Whether to compute (write) array chunks (True) or only metadata (False)
+#         **kwargs: Additional arguments to pass to to_mdio()
+
+#     Returns:
+#         The constructed xarray Dataset with MDIO extensions
+#     """
+#     ds = _construct_mdio_dataset(mdio_ds)
+
+#     def _generate_encodings() -> dict:
+#         """Generate encodings for each variable in the MDIO dataset.
+
+#         Returns:
+#             Dictionary mapping variable names to their encoding configurations.
+#         """
+#         # TODO(Anybody, #10274): Re-enable chunk_key_encoding when supported by xarray
+#         # dimension_separator_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
+        
+#         # Collect dimension sizes (same approach as _construct_mdio_dataset)
+#         dims: dict[str, int] = {}
+#         for var in mdio_ds.variables:
+#             for d in var.dimensions:
+#                 if isinstance(d, NamedDimension):
+#                     dims[d.name] = d.size
+        
+#         global_encodings = {}
+#         for var in mdio_ds.variables:
+#             fill_value = 0
+#             if isinstance(var.data_type, StructuredType):
+#                 continue
+#             chunks = None
+#             if var.metadata is not None and var.metadata.chunk_grid is not None:
+#                 chunks = var.metadata.chunk_grid.configuration.chunk_shape
+#             else:
+#                 # When no chunk_grid is provided, set chunks to shape to avoid chunking
+#                 dim_names = [d.name if isinstance(d, NamedDimension) else d for d in var.dimensions]
+#                 chunks = tuple(dims[name] for name in dim_names)
+#             global_encodings[var.name] = {
+#                 "chunks": chunks,
+#                 # TODO(Anybody, #10274): Re-enable chunk_key_encoding when supported by xarray
+#                 # "chunk_key_encoding": dimension_separator_encoding,
+#                 "_FillValue": fill_value,
+#                 "dtype": var.data_type,
+#                 "compressors": _convert_compressor(var.compressor),
+#             }
+#         return global_encodings
+
+#     ds.to_mdio(
+#         store,
+#         mode=mode,
+#         zarr_format=2,
+#         consolidated=True,
+#         safe_chunks=False,
+#         compute=compute,
+#         encoding=_generate_encodings(),
+#         **kwargs,
+#     )
+#     return ds
