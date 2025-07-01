@@ -28,17 +28,19 @@ from mdio.schemas.v1.variable import VariableMetadata
 from mdio.schemas.v1.dataset import Dataset, DatasetInfo
 from mdio.schemas.v1.dataset import DatasetMetadata
 
-AnyMetadataList : TypeAlias = list[AllUnits | 
-                               UserAttributes |
-                               ChunkGridMetadata |
-                               StatisticsMetadata | 
-                               DatasetInfo]
+AnyMetadataList: TypeAlias = list[AllUnits |
+                                  UserAttributes |
+                                  ChunkGridMetadata |
+                                  StatisticsMetadata |
+                                  DatasetInfo]
 CoordinateMetadataList: TypeAlias = list[AllUnits | UserAttributes]
 VariableMetadataList: TypeAlias = list[AllUnits |
                                        UserAttributes |
                                        ChunkGridMetadata |
                                        StatisticsMetadata]
 DatasetMetadataList: TypeAlias = list[DatasetInfo | UserAttributes]
+
+
 class _BuilderState(Enum):
     """States for the template builder."""
 
@@ -94,7 +96,7 @@ def get_dimension_names(dimensions: list[NamedDimension | str]) -> list[str]:
     return names
 
 
-def _to_dictionary(val: BaseModel | dict[str, Any] | AnyMetadataList)-> dict[str, Any]:
+def _to_dictionary(val: BaseModel | dict[str, Any] | AnyMetadataList) -> dict[str, Any]:
     """Convert a dictionary, list or pydantic BaseModel to a dictionary."""
     if val is None:
         return None
@@ -111,6 +113,7 @@ def _to_dictionary(val: BaseModel | dict[str, Any] | AnyMetadataList)-> dict[str
         return metadata_dict
     msg = f"Expected BaseModel, dict or list, got {type(val).__name__}"
     raise TypeError(msg)
+
 
 class MDIODatasetBuilder:
     """Builder for creating MDIO datasets with enforced build order.
@@ -194,18 +197,21 @@ class MDIODatasetBuilder:
             msg = "Adding dimension with the same name twice is not allowed"
             raise ValueError(msg)
 
-        added_dims = self._add_dimensions_if_needed(
-            [NamedDimension(name=name, size=size)])
+        added_dims = self._add_dimensions_if_needed([NamedDimension(name=name, size=size)])
         if added_dims:
+            meta_dict = _to_dictionary(var_metadata_info)
             # Create a variable for the dimension
             dim_var = Variable(
                 name=name,
                 longName=var_long_name,
+                # IMPORTANT: we always use NamedDimension here, not the dimension name
+                # Since the Dataset does not have a dimension list, we need to preserve NamedDimension
+                # somewhere. Namely, in the variable created for the dimension
                 dimensions=added_dims,
                 dataType=var_data_type,
                 compressor=None,
                 coordinates=None,
-                metadata=_to_dictionary(var_metadata_info),
+                metadata=meta_dict,
             )
             self._variables.append(dim_var)
 
@@ -217,6 +223,7 @@ class MDIODatasetBuilder:
         name: str,
         *,
         long_name: str = None,
+        #TODO Only allow adding dimensions by name, not by NamedDimension object
         dimensions: list[NamedDimension | str],
         data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
         metadata_info: CoordinateMetadataList | None = None,
@@ -238,16 +245,33 @@ class MDIODatasetBuilder:
 
         self._add_dimensions_if_needed(dimensions)
         dim_names = get_dimension_names(dimensions)
-        self._coordinates.append(
-            Coordinate(
-                name=name,
-                longName=long_name,
-                # We ass names: sts, not list[NamedDimension | str]
-                dimensions=dim_names,
-                dataType=data_type,
-                metadata=_to_dictionary(metadata_info),
-            )
+        meta_dict = _to_dictionary(metadata_info)
+        coord = Coordinate(
+            name=name,
+            longName=long_name,
+            # We ass names: sts, not list[NamedDimension | str]
+            dimensions=dim_names,
+            dataType=data_type,
+            metadata=meta_dict
         )
+        self._coordinates.append(coord)
+
+        # Add coordinate as variables to the dataset
+        var_meta_dict = _to_dictionary(coord.metadata)
+        coord_var = Variable(
+            name=coord.name,
+            longName=coord.long_name,
+            dimensions=coord.dimensions,
+            dataType=coord.data_type,
+            compressor=None,
+            # IMPORTANT: we always use Coordinate here, not the coordinate name
+            # Since the Dataset does not have a coordinate list, we need to preserve Coordinate
+            # somewhere. Namely, in the variable created for the coordinate
+            coordinates=[coord],
+            metadata=var_meta_dict
+        )
+        self._variables.append(coord_var)
+
         self._state = _BuilderState.HAS_COORDINATES
         return self
 
@@ -256,9 +280,11 @@ class MDIODatasetBuilder:
         name: str,
         *,
         long_name: str = None,
+        #TODO Only allow adding dimensions by name, not by NamedDimension object
         dimensions: list[NamedDimension | str],
         data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
         compressor: Blosc | ZFP | None = None,
+        #TODO Only allow adding coordinates by name, not by Coordinate object
         coordinates: list[Coordinate | str] | None = None,
         metadata_info: VariableMetadataList | None = None,
     ) -> "MDIODatasetBuilder":
@@ -279,6 +305,7 @@ class MDIODatasetBuilder:
 
         self._add_dimensions_if_needed(dimensions)
         dim_names = get_dimension_names(dimensions)
+        meta_dict = _to_dictionary(metadata_info)
         self._variables.append(
             Variable(
                 name=name,
@@ -287,7 +314,7 @@ class MDIODatasetBuilder:
                 data_type=data_type,
                 compressor=compressor,
                 coordinates=coordinates,
-                metadata=_to_dictionary(metadata_info),
+                metadata=meta_dict,
             )
         )
         self._state = _BuilderState.HAS_VARIABLES
@@ -299,11 +326,10 @@ class MDIODatasetBuilder:
             msg = "Must add at least one dimension before building"
             raise ValueError(msg)
 
-        return Dataset(
-            variables=self._variables,
-            metadata=_to_dictionary([self._info, self._attributes])
-        )
+        var_meta_dict = _to_dictionary([self._info, self._attributes])
+        dataset = Dataset(variables=self._variables, metadata=var_meta_dict)
 
+        return dataset
 
     # def to_mdio(
     #     self,
@@ -351,14 +377,14 @@ class MDIODatasetBuilder:
 #         """
 #         # TODO(Anybody, #10274): Re-enable chunk_key_encoding when supported by xarray
 #         # dimension_separator_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
-        
+
 #         # Collect dimension sizes (same approach as _construct_mdio_dataset)
 #         dims: dict[str, int] = {}
 #         for var in mdio_ds.variables:
 #             for d in var.dimensions:
 #                 if isinstance(d, NamedDimension):
 #                     dims[d.name] = d.size
-        
+
 #         global_encodings = {}
 #         for var in mdio_ds.variables:
 #             fill_value = 0

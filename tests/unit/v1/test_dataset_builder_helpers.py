@@ -141,7 +141,7 @@ def test_add_dimensions_if_needed() -> None:
     # Assert that the number of dimensions has not increased
     assert len(builder._dimensions) == 3
 
-def test__add_dimensions_if_needed_when_one_already_exists() -> None:
+def test__add_dimensions_if_one_already_exists() -> None:
     """Test adding existing named dimensions to a dataset."""
     builder = MDIODatasetBuilder("Test Dataset Builder")
 

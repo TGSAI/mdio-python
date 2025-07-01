@@ -112,7 +112,9 @@ def test_add_variable_full_parameters() -> None:
         ])
     assert len(builder._dimensions) == 3
     assert len(builder._coordinates) == 2  
-    assert len(builder._variables) == 4 
+    # We expect 6 variables:
+    # 3 variables for dimensions, 2 variables for coordinates, and 1 variable for seismic_amplitude
+    assert len(builder._variables) == 6 
     v = next((v for v in builder._variables if v.name == "seismic_amplitude"), None)
     assert v is not None
     assert v.long_name == "Amplitude (dimensionless)"

@@ -40,6 +40,11 @@ def test_add_dimension() -> None:
     assert builder._dimensions[0] == NamedDimension(name="x", size=100)
     assert len(builder._variables) == 1  
 
+    # Validate that we created a dimension variable properly
+    var_x = next(e for e in builder._variables if e.name == "x")
+    assert var_x is not None
+    assert len(var_x.dimensions) == 1
+
     # Adding dimension with the same name twice
     msg="Adding dimension with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):

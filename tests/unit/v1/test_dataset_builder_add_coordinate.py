@@ -40,8 +40,16 @@ def test_add_coordinate() -> None:
     builder.add_coordinate("cdp", dimensions=["inline", "crossline"])
     assert builder._state == _BuilderState.HAS_COORDINATES
     assert len(builder._dimensions) == 2 
-    assert len(builder._variables) == 2 
-    assert len(builder._coordinates) == 1  
+    # 2 variables for dimensions, 1 variable for coordinates
+    assert len(builder._variables) == 3 
+    assert len(builder._coordinates) == 1
+    
+    # Validate that we created a coordinate variable
+    var_cdp = next(e for e in builder._variables if e.name == "cdp")
+    assert var_cdp is not None
+    assert len(var_cdp.dimensions) == 2
+    assert len(var_cdp.coordinates) == 1
+    assert next(e for e in var_cdp.coordinates if e.name == "cdp") is not None
 
     # Adding coordinate with the same name twice
     msg="Adding coordinate with the same name twice is not allowed"
@@ -56,7 +64,8 @@ def test_add_coordinate_with_defaults() -> None:
     # Add coordinate using defaults
     builder.add_coordinate("cdp", dimensions=["inline", "crossline"])
     assert len(builder._dimensions) == 2 
-    assert len(builder._variables) == 2 
+    # 2 variables for dimensions, 1 variable for coordinates
+    assert len(builder._variables) == 3
     assert len(builder._coordinates) == 1
     crd0 = next((e for e in builder._coordinates if e.name == "cdp"), None)
     assert crd0 is not None
@@ -78,7 +87,8 @@ def test_coordinate_with_units() -> None:
         metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))]
     )
     assert len(builder._dimensions) == 2 
-    assert len(builder._variables) == 2  
+    # 2 variables for dimensions, 1 variable for coordinates
+    assert len(builder._variables) == 3  
     assert len(builder._coordinates) == 1 
     crd0 = next((e for e in builder._coordinates if e.name == "cdp"), None)
     assert crd0 is not None
@@ -102,7 +112,8 @@ def test_coordinate_with_attributes() -> None:
         metadata_info=[UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"})],
     )
     assert len(builder._dimensions) == 2 
-    assert len(builder._variables) == 2  
+    # 2 variables for dimensions, 1 variable for coordinates
+    assert len(builder._variables) == 3  
     assert len(builder._coordinates) == 1 
     # NOTE: add_coordinate() stores dimensions as names
     crd0 = next((e for e in builder._coordinates if e.name == "cdp"), None)
@@ -129,7 +140,8 @@ def test_coordinate_with_full_metadata() -> None:
             UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"})]
     )
     assert len(builder._dimensions) == 2 
-    assert len(builder._variables) == 2  
+    # 2 variables for dimensions, 1 variable for coordinates
+    assert len(builder._variables) == 3  
     assert len(builder._coordinates) == 1 
     # NOTE: add_coordinate() stores dimensions as names
     crd0 = next((e for e in builder._coordinates if e.name == "cdp"), None)
