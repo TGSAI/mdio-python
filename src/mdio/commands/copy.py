@@ -63,7 +63,8 @@ def copy(  # noqa: PLR0913
     flags. The function supports custom storage options for both input and output, enabling
     compatibility with various filesystems via FSSpec.
     """
-    from mdio.api.convenience import copy_mdio
+    # Lazy import to reduce CLI startup time
+    from mdio.api.convenience import copy_mdio  # noqa: PLC0415
 
     copy_mdio(
         source_mdio_path,
