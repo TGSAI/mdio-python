@@ -10,10 +10,10 @@ from __future__ import annotations
 from enum import IntEnum
 from enum import StrEnum
 
+from numcodecs import ZFPY as _ZFPY
+from numcodecs import Blosc as _Blosc
 from pydantic import Field
 from pydantic import model_validator
-from zarr.codecs import ZFPY as _ZFPY
-from zarr.codecs import Blosc as _Blosc
 
 from mdio.schemas.core import CamelCaseStrictModel
 
