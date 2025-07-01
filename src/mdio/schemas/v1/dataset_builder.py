@@ -28,14 +28,17 @@ from mdio.schemas.v1.variable import VariableMetadata
 from mdio.schemas.v1.dataset import Dataset, DatasetInfo
 from mdio.schemas.v1.dataset import DatasetMetadata
 
-CoordinateMetadataList: TypeAlias = list[AllUnits |
-                                         UserAttributes]
+AnyMetadataList : TypeAlias = list[AllUnits | 
+                               UserAttributes |
+                               ChunkGridMetadata |
+                               StatisticsMetadata | 
+                               DatasetInfo]
+CoordinateMetadataList: TypeAlias = list[AllUnits | UserAttributes]
 VariableMetadataList: TypeAlias = list[AllUnits |
                                        UserAttributes |
                                        ChunkGridMetadata |
                                        StatisticsMetadata]
-DatasetMetadataList: TypeAlias = list[DatasetInfo |
-                                       UserAttributes ]
+DatasetMetadataList: TypeAlias = list[DatasetInfo | UserAttributes]
 class _BuilderState(Enum):
     """States for the template builder."""
 
@@ -91,76 +94,23 @@ def get_dimension_names(dimensions: list[NamedDimension | str]) -> list[str]:
     return names
 
 
-def _to_dictionary(val: BaseModel | dict[str, Any]) -> dict[str, Any]:
-    """Convert a dictionary or pydantic BaseModel to a dictionary."""
+def _to_dictionary(val: BaseModel | dict[str, Any] | AnyMetadataList)-> dict[str, Any]:
+    """Convert a dictionary, list or pydantic BaseModel to a dictionary."""
+    if val is None:
+        return None
     if isinstance(val, BaseModel):
         return val.model_dump(mode="json", by_alias=True)
     if isinstance(val, dict):
         return val
-    msg = f"Expected BaseModel, got {type(val).__name__}"
+    if isinstance(val, list):
+        metadata_dict = {}
+        for md in val:
+            if md is None:
+                continue
+            metadata_dict.update(_to_dictionary(md))
+        return metadata_dict
+    msg = f"Expected BaseModel, dict or list, got {type(val).__name__}"
     raise TypeError(msg)
-
-
-def _make_coordinate_metadata(metadata: CoordinateMetadataList | None) -> CoordinateMetadata | None:
-    if metadata is None or not metadata:
-        return None
-
-    metadata_dict = {}
-    for md in metadata:
-        # NOTE: the pydantic attribute names are different from the v1 schema attributes names
-        #       'unitsV1' <-> 'units_v1'
-        if isinstance(md, AllUnits):
-            metadata_dict["unitsV1"] = _to_dictionary(md.units_v1)
-        elif isinstance(md, UserAttributes):
-            # NOTE: md.attributes is not pydantic type, but a dictionary
-            metadata_dict["attributes"] = _to_dictionary(md.attributes)
-        else:
-            msg = f"Unsupported metadata type: {type(md)}"
-            raise TypeError(msg)
-    return CoordinateMetadata(**metadata_dict)
-
-
-def _make_variable_metadata(metadata: VariableMetadataList | None) -> VariableMetadata | None:
-    if metadata is None or not metadata:
-        return None
-
-    metadata_dict = {}
-    for md in metadata:
-        # NOTE: the pydantic attribute names are different from the v1 schema attributes names
-        #       'statsV1' <-> 'stats_v1', 'unitsV1' <-> 'units_v1', 'chunkGrid' <-> 'chunk_grid'
-        if isinstance(md, AllUnits):
-            metadata_dict["unitsV1"] = _to_dictionary(md.units_v1)
-        elif isinstance(md, UserAttributes):
-            # NOTE: md.attributes is not pydantic type, but a dictionary
-            metadata_dict["attributes"] = _to_dictionary(md.attributes)
-        elif isinstance(md, ChunkGridMetadata):
-            metadata_dict["chunkGrid"] = _to_dictionary(md.chunk_grid)
-        elif isinstance(md, StatisticsMetadata):
-            metadata_dict["statsV1"] = _to_dictionary(md.stats_v1)
-        else:
-            msg = f"Unsupported metadata type: {type(md)}"
-            raise TypeError(msg)
-    return VariableMetadata(**metadata_dict)
-
-def _make_datasetinfo_metadata(metadata: DatasetInfo | None) -> DatasetMetadata | None:
-    if metadata is None or not metadata:
-        return None
-
-    metadata_dict = {}
-    for md in metadata:
-        # NOTE: the pydantic attribute names are different from the v1 schema attributes names
-        #       'apiVersion' <-> 'api_version', 'created_on' <-> 'createdOn'
-        if isinstance(md, DatasetInfo):
-            metadata_dict["name"] = md.name
-            metadata_dict["apiVersion"] = _to_dictionary(md.api_version)
-            metadata_dict["createdOn"] = _to_dictionary(md.created_on)
-        elif isinstance(md, UserAttributes):
-            # NOTE: md.attributes is not pydantic type, but a dictionary
-            metadata_dict["attributes"] = _to_dictionary(md.attributes)
-        else:
-            msg = f"Unsupported metadata type: {type(md)}"
-            raise TypeError(msg)
-    return DatasetMetadata(**metadata_dict)
 
 class MDIODatasetBuilder:
     """Builder for creating MDIO datasets with enforced build order.
@@ -175,11 +125,13 @@ class MDIODatasetBuilder:
 
     def __init__(self, name: str, attributes: UserAttributes | None = None):
 
-        # TODO(BrianMichell, #0): Pull from package metadata
-        self._info = DatasetInfo(
+        info = DatasetInfo(
             name=name,
             api_version="1.0.0",
-            created_on= datetime.now(UTC)),
+            created_on=datetime.now(UTC)
+        )
+        # TODO(BrianMichell, #0): Pull from package metadata
+        self._info = info
         self._attributes = attributes
         self._dimensions: list[NamedDimension] = []
         self._coordinates: list[Coordinate] = []
@@ -253,7 +205,7 @@ class MDIODatasetBuilder:
                 dataType=var_data_type,
                 compressor=None,
                 coordinates=None,
-                metadata=_make_variable_metadata(var_metadata_info),
+                metadata=_to_dictionary(var_metadata_info),
             )
             self._variables.append(dim_var)
 
@@ -293,7 +245,7 @@ class MDIODatasetBuilder:
                 # We ass names: sts, not list[NamedDimension | str]
                 dimensions=dim_names,
                 dataType=data_type,
-                metadata=_make_coordinate_metadata(metadata_info),
+                metadata=_to_dictionary(metadata_info),
             )
         )
         self._state = _BuilderState.HAS_COORDINATES
@@ -335,7 +287,7 @@ class MDIODatasetBuilder:
                 data_type=data_type,
                 compressor=compressor,
                 coordinates=coordinates,
-                metadata=_make_variable_metadata(metadata_info),
+                metadata=_to_dictionary(metadata_info),
             )
         )
         self._state = _BuilderState.HAS_VARIABLES
@@ -349,8 +301,7 @@ class MDIODatasetBuilder:
 
         return Dataset(
             variables=self._variables,
-            metadata=DatasetMetadata(self._info, 
-                                     self._attributes)
+            metadata=_to_dictionary([self._info, self._attributes])
         )
 
 

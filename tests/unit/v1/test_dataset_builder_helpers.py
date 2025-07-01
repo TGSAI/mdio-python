@@ -16,8 +16,6 @@ from mdio.schemas.core import StrictModel
 from mdio.schemas.dimension import NamedDimension
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.dataset_builder import _make_coordinate_metadata
-from mdio.schemas.v1.dataset_builder import _make_variable_metadata
 from mdio.schemas.v1.dataset_builder import _to_dictionary
 from mdio.schemas.v1.dataset_builder import contains_dimension
 from mdio.schemas.v1.dataset_builder import get_dimension
@@ -196,7 +194,7 @@ def test__add_dimensions_if_needed_when_one_already_exists() -> None:
 
 def test__to_dictionary() -> None:
     """Test converting a BaseModel to a dictionary."""
-    with pytest.raises(TypeError, match="Expected BaseModel, got datetime"):
+    with pytest.raises(TypeError, match="Expected BaseModel, dict or list, got datetime"):
         # This should raise an error because datetime is not a BaseModel
         _to_dictionary(datetime.now(UTC))
 
@@ -223,54 +221,54 @@ def test__to_dictionary() -> None:
     assert result == {"count": 3, "created": "2023-10-01T12:00:00Z", "samples": [1.0, 2.0, 3.0]}
 
 
-def test__make_coordinate_metadata() -> None:
-    """Test creating VariableMetadata from a strongly-typed list of AllUnits or UserAttributes."""
-    units = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))
-    attrs = UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"})
-    meta_list = [units, attrs]
+# def test__make_coordinate_metadata() -> None:
+#     """Test creating VariableMetadata from a strongly-typed list of AllUnits or UserAttributes."""
+#     units = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))
+#     attrs = UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"})
+#     meta_list = [units, attrs]
 
-    # Assume that multiple attributes are allowed
-    metadata = _make_coordinate_metadata(meta_list)
-    assert isinstance(metadata, CoordinateMetadata)
-    assert metadata.units_v1.length == "ft"
-    assert metadata.attributes["MGA"] == 51
-    assert metadata.attributes["UnitSystem"] == "Imperial"
+#     # Assume that multiple attributes are allowed
+#     metadata = _make_coordinate_metadata(meta_list)
+#     assert isinstance(metadata, CoordinateMetadata)
+#     assert metadata.units_v1.length == "ft"
+#     assert metadata.attributes["MGA"] == 51
+#     assert metadata.attributes["UnitSystem"] == "Imperial"
 
-    meta_list = ["ft"]
-    with pytest.raises(TypeError, match="Unsupported metadata type: <class 'str'>"):
-        _make_variable_metadata(meta_list)
+#     meta_list = ["ft"]
+#     with pytest.raises(TypeError, match="Expected BaseModel, dict or list, got str"):
+#         _make_variable_metadata(meta_list)
 
-def test__make_variable_metadata() -> None:
-    """Test creating VariableMetadata from a strongly-typed list of AllUnits or UserAttributes."""
-    units = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))
-    attrs = UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"})
-    chgrd = ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[20])))
-    stats = StatisticsMetadata(
-                stats_v1=SummaryStatistics(
-                    count=100,
-                    sum=1215.1,
-                    sumSquares=125.12,
-                    min=5.61,
-                    max=10.84,
-                    histogram=CenteredBinHistogram(binCenters=[1, 2], counts=[10, 15])))
-    metadata_info = [units, attrs, chgrd, stats]
-    metadata = _make_variable_metadata(metadata_info)
-    assert isinstance(metadata, VariableMetadata)
-    assert metadata.units_v1.length == "ft"
-    assert metadata.attributes["MGA"] == 51  
-    assert metadata.attributes["UnitSystem"] == "Imperial"  
-    assert metadata.chunk_grid.name == "regular"
-    assert metadata.chunk_grid.configuration.chunk_shape == [20]  
-    assert metadata.stats_v1.count == 100  
-    assert metadata.stats_v1.sum == 1215.1  
-    assert metadata.stats_v1.sum_squares == 125.12  
-    assert metadata.stats_v1.min == 5.61  
-    assert metadata.stats_v1.max == 10.84  
-    assert metadata.stats_v1.histogram.bin_centers == [1, 2]  
-    assert metadata.stats_v1.histogram.counts == [10, 15]  
+# def test__make_variable_metadata() -> None:
+#     """Test creating VariableMetadata from a strongly-typed list of AllUnits or UserAttributes."""
+#     units = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))
+#     attrs = UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"})
+#     chgrd = ChunkGridMetadata(
+#                 chunk_grid=RegularChunkGrid(
+#                     configuration=RegularChunkShape(chunk_shape=[20])))
+#     stats = StatisticsMetadata(
+#                 stats_v1=SummaryStatistics(
+#                     count=100,
+#                     sum=1215.1,
+#                     sumSquares=125.12,
+#                     min=5.61,
+#                     max=10.84,
+#                     histogram=CenteredBinHistogram(binCenters=[1, 2], counts=[10, 15])))
+#     metadata_info = [units, attrs, chgrd, stats]
+#     metadata = _make_variable_metadata(metadata_info)
+#     assert isinstance(metadata, VariableMetadata)
+#     assert metadata.units_v1.length == "ft"
+#     assert metadata.attributes["MGA"] == 51  
+#     assert metadata.attributes["UnitSystem"] == "Imperial"  
+#     assert metadata.chunk_grid.name == "regular"
+#     assert metadata.chunk_grid.configuration.chunk_shape == [20]  
+#     assert metadata.stats_v1.count == 100  
+#     assert metadata.stats_v1.sum == 1215.1  
+#     assert metadata.stats_v1.sum_squares == 125.12  
+#     assert metadata.stats_v1.min == 5.61  
+#     assert metadata.stats_v1.max == 10.84  
+#     assert metadata.stats_v1.histogram.bin_centers == [1, 2]  
+#     assert metadata.stats_v1.histogram.counts == [10, 15]  
 
-    meta_list = ["ft"]
-    with pytest.raises(TypeError, match="Unsupported metadata type: <class 'str'>"):
-        _make_variable_metadata(meta_list)
+#     meta_list = ["ft"]
+#     with pytest.raises(TypeError, match="Expected BaseModel, dict or list, got str"):
+#         _make_variable_metadata(meta_list)

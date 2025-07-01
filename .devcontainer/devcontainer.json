@@ -29,7 +29,8 @@
         "vscode-icons-team.vscode-icons",
         "wayou.vscode-todo-highlight",
         "streetsidesoftware.code-spell-checker",
-        "eamodio.gitlens"
+        "eamodio.gitlens",
+        "visualstudioexptteam.vscodeintellicode"
       ]
     }
   },
