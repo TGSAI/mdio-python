@@ -116,7 +116,7 @@ select = [
     "RET", # return
     "SIM", # simplify
     "TID", # tidy-imports
-    "TCH", # type-checking
+    "TC", # type-checking
     "ARG", # unused-arguments
     "PTH", # use-pathlib
     "TD",  # todos
