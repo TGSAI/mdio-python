@@ -10,8 +10,6 @@ from __future__ import annotations
 from enum import IntEnum
 from enum import StrEnum
 
-from numcodecs import ZFPY as _ZFPY
-from numcodecs import Blosc as _Blosc
 from pydantic import Field
 from pydantic import model_validator
 
@@ -54,15 +52,6 @@ class Blosc(CamelCaseStrictModel):
         default=0,
         description="The size of the block to be used for compression.",
     )
-
-    def make_instance(self):  # noqa: ANN201
-        """Translate parameters to compressor kwargs.."""
-        return _Blosc(
-            cname=self.algorithm,
-            clevel=self.level,
-            shuffle=self.shuffle,
-            blocksize=self.blocksize,
-        )
 
 
 zfp_mode_map = {
@@ -138,15 +127,6 @@ class ZFP(CamelCaseStrictModel):
             raise ValueError(msg)
 
         return self
-
-    def make_instance(self):  # noqa: ANN201
-        """Translate parameters to compressor kwargs.."""
-        return _ZFPY(
-            mode=self.mode.int_code,
-            tolerance=self.tolerance,
-            rate=self.rate,
-            precision=self.precision,
-        )
 
 
 class CompressorModel(CamelCaseStrictModel):
