@@ -12,6 +12,8 @@ from enum import StrEnum
 
 from pydantic import Field
 from pydantic import model_validator
+from zarr.codecs import ZFPY as _ZFPY
+from zarr.codecs import Blosc as _Blosc
 
 from mdio.schemas.core import CamelCaseStrictModel
 
@@ -55,8 +57,6 @@ class Blosc(CamelCaseStrictModel):
 
     def make_instance(self):  # noqa: ANN201
         """Translate parameters to compressor kwargs.."""
-        from zarr.codecs import Blosc as _Blosc
-
         return _Blosc(
             cname=self.algorithm,
             clevel=self.level,
@@ -141,8 +141,6 @@ class ZFP(CamelCaseStrictModel):
 
     def make_instance(self):  # noqa: ANN201
         """Translate parameters to compressor kwargs.."""
-        from zarr.codecs import ZFPY as _ZFPY
-
         return _ZFPY(
             mode=self.mode.int_code,
             tolerance=self.tolerance,
