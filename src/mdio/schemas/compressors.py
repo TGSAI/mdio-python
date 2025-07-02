@@ -53,17 +53,6 @@ class Blosc(CamelCaseStrictModel):
         description="The size of the block to be used for compression.",
     )
 
-    def make_instance(self):  # noqa: ANN201
-        """Translate parameters to compressor kwargs.."""
-        from zarr.codecs import Blosc as _Blosc
-
-        return _Blosc(
-            cname=self.algorithm,
-            clevel=self.level,
-            shuffle=self.shuffle,
-            blocksize=self.blocksize,
-        )
-
 
 zfp_mode_map = {
     "fixed_rate": 2,
@@ -138,17 +127,6 @@ class ZFP(CamelCaseStrictModel):
             raise ValueError(msg)
 
         return self
-
-    def make_instance(self):  # noqa: ANN201
-        """Translate parameters to compressor kwargs.."""
-        from zarr.codecs import ZFPY as _ZFPY
-
-        return _ZFPY(
-            mode=self.mode.int_code,
-            tolerance=self.tolerance,
-            rate=self.rate,
-            precision=self.precision,
-        )
 
 
 class CompressorModel(CamelCaseStrictModel):
