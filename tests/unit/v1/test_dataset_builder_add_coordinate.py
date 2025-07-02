@@ -27,17 +27,24 @@ def test_add_coordinate() -> None:
     builder.add_dimension("inline", 100)
     builder.add_dimension("crossline", 100)
 
+    # Validate required parameters
     bad_name = None
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
         builder.add_coordinate(bad_name, dimensions=["speed"])
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
         builder.add_coordinate("", dimensions=["speed"])
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_coordinate("amplitude", dimensions=None)
+        builder.add_coordinate("cdp-x", dimensions=None)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_coordinate("amplitude", dimensions=[])
+        builder.add_coordinate("cdp-x", dimensions=[])
 
-    builder.add_coordinate("cdp", dimensions=["inline", "crossline"])
+    # Add a variable using non-existent dimensions
+    msg="Pre-existing dimension named 'xline' is not found"
+    with pytest.raises(ValueError, match=msg):
+        builder.add_coordinate("bad_cdp-x", dimensions=["inline", "xline"])
+
+    # Validate state transition
+    builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"])
     assert builder._state == _BuilderState.HAS_COORDINATES
     assert len(builder._dimensions) == 2 
     # 2 variables for dimensions, 1 variable for coordinates
@@ -45,16 +52,18 @@ def test_add_coordinate() -> None:
     assert len(builder._coordinates) == 1
     
     # Validate that we created a coordinate variable
-    var_cdp = next(e for e in builder._variables if e.name == "cdp")
+    var_cdp = next(e for e in builder._variables if e.name == "cdp-x")
     assert var_cdp is not None
-    assert len(var_cdp.dimensions) == 2
+    # Validate that dimensions are stored as names
+    assert set(var_cdp.dimensions) == {"inline", "crossline"}
+    # Validate that coordinates are stored as Coordinate
     assert len(var_cdp.coordinates) == 1
-    assert next(e for e in var_cdp.coordinates if e.name == "cdp") is not None
+    assert next((e for e in var_cdp.coordinates if e.name == "cdp-x"), None) is not None
 
     # Adding coordinate with the same name twice
     msg="Adding coordinate with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
-        builder.add_coordinate("cdp", dimensions=["inline", "crossline"])
+        builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"])
 
 def test_add_coordinate_with_defaults() -> None:
     """Test adding coordinates with default arguments."""
@@ -97,7 +106,7 @@ def test_coordinate_with_units() -> None:
     assert crd0.long_name is None               # Default value
     assert crd0.data_type == ScalarType.FLOAT32 # Default value
     assert crd0.metadata.attributes is None
-    assert crd0.metadata.units_v1.length == "ft"
+    assert crd0.metadata.units_v1.length == LengthUnitEnum.FOOT
 
 
 def test_coordinate_with_attributes() -> None:
@@ -151,5 +160,5 @@ def test_coordinate_with_full_metadata() -> None:
     assert crd0.data_type == ScalarType.FLOAT32 # Default value
     assert crd0.metadata.attributes["MGA"] == 51
     assert crd0.metadata.attributes["UnitSystem"] == "Imperial"
-    assert crd0.metadata.units_v1.length == "ft"
+    assert crd0.metadata.units_v1.length == LengthUnitEnum.FOOT
 

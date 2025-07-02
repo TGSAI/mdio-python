@@ -8,12 +8,12 @@ import pytest
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
-from mdio.schemas.dimension import NamedDimension
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
 from mdio.schemas.v1.dataset_builder import _BuilderState
+from mdio.schemas.v1.dataset_builder import _get_dimension
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import StatisticsMetadata
 from mdio.schemas.v1.stats import SummaryStatistics
@@ -27,6 +27,7 @@ def test_add_dimension() -> None:
     builder = MDIODatasetBuilder("test_dataset")
     assert builder._state == _BuilderState.INITIAL
 
+    # Validate required parameters
     bad_name = None
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
         builder.add_dimension(bad_name, 200)
@@ -36,14 +37,29 @@ def test_add_dimension() -> None:
     # First dimension should change state to HAS_DIMENSIONS and create a variable
     builder.add_dimension("x", 100)
     assert builder._state == _BuilderState.HAS_DIMENSIONS
-    assert len(builder._dimensions) == 1  
-    assert builder._dimensions[0] == NamedDimension(name="x", size=100)
-    assert len(builder._variables) == 1  
+    assert len(builder._dimensions) == 1
+    assert _get_dimension(builder._dimensions, "x", 100) is not None
 
-    # Validate that we created a dimension variable properly
+    # Validate that we have created a dimension variable and 
+    # that variable has the embedded NamedDimension
+    assert len(builder._variables) == 1  
     var_x = next(e for e in builder._variables if e.name == "x")
     assert var_x is not None
     assert len(var_x.dimensions) == 1
+    # Validate that the dimension variable has the NamedDimension
+    assert _get_dimension(var_x.dimensions, "x", 100) is not None
+    assert var_x.long_name == "'x' dimension variable"
+    assert var_x.data_type == ScalarType.INT32
+    assert var_x.compressor is None
+    assert var_x.coordinates is None
+    assert var_x.metadata is None
+
+    # Validate that we can't add a dimension with the same name twice
+    with pytest.raises(
+        ValueError,
+        match="Adding dimension with the same name twice is not allowed",
+    ):
+        builder.add_dimension("x", 200)
 
     # Adding dimension with the same name twice
     msg="Adding dimension with the same name twice is not allowed"
@@ -58,15 +74,16 @@ def test_add_dimension_with_defaults() -> None:
     builder.add_dimension("x", 100)
     assert builder._state == _BuilderState.HAS_DIMENSIONS
     assert len(builder._dimensions) == 1  
-    assert builder._dimensions[0] == NamedDimension(name="x", size=100)
-    assert len(builder._variables) == 1  
-    var0 = builder._variables[0]
-    assert var0.name == "x"
-    assert var0.long_name is None
-    assert var0.data_type == ScalarType.INT32
-    assert var0.compressor is None
-    assert var0.coordinates is None
-    assert var0.metadata is None
+    # Validate that the dimension builder has the NamedDimension
+    assert _get_dimension(builder._dimensions, "x", 100) is not None
+    var_x = next((e for e in builder._variables if e.name == "x"), None)
+    assert var_x is not None
+    assert var_x.name == "x"
+    assert var_x.long_name == "'x' dimension variable"
+    assert var_x.data_type == ScalarType.INT32
+    assert var_x.compressor is None
+    assert var_x.coordinates is None
+    assert var_x.metadata is None
 
 def test_add_dimension_with_units() -> None:
     """Test adding dimensions with units."""
@@ -82,17 +99,16 @@ def test_add_dimension_with_units() -> None:
     assert len(builder._variables) == 1
     var0 = builder._variables[0]
     assert var0.name == "length"
-    assert var0.long_name is None
+    assert var0.long_name == "'length' dimension variable"
     assert var0.data_type == ScalarType.FLOAT64
     assert var0.compressor is None
     assert var0.coordinates is None
-    assert var0.metadata.units_v1.length == "ft"
+    assert var0.metadata.units_v1.length == LengthUnitEnum.FOOT
 
 def test_add_dimension_with_attributes() -> None:
     """Test adding dimensions with attributes."""
     builder = MDIODatasetBuilder("test_dataset")
 
-    # Add dimension with strongly-typed attribute list
     builder.add_dimension(
         "length",
         size=100,
@@ -111,7 +127,6 @@ def test_add_dimension_with_chunk_grid() -> None:
     """Test adding dimensions with chunk grid."""
     builder = MDIODatasetBuilder("test_dataset")
 
-    # Add dimension with strongly-typed chunk grid
     grid_definition = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[20]))
     builder.add_dimension(
         "length",
@@ -131,7 +146,6 @@ def test_add_dimension_with_stats() -> None:
     """Test adding dimensions with stats."""
     builder = MDIODatasetBuilder("test_dataset")
 
-    # Add dimension with strongly-typed stats
     builder.add_dimension(
         "depth",
         size=100,
@@ -162,8 +176,6 @@ def test_add_dimension_with_full_metadata() -> None:
     """Test adding dimensions with all metadata."""
     builder = MDIODatasetBuilder("test_dataset")
 
-
-    # Add dimension with all strongly-typed metadata
     builder.add_dimension(
         "length",
         size=100,
@@ -191,9 +203,9 @@ def test_add_dimension_with_full_metadata() -> None:
     var0 = builder._variables[0]
     assert var0.name == "length"
     assert var0.data_type == ScalarType.FLOAT32
-    assert var0.metadata.units_v1.length == "ft"
-    assert var0.metadata.attributes["MGA"] == 51  
-    assert var0.metadata.attributes["UnitSystem"] == "Imperial"  
+    assert var0.metadata.units_v1.length == LengthUnitEnum.FOOT
+    assert var0.metadata.attributes["MGA"] == 51
+    assert var0.metadata.attributes["UnitSystem"] == "Imperial"
     assert var0.metadata.chunk_grid.name == "regular"
     assert var0.metadata.chunk_grid.configuration.chunk_shape == [20]  
     assert var0.metadata.stats_v1.count == 100  

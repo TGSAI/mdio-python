@@ -36,15 +36,21 @@ def test_add_variable() -> None:
     builder.add_dimension("crossline", 100)
     builder.add_dimension("depth", 100)
 
+    # Validate required parameters
     bad_name = None
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
         builder.add_variable(bad_name, dimensions=["speed"])
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
         builder.add_variable("", dimensions=["speed"])
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_variable("amplitude", dimensions=None)
+        builder.add_variable("bad_amplitude", dimensions=None)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_variable("amplitude", dimensions=[])
+        builder.add_variable("bad_amplitude", dimensions=[])
+
+    # Add a variable using non-existent dimensions
+    msg="Pre-existing dimension named 'xline' is not found"
+    with pytest.raises(ValueError, match=msg):
+        builder.add_variable("bad_amplitude", dimensions=["inline", "xline", "depth"])
 
     builder.add_variable("amplitude", dimensions=["inline", "crossline", "depth"])
     assert builder._state == _BuilderState.HAS_VARIABLES
@@ -52,10 +58,21 @@ def test_add_variable() -> None:
     assert len(builder._variables) == 4 
     assert len(builder._coordinates) == 0  
 
+    # Add a variable using non-existent coordinates
+    msg="Pre-existing coordinate named 'cdp-x' is not found"
+    with pytest.raises(ValueError, match=msg):
+        builder.add_variable("bad_amplitude", 
+                             dimensions=["inline", "crossline", "depth"],
+                             coordinates=["cdp-x", "cdp-y"])    
+
+    builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"])
+    builder.add_coordinate("cdp-y", dimensions=["inline", "crossline"])
+
     # Adding variable with the same name twice
     msg="Adding variable with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
-        builder.add_variable("amplitude", dimensions=["inline", "crossline", "depth"])
+        builder.add_variable("amplitude", 
+                             dimensions=["inline", "crossline", "depth"])
 
 
 def test_add_variable_with_defaults() -> None:
@@ -92,7 +109,7 @@ def test_add_variable_full_parameters() -> None:
         dimensions=["inline", "crossline", "depth"],    
         data_type=ScalarType.FLOAT64, 
         compressor=Blosc(algorithm="zstd"), 
-        coordinates=["inline", "crossline", "depth", "cdp-x", "cdp-y"],
+        coordinates=["cdp-x", "cdp-y"],
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
             UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"}),
@@ -124,10 +141,10 @@ def test_add_variable_full_parameters() -> None:
     assert isinstance(v.compressor, Blosc)
     assert v.compressor.algorithm == "zstd"
     # NOTE: add_variable() stores coordinates as names
-    assert set(v.coordinates) == {"inline", "crossline", "depth", "cdp-x", "cdp-y"}
+    assert set(v.coordinates) == {"cdp-x", "cdp-y"}
     assert v.metadata.stats_v1.count == 100 
     assert isinstance(v.metadata, VariableMetadata)
-    assert v.metadata.units_v1.length == "ft"
+    assert v.metadata.units_v1.length == LengthUnitEnum.FOOT
     assert v.metadata.attributes["MGA"] == 51
     assert v.metadata.attributes["UnitSystem"] == "Imperial"  
     assert v.metadata.chunk_grid.name == "regular"

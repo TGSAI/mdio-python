@@ -4,39 +4,28 @@
 # Thus, disable it for this file
 """Tests the schema v1 dataset_builder.add_coordinate() public API."""
 
-from datetime import UTC, datetime
-import json
-import os
-from pathlib import Path
-import pytest
 
-from mdio.schemas import builder
-from mdio.schemas.chunk_grid import RegularChunkGrid, RegularChunkShape
+from mdio.schemas.chunk_grid import RegularChunkGrid
+from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType, StructuredType
-from mdio.schemas.metadata import ChunkGridMetadata, UserAttributes
-from mdio.schemas.v1.dataset import Dataset, DatasetInfo, DatasetMetadata
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
+from mdio.schemas.metadata import ChunkGridMetadata
+from mdio.schemas.metadata import UserAttributes
+from mdio.schemas.v1.dataset import Dataset
 from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.dataset_builder import _BuilderState
-from mdio.schemas.v1.stats import CenteredBinHistogram, StatisticsMetadata, SummaryStatistics
-from mdio.schemas.v1.units import AllUnits, SpeedUnitEnum, SpeedUnitModel
+from mdio.schemas.v1.dataset_builder import _get_dimension
+from mdio.schemas.v1.stats import CenteredBinHistogram
+from mdio.schemas.v1.stats import StatisticsMetadata
+from mdio.schemas.v1.stats import SummaryStatistics
+from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.v1.variable import VariableMetadata
+from mdio.schemas.v1.units import SpeedUnitEnum
+from mdio.schemas.v1.units import SpeedUnitModel
 
 
 def test_build() -> None:
-    """Test adding coordinates. Check the state transition and validate required parameters."""
-    builder = MDIODatasetBuilder("test_dataset")
-    assert builder._state == _BuilderState.INITIAL
-
-    builder.add_dimension("x", 100)
-    builder.add_dimension("y", 100)
-
-    builder.build()
-
-
-def test_build_dataset() -> None:
     """Test building a complete dataset."""
     dataset = (
         MDIODatasetBuilder("test_dataset")
@@ -58,21 +47,9 @@ def test_build_dataset() -> None:
     assert var_data.long_name == "Test Data"
     assert len(var_data.dimensions) == 2
 
-# def test_build_dataset_bad_example() -> None:
-#     builder = MDIODatasetBuilder("Bad example")
-#     builder.add_dimension("inline", 256)
-#     builder.add_dimension("crossline", 512)
-#     builder.add_dimension("depth", 384)
-#     builder.add_variable(name="image", dimensions=["inline", "crossline", "depth"])
-#     dataset = builder.build()
 
-#     json_str = dataset.model_dump_json()
-#     file_path = os.path.join(os.path.dirname(__file__), "bad_example.json")
-#     with open(file_path, 'w') as f:
-#         f.write(json_str)
-
-def test_build_campos_3d(tmp_path: Path) -> None:
-    """Test building a toy dataset with multiple variables and attributes."""
+def test_build_campos_3d() -> None: # noqa: PLR0915 Too many statements (57 > 50)
+    """Test building a Campos 3D dataset with multiple variables and attributes."""
     dataset = make_campos_3d_dataset()
 
     # Verify dataset structure
@@ -83,37 +60,74 @@ def test_build_campos_3d(tmp_path: Path) -> None:
 
     # Verify variables (including dimension variables)
     # 3 dimension variables + 4 data variables + 2 coordinate variables
-    assert len(dataset.variables) == 9  # noqa: PLR2004
+    assert len(dataset.variables) == 9
 
     # Verify dimension variables
     inline_var = next(v for v in dataset.variables if v.name == "inline")
     assert inline_var.data_type == ScalarType.UINT32
-    assert len(inline_var.dimensions) == 1
-    assert inline_var.dimensions[0].name == "inline"
+    # Dimension variables store dimensions as NamedDimension
+    assert _get_dimension(inline_var.dimensions, "inline", 256)
+
+    crossline_var = next(v for v in dataset.variables if v.name == "crossline")
+    assert crossline_var.data_type == ScalarType.UINT32
+    # Dimension variables store dimensions as NamedDimension
+    assert _get_dimension(crossline_var.dimensions, "crossline", 512)
 
     depth_var = next(v for v in dataset.variables if v.name == "depth")
     assert depth_var.data_type == ScalarType.UINT32
-    assert depth_var.metadata.units_v1.length == "m"
+    # Dimension variables store dimensions as NamedDimension
+    assert _get_dimension(depth_var.dimensions, "depth", 384)
+    assert depth_var.metadata.units_v1.length == LengthUnitEnum.METER
+
+    # Verify coordinate variables
+    cdp_x = next(v for v in dataset.variables if v.name == "cdp-x")
+    assert cdp_x.data_type == ScalarType.FLOAT32
+    # Coordinates variables store dimensions as names
+    assert set(cdp_x.dimensions) == {"inline", "crossline"}
+    assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
+
+    cdp_y = next(v for v in dataset.variables if v.name == "cdp-y")
+    assert cdp_y.data_type == ScalarType.FLOAT32
+    # Coordinates variables store dimensions as names
+    assert set(cdp_y.dimensions) == {"inline", "crossline"}
+    assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
 
     # Verify image variable
     image = next(v for v in dataset.variables if v.name == "image")
+    assert set(image.dimensions) == {"inline", "crossline", "depth"}
     assert image.data_type == ScalarType.FLOAT32
     assert isinstance(image.compressor, Blosc)
     assert image.compressor.algorithm == "zstd"
+    # Other variables store dimensions as names
+    assert set(image.coordinates) == {"cdp-x", "cdp-y"}
+    assert isinstance(image.metadata.chunk_grid, RegularChunkGrid)
+    assert image.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
+    assert isinstance(image.metadata.stats_v1, SummaryStatistics)   
     assert image.metadata.stats_v1.count == 100
 
     # Verify velocity variable
     velocity = next(v for v in dataset.variables if v.name == "velocity")
+    assert set(velocity.dimensions) == {"inline", "crossline", "depth"}
     assert velocity.data_type == ScalarType.FLOAT16
     assert velocity.compressor is None
-    assert velocity.metadata.units_v1.speed == "m/s"
+    # Other variables store dimensions as names
+    assert set(velocity.coordinates) == {"cdp-x", "cdp-y"}
+    assert isinstance(velocity.metadata.chunk_grid, RegularChunkGrid)
+    assert velocity.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
+    assert isinstance(velocity.metadata.units_v1, SpeedUnitModel)
+    assert velocity.metadata.units_v1.speed == SpeedUnitEnum.METER_PER_SECOND
 
     # Verify image_inline variable
     image_inline = next(
         v for v in dataset.variables if v.name == "image_inline")
     assert image_inline.long_name == "inline optimized version of 3d_stack"
+    assert set(image_inline.dimensions) == {"inline", "crossline", "depth"}
+    assert image_inline.data_type == ScalarType.FLOAT32
     assert isinstance(image_inline.compressor, Blosc)
     assert image_inline.compressor.algorithm == "zstd"
+    assert set(image_inline.coordinates) == {"cdp-x", "cdp-y"}
+    assert isinstance(image_inline.metadata.chunk_grid, RegularChunkGrid)
+    assert image_inline.metadata.chunk_grid.configuration.chunk_shape == [4, 512, 512]
 
     # Verify image_headers variable
     headers = next(v for v in dataset.variables if v.name == "image_headers")
@@ -121,36 +135,8 @@ def test_build_campos_3d(tmp_path: Path) -> None:
     assert len(headers.data_type.fields) == 4
     assert headers.data_type.fields[0].name == "cdp-x"
 
-# def test_build_campos_3d_contract(tmp_path: Path) -> None:
-#     '''Test building campos_3d dataset and converting to JSON schema format.'''
-#     dataset = make_campos_3d_dataset()
-#     # json_str = dataset.model_dump_json()
-#     # json_sorted_str = json.dumps(json.loads(json_str), sort_keys=True)
-#     m_dict = dataset.model_dump(mode="json", by_alias=True)
-#     json_sorted_str = json.dumps(m_dict, sort_keys=True)
-
-#     sorted_contract = load_campos_3d_contract()
-
-#     save(json_sorted_str, sorted_contract)
-
-# def save(model: str, contract: str) -> None:
-#     model_file_path = os.path.join(os.path.dirname(__file__), "campos_3d_model.json")
-#     contract_file_path = os.path.join(os.path.dirname(__file__), "campos_3d_contract.json")
-#     with open(model_file_path, 'w') as f:
-#         f.write(model)
-#     with open(contract_file_path, 'w') as f:
-#         f.write(contract)
-
-# def load_campos_3d_contract():
-#     file_path = os.path.join(os.path.dirname(__file__), 'test_data/campos_3d_contract.json')
-#     with open(file_path, 'r') as f:
-#         contract = json.load(f)
-#     assert contract is not None
-#     return json.dumps(contract, sort_keys=True)
-
 def make_campos_3d_dataset() -> Dataset:
     """Create in-memory campos_3d dataset."""
-
     ds = MDIODatasetBuilder(
         "campos_3d",
         attributes=UserAttributes(attributes={
@@ -181,7 +167,6 @@ def make_campos_3d_dataset() -> Dataset:
         dimensions=["inline", "crossline"],
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))]
-        # metadata={"unitsV1": {"length": "m"}},
     )
     # Add image variable
     ds.add_variable(
@@ -189,7 +174,7 @@ def make_campos_3d_dataset() -> Dataset:
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT32,
         compressor=Blosc(algorithm="zstd"),
-        coordinates=["inline", "crossline", "depth", "cdp-x", "cdp-y"],
+        coordinates=["cdp-x", "cdp-y"],
         metadata_info=[
             ChunkGridMetadata(
                 chunk_grid=RegularChunkGrid(
@@ -214,7 +199,7 @@ def make_campos_3d_dataset() -> Dataset:
         name="velocity",
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT16,
-        coordinates=["inline", "crossline", "depth", "cdp-x", "cdp-y"],
+        coordinates=["cdp-x", "cdp-y"],
         metadata_info=[
             ChunkGridMetadata(
                 chunk_grid=RegularChunkGrid(
@@ -231,7 +216,7 @@ def make_campos_3d_dataset() -> Dataset:
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT32,
         compressor=Blosc(algorithm="zstd"),
-        coordinates=["inline", "crossline", "depth", "cdp-x", "cdp-y"],
+        coordinates=["cdp-x", "cdp-y"],
         metadata_info=[
             ChunkGridMetadata(
                 chunk_grid=RegularChunkGrid(
@@ -250,6 +235,6 @@ def make_campos_3d_dataset() -> Dataset:
                 {"name": "some_scalar", "format": ScalarType.FLOAT16},
             ]
         ),
-        coordinates=["inline", "crossline", "cdp-x", "cdp-y"],
+        coordinates=["cdp-x", "cdp-y"],
     )
     return ds.build()
