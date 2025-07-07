@@ -248,7 +248,7 @@ class MDIODatasetBuilder:
         *,
         long_name: str = None,
         dimensions: list[str],
-        data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
+        data_type: ScalarType | StructuredType,
         compressor: Blosc | ZFP | None = None,
         coordinates: list[str] | None = None,
         metadata_info: VariableMetadataList | None = None,

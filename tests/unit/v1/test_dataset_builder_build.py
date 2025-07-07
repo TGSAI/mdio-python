@@ -33,7 +33,9 @@ def test_build() -> None:
         .add_dimension("y", 200)
         .add_coordinate("x_coord", dimensions=["x"])
         .add_coordinate("y_coord", dimensions=["y"])
-        .add_variable("data", dimensions=["x", "y"], long_name="Test Data")
+        .add_variable("data", dimensions=["x", "y"], 
+                      long_name="Test Data", 
+                      data_type=ScalarType.FLOAT32)
         .build()
     )
     assert isinstance(dataset, Dataset)

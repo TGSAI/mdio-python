@@ -30,7 +30,7 @@ def test_add_variable() -> None:
     
     msg = "Must add at least one dimension before adding variables"
     with pytest.raises(ValueError, match=msg):
-        builder.add_variable("amplitude", dimensions=["speed"])
+        builder.add_variable("amplitude", dimensions=["speed"], data_type = ScalarType.FLOAT32)
 
     builder.add_dimension("inline", 100)
     builder.add_dimension("crossline", 100)
@@ -39,20 +39,24 @@ def test_add_variable() -> None:
     # Validate required parameters
     bad_name = None
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
-        builder.add_variable(bad_name, dimensions=["speed"])
+        builder.add_variable(bad_name, dimensions=["speed"], data_type = ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
-        builder.add_variable("", dimensions=["speed"])
+        builder.add_variable("", dimensions=["speed"], data_type = ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_variable("bad_amplitude", dimensions=None)
+        builder.add_variable("bad_amplitude", dimensions=None, data_type = ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_variable("bad_amplitude", dimensions=[])
+        builder.add_variable("bad_amplitude", dimensions=[], data_type = ScalarType.FLOAT32)
 
     # Add a variable using non-existent dimensions
     msg="Pre-existing dimension named 'xline' is not found"
     with pytest.raises(ValueError, match=msg):
-        builder.add_variable("bad_amplitude", dimensions=["inline", "xline", "depth"])
+        builder.add_variable("bad_amplitude", 
+                             dimensions=["inline", "xline", "depth"], 
+                             data_type = ScalarType.FLOAT32)
 
-    builder.add_variable("amplitude", dimensions=["inline", "crossline", "depth"])
+    builder.add_variable("amplitude", 
+                         dimensions=["inline", "crossline", "depth"], 
+                         data_type = ScalarType.FLOAT32)
     assert builder._state == _BuilderState.HAS_VARIABLES
     assert len(builder._dimensions) == 3 
     assert len(builder._variables) == 4 
@@ -63,6 +67,7 @@ def test_add_variable() -> None:
     with pytest.raises(ValueError, match=msg):
         builder.add_variable("bad_amplitude", 
                              dimensions=["inline", "crossline", "depth"],
+                             data_type = ScalarType.FLOAT32,
                              coordinates=["cdp-x", "cdp-y"])    
 
     builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"])
@@ -72,7 +77,8 @@ def test_add_variable() -> None:
     msg="Adding variable with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
         builder.add_variable("amplitude", 
-                             dimensions=["inline", "crossline", "depth"])
+                             dimensions=["inline", "crossline", "depth"],
+                             data_type = ScalarType.FLOAT32)
 
 
 def test_add_variable_with_defaults() -> None:
@@ -82,7 +88,9 @@ def test_add_variable_with_defaults() -> None:
     builder.add_dimension("crossline", 100)
     builder.add_dimension("depth", 100)
     # Add variable using defaults
-    builder.add_variable("seismic_amplitude", dimensions=["inline", "crossline", "depth"])
+    builder.add_variable("seismic_amplitude", 
+                         dimensions=["inline", "crossline", "depth"],
+                         data_type=ScalarType.FLOAT32)
     assert len(builder._dimensions) == 3 
     assert len(builder._variables) == 4 
     assert len(builder._coordinates) == 0 
