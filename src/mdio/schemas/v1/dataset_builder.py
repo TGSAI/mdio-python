@@ -172,7 +172,7 @@ class MDIODatasetBuilder:
         *,
         long_name: str = None,
         dimensions: list[str],
-        data_type: ScalarType | StructuredType = ScalarType.FLOAT32,
+        data_type: ScalarType = ScalarType.FLOAT32,
         metadata_info: CoordinateMetadataList | None = None,
     ) -> "MDIODatasetBuilder":
         """Add a coordinate after adding at least one dimension.
