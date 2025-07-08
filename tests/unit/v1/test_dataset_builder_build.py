@@ -67,7 +67,7 @@ def test_build_campos_3d() -> None: # noqa: PLR0915 Too many statements (57 > 50
 
     # Verify dataset structure
     assert dataset.metadata.name == "campos_3d"
-    assert dataset.metadata.api_version == "1.0.0"
+    assert dataset.metadata.api_version == "1.0.0a1"
     assert dataset.metadata.attributes["foo"] == "bar"
     assert len(dataset.metadata.attributes["textHeader"]) == 3
 

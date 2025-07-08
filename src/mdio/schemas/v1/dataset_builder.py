@@ -6,6 +6,7 @@ from enum import Enum
 from enum import auto
 from typing import Any
 from typing import TypeAlias
+from importlib import metadata
 
 from pydantic import BaseModel
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding  # noqa: F401
@@ -17,7 +18,7 @@ from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
-from mdio.schemas.v1.dataset import Dataset
+from mdio.schemas.v1.dataset import Dataset, DatasetMetadata
 from mdio.schemas.v1.dataset import DatasetInfo
 from mdio.schemas.v1.stats import StatisticsMetadata
 from mdio.schemas.v1.units import AllUnits
@@ -97,13 +98,16 @@ class MDIODatasetBuilder:
 
     def __init__(self, name: str, attributes: UserAttributes | None = None):
 
-        info = DatasetInfo(
+        try:
+            api_version = metadata.version("multidimio")
+        except metadata.PackageNotFoundError:
+            api_version = "unknown"
+
+        self._info = DatasetInfo(
             name=name,
-            api_version="1.0.0",
+            api_version=api_version,
             created_on=datetime.now(UTC)
         )
-        # TODO(BrianMichell, #0): Pull from package metadata
-        self._info = info
         self._attributes = attributes
         self._dimensions: list[NamedDimension] = []
         self._coordinates: list[Coordinate] = []
@@ -252,6 +256,9 @@ class MDIODatasetBuilder:
         """Add a dimension coordinate variable for a pre-existing dimension.
         This is a convenience method to create a coordinate variable
         that represents sampling along a dimension.
+
+        The dimension coordinate is a coordinate that has a single dimension and
+        the name of the coordinate is the same as the name of the dimension
         """
         self.add_coordinate(dimension_name,
                             long_name=dimension_name,
