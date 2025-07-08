@@ -14,7 +14,7 @@ from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.dataset import Dataset
 from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.dataset_builder import _get_dimension
+from mdio.schemas.v1.dataset_builder import _get_named_dimension
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import StatisticsMetadata
 from mdio.schemas.v1.stats import SummaryStatistics
@@ -29,21 +29,32 @@ def test_build() -> None:
     """Test building a complete dataset."""
     dataset = (
         MDIODatasetBuilder("test_dataset")
-        .add_dimension("x", 100)
-        .add_dimension("y", 200)
-        .add_coordinate("x_coord", dimensions=["x"])
-        .add_coordinate("y_coord", dimensions=["y"])
-        .add_variable("data", dimensions=["x", "y"], 
+        .add_dimension("inline", 100)
+        .add_dimension("crossline", 200)
+        # Add a dimension coordinate explicitly using add_coordinate()
+        .add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.FLOAT64) 
+        # Add a dimension coordinate using .add_dimension_coordinate() shortcut
+        .add_dimension_coordinate("crossline", data_type=ScalarType.FLOAT64)
+        .add_coordinate("x_coord", dimensions=["inline", "crossline"])
+        .add_coordinate("y_coord", dimensions=["inline", "crossline"])
+        .add_variable("data", 
                       long_name="Test Data", 
+                      dimensions=["inline", "crossline"], 
+                      coordinates=["inline", "crossline", "x_coord", "y_coord"],
                       data_type=ScalarType.FLOAT32)
         .build()
     )
+
+    # TODO: Expand this
     assert isinstance(dataset, Dataset)
     assert dataset.metadata.name == "test_dataset"
-    # 2 dimension variables + 1 data variable + 2 coordinate variables
+    # 2 dim coord var + 2 non-dim coord var + 1 data variables = 5 variables
     assert len(dataset.variables) == 5
-    assert next(v for v in dataset.variables if v.name == "x") is not None
-    assert next(v for v in dataset.variables if v.name == "y") is not None
+    assert next(v for v in dataset.variables if v.name == "inline") is not None
+    assert next(v for v in dataset.variables if v.name == "crossline") is not None
+    assert next(v for v in dataset.variables if v.name == "x_coord") is not None
+    assert next(v for v in dataset.variables if v.name == "y_coord") is not None
+    assert next(v for v in dataset.variables if v.name == "data") is not None
     var_data = next(v for v in dataset.variables if v.name == "data")
     assert var_data is not None
     assert var_data.long_name == "Test Data"
@@ -68,35 +79,40 @@ def test_build_campos_3d() -> None: # noqa: PLR0915 Too many statements (57 > 50
     inline_var = next(v for v in dataset.variables if v.name == "inline")
     assert inline_var.data_type == ScalarType.UINT32
     # Dimension variables store dimensions as NamedDimension
-    assert _get_dimension(inline_var.dimensions, "inline", 256)
+    assert _get_named_dimension(inline_var.dimensions, "inline", 256)
 
     crossline_var = next(v for v in dataset.variables if v.name == "crossline")
     assert crossline_var.data_type == ScalarType.UINT32
     # Dimension variables store dimensions as NamedDimension
-    assert _get_dimension(crossline_var.dimensions, "crossline", 512)
+    assert _get_named_dimension(crossline_var.dimensions, "crossline", 512)
 
     depth_var = next(v for v in dataset.variables if v.name == "depth")
-    assert depth_var.data_type == ScalarType.UINT32
+    assert depth_var.data_type == ScalarType.FLOAT64
     # Dimension variables store dimensions as NamedDimension
-    assert _get_dimension(depth_var.dimensions, "depth", 384)
+    assert _get_named_dimension(depth_var.dimensions, "depth", 384)
     assert depth_var.metadata.units_v1.length == LengthUnitEnum.METER
 
     # Verify coordinate variables
     cdp_x = next(v for v in dataset.variables if v.name == "cdp-x")
     assert cdp_x.data_type == ScalarType.FLOAT32
-    # Coordinates variables store dimensions as names
-    assert set(cdp_x.dimensions) == {"inline", "crossline"}
+    assert len(cdp_x.dimensions) == 2
+    assert _get_named_dimension(cdp_x.dimensions, "inline", 256)
+    assert _get_named_dimension(cdp_x.dimensions, "crossline", 512)
     assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
 
     cdp_y = next(v for v in dataset.variables if v.name == "cdp-y")
     assert cdp_y.data_type == ScalarType.FLOAT32
-    # Coordinates variables store dimensions as names
-    assert set(cdp_y.dimensions) == {"inline", "crossline"}
+    assert len(cdp_y.dimensions) == 2
+    assert _get_named_dimension(cdp_y.dimensions, "inline", 256)
+    assert _get_named_dimension(cdp_y.dimensions, "crossline", 512)
     assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
 
     # Verify image variable
     image = next(v for v in dataset.variables if v.name == "image")
-    assert set(image.dimensions) == {"inline", "crossline", "depth"}
+    assert len(image.dimensions) == 3
+    assert _get_named_dimension(image.dimensions, "inline", 256)
+    assert _get_named_dimension(image.dimensions, "crossline", 512)
+    assert _get_named_dimension(image.dimensions, "depth", 384)
     assert image.data_type == ScalarType.FLOAT32
     assert isinstance(image.compressor, Blosc)
     assert image.compressor.algorithm == "zstd"
@@ -109,7 +125,10 @@ def test_build_campos_3d() -> None: # noqa: PLR0915 Too many statements (57 > 50
 
     # Verify velocity variable
     velocity = next(v for v in dataset.variables if v.name == "velocity")
-    assert set(velocity.dimensions) == {"inline", "crossline", "depth"}
+    assert len(velocity.dimensions) == 3
+    assert _get_named_dimension(velocity.dimensions, "inline", 256)
+    assert _get_named_dimension(velocity.dimensions, "crossline", 512)
+    assert _get_named_dimension(velocity.dimensions, "depth", 384)
     assert velocity.data_type == ScalarType.FLOAT16
     assert velocity.compressor is None
     # Other variables store dimensions as names
@@ -123,7 +142,10 @@ def test_build_campos_3d() -> None: # noqa: PLR0915 Too many statements (57 > 50
     image_inline = next(
         v for v in dataset.variables if v.name == "image_inline")
     assert image_inline.long_name == "inline optimized version of 3d_stack"
-    assert set(image_inline.dimensions) == {"inline", "crossline", "depth"}
+    assert len(image_inline.dimensions) == 3
+    assert _get_named_dimension(image_inline.dimensions, "inline", 256)
+    assert _get_named_dimension(image_inline.dimensions, "crossline", 512)
+    assert _get_named_dimension(image_inline.dimensions, "depth", 384)
     assert image_inline.data_type == ScalarType.FLOAT32
     assert isinstance(image_inline.compressor, Blosc)
     assert image_inline.compressor.algorithm == "zstd"
@@ -151,12 +173,15 @@ def make_campos_3d_dataset() -> Dataset:
         }))
 
     # Add dimensions
-    ds.add_dimension("inline", 256, var_data_type=ScalarType.UINT32)
-    ds.add_dimension("crossline", 512, var_data_type=ScalarType.UINT32)
-    ds.add_dimension("depth", 384, var_data_type=ScalarType.UINT32,
-                     var_metadata_info=[
-                         AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))]
-                     )
+    ds.add_dimension("inline", 256)
+    ds.add_dimension("crossline", 512)
+    ds.add_dimension("depth", 384)
+    ds.add_dimension_coordinate("inline", data_type=ScalarType.UINT32)
+    ds.add_dimension_coordinate("crossline", data_type=ScalarType.UINT32)
+    ds.add_dimension_coordinate("depth", data_type=ScalarType.FLOAT64,
+                                metadata_info=[
+                                    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
+                                    ])
     # Add coordinates
     ds.add_coordinate(
         "cdp-x",
@@ -170,6 +195,7 @@ def make_campos_3d_dataset() -> Dataset:
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))]
     )
+
     # Add image variable
     ds.add_variable(
         name="image",
@@ -240,3 +266,30 @@ def make_campos_3d_dataset() -> Dataset:
         coordinates=["cdp-x", "cdp-y"],
     )
     return ds.build()
+
+# def test_edge_case_not_used_dimension():
+#     builder = MDIODatasetBuilder("test_dataset")
+
+#     builder.add_dimension("inline", 100)
+#     builder.add_dimension("xline", 200)
+#     builder.add_dimension("depth", 300)
+#     builder.add_dimension("time", 600)
+
+#     # Add 'dimension Coordinate' or 'index Coordinates', 
+#     # the coordinates with the same name as a dimension, marked by *) on objects used in binary operations.
+#     builder.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.FLOAT32)
+#     builder.add_coordinate("xline", dimensions=["xline"], data_type=ScalarType.FLOAT32)
+#     # No 'depth' dimension coordinate is provided
+
+#     # Add 'non-dimension coordinates' before we can add a data variable
+#     builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"])
+#     builder.add_coordinate("cdp-y", dimensions=["inline", "crossline"])
+
+#     # Add data variable with full parameters
+#     builder.add_variable("seismic", 
+#                          dimensions=["inline", "crossline", "depth"],
+#                          data_type=ScalarType.FLOAT64,
+#                          coordinates=["cdp-x", "cdp-y"])   
+    
+#     # NOTE: The model has separate list list[Coordinate] | list[str] 
+#     # It does not allow mixing names and NamedDimensions

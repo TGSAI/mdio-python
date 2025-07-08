@@ -46,10 +46,10 @@ class _BuilderState(Enum):
     HAS_VARIABLES = auto()
 
 
-def _get_dimension(
+def _get_named_dimension(
     dimensions: list[NamedDimension], name: str, size: int | None = None
 ) -> NamedDimension | None:
-    """Get a dimension by name and size from the list[NamedDimension] ."""
+    """Get a dimension by name and optional size from the list[NamedDimension]."""
     if dimensions is None:
         return False
     if not isinstance(name, str):
@@ -111,25 +111,18 @@ class MDIODatasetBuilder:
         self._state = _BuilderState.INITIAL
         self._unnamed_variable_counter = 0
 
-    
     def add_dimension(  # noqa: PLR0913
         self,
         name: str,
-        size: int,
-        var_data_type: ScalarType | StructuredType = ScalarType.INT32,
-        var_metadata_info: VariableMetadataList | None = None,
+        size: int
     ) -> "MDIODatasetBuilder":
         """Add a dimension.
 
         This function be called at least once before adding coordinates or variables.
-        This call will create a dimension variable, if one does not yet exists
 
         Args:
             name: Name of the dimension
             size: Size of the dimension
-            var_long_name: Optional long name for the dimension variable
-            var_data_type: Data type for the dimension variable (defaults to INT32)
-            var_metadata_info: Optional metadata information for the dimension variable
 
         Returns:
             self: Returns self for method chaining
@@ -137,7 +130,7 @@ class MDIODatasetBuilder:
         if not name:
             msg = "'name' must be a non-empty string"
             raise ValueError(msg)
-        
+
         # Validate that the dimension is not already defined
         old_var = next((e for e in self._dimensions if e.name == name), None)
         if old_var is not None:
@@ -146,25 +139,33 @@ class MDIODatasetBuilder:
 
         dim = NamedDimension(name=name, size=size)
         self._dimensions.append(dim)
-
-        meta_dict = _to_dictionary(var_metadata_info)
-        # Create a variable for the dimension
-        dim_var = Variable(
-            name=name,
-            longName=f"'{name}' dimension variable",
-            # IMPORTANT: we use NamedDimension here, not the dimension name.
-            # Since the Dataset does not have a dimension list, we need to preserve 
-            # NamedDimension somewhere. Namely, in the variable created for the dimension
-            dimensions=[dim],
-            dataType=var_data_type,
-            compressor=None,
-            coordinates=None,
-            metadata=meta_dict,
-        )
-        self._variables.append(dim_var)
-
         self._state = _BuilderState.HAS_DIMENSIONS
         return self
+
+    def _get_coordinate(
+        self,
+        coordinates: list[Coordinate] | list[str],
+        name: str, size: int | None = None
+    ) -> Coordinate | None:
+        """Get a coordinate by name from the list[Coordinate] | list[str]."""
+        if coordinates is None:
+            return None
+
+        for c in coordinates:
+            if isinstance(c, str) and c == name:
+                # The coordinate is stored by name (str). 
+                # Find it in the builder global list and return it.
+                cc = next((v for v in self._coordinates if v.name == name), None)
+                if cc is None:
+                    msg = f"Pre-existing coordinate named {name!r} is not found"
+                    raise ValueError(msg)
+                return cc
+            if isinstance(c, Coordinate) and c.name == name:
+                # The coordinate is stored as an embedded Coordinate object.
+                # Return it.
+                return c
+
+        return None
 
     def add_coordinate(  # noqa: PLR0913
         self,
@@ -173,6 +174,7 @@ class MDIODatasetBuilder:
         long_name: str = None,
         dimensions: list[str],
         data_type: ScalarType = ScalarType.FLOAT32,
+        compressor: Blosc | ZFP | None = None,
         metadata_info: CoordinateMetadataList | None = None,
     ) -> "MDIODatasetBuilder":
         """Add a coordinate after adding at least one dimension.
@@ -200,46 +202,64 @@ class MDIODatasetBuilder:
             msg = "'dimensions' must be a non-empty list"
             raise ValueError(msg)
         old_var = next((e for e in self._coordinates if e.name == name), None)
-
         # Validate that the coordinate is not already defined
         if old_var is not None:
             msg = "Adding coordinate with the same name twice is not allowed"
             raise ValueError(msg)
-        
+
         # Validate that all referenced dimensions are already defined
-        for dim in dimensions:
-            if next((d for d in self._dimensions if d.name == dim), None) is None:
-                msg = f"Pre-existing dimension named {dim!r} is not found"
+        named_dimensions = []
+        for dim_name in dimensions:
+            nd = _get_named_dimension(self._dimensions, dim_name)
+            if nd is None:
+                msg = f"Pre-existing dimension named {dim_name!r} is not found"
                 raise ValueError(msg)
+            named_dimensions.append(nd)    
 
         meta_dict = _to_dictionary(metadata_info)
         coord = Coordinate(
             name=name,
             longName=long_name,
-            # We ass names: sts, not list[NamedDimension | str]
-            dimensions=dimensions,
+            dimensions=named_dimensions,
+            compressor=compressor,
             dataType=data_type,
             metadata=meta_dict
         )
         self._coordinates.append(coord)
 
         # Add a coordinate variable to the dataset
-        var_meta_dict = _to_dictionary(coord.metadata)
-        coord_var = Variable(
+        self.add_variable(
             name=coord.name,
-            longName=f"'{coord.name}' coordinate variable",
-            dimensions=coord.dimensions,
-            dataType=coord.data_type,
-            compressor=None,
-            # IMPORTANT: we always use the Coordinate here, not the coordinate name
-            # Since the Dataset does not have a coordinate list, we need to preserve Coordinate
-            # somewhere. Namely, in the variable created for the coordinate
-            coordinates=[coord],
-            metadata=var_meta_dict
+            long_name=f"'{coord.name}' coordinate variable",
+            dimensions=dimensions,  # dimension names (list[str])
+            data_type=coord.data_type,
+            compressor=compressor,
+            coordinates=[name],  # Use the coordinate name as a reference
+            metadata_info=coord.metadata
         )
-        self._variables.append(coord_var)
 
         self._state = _BuilderState.HAS_COORDINATES
+        return self
+
+    def add_dimension_coordinate(
+        self,
+        dimension_name: str,
+        *,
+        data_type: ScalarType,
+        compressor: Blosc | ZFP | None = None,
+        metadata_info: VariableMetadataList | None = None,
+    ) -> "MDIODatasetBuilder":
+        """Add a dimension coordinate variable for a pre-existing dimension.
+        This is a convenience method to create a coordinate variable
+        that represents sampling along a dimension.
+        """
+        self.add_coordinate(dimension_name,
+                            long_name=dimension_name,
+                            dimensions=[dimension_name],
+                            data_type=data_type,
+                            compressor=compressor,
+                            metadata_info=_to_dictionary(metadata_info))
+
         return self
 
     def add_variable(  # noqa: PLR0913
@@ -255,8 +275,12 @@ class MDIODatasetBuilder:
     ) -> "MDIODatasetBuilder":
         """Add a variable after adding at least one dimension and, optionally, coordinate.
 
-        This function must be called after all required dimensions are added via add_dimension().
+        This function must be called after all required dimensions are added via add_dimension()
         This function must be called after all required coordinates are added via add_coordinate().
+
+        If this function is called with a single dimension name that matches the variable name,
+        it will create a dimension variable. Dimension variables are special variables that
+        represent sampling along a dimension.
 
         Args:
             name: Name of the variable
@@ -280,7 +304,7 @@ class MDIODatasetBuilder:
         if dimensions is None or not dimensions:
             msg = "'dimensions' must be a non-empty list"
             raise ValueError(msg)
-        
+
         # Validate that the variable is not already defined
         old_var = next((e for e in self._variables if e.name == name), None)
         if old_var is not None:
@@ -288,10 +312,13 @@ class MDIODatasetBuilder:
             raise ValueError(msg)
 
         # Validate that all referenced dimensions are already defined
-        for dim in dimensions:
-            if next((e for e in self._dimensions if e.name == dim), None) is None:
-                msg = f"Pre-existing dimension named {dim!r} is not found"
+        named_dimensions = []
+        for dim_name in dimensions:
+            nd = _get_named_dimension(self._dimensions, dim_name)
+            if nd is None:
+                msg = f"Pre-existing dimension named {dim_name!r} is not found"
                 raise ValueError(msg)
+            named_dimensions.append(nd)
 
         # Validate that all referenced coordinates are already defined
         if coordinates is not None:
@@ -301,17 +328,16 @@ class MDIODatasetBuilder:
                     raise ValueError(msg)
 
         meta_dict = _to_dictionary(metadata_info)
-        self._variables.append(
-            Variable(
-                name=name,
-                long_name=long_name,
-                dimensions=dimensions,
-                data_type=data_type,
-                compressor=compressor,
-                coordinates=coordinates,
-                metadata=meta_dict,
-            )
-        )
+        var = Variable(
+            name=name,
+            long_name=long_name,
+            dimensions=named_dimensions,
+            data_type=data_type,
+            compressor=compressor,
+            coordinates=coordinates,
+            metadata=meta_dict)
+        self._variables.append(var)
+
         self._state = _BuilderState.HAS_VARIABLES
         return self
 

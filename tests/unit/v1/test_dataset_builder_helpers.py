@@ -12,30 +12,30 @@ from pydantic import Field
 
 from mdio.schemas.core import StrictModel
 from mdio.schemas.dimension import NamedDimension
-from mdio.schemas.v1.dataset_builder import _get_dimension
+from mdio.schemas.v1.dataset_builder import _get_named_dimension
 from mdio.schemas.v1.dataset_builder import _to_dictionary
 
 
-def test__get_dimension() -> None:
+def test__get_named_dimension() -> None:
     """Test getting a dimension by name from the list of dimensions."""
     dimensions = [NamedDimension(name="inline", size=2), NamedDimension(
         name="crossline", size=3)]
 
-    assert _get_dimension([], "inline") is None
-    assert _get_dimension(dimensions, "inline") == NamedDimension(
+    assert _get_named_dimension([], "inline") is None
+    assert _get_named_dimension(dimensions, "inline") == NamedDimension(
         name="inline", size=2)
-    assert _get_dimension(dimensions, "crossline") == NamedDimension(
+    assert _get_named_dimension(dimensions, "crossline") == NamedDimension(
         name="crossline", size=3)
-    assert _get_dimension(dimensions, "time") is None
+    assert _get_named_dimension(dimensions, "time") is None
 
     with pytest.raises(TypeError, match="Expected str, got NoneType"):
-        _get_dimension(dimensions, None)
+        _get_named_dimension(dimensions, None)
     with pytest.raises(TypeError, match="Expected str, got int"):
-        _get_dimension(dimensions, 42)
+        _get_named_dimension(dimensions, 42)
     with pytest.raises(
         ValueError, match="Dimension 'inline' found but size 2 does not match expected size 200"
     ):
-        _get_dimension(dimensions, "inline", size=200)
+        _get_named_dimension(dimensions, "inline", size=200)
 
 
 def test__to_dictionary() -> None:
