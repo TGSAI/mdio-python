@@ -146,30 +146,6 @@ class MDIODatasetBuilder:
         self._state = _BuilderState.HAS_DIMENSIONS
         return self
 
-    def _get_coordinate(
-        self,
-        coordinates: list[Coordinate] | list[str],
-        name: str, size: int | None = None
-    ) -> Coordinate | None:
-        """Get a coordinate by name from the list[Coordinate] | list[str]."""
-        if coordinates is None:
-            return None
-
-        for c in coordinates:
-            if isinstance(c, str) and c == name:
-                # The coordinate is stored by name (str). 
-                # Find it in the builder global list and return it.
-                cc = next((v for v in self._coordinates if v.name == name), None)
-                if cc is None:
-                    msg = f"Pre-existing coordinate named {name!r} is not found"
-                    raise ValueError(msg)
-                return cc
-            if isinstance(c, Coordinate) and c.name == name:
-                # The coordinate is stored as an embedded Coordinate object.
-                # Return it.
-                return c
-
-        return None
 
     def add_coordinate(  # noqa: PLR0913
         self,
@@ -303,12 +279,21 @@ class MDIODatasetBuilder:
                 raise ValueError(msg)
             named_dimensions.append(nd)
 
+        coordinate_objs: list[Coordinate] = []
         # Validate that all referenced coordinates are already defined
         if coordinates is not None:
             for coord in coordinates:
-                if next((c for c in self._coordinates if c.name == coord), None) is None:
+                c: Coordinate = next((c for c in self._coordinates if c.name == coord), None)
+                if c is not None:
+                    coordinate_objs.append(c)
+                else:
                     msg = f"Pre-existing coordinate named {coord!r} is not found"
                     raise ValueError(msg)
+
+        if coordinates is not None:
+            # If this is a dimension coordinate variable, embed the Coordinate into it
+            if len(coordinates) == 1 and coordinates[0] == name:
+                coordinates = coordinate_objs
 
         meta_dict = _to_dictionary(metadata_info)
         var = Variable(

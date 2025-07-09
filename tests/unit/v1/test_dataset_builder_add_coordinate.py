@@ -6,6 +6,7 @@
 
 import pytest
 
+from mdio.schemas import builder
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.metadata import UserAttributes
@@ -15,7 +16,7 @@ from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
 from mdio.schemas.v1.variable import VariableMetadata
-
+from .helpers import validate_builder, validate_coordinate, validate_variable
 
 def test_add_coordinate() -> None:
     """Test adding coordinates. Check the state transition and validate required parameters."""
@@ -47,23 +48,14 @@ def test_add_coordinate() -> None:
 
     # Validate state transition
     builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
-    assert builder._state == _BuilderState.HAS_COORDINATES
-    assert len(builder._dimensions) == 2 
-    # 1 variable for coordinates
-    assert len(builder._variables) == 1 
-    assert len(builder._coordinates) == 1
-    
-    # Validate that we created a coordinate variable
-    var_cdp = next(e for e in builder._variables if e.name == "cdp-x")
-    assert var_cdp is not None
-    assert len(var_cdp.dimensions) == 2
-    assert _get_named_dimension(var_cdp.dimensions, "inline", 100) is not None
-    assert _get_named_dimension(var_cdp.dimensions, "crossline", 200) is not None
-    # Validate that coordinates are stored as Coordinate
-    assert len(var_cdp.coordinates) == 1
-    # No dimensions are stored in coordinates
-    # Validate that non-dimension coordinates
-    assert builder._get_coordinate(var_cdp.coordinates, "cdp-x") is not None
+    validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
+    validate_variable(
+        builder,
+        name="cdp-x",
+        dims=[("inline", 100), ("crossline", 200)],
+        coords=["cdp-x"],
+        dtype=ScalarType.FLOAT32
+    )
 
     # Adding coordinate with the same name twice
     msg="Adding coordinate with the same name twice is not allowed"
@@ -75,23 +67,26 @@ def test_add_coordinate_with_defaults() -> None:
     builder = MDIODatasetBuilder("test_dataset")
     builder.add_dimension("inline", 100)
     builder.add_dimension("crossline", 200)
+
     # Add coordinate using defaults
     builder.add_coordinate("cdp", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
-    assert len(builder._dimensions) == 2 
-    # 1 variable for coordinates
-    assert len(builder._variables) == 1
-    assert len(builder._coordinates) == 1
-
-    # Validate: the structure of the coordinate
-    coord_cdp = next((e for e in builder._coordinates if e.name == "cdp"), None)
-    assert coord_cdp is not None
-    assert len(coord_cdp.dimensions) == 2
-    assert _get_named_dimension(coord_cdp.dimensions, "inline", 100) is not None
-    assert _get_named_dimension(coord_cdp.dimensions, "crossline", 200) is not None
-    assert coord_cdp.long_name is None               # Default value
-    assert coord_cdp.data_type == ScalarType.FLOAT32 # Default value
-    assert coord_cdp.compressor is None              # Default value
-    assert coord_cdp.metadata is None                # Default value
+    validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
+    validate_coordinate(
+        builder,    
+        name="cdp",
+        dims=[("inline", 100), ("crossline", 200)],
+        dtype=ScalarType.FLOAT32
+    )
+    v = validate_variable(
+        builder,
+        name="cdp",
+        dims=[("inline", 100), ("crossline", 200)],
+        coords=["cdp"],
+        dtype=ScalarType.FLOAT32
+    )
+    assert v.long_name == "'cdp' coordinate variable"  # Default value
+    assert v.compressor is None                        # Default value
+    assert v.metadata is None                          # Default value
 
 
 def test_coordinate_with_full_parameters() -> None:
@@ -99,6 +94,7 @@ def test_coordinate_with_full_parameters() -> None:
     builder = MDIODatasetBuilder("test_dataset")
     builder.add_dimension("inline", 100)
     builder.add_dimension("crossline", 200)
+
     # Add coordinate with all metadata
     builder.add_coordinate(
         "cdp",
@@ -110,39 +106,28 @@ def test_coordinate_with_full_parameters() -> None:
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
             UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"})]
     )
-    # Validate: the state of the builder
-    assert builder._state == _BuilderState.HAS_COORDINATES
-    assert len(builder._dimensions) == 2 
-    # 1 variable for coordinates
-    assert len(builder._variables) == 1 
-    assert len(builder._coordinates) == 1 
-
-    # Validate: the structure of the coordinate
-    coord_cdp = next((e for e in builder._coordinates if e.name == "cdp"), None)
-    assert coord_cdp is not None
-    assert len(coord_cdp.dimensions) == 2
-    assert _get_named_dimension(coord_cdp.dimensions, "inline", 100) is not None
-    assert _get_named_dimension(coord_cdp.dimensions, "crossline", 200) is not None
-    assert coord_cdp.long_name == "Common Depth Point"
-    assert coord_cdp.data_type == ScalarType.FLOAT16 
-    assert isinstance(coord_cdp.compressor, Blosc)
-    assert coord_cdp.compressor.algorithm == "zstd"
-    assert coord_cdp.metadata.attributes["MGA"] == 51
-    assert coord_cdp.metadata.attributes["UnitSystem"] == "Imperial"
-    assert coord_cdp.metadata.units_v1.length == LengthUnitEnum.FOOT
-
-     # Validate: the structure of the created variable
-    v = next((v for v in builder._variables if v.name == "cdp"), None)
-    assert v is not None
-    assert v.long_name == "'cdp' coordinate variable"
-    assert len(v.dimensions) == 2
-    assert _get_named_dimension(v.dimensions, "inline", 100) is not None
-    assert _get_named_dimension(v.dimensions, "crossline", 200) is not None
-    assert v.data_type == ScalarType.FLOAT16
+    validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
+    c = validate_coordinate(
+        builder,    
+        name="cdp",
+        dims=[("inline", 100), ("crossline", 200)],
+        dtype=ScalarType.FLOAT16
+    )
+    assert c.long_name == "Common Depth Point"
+    assert isinstance(c.compressor, Blosc)
+    assert c.compressor.algorithm == "zstd"
+    assert c.metadata.attributes["MGA"] == 51
+    assert c.metadata.attributes["UnitSystem"] == "Imperial"
+    assert c.metadata.units_v1.length == LengthUnitEnum.FOOT
+    v = validate_variable(
+        builder,
+        name="cdp",
+        dims=[("inline", 100), ("crossline", 200)],
+        coords=["cdp"],
+        dtype=ScalarType.FLOAT16
+    )
     assert isinstance(v.compressor, Blosc)
     assert v.compressor.algorithm == "zstd"
-    assert len(v.coordinates) == 1
-    assert builder._get_coordinate(v.coordinates, "cdp") is not None
     assert isinstance(v.metadata, VariableMetadata)
     assert v.metadata.units_v1.length == LengthUnitEnum.FOOT
     assert v.metadata.attributes["MGA"] == 51

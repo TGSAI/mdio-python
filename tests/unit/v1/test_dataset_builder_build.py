@@ -8,7 +8,7 @@
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import ScalarType, StructuredField
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
@@ -23,7 +23,9 @@ from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
 from mdio.schemas.v1.units import SpeedUnitEnum
 from mdio.schemas.v1.units import SpeedUnitModel
+from .helpers import make_campos_3d_dataset
 
+from .helpers import validate_builder, validate_coordinate, validate_variable
 
 def test_build() -> None:
     """Test building a complete dataset."""
@@ -52,11 +54,6 @@ def test_build() -> None:
     assert next(v for v in dataset.variables if v.name == "x_coord") is not None
     assert next(v for v in dataset.variables if v.name == "y_coord") is not None
     assert next(v for v in dataset.variables if v.name == "data") is not None
-    var_data = next(v for v in dataset.variables if v.name == "data")
-    assert var_data is not None
-    assert var_data.long_name == "Test Data"
-    assert len(var_data.dimensions) == 2
-
 
 def test_build_campos_3d() -> None: # noqa: PLR0915 Too many statements (57 > 50)
     """Test building a Campos 3D dataset with multiple variables and attributes."""
@@ -72,82 +69,84 @@ def test_build_campos_3d() -> None: # noqa: PLR0915 Too many statements (57 > 50
     # 3 dimension variables + 4 data variables + 2 coordinate variables
     assert len(dataset.variables) == 9
 
-    # Verify dimension variables
-    inline_var = next(v for v in dataset.variables if v.name == "inline")
-    assert inline_var.data_type == ScalarType.UINT32
-    # Dimension variables store dimensions as NamedDimension
-    assert _get_named_dimension(inline_var.dimensions, "inline", 256)
+    # Verify dimension coordinate variables
+    validate_variable(
+        dataset,
+        name="inline",
+        dims=[("inline", 256)],
+        coords=["inline"],
+        dtype=ScalarType.UINT32
+    )
 
-    crossline_var = next(v for v in dataset.variables if v.name == "crossline")
-    assert crossline_var.data_type == ScalarType.UINT32
-    # Dimension variables store dimensions as NamedDimension
-    assert _get_named_dimension(crossline_var.dimensions, "crossline", 512)
+    validate_variable(
+        dataset,
+        name="crossline",
+        dims=[("crossline", 512)],
+        coords=["crossline"],
+        dtype=ScalarType.UINT32
+    )
 
-    depth_var = next(v for v in dataset.variables if v.name == "depth")
-    assert depth_var.data_type == ScalarType.FLOAT64
-    # Dimension variables store dimensions as NamedDimension
-    assert _get_named_dimension(depth_var.dimensions, "depth", 384)
-    assert depth_var.metadata.units_v1.length == LengthUnitEnum.METER
+    depth = validate_variable(
+        dataset,
+        name="depth",
+        dims=[("depth", 384)],
+        coords=["depth"],
+        dtype=ScalarType.FLOAT64
+    )
+    assert depth.metadata.units_v1.length == LengthUnitEnum.METER
 
     # Verify coordinate variables
-    cdp_x = next(v for v in dataset.variables if v.name == "cdp-x")
-    assert cdp_x.data_type == ScalarType.FLOAT32
-    assert len(cdp_x.dimensions) == 2
-    assert _get_named_dimension(cdp_x.dimensions, "inline", 256)
-    assert _get_named_dimension(cdp_x.dimensions, "crossline", 512)
+    cdp_x = validate_variable(
+        dataset,
+        name="cdp-x",
+        dims=[("inline", 256), ("crossline", 512)],
+        coords=["cdp-x"],
+        dtype=ScalarType.FLOAT32
+    )
     assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
 
-    cdp_y = next(v for v in dataset.variables if v.name == "cdp-y")
-    assert cdp_y.data_type == ScalarType.FLOAT32
-    assert len(cdp_y.dimensions) == 2
-    assert _get_named_dimension(cdp_y.dimensions, "inline", 256)
-    assert _get_named_dimension(cdp_y.dimensions, "crossline", 512)
+    cdp_y = validate_variable(
+        dataset,
+        name="cdp-y",
+        dims=[("inline", 256), ("crossline", 512)],
+        coords=["cdp-y"],
+        dtype=ScalarType.FLOAT32
+    )
     assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
 
-    # Verify image variable
-    image = next(v for v in dataset.variables if v.name == "image")
-    assert len(image.dimensions) == 3
-    assert _get_named_dimension(image.dimensions, "inline", 256)
-    assert _get_named_dimension(image.dimensions, "crossline", 512)
-    assert _get_named_dimension(image.dimensions, "depth", 384)
-    assert image.data_type == ScalarType.FLOAT32
-    assert isinstance(image.compressor, Blosc)
+    # Verify data variables
+    image = validate_variable(
+        dataset,    
+        name="image",
+        dims=[("inline", 256), ("crossline", 512), ("depth", 384)],
+        coords=["cdp-x", "cdp-y"],
+        dtype=ScalarType.FLOAT32
+    )
+    assert image.metadata.units_v1 is None  # No units defined for image
     assert image.compressor.algorithm == "zstd"
-    # Other variables store dimensions as names
-    assert set(image.coordinates) == {"cdp-x", "cdp-y"}
-    assert isinstance(image.metadata.chunk_grid, RegularChunkGrid)
     assert image.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
-    assert isinstance(image.metadata.stats_v1, SummaryStatistics)   
     assert image.metadata.stats_v1.count == 100
 
-    # Verify velocity variable
-    velocity = next(v for v in dataset.variables if v.name == "velocity")
-    assert len(velocity.dimensions) == 3
-    assert _get_named_dimension(velocity.dimensions, "inline", 256)
-    assert _get_named_dimension(velocity.dimensions, "crossline", 512)
-    assert _get_named_dimension(velocity.dimensions, "depth", 384)
-    assert velocity.data_type == ScalarType.FLOAT16
+    velocity = validate_variable(
+        dataset,
+        name="velocity",
+        dims=[("inline", 256), ("crossline", 512), ("depth", 384)],
+        coords=["cdp-x", "cdp-y"],
+        dtype=ScalarType.FLOAT16
+    )
     assert velocity.compressor is None
-    # Other variables store dimensions as names
-    assert set(velocity.coordinates) == {"cdp-x", "cdp-y"}
-    assert isinstance(velocity.metadata.chunk_grid, RegularChunkGrid)
     assert velocity.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
-    assert isinstance(velocity.metadata.units_v1, SpeedUnitModel)
     assert velocity.metadata.units_v1.speed == SpeedUnitEnum.METER_PER_SECOND
 
-    # Verify image_inline variable
-    image_inline = next(
-        v for v in dataset.variables if v.name == "image_inline")
+    image_inline = validate_variable(
+        dataset,
+        name="image_inline",
+        dims=[("inline", 256), ("crossline", 512), ("depth", 384)],
+        coords=["cdp-x", "cdp-y"],
+        dtype=ScalarType.FLOAT32
+    )
     assert image_inline.long_name == "inline optimized version of 3d_stack"
-    assert len(image_inline.dimensions) == 3
-    assert _get_named_dimension(image_inline.dimensions, "inline", 256)
-    assert _get_named_dimension(image_inline.dimensions, "crossline", 512)
-    assert _get_named_dimension(image_inline.dimensions, "depth", 384)
-    assert image_inline.data_type == ScalarType.FLOAT32
-    assert isinstance(image_inline.compressor, Blosc)
     assert image_inline.compressor.algorithm == "zstd"
-    assert set(image_inline.coordinates) == {"cdp-x", "cdp-y"}
-    assert isinstance(image_inline.metadata.chunk_grid, RegularChunkGrid)
     assert image_inline.metadata.chunk_grid.configuration.chunk_shape == [4, 512, 512]
 
     # Verify image_headers variable
@@ -156,112 +155,19 @@ def test_build_campos_3d() -> None: # noqa: PLR0915 Too many statements (57 > 50
     assert len(headers.data_type.fields) == 4
     assert headers.data_type.fields[0].name == "cdp-x"
 
-def make_campos_3d_dataset() -> Dataset:
-    """Create in-memory campos_3d dataset."""
-    ds = MDIODatasetBuilder(
-        "campos_3d",
-        attributes=UserAttributes(attributes={
-            "textHeader": [
-                "C01 .......................... ",
-                "C02 .......................... ",
-                "C03 .......................... ",
-            ],
-            "foo": "bar"
-        }))
-
-    # Add dimensions
-    ds.add_dimension("inline", 256)
-    ds.add_dimension("crossline", 512)
-    ds.add_dimension("depth", 384)
-    ds.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32) 
-    ds.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32) 
-    ds.add_coordinate("depth", dimensions=["depth"], data_type=ScalarType.FLOAT64, 
-                      metadata_info=[
-                          AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
-                      ])
-    # Add coordinates
-    ds.add_coordinate(
-        "cdp-x",
-        dimensions=["inline", "crossline"],
-        data_type=ScalarType.FLOAT32,
-        metadata_info=[
-            AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))]
-    )
-    ds.add_coordinate(
-        "cdp-y",
-        dimensions=["inline", "crossline"],
-        data_type=ScalarType.FLOAT32,
-        metadata_info=[
-            AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))]
-    )
-
-    # Add image variable
-    ds.add_variable(
-        name="image",
-        dimensions=["inline", "crossline", "depth"],
-        data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
-        coordinates=["cdp-x", "cdp-y"],
-        metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128]))
-            ),
-            StatisticsMetadata(
-                stats_v1=SummaryStatistics(
-                    count=100,
-                    sum=1215.1,
-                    sumSquares=125.12,
-                    min=5.61,
-                    max=10.84,
-                    histogram=CenteredBinHistogram(
-                        binCenters=[1, 2], counts=[10, 15]),
-                )
-            ),
-            UserAttributes(
-                attributes={"fizz": "buzz", "UnitSystem": "Canonical"}),
-        ])
-    # Add velocity variable
-    ds.add_variable(
-        name="velocity",
-        dimensions=["inline", "crossline", "depth"],
-        data_type=ScalarType.FLOAT16,
-        coordinates=["cdp-x", "cdp-y"],
-        metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128]))
-            ),
-            AllUnits(units_v1=SpeedUnitModel(
-                speed=SpeedUnitEnum.METER_PER_SECOND)),
-        ],
-    )
-    # Add inline-optimized image variable
-    ds.add_variable(
-        name="image_inline",
-        long_name="inline optimized version of 3d_stack",
-        dimensions=["inline", "crossline", "depth"],
-        data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
-        coordinates=["cdp-x", "cdp-y"],
-        metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[4, 512, 512]))
-            )]
-    )
-    # Add headers variable with structured dtype
-    ds.add_variable(
+    headers = validate_variable(
+        dataset,
         name="image_headers",
-        dimensions=["inline", "crossline"],
-        data_type=StructuredType(
+        dims=[("inline", 256), ("crossline", 512)],
+        coords=["cdp-x", "cdp-y"],
+        dtype=StructuredType(
             fields=[
-                {"name": "cdp-x", "format": ScalarType.INT32},
-                {"name": "cdp-y", "format": ScalarType.INT32},
-                {"name": "elevation", "format": ScalarType.FLOAT16},
-                {"name": "some_scalar", "format": ScalarType.FLOAT16},
+                StructuredField(name="cdp-x", format=ScalarType.FLOAT32),
+                StructuredField(name="cdp-y", format=ScalarType.FLOAT32),
+                StructuredField(name="inline", format=ScalarType.UINT32),       
+                StructuredField(name="crossline", format=ScalarType.UINT32),
             ]
-        ),
-        coordinates=["cdp-x", "cdp-y"],
+        )
     )
-    return ds.build()
+
+

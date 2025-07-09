@@ -20,6 +20,7 @@ from mdio.schemas.v1.stats import SummaryStatistics
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
+from .helpers import validate_builder
 
 
 def test_add_dimension() -> None:
@@ -36,8 +37,7 @@ def test_add_dimension() -> None:
 
     # First dimension should change state to HAS_DIMENSIONS and create a variable
     builder.add_dimension("x", 100)
-    assert builder._state == _BuilderState.HAS_DIMENSIONS
-    assert len(builder._dimensions) == 1
+    validate_builder(builder, _BuilderState.HAS_DIMENSIONS, n_dims=1, n_coords=0, n_var=0)
     assert _get_named_dimension(builder._dimensions, "x", 100) is not None
 
     # Validate that we can't add a dimension with the same name twice
