@@ -245,30 +245,6 @@ class MDIODatasetBuilder:
         self._state = _BuilderState.HAS_COORDINATES
         return self
 
-    def add_dimension_coordinate(
-        self,
-        dimension_name: str,
-        *,
-        data_type: ScalarType,
-        compressor: Blosc | ZFP | None = None,
-        metadata_info: VariableMetadataList | None = None,
-    ) -> "MDIODatasetBuilder":
-        """Add a dimension coordinate variable for a pre-existing dimension.
-        This is a convenience method to create a coordinate variable
-        that represents sampling along a dimension.
-
-        The dimension coordinate is a coordinate that has a single dimension and
-        the name of the coordinate is the same as the name of the dimension
-        """
-        self.add_coordinate(dimension_name,
-                            long_name=dimension_name,
-                            dimensions=[dimension_name],
-                            data_type=data_type,
-                            compressor=compressor,
-                            metadata_info=_to_dictionary(metadata_info))
-
-        return self
-
     def add_variable(  # noqa: PLR0913
         self,
         name: str,

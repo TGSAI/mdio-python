@@ -97,8 +97,8 @@ def test_add_variable_with_coords() -> None:
     builder.add_dimension("depth", 300)
 
     # Add dimension coordinates before we can add a data variable
-    builder.add_dimension_coordinate("inline", data_type=ScalarType.INT32)
-    builder.add_dimension_coordinate("crossline", data_type=ScalarType.INT32)
+    builder.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
+    builder.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
 
     # Validate: adding a variable with a coordinate that has not been pre-created is not allowed
     msg = "Pre-existing coordinate named 'depth' is not found"
@@ -168,32 +168,6 @@ def test_add_variable_with_coords() -> None:
     assert builder._get_coordinate(var_ampl2.coordinates, "cdp-y") is not None
 
 
-def test_add_dimension_coordinate() -> None:
-    """Test adding dimension variable."""
-    builder = MDIODatasetBuilder("test_dataset")
-    builder.add_dimension("inline", 100)
-
-    builder.add_dimension_coordinate("inline", data_type=ScalarType.INT32)
-
-    # Validate: that coordinate is stored in the builder global list
-    coord_il = builder._get_coordinate(builder._coordinates, "inline")
-    # Validate: that dimensions are stored as NamedDimensions in the coordinate
-    assert _get_named_dimension(coord_il.dimensions, "inline", 100) is not None
-    # Validate: a dim variable has been created
-    var_il = next((e for e in builder._variables if e.name == "inline"), None)
-    assert var_il is not None
-    # Validate: the variable has the expected properties
-    assert var_il.name == "inline"
-    assert var_il.long_name == "'inline' coordinate variable"
-    assert len(var_il.dimensions) == 1
-    assert _get_named_dimension(var_il.dimensions, "inline", 100) is not None
-    assert var_il.data_type == ScalarType.INT32
-    assert var_il.compressor is None  # Default value
-    assert len(var_il.coordinates) == 1
-    assert builder._get_coordinate(var_il.coordinates, "inline") is not None
-    assert var_il.metadata is None  # Default value
-
-
 def test_add_variable_with_defaults() -> None:
     """Test adding variable with default arguments."""
     builder = MDIODatasetBuilder("test_dataset")
@@ -202,12 +176,12 @@ def test_add_variable_with_defaults() -> None:
     builder.add_dimension("crossline", 200)
     builder.add_dimension("depth", 300)
     # Add dimension coordinates
-    builder.add_dimension_coordinate("inline", data_type=ScalarType.INT32)
-    builder.add_dimension_coordinate("crossline", data_type=ScalarType.INT32)
-    builder.add_dimension_coordinate("depth",
-                                     data_type=ScalarType.FLOAT32,
-                                     metadata_info=[
-                                         AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))])
+    builder.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
+    builder.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
+    builder.add_coordinate("depth", dimensions=["depth"], data_type=ScalarType.UINT32,
+                           metadata_info=[
+                               AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
+                           ]) 
 
     # Add data variable using defaults
     builder.add_variable("ampl",
@@ -244,10 +218,10 @@ def test_add_variable_full_parameters() -> None:
     builder.add_dimension("depth", 300)
 
     # Add dimension coordinates
-    builder.add_dimension_coordinate("inline", data_type=ScalarType.INT32)
-    builder.add_dimension_coordinate("crossline", data_type=ScalarType.INT32)
-    builder.add_dimension_coordinate("depth", data_type=ScalarType.INT32)
-    
+    builder.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
+    builder.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
+    builder.add_coordinate("depth", dimensions=["depth"], data_type=ScalarType.UINT32)
+
     # Add coordinates before we can add a data variable
     builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)
     builder.add_coordinate("cdp-y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)

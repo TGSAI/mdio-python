@@ -31,10 +31,8 @@ def test_build() -> None:
         MDIODatasetBuilder("test_dataset")
         .add_dimension("inline", 100)
         .add_dimension("crossline", 200)
-        # Add a dimension coordinate explicitly using add_coordinate()
         .add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.FLOAT64) 
-        # Add a dimension coordinate using .add_dimension_coordinate() shortcut
-        .add_dimension_coordinate("crossline", data_type=ScalarType.FLOAT64)
+        .add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.FLOAT64) 
         .add_coordinate("x_coord", dimensions=["inline", "crossline"])
         .add_coordinate("y_coord", dimensions=["inline", "crossline"])
         .add_variable("data", 
@@ -176,12 +174,12 @@ def make_campos_3d_dataset() -> Dataset:
     ds.add_dimension("inline", 256)
     ds.add_dimension("crossline", 512)
     ds.add_dimension("depth", 384)
-    ds.add_dimension_coordinate("inline", data_type=ScalarType.UINT32)
-    ds.add_dimension_coordinate("crossline", data_type=ScalarType.UINT32)
-    ds.add_dimension_coordinate("depth", data_type=ScalarType.FLOAT64,
-                                metadata_info=[
-                                    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
-                                    ])
+    ds.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32) 
+    ds.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32) 
+    ds.add_coordinate("depth", dimensions=["depth"], data_type=ScalarType.FLOAT64, 
+                      metadata_info=[
+                          AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
+                      ])
     # Add coordinates
     ds.add_coordinate(
         "cdp-x",
