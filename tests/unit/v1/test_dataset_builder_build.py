@@ -33,8 +33,8 @@ def test_build() -> None:
         .add_dimension("crossline", 200)
         .add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.FLOAT64) 
         .add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.FLOAT64) 
-        .add_coordinate("x_coord", dimensions=["inline", "crossline"])
-        .add_coordinate("y_coord", dimensions=["inline", "crossline"])
+        .add_coordinate("x_coord", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+        .add_coordinate("y_coord", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
         .add_variable("data", 
                       long_name="Test Data", 
                       dimensions=["inline", "crossline"], 
@@ -43,7 +43,6 @@ def test_build() -> None:
         .build()
     )
 
-    # TODO: Expand this
     assert isinstance(dataset, Dataset)
     assert dataset.metadata.name == "test_dataset"
     # 2 dim coord var + 2 non-dim coord var + 1 data variables = 5 variables
@@ -184,12 +183,14 @@ def make_campos_3d_dataset() -> Dataset:
     ds.add_coordinate(
         "cdp-x",
         dimensions=["inline", "crossline"],
+        data_type=ScalarType.FLOAT32,
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))]
     )
     ds.add_coordinate(
         "cdp-y",
         dimensions=["inline", "crossline"],
+        data_type=ScalarType.FLOAT32,
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))]
     )
@@ -264,30 +265,3 @@ def make_campos_3d_dataset() -> Dataset:
         coordinates=["cdp-x", "cdp-y"],
     )
     return ds.build()
-
-# def test_edge_case_not_used_dimension():
-#     builder = MDIODatasetBuilder("test_dataset")
-
-#     builder.add_dimension("inline", 100)
-#     builder.add_dimension("xline", 200)
-#     builder.add_dimension("depth", 300)
-#     builder.add_dimension("time", 600)
-
-#     # Add 'dimension Coordinate' or 'index Coordinates', 
-#     # the coordinates with the same name as a dimension, marked by *) on objects used in binary operations.
-#     builder.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.FLOAT32)
-#     builder.add_coordinate("xline", dimensions=["xline"], data_type=ScalarType.FLOAT32)
-#     # No 'depth' dimension coordinate is provided
-
-#     # Add 'non-dimension coordinates' before we can add a data variable
-#     builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"])
-#     builder.add_coordinate("cdp-y", dimensions=["inline", "crossline"])
-
-#     # Add data variable with full parameters
-#     builder.add_variable("seismic", 
-#                          dimensions=["inline", "crossline", "depth"],
-#                          data_type=ScalarType.FLOAT64,
-#                          coordinates=["cdp-x", "cdp-y"])   
-    
-#     # NOTE: The model has separate list list[Coordinate] | list[str] 
-#     # It does not allow mixing names and NamedDimensions

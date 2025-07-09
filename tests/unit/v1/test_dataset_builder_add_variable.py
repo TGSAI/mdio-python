@@ -135,8 +135,8 @@ def test_add_variable_with_coords() -> None:
     # "depth" coordinate is not set
 
     # Add non-dim coordinates (e.g., 2D coordinates)
-    builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"])
-    builder.add_coordinate("cdp-y", dimensions=["inline", "crossline"])
+    builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+    builder.add_coordinate("cdp-y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
 
     # Add a variable with pre-defined dimension and non-dimension coordinates
     builder.add_variable("ampl2",
