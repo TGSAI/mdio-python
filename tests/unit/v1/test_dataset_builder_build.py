@@ -5,27 +5,17 @@
 """Tests the schema v1 dataset_builder.add_coordinate() public API."""
 
 
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.chunk_grid import RegularChunkShape
-from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType, StructuredField
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
-from mdio.schemas.metadata import ChunkGridMetadata
-from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.dataset import Dataset
 from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.dataset_builder import _get_named_dimension
-from mdio.schemas.v1.stats import CenteredBinHistogram
-from mdio.schemas.v1.stats import StatisticsMetadata
-from mdio.schemas.v1.stats import SummaryStatistics
-from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import LengthUnitModel
 from mdio.schemas.v1.units import SpeedUnitEnum
-from mdio.schemas.v1.units import SpeedUnitModel
-from .helpers import make_campos_3d_dataset
 
-from .helpers import validate_builder, validate_coordinate, validate_variable
+from .helpers import make_campos_3d_dataset
+from .helpers import validate_variable
+
 
 def test_build() -> None:
     """Test building a complete dataset."""

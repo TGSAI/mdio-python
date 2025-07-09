@@ -6,14 +6,13 @@
 
 import pytest
 
-from mdio.schemas import builder
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder, _get_named_dimension
+from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
 from mdio.schemas.v1.dataset_builder import _BuilderState
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import StatisticsMetadata
@@ -21,9 +20,11 @@ from mdio.schemas.v1.stats import SummaryStatistics
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.v1.variable import VariableMetadata, Variable
+from mdio.schemas.v1.variable import VariableMetadata
+
 from .helpers import validate_builder
 from .helpers import validate_variable
+
 
 def test_add_variable_no_coords() -> None:
     """Test adding variable. Check the state transition and validate required parameters.."""
@@ -112,8 +113,10 @@ def test_add_variable_with_coords() -> None:
                        dtype=ScalarType.FLOAT32)
 
     # Add non-dim coordinates (e.g., 2D coordinates)
-    builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
-    builder.add_coordinate("cdp-y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+    builder.add_coordinate(
+        "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+    builder.add_coordinate(
+        "cdp-y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
 
     # Add a variable with pre-defined dimension and non-dimension coordinates
     builder.add_variable("ampl2",
@@ -169,8 +172,10 @@ def test_add_variable_full_parameters() -> None:
     builder.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
     builder.add_coordinate("depth", dimensions=["depth"], data_type=ScalarType.UINT32)
     # Add coordinates before we can add a data variable
-    builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)
-    builder.add_coordinate("cdp-y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)
+    builder.add_coordinate(
+        "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)
+    builder.add_coordinate(
+        "cdp-y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)
 
     # Add data variable with full parameters
     builder.add_variable("ampl",

@@ -1,13 +1,15 @@
-
+"""Helper methods used in unit tests."""
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType, StructuredField
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.dataset import Dataset
-from mdio.schemas.v1.dataset_builder import _BuilderState, MDIODatasetBuilder
+from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
+from mdio.schemas.v1.dataset_builder import _BuilderState
 from mdio.schemas.v1.dataset_builder import _get_named_dimension
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import StatisticsMetadata
@@ -17,7 +19,8 @@ from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
 from mdio.schemas.v1.units import SpeedUnitEnum
 from mdio.schemas.v1.units import SpeedUnitModel
-from mdio.schemas.v1.variable import Coordinate, Variable
+from mdio.schemas.v1.variable import Coordinate
+from mdio.schemas.v1.variable import Variable
 
 
 def validate_builder(builder: MDIODatasetBuilder,
@@ -25,7 +28,7 @@ def validate_builder(builder: MDIODatasetBuilder,
                      n_dims: int,
                      n_coords: int,
                      n_var: int) -> None:
-    """Validate the state of the builder and the number of dimensions, coordinates, and variables."""
+    """Validate the state of the builder, the number of dimensions, coordinates, and variables."""
     assert builder._state == state
     assert len(builder._dimensions) == n_dims
     assert len(builder._coordinates) == n_coords
@@ -58,7 +61,6 @@ def validate_variable(container: MDIODatasetBuilder | Dataset,
                       coords: list[str],
                       dtype: ScalarType) -> Variable:
     """Validate existence and the structure of the created variable."""
-
     if isinstance(container, MDIODatasetBuilder):
         var_list = container._variables
         global_coord_list = container._coordinates
@@ -66,7 +68,8 @@ def validate_variable(container: MDIODatasetBuilder | Dataset,
         var_list = container.variables
         global_coord_list = _get_all_coordinates(container)
     else:
-        raise TypeError("container must be MDIODatasetBuilder or Dataset")
+        err_msg = f"Expected MDIODatasetBuilder or Dataset, got {type(container)}"
+        raise TypeError(err_msg)
 
     # Validate that the variable exists
     v = next((e for e in var_list if e.name == name), None)
@@ -93,23 +96,26 @@ def validate_variable(container: MDIODatasetBuilder | Dataset,
 
 
 def _get_coordinate(
-    global_coord_list: list[Coordinate],
-    coordinates_or_references: list[Coordinate] | list[str],
-    name: str, size: int | None = None
-) -> Coordinate | None:
+        global_coord_list: list[Coordinate],
+        coordinates_or_references: list[Coordinate] | list[str],
+        name: str) -> Coordinate | None:     
     """Get a coordinate by name from the list[Coordinate] | list[str].
-    Validates that the coordinate referenced by the name can be found in the global coordinate list
+
+    The function validates that the coordinate referenced by the name can be found 
+    in the global coordinate list.   
+    If the coordinate is stored as a Coordinate object, it is returned directly.
     """
     if coordinates_or_references is None:
         return None
 
     for c in coordinates_or_references:
         if isinstance(c, str) and c == name:
-            # The coordinate is stored by name (str). 
+            # The coordinate is stored by name (str).
             cc = None
             # Find the Coordinate in the global list and return it.
             if global_coord_list is not None:
-                cc = next((cc for cc in global_coord_list if cc.name == name), None)
+                cc = next(
+                    (cc for cc in global_coord_list if cc.name == name), None)
             if cc is None:
                 msg = f"Pre-existing coordinate named {name!r} is not found"
                 raise ValueError(msg)

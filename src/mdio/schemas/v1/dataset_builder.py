@@ -4,9 +4,9 @@ from datetime import UTC
 from datetime import datetime
 from enum import Enum
 from enum import auto
+from importlib import metadata
 from typing import Any
 from typing import TypeAlias
-from importlib import metadata
 
 from pydantic import BaseModel
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding  # noqa: F401
@@ -18,7 +18,7 @@ from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
-from mdio.schemas.v1.dataset import Dataset, DatasetMetadata
+from mdio.schemas.v1.dataset import Dataset
 from mdio.schemas.v1.dataset import DatasetInfo
 from mdio.schemas.v1.stats import StatisticsMetadata
 from mdio.schemas.v1.units import AllUnits
@@ -167,6 +167,7 @@ class MDIODatasetBuilder:
             long_name: Optional long name for the coordinate
             dimensions: List of dimension names that the coordinate is associated with
             data_type: Data type for the coordinate (defaults to FLOAT32)
+            compressor: Compressor used for the variable (defaults to None)
             metadata_info: Optional metadata information for the coordinate
 
         Returns:
@@ -290,9 +291,8 @@ class MDIODatasetBuilder:
                     msg = f"Pre-existing coordinate named {coord!r} is not found"
                     raise ValueError(msg)
 
-        if coordinates is not None:
-            # If this is a dimension coordinate variable, embed the Coordinate into it
-            if len(coordinates) == 1 and coordinates[0] == name:
+        # If this is a dimension coordinate variable, embed the Coordinate into it
+        if coordinates is not None and len(coordinates) == 1 and coordinates[0] == name:
                 coordinates = coordinate_objs
 
         meta_dict = _to_dictionary(metadata_info)

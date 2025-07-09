@@ -6,20 +6,10 @@
 
 import pytest
 
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.chunk_grid import RegularChunkShape
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.metadata import ChunkGridMetadata
-from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
 from mdio.schemas.v1.dataset_builder import _BuilderState
 from mdio.schemas.v1.dataset_builder import _get_named_dimension
-from mdio.schemas.v1.stats import CenteredBinHistogram
-from mdio.schemas.v1.stats import StatisticsMetadata
-from mdio.schemas.v1.stats import SummaryStatistics
-from mdio.schemas.v1.units import AllUnits
-from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import LengthUnitModel
+
 from .helpers import validate_builder
 
 

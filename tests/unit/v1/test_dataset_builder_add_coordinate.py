@@ -6,17 +6,20 @@
 
 import pytest
 
-from mdio.schemas import builder
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.metadata import UserAttributes
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder, _get_named_dimension
+from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
 from mdio.schemas.v1.dataset_builder import _BuilderState
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
 from mdio.schemas.v1.variable import VariableMetadata
-from .helpers import validate_builder, validate_coordinate, validate_variable
+
+from .helpers import validate_builder
+from .helpers import validate_coordinate
+from .helpers import validate_variable
+
 
 def test_add_coordinate() -> None:
     """Test adding coordinates. Check the state transition and validate required parameters."""
@@ -25,7 +28,8 @@ def test_add_coordinate() -> None:
     
     msg = "Must add at least one dimension before adding coordinates"
     with pytest.raises(ValueError, match=msg):
-        builder.add_coordinate("cdp", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate(
+            "cdp", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
 
     builder.add_dimension("inline", 100)
     builder.add_dimension("crossline", 200)
@@ -42,12 +46,14 @@ def test_add_coordinate() -> None:
         builder.add_coordinate("cdp-x", dimensions=[], data_type=ScalarType.FLOAT32)
 
     # Add a variable using non-existent dimensions
-    msg="Pre-existing dimension named 'xline' is not found"
+    msg = "Pre-existing dimension named 'xline' is not found"
     with pytest.raises(ValueError, match=msg):
-        builder.add_coordinate("bad_cdp-x", dimensions=["inline", "xline"], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate(
+            "bad_cdp-x", dimensions=["inline", "xline"], data_type=ScalarType.FLOAT32)
 
     # Validate state transition
-    builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+    builder.add_coordinate(
+        "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
     validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
     validate_variable(
         builder,
@@ -58,9 +64,10 @@ def test_add_coordinate() -> None:
     )
 
     # Adding coordinate with the same name twice
-    msg="Adding coordinate with the same name twice is not allowed"
+    msg = "Adding coordinate with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
-        builder.add_coordinate("cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate(
+            "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
 
 def test_add_coordinate_with_defaults() -> None:
     """Test adding coordinates with default arguments."""
