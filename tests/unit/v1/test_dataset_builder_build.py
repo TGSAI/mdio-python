@@ -1,0 +1,155 @@
+# ruff: noqa: PLR2004
+# PLR2004 Magic value used in comparison, consider replacing `3` with a constant variable
+# The above erroneous warning is generated for every numerical assert.
+# Thus, disable it for this file
+"""Tests the schema v1 dataset_builder.add_coordinate() public API."""
+
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredField
+from mdio.schemas.dtype import StructuredType
+from mdio.schemas.v1.dataset import Dataset
+from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
+from mdio.schemas.v1.units import LengthUnitEnum
+from mdio.schemas.v1.units import SpeedUnitEnum
+
+from .helpers import make_campos_3d_dataset
+from .helpers import validate_variable
+
+
+def test_build() -> None:
+    """Test building a complete dataset."""
+    dataset = (
+        MDIODatasetBuilder("test_dataset")
+        .add_dimension("inline", 100)
+        .add_dimension("crossline", 200)
+        .add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.FLOAT64)
+        .add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.FLOAT64)
+        .add_coordinate("x_coord", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+        .add_coordinate("y_coord", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+        .add_variable(
+            "data",
+            long_name="Test Data",
+            dimensions=["inline", "crossline"],
+            coordinates=["inline", "crossline", "x_coord", "y_coord"],
+            data_type=ScalarType.FLOAT32,
+        )
+        .build()
+    )
+
+    assert isinstance(dataset, Dataset)
+    assert dataset.metadata.name == "test_dataset"
+    # 2 dim coord var + 2 non-dim coord var + 1 data variables = 5 variables
+    assert len(dataset.variables) == 5
+    assert next(v for v in dataset.variables if v.name == "inline") is not None
+    assert next(v for v in dataset.variables if v.name == "crossline") is not None
+    assert next(v for v in dataset.variables if v.name == "x_coord") is not None
+    assert next(v for v in dataset.variables if v.name == "y_coord") is not None
+    assert next(v for v in dataset.variables if v.name == "data") is not None
+
+
+def test_build_campos_3d() -> None:  # noqa: PLR0915 Too many statements (57 > 50)
+    """Test building a Campos 3D dataset with multiple variables and attributes."""
+    dataset = make_campos_3d_dataset()
+
+    # Verify dataset structure
+    assert dataset.metadata.name == "campos_3d"
+    assert dataset.metadata.api_version == "1.0.0a1"
+    assert dataset.metadata.attributes["foo"] == "bar"
+    assert len(dataset.metadata.attributes["textHeader"]) == 3
+
+    # Verify variables (including dimension variables)
+    # 3 dimension variables + 4 data variables + 2 coordinate variables
+    assert len(dataset.variables) == 9
+
+    # Verify dimension coordinate variables
+    validate_variable(
+        dataset, name="inline", dims=[("inline", 256)], coords=["inline"], dtype=ScalarType.UINT32
+    )
+
+    validate_variable(
+        dataset,
+        name="crossline",
+        dims=[("crossline", 512)],
+        coords=["crossline"],
+        dtype=ScalarType.UINT32,
+    )
+
+    depth = validate_variable(
+        dataset, name="depth", dims=[("depth", 384)], coords=["depth"], dtype=ScalarType.FLOAT64
+    )
+    assert depth.metadata.units_v1.length == LengthUnitEnum.METER
+
+    # Verify coordinate variables
+    cdp_x = validate_variable(
+        dataset,
+        name="cdp-x",
+        dims=[("inline", 256), ("crossline", 512)],
+        coords=["cdp-x"],
+        dtype=ScalarType.FLOAT32,
+    )
+    assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
+
+    cdp_y = validate_variable(
+        dataset,
+        name="cdp-y",
+        dims=[("inline", 256), ("crossline", 512)],
+        coords=["cdp-y"],
+        dtype=ScalarType.FLOAT32,
+    )
+    assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
+
+    # Verify data variables
+    image = validate_variable(
+        dataset,
+        name="image",
+        dims=[("inline", 256), ("crossline", 512), ("depth", 384)],
+        coords=["cdp-x", "cdp-y"],
+        dtype=ScalarType.FLOAT32,
+    )
+    assert image.metadata.units_v1 is None  # No units defined for image
+    assert image.compressor.algorithm == "zstd"
+    assert image.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
+    assert image.metadata.stats_v1.count == 100
+
+    velocity = validate_variable(
+        dataset,
+        name="velocity",
+        dims=[("inline", 256), ("crossline", 512), ("depth", 384)],
+        coords=["cdp-x", "cdp-y"],
+        dtype=ScalarType.FLOAT16,
+    )
+    assert velocity.compressor is None
+    assert velocity.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
+    assert velocity.metadata.units_v1.speed == SpeedUnitEnum.METER_PER_SECOND
+
+    image_inline = validate_variable(
+        dataset,
+        name="image_inline",
+        dims=[("inline", 256), ("crossline", 512), ("depth", 384)],
+        coords=["cdp-x", "cdp-y"],
+        dtype=ScalarType.FLOAT32,
+    )
+    assert image_inline.long_name == "inline optimized version of 3d_stack"
+    assert image_inline.compressor.algorithm == "zstd"
+    assert image_inline.metadata.chunk_grid.configuration.chunk_shape == [4, 512, 512]
+
+    # Verify image_headers variable
+    headers = next(v for v in dataset.variables if v.name == "image_headers")
+    assert isinstance(headers.data_type, StructuredType)
+    assert len(headers.data_type.fields) == 4
+    assert headers.data_type.fields[0].name == "cdp-x"
+
+    headers = validate_variable(
+        dataset,
+        name="image_headers",
+        dims=[("inline", 256), ("crossline", 512)],
+        coords=["cdp-x", "cdp-y"],
+        dtype=StructuredType(
+            fields=[
+                StructuredField(name="cdp-x", format=ScalarType.FLOAT32),
+                StructuredField(name="cdp-y", format=ScalarType.FLOAT32),
+                StructuredField(name="inline", format=ScalarType.UINT32),
+                StructuredField(name="crossline", format=ScalarType.UINT32),
+            ]
+        ),
+    )
