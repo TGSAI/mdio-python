@@ -9,7 +9,6 @@ from typing import Any
 from typing import TypeAlias
 
 from pydantic import BaseModel
-from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding  # noqa: F401
 
 from mdio.schemas.compressors import ZFP
 from mdio.schemas.compressors import Blosc
@@ -107,9 +106,7 @@ class MDIODatasetBuilder:
         self._state = _BuilderState.INITIAL
         self._unnamed_variable_counter = 0
 
-    def add_dimension(  # noqa: PLR0913
-        self, name: str, size: int
-    ) -> "MDIODatasetBuilder":
+    def add_dimension(self, name: str, size: int) -> "MDIODatasetBuilder":
         """Add a dimension.
 
         This function be called at least once before adding coordinates or variables.
