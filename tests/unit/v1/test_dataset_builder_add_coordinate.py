@@ -25,11 +25,12 @@ def test_add_coordinate() -> None:
     """Test adding coordinates. Check the state transition and validate required parameters."""
     builder = MDIODatasetBuilder("test_dataset")
     assert builder._state == _BuilderState.INITIAL
-    
+
     msg = "Must add at least one dimension before adding coordinates"
     with pytest.raises(ValueError, match=msg):
         builder.add_coordinate(
-            "cdp", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+            "cdp", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
+        )
 
     builder.add_dimension("inline", 100)
     builder.add_dimension("crossline", 200)
@@ -49,25 +50,29 @@ def test_add_coordinate() -> None:
     msg = "Pre-existing dimension named 'xline' is not found"
     with pytest.raises(ValueError, match=msg):
         builder.add_coordinate(
-            "bad_cdp-x", dimensions=["inline", "xline"], data_type=ScalarType.FLOAT32)
+            "bad_cdp-x", dimensions=["inline", "xline"], data_type=ScalarType.FLOAT32
+        )
 
     # Validate state transition
     builder.add_coordinate(
-        "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+        "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
+    )
     validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
     validate_variable(
         builder,
         name="cdp-x",
         dims=[("inline", 100), ("crossline", 200)],
         coords=["cdp-x"],
-        dtype=ScalarType.FLOAT32
+        dtype=ScalarType.FLOAT32,
     )
 
     # Adding coordinate with the same name twice
     msg = "Adding coordinate with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
         builder.add_coordinate(
-            "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+            "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
+        )
+
 
 def test_add_coordinate_with_defaults() -> None:
     """Test adding coordinates with default arguments."""
@@ -79,21 +84,18 @@ def test_add_coordinate_with_defaults() -> None:
     builder.add_coordinate("cdp", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
     validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
     validate_coordinate(
-        builder,    
-        name="cdp",
-        dims=[("inline", 100), ("crossline", 200)],
-        dtype=ScalarType.FLOAT32
+        builder, name="cdp", dims=[("inline", 100), ("crossline", 200)], dtype=ScalarType.FLOAT32
     )
     v = validate_variable(
         builder,
         name="cdp",
         dims=[("inline", 100), ("crossline", 200)],
         coords=["cdp"],
-        dtype=ScalarType.FLOAT32
+        dtype=ScalarType.FLOAT32,
     )
     assert v.long_name == "'cdp' coordinate variable"  # Default value
-    assert v.compressor is None                        # Default value
-    assert v.metadata is None                          # Default value
+    assert v.compressor is None  # Default value
+    assert v.metadata is None  # Default value
 
 
 def test_coordinate_with_full_parameters() -> None:
@@ -105,20 +107,18 @@ def test_coordinate_with_full_parameters() -> None:
     # Add coordinate with all metadata
     builder.add_coordinate(
         "cdp",
-        long_name = "Common Depth Point",
+        long_name="Common Depth Point",
         dimensions=["inline", "crossline"],
-        data_type = ScalarType.FLOAT16,
-        compressor = Blosc(algorithm="zstd"),
+        data_type=ScalarType.FLOAT16,
+        compressor=Blosc(algorithm="zstd"),
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
-            UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"})]
+            UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"}),
+        ],
     )
     validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
     c = validate_coordinate(
-        builder,    
-        name="cdp",
-        dims=[("inline", 100), ("crossline", 200)],
-        dtype=ScalarType.FLOAT16
+        builder, name="cdp", dims=[("inline", 100), ("crossline", 200)], dtype=ScalarType.FLOAT16
     )
     assert c.long_name == "Common Depth Point"
     assert isinstance(c.compressor, Blosc)
@@ -131,7 +131,7 @@ def test_coordinate_with_full_parameters() -> None:
         name="cdp",
         dims=[("inline", 100), ("crossline", 200)],
         coords=["cdp"],
-        dtype=ScalarType.FLOAT16
+        dtype=ScalarType.FLOAT16,
     )
     assert isinstance(v.compressor, Blosc)
     assert v.compressor.algorithm == "zstd"

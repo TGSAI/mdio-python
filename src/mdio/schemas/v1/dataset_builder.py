@@ -25,16 +25,13 @@ from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import Variable
 
-AnyMetadataList: TypeAlias = list[AllUnits |
-                                  UserAttributes |
-                                  ChunkGridMetadata |
-                                  StatisticsMetadata |
-                                  DatasetInfo]
+AnyMetadataList: TypeAlias = list[
+    AllUnits | UserAttributes | ChunkGridMetadata | StatisticsMetadata | DatasetInfo
+]
 CoordinateMetadataList: TypeAlias = list[AllUnits | UserAttributes]
-VariableMetadataList: TypeAlias = list[AllUnits |
-                                       UserAttributes |
-                                       ChunkGridMetadata |
-                                       StatisticsMetadata]
+VariableMetadataList: TypeAlias = list[
+    AllUnits | UserAttributes | ChunkGridMetadata | StatisticsMetadata
+]
 DatasetMetadataList: TypeAlias = list[DatasetInfo | UserAttributes]
 
 
@@ -97,17 +94,12 @@ class MDIODatasetBuilder:
     """
 
     def __init__(self, name: str, attributes: UserAttributes | None = None):
-
         try:
             api_version = metadata.version("multidimio")
         except metadata.PackageNotFoundError:
             api_version = "unknown"
 
-        self._info = DatasetInfo(
-            name=name,
-            api_version=api_version,
-            created_on=datetime.now(UTC)
-        )
+        self._info = DatasetInfo(name=name, api_version=api_version, created_on=datetime.now(UTC))
         self._attributes = attributes
         self._dimensions: list[NamedDimension] = []
         self._coordinates: list[Coordinate] = []
@@ -116,9 +108,7 @@ class MDIODatasetBuilder:
         self._unnamed_variable_counter = 0
 
     def add_dimension(  # noqa: PLR0913
-        self,
-        name: str,
-        size: int
+        self, name: str, size: int
     ) -> "MDIODatasetBuilder":
         """Add a dimension.
 
@@ -127,6 +117,10 @@ class MDIODatasetBuilder:
         Args:
             name: Name of the dimension
             size: Size of the dimension
+
+        Raises:
+            ValueError: If 'name' is not a non-empty string.
+                        if the dimension is already defined.
 
         Returns:
             self: Returns self for method chaining
@@ -145,7 +139,6 @@ class MDIODatasetBuilder:
         self._dimensions.append(dim)
         self._state = _BuilderState.HAS_DIMENSIONS
         return self
-
 
     def add_coordinate(  # noqa: PLR0913
         self,
@@ -169,6 +162,13 @@ class MDIODatasetBuilder:
             data_type: Data type for the coordinate (defaults to FLOAT32)
             compressor: Compressor used for the variable (defaults to None)
             metadata_info: Optional metadata information for the coordinate
+
+        Raises:
+            ValueError: If no dimensions have been added yet.
+                        If 'name' is not a non-empty string.
+                        If 'dimensions' is not a non-empty list.
+                        If the coordinate is already defined.
+                        If any referenced dimension is not already defined.
 
         Returns:
             self: Returns self for method chaining
@@ -195,7 +195,7 @@ class MDIODatasetBuilder:
             if nd is None:
                 msg = f"Pre-existing dimension named {dim_name!r} is not found"
                 raise ValueError(msg)
-            named_dimensions.append(nd)    
+            named_dimensions.append(nd)
 
         meta_dict = _to_dictionary(metadata_info)
         coord = Coordinate(
@@ -204,7 +204,7 @@ class MDIODatasetBuilder:
             dimensions=named_dimensions,
             compressor=compressor,
             dataType=data_type,
-            metadata=meta_dict
+            metadata=meta_dict,
         )
         self._coordinates.append(coord)
 
@@ -216,7 +216,7 @@ class MDIODatasetBuilder:
             data_type=coord.data_type,
             compressor=compressor,
             coordinates=[name],  # Use the coordinate name as a reference
-            metadata_info=coord.metadata
+            metadata_info=coord.metadata,
         )
 
         self._state = _BuilderState.HAS_COORDINATES
@@ -251,6 +251,14 @@ class MDIODatasetBuilder:
             coordinates: List of coordinate names that the variable is associated with
                          (defaults to None, meaning no coordinates)
             metadata_info: Optional metadata information for the variable
+
+        Raises:
+            ValueError: If no dimensions have been added yet.
+                        If 'name' is not a non-empty string.
+                        If 'dimensions' is not a non-empty list.
+                        If the variable is already defined.
+                        If any referenced dimension is not already defined.
+                        If any referenced coordinate is not already defined.
 
         Returns:
             self: Returns self for method chaining.
@@ -293,7 +301,7 @@ class MDIODatasetBuilder:
 
         # If this is a dimension coordinate variable, embed the Coordinate into it
         if coordinates is not None and len(coordinates) == 1 and coordinates[0] == name:
-                coordinates = coordinate_objs
+            coordinates = coordinate_objs
 
         meta_dict = _to_dictionary(metadata_info)
         var = Variable(
@@ -303,7 +311,8 @@ class MDIODatasetBuilder:
             data_type=data_type,
             compressor=compressor,
             coordinates=coordinates,
-            metadata=meta_dict)
+            metadata=meta_dict,
+        )
         self._variables.append(var)
 
         self._state = _BuilderState.HAS_VARIABLES
@@ -314,6 +323,9 @@ class MDIODatasetBuilder:
 
         This function must be called after at least one dimension is added via add_dimension().
         It will create a Dataset object with all added dimensions, coordinates, and variables.
+
+        Raises:
+            ValueError: If no dimensions have been added yet.
 
         Returns:
             Dataset: The built dataset with all added dimensions, coordinates, and variables.

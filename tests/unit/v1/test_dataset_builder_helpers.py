@@ -18,14 +18,11 @@ from mdio.schemas.v1.dataset_builder import _to_dictionary
 
 def test__get_named_dimension() -> None:
     """Test getting a dimension by name from the list of dimensions."""
-    dimensions = [NamedDimension(name="inline", size=2), NamedDimension(
-        name="crossline", size=3)]
+    dimensions = [NamedDimension(name="inline", size=2), NamedDimension(name="crossline", size=3)]
 
     assert _get_named_dimension([], "inline") is None
-    assert _get_named_dimension(dimensions, "inline") == NamedDimension(
-        name="inline", size=2)
-    assert _get_named_dimension(dimensions, "crossline") == NamedDimension(
-        name="crossline", size=3)
+    assert _get_named_dimension(dimensions, "inline") == NamedDimension(name="inline", size=2)
+    assert _get_named_dimension(dimensions, "crossline") == NamedDimension(name="crossline", size=3)
     assert _get_named_dimension(dimensions, "time") is None
 
     with pytest.raises(TypeError, match="Expected str, got NoneType"):
@@ -51,46 +48,51 @@ def test__to_dictionary() -> None:
     # Validate conversion of a Pydantic BaseModel
     class SomeModel(StrictModel):
         count: int = Field(default=None, description="Samples count")
-        samples: list[float] = Field(
-            default_factory=list, description="Samples.")
+        samples: list[float] = Field(default_factory=list, description="Samples.")
         created: datetime = Field(
             default_factory=datetime.now, description="Creation time with TZ info."
         )
-    md = SomeModel(count=3,
-                   samples=[1.0, 2.0, 3.0],
-                   created=datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC))
+
+    md = SomeModel(
+        count=3, samples=[1.0, 2.0, 3.0], created=datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)
+    )
     result = _to_dictionary(md)
     assert isinstance(result, dict)
-    assert result == {
-        "count": 3, "created": "2023-10-01T12:00:00Z", "samples": [1.0, 2.0, 3.0]}
+    assert result == {"count": 3, "created": "2023-10-01T12:00:00Z", "samples": [1.0, 2.0, 3.0]}
 
     # Validate conversion of a dictionary
     dct = {
         "count": 3,
         "samples": [1.0, 2.0, 3.0],
-        "created": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)}
+        "created": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC),
+    }
     result = _to_dictionary(dct)
     assert isinstance(result, dict)
-    assert result == {"count": 3,
-                      "samples": [1.0, 2.0, 3.0],
-                      "created": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC), }
+    assert result == {
+        "count": 3,
+        "samples": [1.0, 2.0, 3.0],
+        "created": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC),
+    }
 
     # Validate conversion of a dictionary
-    lst = [None,
-           SomeModel(count=3,
-                     samples=[1.0, 2.0, 3.0],
-                     created=datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)),
-           {
-               "count2": 3,
-               "samples2": [1.0, 2.0, 3.0],
-               "created2": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)
-           }]
+    lst = [
+        None,
+        SomeModel(
+            count=3, samples=[1.0, 2.0, 3.0], created=datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)
+        ),
+        {
+            "count2": 3,
+            "samples2": [1.0, 2.0, 3.0],
+            "created2": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC),
+        },
+    ]
     result = _to_dictionary(lst)
     assert isinstance(result, dict)
-    assert result == {"count": 3,
-                      "samples": [1.0, 2.0, 3.0],
-                      "created": "2023-10-01T12:00:00Z",
-                      "count2": 3,
-                      "samples2": [1.0, 2.0, 3.0],
-                      "created2": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)
-                      }
+    assert result == {
+        "count": 3,
+        "samples": [1.0, 2.0, 3.0],
+        "created": "2023-10-01T12:00:00Z",
+        "count2": 3,
+        "samples2": [1.0, 2.0, 3.0],
+        "created2": datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC),
+    }

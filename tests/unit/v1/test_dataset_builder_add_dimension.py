@@ -38,7 +38,6 @@ def test_add_dimension() -> None:
         builder.add_dimension("x", 200)
 
     # Adding dimension with the same name twice
-    msg="Adding dimension with the same name twice is not allowed"
+    msg = "Adding dimension with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
         builder.add_dimension("x", 200)
-

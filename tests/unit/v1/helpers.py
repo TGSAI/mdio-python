@@ -1,4 +1,5 @@
 """Helper methods used in unit tests."""
+
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.compressors import Blosc
@@ -23,11 +24,9 @@ from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import Variable
 
 
-def validate_builder(builder: MDIODatasetBuilder,
-                     state: _BuilderState,
-                     n_dims: int,
-                     n_coords: int,
-                     n_var: int) -> None:
+def validate_builder(
+    builder: MDIODatasetBuilder, state: _BuilderState, n_dims: int, n_coords: int, n_var: int
+) -> None:
     """Validate the state of the builder, the number of dimensions, coordinates, and variables."""
     assert builder._state == state
     assert len(builder._dimensions) == n_dims
@@ -35,10 +34,9 @@ def validate_builder(builder: MDIODatasetBuilder,
     assert len(builder._variables) == n_var
 
 
-def validate_coordinate(builder: MDIODatasetBuilder,
-                        name: str,
-                        dims: list[tuple[str, int]],
-                        dtype: ScalarType) -> Coordinate:
+def validate_coordinate(
+    builder: MDIODatasetBuilder, name: str, dims: list[tuple[str, int]], dtype: ScalarType
+) -> Coordinate:
     """Validate existence and the structure of the created coordinate."""
     # Validate that coordinate exists
     c = next((c for c in builder._coordinates if c.name == name), None)
@@ -55,11 +53,13 @@ def validate_coordinate(builder: MDIODatasetBuilder,
     return c
 
 
-def validate_variable(container: MDIODatasetBuilder | Dataset,
-                      name: str,
-                      dims: list[tuple[str, int]],
-                      coords: list[str],
-                      dtype: ScalarType) -> Variable:
+def validate_variable(
+    container: MDIODatasetBuilder | Dataset,
+    name: str,
+    dims: list[tuple[str, int]],
+    coords: list[str],
+    dtype: ScalarType,
+) -> Variable:
     """Validate existence and the structure of the created variable."""
     if isinstance(container, MDIODatasetBuilder):
         var_list = container._variables
@@ -90,19 +90,20 @@ def validate_variable(container: MDIODatasetBuilder | Dataset,
         assert len(v.coordinates) == len(coords)
         for coord_name in coords:
             assert _get_coordinate(global_coord_list, v.coordinates, coord_name) is not None
-            
+
     assert v.data_type == dtype
     return v
 
 
 def _get_coordinate(
-        global_coord_list: list[Coordinate],
-        coordinates_or_references: list[Coordinate] | list[str],
-        name: str) -> Coordinate | None:     
+    global_coord_list: list[Coordinate],
+    coordinates_or_references: list[Coordinate] | list[str],
+    name: str,
+) -> Coordinate | None:
     """Get a coordinate by name from the list[Coordinate] | list[str].
 
-    The function validates that the coordinate referenced by the name can be found 
-    in the global coordinate list.   
+    The function validates that the coordinate referenced by the name can be found
+    in the global coordinate list.
     If the coordinate is stored as a Coordinate object, it is returned directly.
     """
     if coordinates_or_references is None:
@@ -114,8 +115,7 @@ def _get_coordinate(
             cc = None
             # Find the Coordinate in the global list and return it.
             if global_coord_list is not None:
-                cc = next(
-                    (cc for cc in global_coord_list if cc.name == name), None)
+                cc = next((cc for cc in global_coord_list if cc.name == name), None)
             if cc is None:
                 msg = f"Pre-existing coordinate named {name!r} is not found"
                 raise ValueError(msg)
@@ -142,39 +142,42 @@ def make_campos_3d_dataset() -> Dataset:
     """Create in-memory campos_3d dataset."""
     ds = MDIODatasetBuilder(
         "campos_3d",
-        attributes=UserAttributes(attributes={
-            "textHeader": [
-                "C01 .......................... ",
-                "C02 .......................... ",
-                "C03 .......................... ",
-            ],
-            "foo": "bar"
-        }))
+        attributes=UserAttributes(
+            attributes={
+                "textHeader": [
+                    "C01 .......................... ",
+                    "C02 .......................... ",
+                    "C03 .......................... ",
+                ],
+                "foo": "bar",
+            }
+        ),
+    )
 
     # Add dimensions
     ds.add_dimension("inline", 256)
     ds.add_dimension("crossline", 512)
     ds.add_dimension("depth", 384)
-    ds.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32) 
-    ds.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32) 
-    ds.add_coordinate("depth", dimensions=["depth"], data_type=ScalarType.FLOAT64, 
-                      metadata_info=[
-                          AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
-                      ])
+    ds.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
+    ds.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
+    ds.add_coordinate(
+        "depth",
+        dimensions=["depth"],
+        data_type=ScalarType.FLOAT64,
+        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
+    )
     # Add coordinates
     ds.add_coordinate(
         "cdp-x",
         dimensions=["inline", "crossline"],
         data_type=ScalarType.FLOAT32,
-        metadata_info=[
-            AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))]
+        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
     )
     ds.add_coordinate(
         "cdp-y",
         dimensions=["inline", "crossline"],
         data_type=ScalarType.FLOAT32,
-        metadata_info=[
-            AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))]
+        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
     )
 
     # Add image variable
@@ -187,7 +190,8 @@ def make_campos_3d_dataset() -> Dataset:
         metadata_info=[
             ChunkGridMetadata(
                 chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128]))
+                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128])
+                )
             ),
             StatisticsMetadata(
                 stats_v1=SummaryStatistics(
@@ -196,13 +200,12 @@ def make_campos_3d_dataset() -> Dataset:
                     sumSquares=125.12,
                     min=5.61,
                     max=10.84,
-                    histogram=CenteredBinHistogram(
-                        binCenters=[1, 2], counts=[10, 15]),
+                    histogram=CenteredBinHistogram(binCenters=[1, 2], counts=[10, 15]),
                 )
             ),
-            UserAttributes(
-                attributes={"fizz": "buzz", "UnitSystem": "Canonical"}),
-        ])
+            UserAttributes(attributes={"fizz": "buzz", "UnitSystem": "Canonical"}),
+        ],
+    )
     # Add velocity variable
     ds.add_variable(
         name="velocity",
@@ -212,10 +215,10 @@ def make_campos_3d_dataset() -> Dataset:
         metadata_info=[
             ChunkGridMetadata(
                 chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128]))
+                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128])
+                )
             ),
-            AllUnits(units_v1=SpeedUnitModel(
-                speed=SpeedUnitEnum.METER_PER_SECOND)),
+            AllUnits(units_v1=SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)),
         ],
     )
     # Add inline-optimized image variable
@@ -229,8 +232,10 @@ def make_campos_3d_dataset() -> Dataset:
         metadata_info=[
             ChunkGridMetadata(
                 chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[4, 512, 512]))
-            )]
+                    configuration=RegularChunkShape(chunk_shape=[4, 512, 512])
+                )
+            )
+        ],
     )
     # Add headers variable with structured dtype
     ds.add_variable(
@@ -240,7 +245,7 @@ def make_campos_3d_dataset() -> Dataset:
             fields=[
                 StructuredField(name="cdp-x", format=ScalarType.FLOAT32),
                 StructuredField(name="cdp-y", format=ScalarType.FLOAT32),
-                StructuredField(name="inline", format=ScalarType.UINT32),       
+                StructuredField(name="inline", format=ScalarType.UINT32),
                 StructuredField(name="crossline", format=ScalarType.UINT32),
             ]
         ),
