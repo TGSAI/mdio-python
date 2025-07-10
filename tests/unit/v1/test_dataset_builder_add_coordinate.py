@@ -93,7 +93,7 @@ def test_add_coordinate_with_defaults() -> None:
         coords=["cdp"],
         dtype=ScalarType.FLOAT32,
     )
-    assert v.long_name == "'cdp' coordinate variable"  # Default value
+    assert v.long_name is None  # Default value
     assert v.compressor is None  # Default value
     assert v.metadata is None  # Default value
 

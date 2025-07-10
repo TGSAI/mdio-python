@@ -2,7 +2,7 @@
 # PLR2004 Magic value used in comparison, consider replacing `3` with a constant variable
 # The above erroneous warning is generated for every numerical assert.
 # Thus, disable it for this file
-"""Tests the schema v1 dataset_builder.add_coordinate() public API."""
+"""Tests the schema v1 dataset_builder.build() public API."""
 
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredField

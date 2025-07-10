@@ -208,7 +208,7 @@ class MDIODatasetBuilder:
         # Add a coordinate variable to the dataset
         self.add_variable(
             name=coord.name,
-            long_name=f"'{coord.name}' coordinate variable",
+            long_name=coord.long_name,
             dimensions=dimensions,  # dimension names (list[str])
             data_type=coord.data_type,
             compressor=compressor,
