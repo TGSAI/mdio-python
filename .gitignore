@@ -153,3 +153,5 @@ mdio1/*
 pytest-of-*
 tmp
 debugging/*
+
+test-data/*
