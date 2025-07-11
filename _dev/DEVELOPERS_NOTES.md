@@ -11,5 +11,6 @@ src/mdio/schemas/v1/dataset_serializer.py
 4. `fill_value` for StructuredType is set to null, but "AAAAAAAAAAAAAAAA" is expected
 
 ## TO DO:
-* Add more unit tests for internal functions
-* Add a trest comparing expected and actual .zmetadata for the serialized dataset 
+
+- Add more unit tests for internal functions
+- Add a trest comparing expected and actual .zmetadata for the serialized dataset

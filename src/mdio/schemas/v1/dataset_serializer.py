@@ -1,22 +1,23 @@
-import warnings
+"""Convert MDIO v1 schema Dataset to Xarray DataSet and write it in Zarr."""
+
 from collections.abc import Mapping
 
-import dask as dask
-import numcodecs as numcodecs
-import numpy as np
-import xarray as xr
-import zarr as zarr
+from dask import array as dask_array
+from numcodecs import Blosc as nc_Blosc
+from numpy import dtype as np_dtype
+from numpy import nan as np_nan
+from xarray import DataArray as xr_DataArray
+from xarray import Dataset as xr_Dataset
+from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
 try:
     # zfpy is an optional dependency for ZFP compression
     # It is not installed by default, so we check for its presence and import it only if available.
-    import zfpy as zfpy
-    from zfpy import ZFPY as zfpy_ZFPY
+    from zfpy import ZFPY as zfpy_ZFPY  # noqa: N811
 except ImportError:
-    zfpy = None
-    zfpy_ZFPY = None
+    zfpy_ZFPY = None  # noqa: N816
 
-from mdio.schemas.compressors import ZFP as mdio_ZFP
+from mdio.schemas.compressors import ZFP as mdio_ZFP  # noqa: N811
 from mdio.schemas.compressors import Blosc as mdio_Blosc
 from mdio.schemas.dimension import NamedDimension
 from mdio.schemas.dtype import ScalarType
@@ -35,12 +36,8 @@ def _get_all_named_dimensions(dataset: Dataset) -> dict[str, NamedDimension]:
                 if isinstance(d, NamedDimension):
                     all_named_dims[d.name] = d
                 else:
-                    # Skip, if this is a named reference
-                    # This should not be ever a case for the dataset generated with the dataset builder
-                    warnings.warn(
-                        f"Unsupported dimension type: {type(d)} in variable {v.name}. "
-                        "Expected NamedDimension."
-                    )
+                    # Never happens for the dataset generated with the dataset builder
+                    pass
     return all_named_dims
 
 
@@ -61,11 +58,7 @@ def _get_dimension_names(var: Variable) -> list[str]:
             if isinstance(d, NamedDimension):
                 dim_names.append(d.name)
             elif isinstance(d, str):
-                # This should not be ever a case for the dataset generated with the dataset builder
-                warnings.warn(
-                    f"Unsupported dimension type: 'str' in variable {var.name}. "
-                    "Expected NamedDimension."
-                )
+                # Never happens for the dataset generated with the dataset builder
                 dim_names.append(d)
             else:
                 err = f"Unsupported dimension type: {type(d)} in variable {var.name}"
@@ -87,13 +80,14 @@ def _get_coord_names(var: Variable) -> list[str]:
     return coord_names
 
 
-def _get_np_datatype(var: Variable) -> np.dtype:
+def _get_np_datatype(var: Variable) -> np_dtype:
     data_type = var.data_type
     if isinstance(data_type, ScalarType):
-        return np.dtype(data_type.value)
+        return np_dtype(data_type.value)
     if isinstance(data_type, StructuredType):
-        return np.dtype([(f.name, f.format.value) for f in data_type.fields])
-    raise TypeError(f"Unsupported data_type: {data_type}")
+        return np_dtype([(f.name, f.format.value) for f in data_type.fields])
+    err = f"Unsupported data type: {type(data_type)} in variable {var.name}"
+    raise TypeError(err)
 
 
 def _get_zarr_shape(var: Variable) -> tuple[int, ...]:
@@ -111,13 +105,13 @@ def _get_zarr_chunks(var: Variable) -> tuple[int, ...]:
 
 def _convert_compressor(
     compressor: mdio_Blosc | mdio_ZFP | None,
-) -> numcodecs.Blosc | zfpy_ZFPY | None:
+) -> nc_Blosc | zfpy_ZFPY | None:
     """Convert a compressor to a numcodecs compatible format."""
     if compressor is None:
         return None
 
     if isinstance(compressor, mdio_Blosc):
-        return numcodecs.Blosc(
+        return nc_Blosc(
             cname=compressor.algorithm.value,
             clevel=compressor.level,
             shuffle=compressor.shuffle.value,
@@ -142,9 +136,9 @@ def _convert_compressor(
 # Do we already have it somewhere in the codebase? I could not find it.
 fill_value_map = {
     ScalarType.BOOL: None,
-    ScalarType.FLOAT16: np.nan,
-    ScalarType.FLOAT32: np.nan,
-    ScalarType.FLOAT64: np.nan,
+    ScalarType.FLOAT16: np_nan,
+    ScalarType.FLOAT32: np_nan,
+    ScalarType.FLOAT64: np_nan,
     ScalarType.UINT8: 2**8 - 1,  # Max value for uint8
     ScalarType.UINT16: 2**16 - 1,  # Max value for uint16
     ScalarType.UINT32: 2**32 - 1,  # Max value for uint32
@@ -153,14 +147,15 @@ fill_value_map = {
     ScalarType.INT16: 2**15 - 1,  # Max value for int16
     ScalarType.INT32: 2**31 - 1,  # Max value for int32
     ScalarType.INT64: 2**63 - 1,  # Max value for int64
-    ScalarType.COMPLEX64: complex(np.nan, np.nan),
-    ScalarType.COMPLEX128: complex(np.nan, np.nan),
-    ScalarType.COMPLEX256: complex(np.nan, np.nan),
+    ScalarType.COMPLEX64: complex(np_nan, np_nan),
+    ScalarType.COMPLEX128: complex(np_nan, np_nan),
+    ScalarType.COMPLEX256: complex(np_nan, np_nan),
 }
 
 
-def get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
+def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
     """Get the fill value for a given data type.
+
     The Zarr fill_value is a scalar value providing the default value to use for
     uninitialized portions of the array, or null if no fill_value is to be used
     https://zarr-specs.readthedocs.io/en/latest/v2/v2.0.html
@@ -175,7 +170,7 @@ def get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
     return None
 
 
-def to_xarray_dataset(mdio_ds: Dataset) -> xr.DataArray:  # noqa: PLR0912
+def to_xarray_dataset(mdio_ds: Dataset) -> xr_DataArray:  # noqa: PLR0912
     """Build an XArray dataset with correct dimensions and dtypes.
 
     This function constructs the underlying data structure for an XArray dataset,
@@ -186,9 +181,6 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr.DataArray:  # noqa: PLR0912
 
     Returns:
         The constructed dataset with proper MDIO structure and metadata.
-
-    Raises:
-        TypeError: If an unsupported data type is encountered.
     """
     # See the xarray tutorial for more details on how to create datasets:
     # https://tutorial.xarray.dev/fundamentals/01.1_creating_data_structures.html
@@ -197,17 +189,17 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr.DataArray:  # noqa: PLR0912
     # all_coords = _get_all_coordinates(ds)
 
     # First pass: Build all variables
-    data_arrays: dict[str, xr.DataArray] = {}
+    data_arrays: dict[str, xr_DataArray] = {}
     for v in mdio_ds.variables:
         # Use dask array instead of numpy array for lazy evaluation
         shape = _get_zarr_shape(v)
         dtype = _get_np_datatype(v)
         chunks = _get_zarr_chunks(v)
-        arr = dask.array.zeros(shape, dtype=dtype, chunks=chunks)
+        arr = dask_array.zeros(shape, dtype=dtype, chunks=chunks)
 
         # Create a DataArray for the variable. We will set coords in the second pass
         dim_names = _get_dimension_names(v)
-        data_array = xr.DataArray(arr, dims=dim_names)
+        data_array = xr_DataArray(arr, dims=dim_names)
 
         # Add array attributes
         if v.metadata is not None:
@@ -224,15 +216,14 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr.DataArray:  # noqa: PLR0912
         # Compression:
         # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html#zarr-encoding
         # If you don't explicitly specify a compressor when creating a Zarr array, Z
-        # arr will use a default compressor based on the Zarr format version and the data type of your array.
-        # Zarr V2 (Default is Blosc).
+        # arr will use a default compressor based on the Zarr format version and the data
+        # type of your array. Zarr V2 (Default is Blosc).
         # Thus, if there is no compressor, we will explicitly set "compressor" to None.
         #
         # Create a custom chunk key encoding with "/" as separator
-        from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
         chunk_key_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
         encoding = {
-            "fill_value": get_fill_value(v.data_type),
+            "fill_value": _get_fill_value(v.data_type),
             "chunks": chunks,
             "chunk_key_encoding": chunk_key_encoding,
             # I was hoping the following would work, but it does not.
@@ -258,7 +249,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr.DataArray:  # noqa: PLR0912
         da = data_arrays[v.name]
         non_dim_coords_names = set(_get_coord_names(v)) - set(_get_dimension_names(v)) - {v.name}
         # Create and populate a dictionary {coord_name: DataArray for the coordinate}
-        non_dim_coords_dict: dict[str, xr.DataArray] = {}
+        non_dim_coords_dict: dict[str, xr_DataArray] = {}
         for name in non_dim_coords_names:
             non_dim_coords_dict[name] = data_arrays[name]
         if non_dim_coords_dict:
@@ -267,7 +258,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr.DataArray:  # noqa: PLR0912
             data_arrays[v.name] = da.assign_coords(non_dim_coords_dict)
 
     # Now let's create a dataset with all data arrays
-    xr_ds = xr.Dataset(data_arrays)
+    xr_ds = xr_Dataset(data_arrays)
     # Attach dataset metadata
     if mdio_ds.metadata is not None:
         xr_ds.attrs["apiVersion"] = mdio_ds.metadata.api_version
@@ -280,7 +271,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr.DataArray:  # noqa: PLR0912
 
 
 def to_zarr(
-    dataset: xr.Dataset,
+    dataset: xr_Dataset,
     store: str | None = None,
     *args: str | int | float | bool,
     **kwargs: Mapping[str, str | int | float | bool],

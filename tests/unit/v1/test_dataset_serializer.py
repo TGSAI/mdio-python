@@ -4,8 +4,6 @@
 # Thus, disable it for this file
 """Tests the schema v1 dataset_serializer public API."""
 
-import xarray as xr
-
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
@@ -14,7 +12,7 @@ from mdio.schemas.v1.dataset_serializer import to_zarr
 from .helpers import make_campos_3d_acceptance_dataset
 
 
-def test_to_xarray_dataset(capsys) -> None:
+def test_to_xarray_dataset() -> None:
     """Test building a complete dataset."""
     dataset = (
         MDIODatasetBuilder("test_dataset")
@@ -35,19 +33,18 @@ def test_to_xarray_dataset(capsys) -> None:
         .build()
     )
 
-    # with capsys.disabled():
-    xds: xr.Dataset = to_xarray_dataset(dataset)
+    xr_ds = to_xarray_dataset(dataset)
 
     file_name = "sample_dataset"
-    to_zarr(xds, f"test-data/{file_name}.zarr", mode="w")
+    to_zarr(xr_ds, f"test-data/{file_name}.zarr", mode="w")
 
 
-def test_campos_3d_acceptance_to_xarray_dataset(capsys) -> None:
+def test_campos_3d_acceptance_to_xarray_dataset() -> None:
     """Test building a complete dataset."""
     dataset = make_campos_3d_acceptance_dataset()
 
-    xds: xr.Dataset = to_xarray_dataset(dataset)
+    xr_ds = to_xarray_dataset(dataset)
 
     # file_name = "XYZ"
-    file_name = f"{xds.attrs['name']}"
-    to_zarr(xds, f"test-data/{file_name}.zarr", mode="w")
+    file_name = f"{xr_ds.attrs['name']}"
+    to_zarr(xr_ds, f"test-data/{file_name}.zarr", mode="w")
