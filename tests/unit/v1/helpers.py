@@ -241,6 +241,7 @@ def make_campos_3d_acceptance_dataset() -> Dataset:
     ds.add_variable(
         name="image_headers",
         dimensions=["inline", "crossline"],
+        coordinates=["cdp-x", "cdp-y"],
         data_type=StructuredType(
             fields=[
                 StructuredField(name="cdp-x", format=ScalarType.INT32),
@@ -254,122 +255,6 @@ def make_campos_3d_acceptance_dataset() -> Dataset:
                 chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[128, 128]))
             )
         ],
-        coordinates=["cdp-x", "cdp-y"],
     )
     return ds.build()
 
-
-def make_campos_3d_dataset() -> Dataset:
-    """Create in-memory campos_3d dataset."""
-    ds = MDIODatasetBuilder(
-        "campos_3d",
-        attributes=UserAttributes(
-            attributes={
-                "textHeader": [
-                    "C01 .......................... ",
-                    "C02 .......................... ",
-                    "C03 .......................... ",
-                ],
-                "foo": "bar",
-            }
-        ),
-    )
-
-    # Add dimensions
-    ds.add_dimension("inline", 256)
-    ds.add_dimension("crossline", 512)
-    ds.add_dimension("depth", 384)
-    ds.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
-    ds.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
-    ds.add_coordinate(
-        "depth",
-        dimensions=["depth"],
-        data_type=ScalarType.FLOAT64,
-        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
-    )
-    # Add coordinates
-    ds.add_coordinate(
-        "cdp-x",
-        dimensions=["inline", "crossline"],
-        data_type=ScalarType.FLOAT32,
-        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
-    )
-    ds.add_coordinate(
-        "cdp-y",
-        dimensions=["inline", "crossline"],
-        data_type=ScalarType.FLOAT32,
-        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
-    )
-
-    # Add image variable
-    ds.add_variable(
-        name="image",
-        dimensions=["inline", "crossline", "depth"],
-        data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
-        coordinates=["cdp-x", "cdp-y"],
-        metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128])
-                )
-            ),
-            StatisticsMetadata(
-                stats_v1=SummaryStatistics(
-                    count=100,
-                    sum=1215.1,
-                    sumSquares=125.12,
-                    min=5.61,
-                    max=10.84,
-                    histogram=CenteredBinHistogram(binCenters=[1, 2], counts=[10, 15]),
-                )
-            ),
-            UserAttributes(attributes={"fizz": "buzz", "UnitSystem": "Canonical"}),
-        ],
-    )
-    # Add velocity variable
-    ds.add_variable(
-        name="velocity",
-        dimensions=["inline", "crossline", "depth"],
-        data_type=ScalarType.FLOAT16,
-        coordinates=["cdp-x", "cdp-y"],
-        metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128])
-                )
-            ),
-            AllUnits(units_v1=SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)),
-        ],
-    )
-    # Add inline-optimized image variable
-    ds.add_variable(
-        name="image_inline",
-        long_name="inline optimized version of 3d_stack",
-        dimensions=["inline", "crossline", "depth"],
-        data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
-        coordinates=["cdp-x", "cdp-y"],
-        metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[4, 512, 512])
-                )
-            )
-        ],
-    )
-    # Add headers variable with structured dtype
-    ds.add_variable(
-        name="image_headers",
-        dimensions=["inline", "crossline"],
-        data_type=StructuredType(
-            fields=[
-                StructuredField(name="cdp-x", format=ScalarType.FLOAT32),
-                StructuredField(name="cdp-y", format=ScalarType.FLOAT32),
-                StructuredField(name="inline", format=ScalarType.UINT32),
-                StructuredField(name="crossline", format=ScalarType.UINT32),
-            ]
-        ),
-        coordinates=["cdp-x", "cdp-y"],
-    )
-    return ds.build()

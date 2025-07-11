@@ -12,7 +12,7 @@ from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import SpeedUnitEnum
 
-from .helpers import make_campos_3d_dataset
+from .helpers import make_campos_3d_acceptance_dataset
 from .helpers import validate_variable
 
 
@@ -49,7 +49,7 @@ def test_build() -> None:
 
 def test_build_campos_3d() -> None:  # noqa: PLR0915 Too many statements (57 > 50)
     """Test building a Campos 3D dataset with multiple variables and attributes."""
-    dataset = make_campos_3d_dataset()
+    dataset = make_campos_3d_acceptance_dataset()
 
     # Verify dataset structure
     assert dataset.metadata.name == "campos_3d"
@@ -75,7 +75,7 @@ def test_build_campos_3d() -> None:  # noqa: PLR0915 Too many statements (57 > 5
     )
 
     depth = validate_variable(
-        dataset, name="depth", dims=[("depth", 384)], coords=["depth"], dtype=ScalarType.FLOAT64
+        dataset, name="depth", dims=[("depth", 384)], coords=["depth"], dtype=ScalarType.UINT32
     )
     assert depth.metadata.units_v1.length == LengthUnitEnum.METER
 
@@ -146,10 +146,11 @@ def test_build_campos_3d() -> None:  # noqa: PLR0915 Too many statements (57 > 5
         coords=["cdp-x", "cdp-y"],
         dtype=StructuredType(
             fields=[
-                StructuredField(name="cdp-x", format=ScalarType.FLOAT32),
-                StructuredField(name="cdp-y", format=ScalarType.FLOAT32),
-                StructuredField(name="inline", format=ScalarType.UINT32),
-                StructuredField(name="crossline", format=ScalarType.UINT32),
+                StructuredField(name="cdp-x", format=ScalarType.INT32),
+                StructuredField(name="cdp-y", format=ScalarType.INT32),
+                StructuredField(name="elevation", format=ScalarType.FLOAT16),
+                StructuredField(name="some_scalar", format=ScalarType.FLOAT16),
             ]
         ),
     )
+    assert headers.metadata.chunk_grid.configuration.chunk_shape == [128, 128]
