@@ -157,7 +157,7 @@ def make_campos_3d_acceptance_dataset() -> Dataset:
     # Add dimensions
     ds.add_dimension("inline", 256)
     ds.add_dimension("crossline", 512)
-    ds.add_dimension("depth", 384) # data_type=ScalarType.UINT32, LengthUnitEnum.METER
+    ds.add_dimension("depth", 384)
     ds.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
     ds.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
     ds.add_coordinate(
@@ -251,14 +251,13 @@ def make_campos_3d_acceptance_dataset() -> Dataset:
         ),
         metadata_info=[
             ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[128, 128])
-                )
+                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[128, 128]))
             )
         ],
         coordinates=["cdp-x", "cdp-y"],
     )
     return ds.build()
+
 
 def make_campos_3d_dataset() -> Dataset:
     """Create in-memory campos_3d dataset."""
