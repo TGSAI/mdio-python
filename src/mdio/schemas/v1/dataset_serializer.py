@@ -170,8 +170,8 @@ def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
     if isinstance(data_type, ScalarType):
         return fill_value_map.get(data_type)
     if isinstance(data_type, StructuredType):
-        return "AAAAAAAAAAAAAAAA"  # BUG: this does not work!!!
-    if isinstance(data_type, str):
+        return tuple(fill_value_map.get(field.format) for field in data_type.fields)
+    if isinstance(data_type, str): 
         return ""
     # If we do not have a fill value for this type, use None
     return None
@@ -222,6 +222,12 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_DataArray:  # noqa: PLR0912
         # Create a custom chunk key encoding with "/" as separator
         chunk_key_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
         encoding = {
+            # Is this a bug in Zarr? For datatype:  
+            #   dtype([('cdp-x', '<i4'), ('cdp-y', '<i4'), ('elevation', '<f2'), ('some_scalar', '<f2')])
+            # I specify fill_value as 
+            #   (2147483647, 2147483647, nan, nan)
+            # But the fill_value stored in .zmetadata as
+            #    "fill_value": null
             "fill_value": _get_fill_value(v.data_type),
             "chunks": chunks,
             "chunk_key_encoding": chunk_key_encoding,

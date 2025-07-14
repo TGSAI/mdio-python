@@ -6,6 +6,7 @@
 
 import pytest
 from numpy import dtype as np_dtype
+from numpy import nan as np_nan
 from numpy import isnan as np_isnan
 
 from mdio.constants import fill_value_map
@@ -264,13 +265,16 @@ def test__get_fill_value() -> None:
         val = _get_fill_value(scalar_type)
         assert isinstance(val, complex)
         assert np_isnan(val.real)
-        assert np_isnan(val.imag)
+        assert np_isnan(val.imag)   
 
-    # Test 2: StructuredType - should return "AAAAAAAAAAAAAAAA"
-    field = StructuredField(name="test_field", format=ScalarType.FLOAT32)
-    structured_type = StructuredType(fields=[field])
+    # Test 2: StructuredType
+    f1 = StructuredField(name="cdp-x", format=ScalarType.INT32)
+    f2 = StructuredField(name="cdp-y", format=ScalarType.INT32)
+    f3 = StructuredField(name="elevation", format=ScalarType.FLOAT16)
+    f4 = StructuredField(name="some_scalar", format=ScalarType.FLOAT16)
+    structured_type = StructuredType(fields=[f1, f2, f3, f4])
     result_structured = _get_fill_value(structured_type)
-    assert result_structured == "AAAAAAAAAAAAAAAA"
+    assert result_structured == (2147483647, 2147483647, np_nan, np_nan)
 
     # Test 3: String type - should return empty string
     result_string = _get_fill_value("string_type")
@@ -378,5 +382,5 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path) -> None:  #
 
     xr_ds = to_xarray_dataset(dataset)
 
-    file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
+    file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=True)
     to_zarr(xr_ds, file_path, mode="w")
