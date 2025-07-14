@@ -4,15 +4,348 @@
 # Thus, disable it for this file
 """Tests the schema v1 dataset_serializer public API."""
 
+import pytest
+from numpy import dtype as np_dtype
+from numpy import isnan as np_isnan
+
+from mdio.constants import fill_value_map
+from mdio.schemas.chunk_grid import RegularChunkGrid
+from mdio.schemas.chunk_grid import RegularChunkShape
+from mdio.schemas.dimension import NamedDimension
 from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredField
+from mdio.schemas.dtype import StructuredType
+from mdio.schemas.metadata import ChunkGridMetadata
+from mdio.schemas.v1.dataset import Dataset
+from mdio.schemas.v1.dataset import DatasetInfo
 from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
+from mdio.schemas.v1.dataset_builder import _to_dictionary
+from mdio.schemas.v1.dataset_serializer import _convert_compressor
+from mdio.schemas.v1.dataset_serializer import _get_all_named_dimensions
+from mdio.schemas.v1.dataset_serializer import _get_coord_names
+from mdio.schemas.v1.dataset_serializer import _get_dimension_names
+from mdio.schemas.v1.dataset_serializer import _get_fill_value
+from mdio.schemas.v1.dataset_serializer import _get_np_datatype
+from mdio.schemas.v1.dataset_serializer import _get_zarr_chunks
+from mdio.schemas.v1.dataset_serializer import _get_zarr_shape
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.dataset_serializer import to_zarr
+from mdio.schemas.v1.variable import Coordinate
+from mdio.schemas.v1.variable import Variable
 
-from .helpers import make_campos_3d_acceptance_dataset
+from .helpers import make_seismic_poststack_3d_acceptance_dataset
+from .helpers import output_path
+
+try:
+    from zfpy import ZFPY as zfpy_ZFPY  # noqa: N811
+
+    HAS_ZFPY = True
+except ImportError:
+    zfpy_ZFPY = None  # noqa: N816
+    HAS_ZFPY = False
+
+from numcodecs import Blosc as nc_Blosc
+
+from mdio.schemas.compressors import ZFP as mdio_ZFP  # noqa: N811
+from mdio.schemas.compressors import Blosc as mdio_Blosc
+from mdio.schemas.compressors import BloscAlgorithm as mdio_BloscAlgorithm
+from mdio.schemas.compressors import BloscShuffle as mdio_BloscShuffle
+from mdio.schemas.compressors import ZFPMode as mdio_ZFPMode
 
 
-def test_to_xarray_dataset() -> None:
+def test__get_all_named_dimensions() -> None:
+    """Test _get_all_named_dimensions function."""
+    dim1 = NamedDimension(name="inline", size=100)
+    dim2 = NamedDimension(name="crossline", size=200)
+    dim3 = NamedDimension(name="depth", size=300)
+    v1 = Variable(name="named_dims", data_type=ScalarType.FLOAT32, dimensions=[dim1, dim2, dim3])
+    v2 = Variable(
+        name="string_dims",
+        data_type=ScalarType.FLOAT32,
+        dimensions=["inline", "crossline", "depth"],
+    )
+    v3 = Variable(name="unresolved_dims", data_type=ScalarType.FLOAT32, dimensions=["x", "y", "z"])
+    ds = Dataset(
+        variables=[v1, v2, v3],
+        metadata=_to_dictionary(
+            [
+                DatasetInfo(
+                    name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z"
+                )
+            ]
+        ),
+    )
+
+    all_dims = _get_all_named_dimensions(ds)
+    # Only 3 named dimensions could be resolved.
+    # The dimension names "x", "y', "z" are unresolvable.
+    assert set(all_dims) == {"inline", "crossline", "depth"}
+
+
+def test__get_dimension_names() -> None:
+    """Test _get_dimension_names function with various dimension types."""
+    dim1 = NamedDimension(name="inline", size=100)
+    dim2 = NamedDimension(name="crossline", size=200)
+
+    # Test case 1: Variable with NamedDimension
+    var_named_dims = Variable(
+        name="Variable with NamedDimension dimensions",
+        data_type=ScalarType.FLOAT32,
+        dimensions=[dim1, dim2],
+    )
+    assert set(_get_dimension_names(var_named_dims)) == {"inline", "crossline"}
+
+    # Test case 2: Variable with string dimensions
+    var_string_dims = Variable(
+        name="Variable with string dimensions",
+        data_type=ScalarType.FLOAT32,
+        dimensions=["x", "y", "z"],
+    )
+    assert set(_get_dimension_names(var_string_dims)) == {"x", "y", "z"}
+
+    # Test case 3: Mixed NamedDimension and string dimensions
+    # NOTE: mixing NamedDimension and string dimensions is not allowed by the Variable schema
+
+
+def test__get_coord_names() -> None:
+    """Comprehensive test for _get_coord_names function covering all scenarios."""
+    dim1 = NamedDimension(name="inline", size=100)
+    dim2 = NamedDimension(name="crossline", size=200)
+
+    # Test 1: Variable with Coordinate objects
+    coord1 = Coordinate(name="x_coord", dimensions=[dim1, dim2], data_type=ScalarType.FLOAT32)
+    coord2 = Coordinate(name="y_coord", dimensions=[dim1, dim2], data_type=ScalarType.FLOAT64)
+    variable_coords = Variable(
+        name="Variable with Coordinate objects",
+        data_type=ScalarType.FLOAT32,
+        dimensions=[dim1, dim2],
+        coordinates=[coord1, coord2],
+    )
+    assert set(_get_coord_names(variable_coords)) == {"x_coord", "y_coord"}
+
+    # Test 2: Variable with string coordinates
+    variable_strings = Variable(
+        name="Variable with string coordinates",
+        data_type=ScalarType.FLOAT32,
+        dimensions=[dim1, dim2],
+        coordinates=["lat", "lon", "time"],
+    )
+    assert set(_get_coord_names(variable_strings)) == {"lat", "lon", "time"}
+
+    # Test 3: Variable with mixed coordinate types
+    # NOTE: mixing Coordinate objects and coordinate name strings is not allowed by the
+    # Variable schema
+
+
+def test__get_np_datatype() -> None:
+    """Comprehensive test for _get_np_datatype function."""
+    # Test 1: ScalarType cases - all supported scalar types
+    scalar_type_tests = [
+        (ScalarType.FLOAT32, "float32"),
+        (ScalarType.FLOAT64, "float64"),
+        (ScalarType.INT8, "int8"),
+        (ScalarType.INT16, "int16"),
+        (ScalarType.INT32, "int32"),
+        (ScalarType.INT64, "int64"),
+        (ScalarType.UINT8, "uint8"),
+        (ScalarType.UINT16, "uint16"),
+        (ScalarType.UINT32, "uint32"),
+        (ScalarType.UINT64, "uint64"),
+        (ScalarType.COMPLEX64, "complex64"),
+        (ScalarType.COMPLEX128, "complex128"),
+        (ScalarType.BOOL, "bool"),
+    ]
+
+    for scalar_type, expected_numpy_type in scalar_type_tests:
+        variable = Variable(name="test_var", dimensions=[], data_type=scalar_type)
+
+        result = _get_np_datatype(variable)
+        expected = np_dtype(expected_numpy_type)
+
+        assert result == expected
+        assert isinstance(result, np_dtype)
+        assert result.name == expected.name
+
+    # Test 2: StructuredType with multiple fields
+    multi_fields = [
+        StructuredField(name="x", format=ScalarType.FLOAT64),
+        StructuredField(name="y", format=ScalarType.FLOAT64),
+        StructuredField(name="z", format=ScalarType.FLOAT64),
+        StructuredField(name="id", format=ScalarType.INT32),
+        StructuredField(name="valid", format=ScalarType.BOOL),
+    ]
+    structured_multi = StructuredType(fields=multi_fields)
+
+    variable_multi_struct = Variable(
+        name="multi_struct_var", dimensions=[], data_type=structured_multi
+    )
+
+    result_multi = _get_np_datatype(variable_multi_struct)
+    expected_multi = np_dtype(
+        [("x", "float64"), ("y", "float64"), ("z", "float64"), ("id", "int32"), ("valid", "bool")]
+    )
+
+    assert result_multi == expected_multi
+    assert isinstance(result_multi, np_dtype)
+    assert len(result_multi.names) == 5
+    assert set(result_multi.names) == {"x", "y", "z", "id", "valid"}
+
+
+def test__get_zarr_shape() -> None:
+    """Test for _get_zarr_shape function."""
+    d1 = NamedDimension(name="inline", size=100)
+    d2 = NamedDimension(name="crossline", size=200)
+    d3 = NamedDimension(name="depth", size=300)
+
+    v = Variable(name="seismic 3d var", data_type=ScalarType.FLOAT32, dimensions=[d1, d2, d3])
+    assert _get_zarr_shape(v, all_named_dims=[d1, d2, d3]) == (100, 200, 300)
+
+
+def test__get_zarr_chunks() -> None:
+    """Test for _get_zarr_chunks function."""
+    d1 = NamedDimension(name="inline", size=100)
+    d2 = NamedDimension(name="crossline", size=200)
+    d3 = NamedDimension(name="depth", size=300)
+
+    # Test 1: Variable with chunk defined in metadata
+    v = Variable(
+        name="seismic 3d var",
+        data_type=ScalarType.FLOAT32,
+        dimensions=[d1, d2, d3],
+        metadata=_to_dictionary(
+            ChunkGridMetadata(
+                chunk_grid=RegularChunkGrid(
+                    configuration=RegularChunkShape(chunk_shape=[10, 20, 30])
+                )
+            )
+        ),
+    )
+    assert _get_zarr_chunks(v, all_named_dims=[d1, d2, d3]) == (10, 20, 30)
+
+    # Test 2: Variable with no chunks defined
+    v = Variable(name="seismic 3d var", data_type=ScalarType.FLOAT32, dimensions=[d1, d2, d3])
+    assert _get_zarr_chunks(v, all_named_dims=[d1, d2, d3]) == (100, 200, 300)
+
+
+def test__get_fill_value() -> None:
+    """Test for _get_fill_value function."""
+    # Test 1: ScalarType cases - should return values from fill_value_map
+    scalar_types = [
+        ScalarType.BOOL,
+    ]
+    for scalar_type in scalar_types:
+        assert _get_fill_value(scalar_type) is None
+
+    scalar_types = [
+        ScalarType.FLOAT16,
+        ScalarType.FLOAT32,
+        ScalarType.FLOAT64,
+    ]
+    for scalar_type in scalar_types:
+        assert np_isnan(_get_fill_value(scalar_type))
+
+    scalar_types = [
+        ScalarType.UINT8,
+        ScalarType.UINT16,
+        ScalarType.UINT32,
+        ScalarType.INT8,
+        ScalarType.INT16,
+        ScalarType.INT32,
+    ]
+    for scalar_type in scalar_types:
+        assert fill_value_map[scalar_type] == _get_fill_value(scalar_type)
+
+    scalar_types = [
+        ScalarType.COMPLEX64,
+        ScalarType.COMPLEX128,
+        ScalarType.COMPLEX256,
+    ]
+    for scalar_type in scalar_types:
+        val = _get_fill_value(scalar_type)
+        assert isinstance(val, complex)
+        assert np_isnan(val.real)
+        assert np_isnan(val.imag)
+
+    # Test 2: StructuredType - should return "AAAAAAAAAAAAAAAA"
+    field = StructuredField(name="test_field", format=ScalarType.FLOAT32)
+    structured_type = StructuredType(fields=[field])
+    result_structured = _get_fill_value(structured_type)
+    assert result_structured == "AAAAAAAAAAAAAAAA"
+
+    # Test 3: String type - should return empty string
+    result_string = _get_fill_value("string_type")
+    assert result_string == ""
+
+    # Test 4: Unknown type - should return None
+    result_none = _get_fill_value(42)  # Invalid type
+    assert result_none is None
+
+    # Test 5: None input - should return None
+    result_none_input = _get_fill_value(None)
+    assert result_none_input is None
+
+
+def test__convert_compressor() -> None:
+    """Simple test for _convert_compressor function covering basic scenarios."""
+    # Test 1: None input - should return None
+    result_none = _convert_compressor(None)
+    assert result_none is None
+
+    # Test 2: mdio_Blosc compressor - should return nc_Blosc
+    result_blosc = _convert_compressor(
+        mdio_Blosc(
+            algorithm=mdio_BloscAlgorithm.LZ4,
+            level=5,
+            shuffle=mdio_BloscShuffle.AUTOSHUFFLE,
+            blocksize=1024,
+        )
+    )
+    assert isinstance(result_blosc, nc_Blosc)
+    assert result_blosc.cname == "lz4"  # BloscAlgorithm.LZ4.value
+    assert result_blosc.clevel == 5
+    assert result_blosc.shuffle == -1  # BloscShuffle.UTOSHUFFLE = -1
+    assert result_blosc.blocksize == 1024
+
+    # Test 3: mdio_Blosc with blocksize 0 - should use 0 as blocksize
+    result_blosc_zero = _convert_compressor(
+        mdio_Blosc(
+            algorithm=mdio_BloscAlgorithm.ZSTD,
+            level=3,
+            shuffle=mdio_BloscShuffle.AUTOSHUFFLE,
+            blocksize=0,
+        )
+    )
+    assert isinstance(result_blosc_zero, nc_Blosc)
+    assert result_blosc_zero.blocksize == 0
+
+    # Test 4: mdio_ZFP compressor - should return zfpy_ZFPY if available
+    zfp_compressor = mdio_ZFP(mode=mdio_ZFPMode.FIXED_RATE, tolerance=0.01, rate=8.0, precision=16)
+
+    if HAS_ZFPY:
+        result_zfp = _convert_compressor(zfp_compressor)
+        assert isinstance(result_zfp, zfpy_ZFPY)
+        assert result_zfp.mode == 1  # ZFPMode.FIXED_RATE.value = "fixed_rate"
+        assert result_zfp.tolerance == 0.01
+        assert result_zfp.rate == 8.0
+        assert result_zfp.precision == 16
+    else:
+        # Test 5: mdio_ZFP without zfpy installed - should raise ImportError
+        with pytest.raises(ImportError) as exc_info:
+            _convert_compressor(zfp_compressor)
+
+        error_message = str(exc_info.value)
+        assert "zfpy and numcodecs are required to use ZFP compression" in error_message
+
+    # Test 6: Unsupported compressor type - should raise TypeError
+    unsupported_compressor = "invalid_compressor"
+    with pytest.raises(TypeError) as exc_info:
+        _convert_compressor(unsupported_compressor)
+    error_message = str(exc_info.value)
+    assert "Unsupported compressor model" in error_message
+    assert "<class 'str'>" in error_message
+
+
+def test_to_xarray_dataset(tmp_path) -> None:  # noqa: ANN001 - tmp_path is a pytest fixture
     """Test building a complete dataset."""
     dataset = (
         MDIODatasetBuilder("test_dataset")
@@ -35,16 +368,15 @@ def test_to_xarray_dataset() -> None:
 
     xr_ds = to_xarray_dataset(dataset)
 
-    file_name = "sample_dataset"
-    to_zarr(xr_ds, f"test-data/{file_name}.zarr", mode="w")
+    file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
+    to_zarr(xr_ds, file_path, mode="w")
 
 
-def test_campos_3d_acceptance_to_xarray_dataset() -> None:
+def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path) -> None:  # noqa: ANN001
     """Test building a complete dataset."""
-    dataset = make_campos_3d_acceptance_dataset()
+    dataset = make_seismic_poststack_3d_acceptance_dataset()
 
     xr_ds = to_xarray_dataset(dataset)
 
-    # file_name = "XYZ"
-    file_name = f"{xr_ds.attrs['name']}"
-    to_zarr(xr_ds, f"test-data/{file_name}.zarr", mode="w")
+    file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
+    to_zarr(xr_ds, file_path, mode="w")

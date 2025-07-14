@@ -5,7 +5,6 @@ from collections.abc import Mapping
 from dask import array as dask_array
 from numcodecs import Blosc as nc_Blosc
 from numpy import dtype as np_dtype
-from numpy import nan as np_nan
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
@@ -17,6 +16,7 @@ try:
 except ImportError:
     zfpy_ZFPY = None  # noqa: N816
 
+from mdio.constants import fill_value_map
 from mdio.schemas.compressors import ZFP as mdio_ZFP  # noqa: N811
 from mdio.schemas.compressors import Blosc as mdio_Blosc
 from mdio.schemas.dimension import NamedDimension
@@ -29,6 +29,26 @@ from mdio.schemas.v1.variable import Variable
 
 
 def _get_all_named_dimensions(dataset: Dataset) -> dict[str, NamedDimension]:
+    """Get all NamedDimensions from the dataset variables.
+
+    This function returns a dictionary of NamedDimensions, but if some dimensions
+    are not resolvable, they will not be included in the result.
+
+    Args:
+        dataset: The MDIO Dataset to extract NamedDimensions from.
+
+    Note:
+        The Dataset Builder ensures that all dimensions are resolvable by always embedding
+        dimensions as NamedDimension and never as str.
+        If the dataset is created in a different way, some dimensions may be specified as
+        dimension names (str) instead of NamedDimension. In this case, we will try to resolve
+        them to NamedDimension, but if the dimension is not found, it will be skipped.
+        It is the responsibility of the Dataset creator to ensure that all dimensions are
+        resolvable at the Dataset level.
+
+    Returns:
+        A dictionary mapping dimension names to NamedDimension instances.
+    """
     all_named_dims: dict[str, NamedDimension] = {}
     for v in dataset.variables:
         if v.dimensions is not None:
@@ -36,37 +56,30 @@ def _get_all_named_dimensions(dataset: Dataset) -> dict[str, NamedDimension]:
                 if isinstance(d, NamedDimension):
                     all_named_dims[d.name] = d
                 else:
-                    # Never happens for the dataset generated with the dataset builder
                     pass
     return all_named_dims
 
 
-def _get_all_coordinates(dataset: Dataset) -> dict[str, Coordinate]:
-    all_coords: dict[str, Coordinate] = {}
-    for v in dataset.variables:
-        if v.coordinates is not None:
-            for c in v.coordinates:
-                if isinstance(c, Coordinate) and c.name not in all_coords:
-                    all_coords[c.name] = c
-    return all_coords
-
-
 def _get_dimension_names(var: Variable) -> list[str]:
+    """Get the names of dimensions for a variable.
+
+    Note:
+        We expect that Datasets produced by DatasetBuilder has all dimensions
+        embedded as NamedDimension, but we also support dimension name strings for
+        compatibility with Dataset produced in a different way.
+    """
     dim_names: list[str] = []
     if var.dimensions is not None:
         for d in var.dimensions:
             if isinstance(d, NamedDimension):
                 dim_names.append(d.name)
             elif isinstance(d, str):
-                # Never happens for the dataset generated with the dataset builder
                 dim_names.append(d)
-            else:
-                err = f"Unsupported dimension type: {type(d)} in variable {var.name}"
-                raise TypeError(err)
     return dim_names
 
 
 def _get_coord_names(var: Variable) -> list[str]:
+    """Get the names of coordinates for a variable."""
     coord_names: list[str] = []
     if var.coordinates is not None:
         for c in var.coordinates:
@@ -74,13 +87,11 @@ def _get_coord_names(var: Variable) -> list[str]:
                 coord_names.append(c.name)
             elif isinstance(c, str):
                 coord_names.append(c)
-            else:
-                err = f"Unsupported coordinate type: {type(c)} in variable {var.name}"
-                raise TypeError(err)
     return coord_names
 
 
 def _get_np_datatype(var: Variable) -> np_dtype:
+    """Get the numpy dtype for a variable."""
     data_type = var.data_type
     if isinstance(data_type, ScalarType):
         return np_dtype(data_type.value)
@@ -90,17 +101,33 @@ def _get_np_datatype(var: Variable) -> np_dtype:
     raise TypeError(err)
 
 
-def _get_zarr_shape(var: Variable) -> tuple[int, ...]:
-    # NOTE: This assumes that the variable dimensions are all NamedDimension
-    return tuple(dim.size for dim in var.dimensions)
+def _get_zarr_shape(var: Variable, all_named_dims: dict[str, NamedDimension]) -> tuple[int, ...]:
+    """Get the shape of a variable for Zarr storage.
+
+    Note:
+        We expect that Datasets produced by DatasetBuilder has all dimensions
+        embedded as NamedDimension, but we also support dimension name strings for
+        compatibility with Dataset produced in a different way.
+    """
+    shape: list[int] = []
+    for dim in var.dimensions:
+        if isinstance(dim, NamedDimension):
+            shape.append(dim.size)
+        if isinstance(dim, str):
+            named_dim = all_named_dims.get(dim)
+            if named_dim is None:
+                err = f"Dimension named '{dim}' can't be resolved to a NamedDimension."
+                raise ValueError(err)
+            shape.append(named_dim.size)
+    return tuple(shape)
 
 
-def _get_zarr_chunks(var: Variable) -> tuple[int, ...]:
+def _get_zarr_chunks(var: Variable, all_named_dims: dict[str, NamedDimension]) -> tuple[int, ...]:
     """Get the chunk shape for a variable, defaulting to its shape if no chunk grid is defined."""
     if var.metadata is not None and var.metadata.chunk_grid is not None:
-        return var.metadata.chunk_grid.configuration.chunk_shape
+        return tuple(var.metadata.chunk_grid.configuration.chunk_shape)
     # Default to full shape if no chunk grid is defined
-    return _get_zarr_shape(var)
+    return _get_zarr_shape(var, all_named_dims=all_named_dims)
 
 
 def _convert_compressor(
@@ -131,26 +158,6 @@ def _convert_compressor(
 
     msg = f"Unsupported compressor model: {type(compressor)}"
     raise TypeError(msg)
-
-
-# Do we already have it somewhere in the codebase? I could not find it.
-fill_value_map = {
-    ScalarType.BOOL: None,
-    ScalarType.FLOAT16: np_nan,
-    ScalarType.FLOAT32: np_nan,
-    ScalarType.FLOAT64: np_nan,
-    ScalarType.UINT8: 2**8 - 1,  # Max value for uint8
-    ScalarType.UINT16: 2**16 - 1,  # Max value for uint16
-    ScalarType.UINT32: 2**32 - 1,  # Max value for uint32
-    ScalarType.UINT64: 2**64 - 1,  # Max value for uint64
-    ScalarType.INT8: 2**7 - 1,  # Max value for int8
-    ScalarType.INT16: 2**15 - 1,  # Max value for int16
-    ScalarType.INT32: 2**31 - 1,  # Max value for int32
-    ScalarType.INT64: 2**63 - 1,  # Max value for int64
-    ScalarType.COMPLEX64: complex(np_nan, np_nan),
-    ScalarType.COMPLEX128: complex(np_nan, np_nan),
-    ScalarType.COMPLEX256: complex(np_nan, np_nan),
-}
 
 
 def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
@@ -185,16 +192,15 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_DataArray:  # noqa: PLR0912
     # See the xarray tutorial for more details on how to create datasets:
     # https://tutorial.xarray.dev/fundamentals/01.1_creating_data_structures.html
 
-    # all_dims = _get_all_named_dimensions(ds)
-    # all_coords = _get_all_coordinates(ds)
+    all_named_dims = _get_all_named_dimensions(mdio_ds)
 
     # First pass: Build all variables
     data_arrays: dict[str, xr_DataArray] = {}
     for v in mdio_ds.variables:
         # Use dask array instead of numpy array for lazy evaluation
-        shape = _get_zarr_shape(v)
+        shape = _get_zarr_shape(v, all_named_dims=all_named_dims)
         dtype = _get_np_datatype(v)
-        chunks = _get_zarr_chunks(v)
+        chunks = _get_zarr_chunks(v, all_named_dims=all_named_dims)
         arr = dask_array.zeros(shape, dtype=dtype, chunks=chunks)
 
         # Create a DataArray for the variable. We will set coords in the second pass
@@ -213,30 +219,12 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_DataArray:  # noqa: PLR0912
         if v.long_name:
             data_array.attrs["long_name"] = v.long_name
 
-        # Compression:
-        # https://docs.xarray.dev/en/stable/internals/zarr-encoding-spec.html#zarr-encoding
-        # If you don't explicitly specify a compressor when creating a Zarr array, Z
-        # arr will use a default compressor based on the Zarr format version and the data
-        # type of your array. Zarr V2 (Default is Blosc).
-        # Thus, if there is no compressor, we will explicitly set "compressor" to None.
-        #
         # Create a custom chunk key encoding with "/" as separator
         chunk_key_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
         encoding = {
             "fill_value": _get_fill_value(v.data_type),
             "chunks": chunks,
             "chunk_key_encoding": chunk_key_encoding,
-            # I was hoping the following would work, but it does not.
-            # I see:
-            #    >_compressor = parse_compressor(compressor[0])
-            #    > return numcodecs.get_codec(data)
-            #    E - numcodecs.errors.UnknownCodecError: codec not available: 'None'"
-            # Example: https://zarr.readthedocs.io/en/stable/user-guide/arrays.html#compressors
-            # from zarr.codecs import BloscCodec
-            # compressor = BloscCodec(cname="zstd", clevel=3, shuffle="shuffle")
-            #
-            # "compressor": _to_dictionary(v.compressor)
-            # Thus, we will call the conversion function:
             "compressor": _convert_compressor(v.compressor),
         }
         data_array.encoding = encoding
@@ -276,14 +264,27 @@ def to_zarr(
     *args: str | int | float | bool,
     **kwargs: Mapping[str, str | int | float | bool],
 ) -> None:
-    """Write an XArray dataset to Zarr format."""
-    # MDIO only supports zarr_format=2
+    """Write an XArray dataset to Zarr format.
+
+    Args:
+        dataset: The XArray dataset to write.
+        store: The Zarr store to write to. If None, defaults to in-memory store.
+        *args: Additional positional arguments for the Zarr store.
+        **kwargs: Additional keyword arguments for the Zarr store.
+
+    Notes:
+        It sets the zarr_format to 2, which is the default for XArray datasets.
+        Since we set kwargs["compute"], this method will return a dask.delayed.Delayed object
+        and the arrays will not be immediately written.
+
+    References:
+            https://docs.xarray.dev/en/stable/user-guide/io.html
+            https://docs.xarray.dev/en/latest/generated/xarray.DataArray.to_zarr.html
+
+    Returns:
+        None: The function writes the dataset as dask.delayed.Delayed object to the
+        specified Zarr store.
+    """
     kwargs["zarr_format"] = 2
-    # compute: default: True) – If True write array data immediately,
-    # otherwise return a dask.delayed.Delayed object that can be computed
-    # to write array data later.
-    # *** Metadata is always updated eagerly. ***
     kwargs["compute"] = False
-    # https://docs.xarray.dev/en/stable/user-guide/io.html
-    # https://docs.xarray.dev/en/latest/generated/xarray.DataArray.to_zarr.html
     return dataset.to_zarr(*args, store=store, **kwargs)

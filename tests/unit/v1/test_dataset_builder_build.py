@@ -12,7 +12,7 @@ from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import SpeedUnitEnum
 
-from .helpers import make_campos_3d_acceptance_dataset
+from .helpers import make_seismic_poststack_3d_acceptance_dataset
 from .helpers import validate_variable
 
 
@@ -47,9 +47,9 @@ def test_build() -> None:
     assert next(v for v in dataset.variables if v.name == "data") is not None
 
 
-def test_build_campos_3d() -> None:  # noqa: PLR0915 Too many statements (57 > 50)
-    """Test building a Campos 3D dataset with multiple variables and attributes."""
-    dataset = make_campos_3d_acceptance_dataset()
+def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR0915 Too many statements (57 > 50)
+    """Test building a Seismic PostStack 3D Acceptance dataset."""
+    dataset = make_seismic_poststack_3d_acceptance_dataset()
 
     # Verify dataset structure
     assert dataset.metadata.name == "campos_3d"

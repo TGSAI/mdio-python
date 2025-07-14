@@ -129,6 +129,7 @@ def _get_coordinate(
 
 
 def _get_all_coordinates(dataset: Dataset) -> list[Coordinate]:
+    """Get all coordinates from the dataset."""
     all_coords: dict[str, Coordinate] = {}
     for v in dataset.variables:
         if v.coordinates is not None:
@@ -138,8 +139,24 @@ def _get_all_coordinates(dataset: Dataset) -> list[Coordinate]:
     return list(all_coords.values())
 
 
-def make_campos_3d_acceptance_dataset() -> Dataset:
-    """Create in-memory campos_3d dataset."""
+def output_path(file_dir: str, file_name: str, debugging: bool = False) -> str:
+    """Generate the output path for the test file-system output.
+
+    Note:
+        Use debugging=True, if you need to retain the created files for debugging
+        purposes. Otherwise, the files will be created in-memory and not saved to disk.
+    """
+    if debugging:
+        # Use the following for debugging:
+        file_path = f"{file_dir}/mdio-tests/{file_name}.zarr"
+    else:
+        # Use the following for normal runs:
+        file_path = f"memory://path_to_zarr/mdio-tests/{file_name}.zarr"
+    return file_path
+
+
+def make_seismic_poststack_3d_acceptance_dataset() -> Dataset:
+    """Create in-memory Seismic PostStack 3D Acceptance dataset."""
     ds = MDIODatasetBuilder(
         "campos_3d",
         attributes=UserAttributes(
@@ -257,4 +274,3 @@ def make_campos_3d_acceptance_dataset() -> Dataset:
         ],
     )
     return ds.build()
-
