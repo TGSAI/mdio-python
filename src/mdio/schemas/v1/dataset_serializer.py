@@ -2,11 +2,12 @@
 
 from collections.abc import Mapping
 
-from dask import array as dask_array
+import numpy as np
 from numcodecs import Blosc as nc_Blosc
 from numpy import dtype as np_dtype
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
+from zarr import zeros as zarr_zeros
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
 try:
@@ -90,15 +91,14 @@ def _get_coord_names(var: Variable) -> list[str]:
     return coord_names
 
 
-def _get_np_datatype(var: Variable) -> np_dtype:
+def _get_np_datatype(data_type: ScalarType | StructuredType) -> np_dtype:
     """Get the numpy dtype for a variable."""
-    data_type = var.data_type
     if isinstance(data_type, ScalarType):
         return np_dtype(data_type.value)
     if isinstance(data_type, StructuredType):
         return np_dtype([(f.name, f.format.value) for f in data_type.fields])
-    err = f"Unsupported data type: {type(data_type)} in variable {var.name}"
-    raise TypeError(err)
+    msg = f"Expected ScalarType or StructuredType, got {type(data_type).__name__}"
+    raise ValueError(msg)
 
 
 def _get_zarr_shape(var: Variable, all_named_dims: dict[str, NamedDimension]) -> tuple[int, ...]:
@@ -170,8 +170,9 @@ def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
     if isinstance(data_type, ScalarType):
         return fill_value_map.get(data_type)
     if isinstance(data_type, StructuredType):
-        return tuple(fill_value_map.get(field.format) for field in data_type.fields)
-    if isinstance(data_type, str): 
+        d_type = _get_np_datatype(data_type)
+        return np.zeros((), dtype=d_type)
+    if isinstance(data_type, str):
         return ""
     # If we do not have a fill value for this type, use None
     return None
@@ -186,6 +187,10 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_DataArray:  # noqa: PLR0912
     Args:
         mdio_ds: The source MDIO dataset to construct from.
 
+    Notes:
+        - We can't use Dask (e.g., dask_array.zeros) because of the problems with
+          structured type support. We will uze zarr.zeros instead
+
     Returns:
         The constructed dataset with proper MDIO structure and metadata.
     """
@@ -197,15 +202,16 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_DataArray:  # noqa: PLR0912
     # First pass: Build all variables
     data_arrays: dict[str, xr_DataArray] = {}
     for v in mdio_ds.variables:
-        # Use dask array instead of numpy array for lazy evaluation
         shape = _get_zarr_shape(v, all_named_dims=all_named_dims)
-        dtype = _get_np_datatype(v)
+        dtype = _get_np_datatype(v.data_type)
         chunks = _get_zarr_chunks(v, all_named_dims=all_named_dims)
-        arr = dask_array.zeros(shape, dtype=dtype, chunks=chunks)
 
+        # Use zarr.zeros to create an empty array with the specified shape and dtype
+        # NOTE: zarr_format=2 is essential, to_zarr() will fail if zarr_format=2 is used
+        data = zarr_zeros(shape=shape, dtype=dtype, zarr_format=2)
         # Create a DataArray for the variable. We will set coords in the second pass
         dim_names = _get_dimension_names(v)
-        data_array = xr_DataArray(arr, dims=dim_names)
+        data_array = xr_DataArray(data, dims=dim_names)
 
         # Add array attributes
         if v.metadata is not None:
@@ -222,13 +228,8 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_DataArray:  # noqa: PLR0912
         # Create a custom chunk key encoding with "/" as separator
         chunk_key_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
         encoding = {
-            # Is this a bug in Zarr? For datatype:  
-            #   dtype([('cdp-x', '<i4'), ('cdp-y', '<i4'), ('elevation', '<f2'), ('some_scalar', '<f2')])
-            # I specify fill_value as 
-            #   (2147483647, 2147483647, nan, nan)
-            # But the fill_value stored in .zmetadata as
-            #    "fill_value": null
-            "fill_value": _get_fill_value(v.data_type),
+            # NOTE: See Zarr documentation on use of fill_value and _FillValue in Zarr v2 vs v3
+            "_FillValue": _get_fill_value(v.data_type),
             "chunks": chunks,
             "chunk_key_encoding": chunk_key_encoding,
             "compressor": _convert_compressor(v.compressor),

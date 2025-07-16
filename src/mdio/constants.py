@@ -45,14 +45,14 @@ fill_value_map = {
     ScalarType.FLOAT16: np_nan,
     ScalarType.FLOAT32: np_nan,
     ScalarType.FLOAT64: np_nan,
-    ScalarType.UINT8: 2**8 - 1,  # Max value for uint8
-    ScalarType.UINT16: 2**16 - 1,  # Max value for uint16
-    ScalarType.UINT32: 2**32 - 1,  # Max value for uint32
-    ScalarType.UINT64: 2**64 - 1,  # Max value for uint64
-    ScalarType.INT8: 2**7 - 1,  # Max value for int8
-    ScalarType.INT16: 2**15 - 1,  # Max value for int16
-    ScalarType.INT32: 2**31 - 1,  # Max value for int32
-    ScalarType.INT64: 2**63 - 1,  # Max value for int64
+    ScalarType.UINT8: UINT8_MAX,
+    ScalarType.UINT16: UINT16_MAX,
+    ScalarType.UINT32: UINT32_MAX,
+    ScalarType.UINT64: UINT64_MAX,
+    ScalarType.INT8: INT8_MAX,
+    ScalarType.INT16: INT16_MAX,
+    ScalarType.INT32: INT32_MAX,
+    ScalarType.INT64: INT64_MAX,
     ScalarType.COMPLEX64: complex(np_nan, np_nan),
     ScalarType.COMPLEX128: complex(np_nan, np_nan),
     ScalarType.COMPLEX256: complex(np_nan, np_nan),

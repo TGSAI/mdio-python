@@ -5,9 +5,13 @@
 """Tests the schema v1 dataset_serializer public API."""
 
 import pytest
+from dask import array as dask_array
+from numpy import array as np_array
 from numpy import dtype as np_dtype
-from numpy import nan as np_nan
 from numpy import isnan as np_isnan
+from numpy import zeros as np_zeros
+from xarray import DataArray as xr_DataArray
+from zarr import zeros as zarr_zeros
 
 from mdio.constants import fill_value_map
 from mdio.schemas.chunk_grid import RegularChunkGrid
@@ -158,9 +162,7 @@ def test__get_np_datatype() -> None:
     ]
 
     for scalar_type, expected_numpy_type in scalar_type_tests:
-        variable = Variable(name="test_var", dimensions=[], data_type=scalar_type)
-
-        result = _get_np_datatype(variable)
+        result = _get_np_datatype(scalar_type)
         expected = np_dtype(expected_numpy_type)
 
         assert result == expected
@@ -176,12 +178,7 @@ def test__get_np_datatype() -> None:
         StructuredField(name="valid", format=ScalarType.BOOL),
     ]
     structured_multi = StructuredType(fields=multi_fields)
-
-    variable_multi_struct = Variable(
-        name="multi_struct_var", dimensions=[], data_type=structured_multi
-    )
-
-    result_multi = _get_np_datatype(variable_multi_struct)
+    result_multi = _get_np_datatype(structured_multi)
     expected_multi = np_dtype(
         [("x", "float64"), ("y", "float64"), ("z", "float64"), ("id", "int32"), ("valid", "bool")]
     )
@@ -254,7 +251,8 @@ def test__get_fill_value() -> None:
         ScalarType.INT32,
     ]
     for scalar_type in scalar_types:
-        assert fill_value_map[scalar_type] == _get_fill_value(scalar_type)
+        fill_value = _get_fill_value(scalar_type)
+        assert fill_value_map[scalar_type] == fill_value
 
     scalar_types = [
         ScalarType.COMPLEX64,
@@ -265,7 +263,7 @@ def test__get_fill_value() -> None:
         val = _get_fill_value(scalar_type)
         assert isinstance(val, complex)
         assert np_isnan(val.real)
-        assert np_isnan(val.imag)   
+        assert np_isnan(val.imag)
 
     # Test 2: StructuredType
     f1 = StructuredField(name="cdp-x", format=ScalarType.INT32)
@@ -273,8 +271,15 @@ def test__get_fill_value() -> None:
     f3 = StructuredField(name="elevation", format=ScalarType.FLOAT16)
     f4 = StructuredField(name="some_scalar", format=ScalarType.FLOAT16)
     structured_type = StructuredType(fields=[f1, f2, f3, f4])
-    result_structured = _get_fill_value(structured_type)
-    assert result_structured == (2147483647, 2147483647, np_nan, np_nan)
+
+    expected = np_array(
+        (0, 0, 0.0, 0.0),
+        dtype=np_dtype(
+            [("cdp-x", "<i4"), ("cdp-y", "<i4"), ("elevation", "<f2"), ("some_scalar", "<f2")]
+        ),
+    )
+    result = _get_fill_value(structured_type)
+    assert expected == result
 
     # Test 3: String type - should return empty string
     result_string = _get_fill_value("string_type")
@@ -382,5 +387,107 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path) -> None:  #
 
     xr_ds = to_xarray_dataset(dataset)
 
-    file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=True)
+    file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     to_zarr(xr_ds, file_path, mode="w")
+
+
+@pytest.mark.skip(reason="Issues serializing dask arrays of structured types to dask.")
+def test_to_zarr_dask(tmp_path) -> None:  # noqa: ANN001
+    """Test writing XArray dataset with data as dask array to Zar."""
+    # Create a data type and the fill value
+    dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
+    dtype_fill_value = np_zeros((), dtype=dtype)
+
+    # Use '_FillValue' instead of 'fill_value'
+    # 'fill_value' is not a valid encoding key in Zarr v2
+    my_attr_encoding = {
+        "_FillValue": dtype_fill_value,
+        "chunk_key_encoding": {"name": "v2", "separator": "/"},
+    }
+
+    # Create a dask array using the data type
+    # Do not specify encoding as the array attribute
+    data = dask_array.zeros((36,), dtype=dtype, chunks=(36,))
+    aa = xr_DataArray(name="myattr", data=data)
+
+    # Specify encoding per array
+    encoding = {"myattr": my_attr_encoding}
+    file_path = output_path(tmp_path, "to_zarr/zarr_dask", debugging=False)
+    aa.to_zarr(file_path, mode="w", zarr_format=2, encoding=encoding, compute=False)
+
+
+def test_to_zarr_zarr_zerros_1(tmp_path) -> None:  # noqa: ANN001
+    """Test writing XArray dataset with data as Zarr zero array to Zar.
+
+    Set encoding in as DataArray attributes
+    """
+    # Create a data type and the fill value
+    dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
+    dtype_fill_value = np_zeros((), dtype=dtype)
+
+    # Use '_FillValue' instead of 'fill_value'
+    # 'fill_value' is not a valid encoding key in Zarr v2
+    my_attr_encoding = {
+        "_FillValue": dtype_fill_value,
+        "chunk_key_encoding": {"name": "v2", "separator": "/"},
+    }
+
+    # Create a zarr array using the data type,
+    # Specify encoding as the array attribute
+    data = zarr_zeros((36, 36), dtype=dtype, zarr_format=2)
+    aa = xr_DataArray(name="myattr", data=data)
+    aa.encoding = my_attr_encoding
+
+    file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_1", debugging=False)
+    aa.to_zarr(file_path, mode="w", zarr_format=2, compute=False)
+
+
+def test_to_zarr_zarr_zerros_2(tmp_path) -> None:  # noqa: ANN001
+    """Test writing XArray dataset with data as Zarr zero array to Zar.
+
+    Set encoding in the to_zar method
+    """
+    # Create a data type and the fill value
+    dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
+    dtype_fill_value = np_zeros((), dtype=dtype)
+
+    # Use '_FillValue' instead of 'fill_value'
+    # 'fill_value' is not a valid encoding key in Zarr v2
+    my_attr_encoding = {
+        "_FillValue": dtype_fill_value,
+        "chunk_key_encoding": {"name": "v2", "separator": "/"},
+    }
+
+    # Create a zarr array using the data type,
+    # Do not specify encoding as the array attribute
+    data = zarr_zeros((36, 36), dtype=dtype, zarr_format=2)
+    aa = xr_DataArray(name="myattr", data=data)
+
+    file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_2", debugging=False)
+    # Specify encoding per array
+    encoding = {"myattr": my_attr_encoding}
+    aa.to_zarr(file_path, mode="w", zarr_format=2, encoding=encoding, compute=False)
+
+
+def test_to_zarr_np(tmp_path) -> None:  # noqa: ANN001
+    """Test writing XArray dataset with data as NumPy array to Zar."""
+    # Create a data type and the fill value
+    dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
+    dtype_fill_value = np_zeros((), dtype=dtype)
+
+    # Use '_FillValue' instead of 'fill_value'
+    # 'fill_value' is not a valid encoding key in Zarr v2
+    my_attr_encoding = {
+        "_FillValue": dtype_fill_value,
+        "chunk_key_encoding": {"name": "v2", "separator": "/"},
+    }
+
+    # Create a zarr array using the data type
+    # Do not specify encoding as the array attribute
+    data = np_zeros((36, 36), dtype=dtype)
+    aa = xr_DataArray(name="myattr", data=data)
+
+    file_path = output_path(tmp_path, "to_zarr/zarr_np", debugging=False)
+    # Specify encoding per array
+    encoding = {"myattr": my_attr_encoding}
+    aa.to_zarr(file_path, mode="w", zarr_format=2, encoding=encoding, compute=False)
