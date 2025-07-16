@@ -97,7 +97,7 @@ def _get_np_datatype(data_type: ScalarType | StructuredType) -> np_dtype:
         return np_dtype(data_type.value)
     if isinstance(data_type, StructuredType):
         return np_dtype([(f.name, f.format.value) for f in data_type.fields])
-    msg = f"Expected ScalarType or StructuredType, got {type(data_type).__name__}"
+    msg = f"Expected ScalarType or StructuredType, got '{type(data_type).__name__}'"
     raise ValueError(msg)
 
 

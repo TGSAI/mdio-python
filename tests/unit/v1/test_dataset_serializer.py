@@ -160,6 +160,9 @@ def test__get_np_datatype() -> None:
         (ScalarType.COMPLEX128, "complex128"),
         (ScalarType.BOOL, "bool"),
     ]
+    err = "Expected ScalarType or StructuredType, got 'str'"
+    with pytest.raises(ValueError, match=err):
+        _get_np_datatype("parameter of invalid type")
 
     for scalar_type, expected_numpy_type in scalar_type_tests:
         result = _get_np_datatype(scalar_type)
@@ -194,9 +197,24 @@ def test__get_zarr_shape() -> None:
     d1 = NamedDimension(name="inline", size=100)
     d2 = NamedDimension(name="crossline", size=200)
     d3 = NamedDimension(name="depth", size=300)
+    all_named_dims = {"inline": d1, "crossline": d2, "depth": d3}
+    v1 = Variable(name="named dims var", data_type=ScalarType.FLOAT32, dimensions=[d1, d2, d3])
+    v2 = Variable(
+        name="str var", data_type=ScalarType.FLOAT32, dimensions=["inline", "crossline", "depth"]
+    )
+    Dataset(
+        variables=[v1, v2],
+        metadata=_to_dictionary(
+            [
+                DatasetInfo(
+                    name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z"
+                )
+            ]
+        ),
+    )
 
-    v = Variable(name="seismic 3d var", data_type=ScalarType.FLOAT32, dimensions=[d1, d2, d3])
-    assert _get_zarr_shape(v, all_named_dims=[d1, d2, d3]) == (100, 200, 300)
+    assert _get_zarr_shape(v1, all_named_dims) == (100, 200, 300)
+    assert _get_zarr_shape(v2, all_named_dims) == (100, 200, 300)
 
 
 def test__get_zarr_chunks() -> None:
@@ -341,7 +359,6 @@ def test__convert_compressor() -> None:
         # Test 5: mdio_ZFP without zfpy installed - should raise ImportError
         with pytest.raises(ImportError) as exc_info:
             _convert_compressor(zfp_compressor)
-
         error_message = str(exc_info.value)
         assert "zfpy and numcodecs are required to use ZFP compression" in error_message
 
