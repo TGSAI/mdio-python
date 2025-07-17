@@ -1,13 +1,16 @@
 """Unit tests for Seismic3DPreStackCDPTemplate."""
 
+from tests.unit.v1.helpers import validate_variable
+
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.dtype import ScalarType
-from mdio.schemas.v1.dataset_builder import _get_named_dimension
 from mdio.schemas.v1.templates.seismic_3d_prestack_cdp import Seismic3DPreStackCDPTemplate
-
-from mdio.schemas.v1.units import AllUnits, LengthUnitEnum, LengthUnitModel, TimeUnitEnum, TimeUnitModel
-from tests.unit.v1.helpers import validate_variable
+from mdio.schemas.v1.units import AllUnits
+from mdio.schemas.v1.units import LengthUnitEnum
+from mdio.schemas.v1.units import LengthUnitModel
+from mdio.schemas.v1.units import TimeUnitEnum
+from mdio.schemas.v1.units import TimeUnitModel
 
 _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
@@ -16,10 +19,10 @@ _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 class TestSeismic3DPreStackCDPTemplate:
     """Unit tests for Seismic3DPreStackCDPTemplate."""
 
-    def test_configuration_depth(self):
+    def test_configuration_depth(self) -> None:
         """Unit tests for Seismic3DPreStackCDPTemplate."""
         t = Seismic3DPreStackCDPTemplate(domain="DEPTH")
-        
+
         # Template attributes for prestack CDP
         assert t._trace_domain == "depth"
         assert t._coord_dim_names == ["inline", "crossline"]
@@ -38,15 +41,15 @@ class TestSeismic3DPreStackCDPTemplate:
         assert attrs.attributes == {
             "surveyDimensionality": "3D",
             "ensembleType": "cdp",
-            "processingStage": "pre-stack"
+            "processingStage": "pre-stack",
         }
 
         assert t.get_name() == "PreStackCdpGathers3DDepth"
 
-    def test_configuration_time(self):
+    def test_configuration_time(self) -> None:
         """Unit tests for Seismic3DPreStackCDPTemplate."""
         t = Seismic3DPreStackCDPTemplate(domain="TIME")
-        
+
         # Template attributes for prestack CDP
         assert t._trace_domain == "time"
         assert t._coord_dim_names == ["inline", "crossline"]
@@ -65,12 +68,12 @@ class TestSeismic3DPreStackCDPTemplate:
         assert attrs.attributes == {
             "surveyDimensionality": "3D",
             "ensembleType": "cdp",
-            "processingStage": "pre-stack"
+            "processingStage": "pre-stack",
         }
 
         assert t.get_name() == "PreStackCdpGathers3DTime"
 
-    def test_domain_case_handling(self):
+    def test_domain_case_handling(self) -> None:
         """Test that domain parameter handles different cases correctly."""
         # Test uppercase
         t1 = Seismic3DPreStackCDPTemplate("ELEVATION")
@@ -82,8 +85,7 @@ class TestSeismic3DPreStackCDPTemplate:
         assert t2._trace_domain == "elevation"
         assert t2.get_name() == "PreStackCdpGathers3DElevation"
 
-
-    def test_build_dataset_depth(self):
+    def test_build_dataset_depth(self) -> None:
         """Unit tests for Seismic3DPreStackCDPDepthTemplate build with depth domain."""
         t = Seismic3DPreStackCDPTemplate(domain="depth")
 
@@ -91,7 +93,7 @@ class TestSeismic3DPreStackCDPTemplate:
         dataset = t.build_dataset(
             "North Sea 3D Prestack Depth",
             sizes=[512, 768, 36, 1536],
-            coord_units=[_UNIT_METER, _UNIT_METER]
+            coord_units=[_UNIT_METER, _UNIT_METER],
         )
 
         assert dataset.metadata.name == "North Sea 3D Prestack Depth"
@@ -126,7 +128,7 @@ class TestSeismic3DPreStackCDPTemplate:
         seismic = validate_variable(
             dataset,
             name="AmplitudeCDP",
-            dims=[("inline", 512), ("crossline", 768), ("offset",  36), ("depth", 1536)],
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36), ("depth", 1536)],
             coords=["cdp-x", "cdp-y"],
             dtype=ScalarType.FLOAT32,
         )
@@ -136,7 +138,7 @@ class TestSeismic3DPreStackCDPTemplate:
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
 
-    def test_build_dataset_time(self):
+    def test_build_dataset_time(self) -> None:
         """Unit tests for Seismic3DPreStackCDPTimeTemplate build with time domain."""
         t = Seismic3DPreStackCDPTemplate(domain="time")
 
@@ -144,7 +146,7 @@ class TestSeismic3DPreStackCDPTemplate:
         dataset = t.build_dataset(
             "Santos Basin 3D Prestack",
             sizes=[512, 768, 36, 1536],
-            coord_units=[_UNIT_METER, _UNIT_METER]
+            coord_units=[_UNIT_METER, _UNIT_METER],
         )
 
         assert dataset.metadata.name == "Santos Basin 3D Prestack"
@@ -179,7 +181,7 @@ class TestSeismic3DPreStackCDPTemplate:
         seismic = validate_variable(
             dataset,
             name="AmplitudeCDP",
-            dims=[("inline", 512), ("crossline", 768), ("offset",  36), ("time", 1536)],
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36), ("time", 1536)],
             coords=["cdp-x", "cdp-y"],
             dtype=ScalarType.FLOAT32,
         )
@@ -188,6 +190,3 @@ class TestSeismic3DPreStackCDPTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
-
-
-

@@ -1,10 +1,11 @@
+"""Seismic3DPostStackTemplate MDIO v1 dataset templates."""
+
 from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 
+
 class Seismic3DPostStackTemplate(AbstractDatasetTemplate):
-    """
-    Seismic post-stack 3D time or depth Dataset template.
-    """
+    """Seismic post-stack 3D time or depth Dataset template."""
 
     def __init__(self, domain: str):
         super().__init__(domain=domain)
@@ -19,12 +20,10 @@ class Seismic3DPostStackTemplate(AbstractDatasetTemplate):
         return f"PostStack3D{self._trace_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> UserAttributes:
-        return UserAttributes(attributes={
-            "surveyDimensionality": "3D",
-            "ensembleType": "line",
-            "processingStage": "post-stack"
-        })
-
-
-
-        
+        return UserAttributes(
+            attributes={
+                "surveyDimensionality": "3D",
+                "ensembleType": "line",
+                "processingStage": "post-stack",
+            }
+        )

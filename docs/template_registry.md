@@ -201,17 +201,17 @@ class TestMyFeature:
     def setup_method(self):
         """Reset singleton before each test."""
         TemplateRegistry.reset_instance()
-    
+
     def teardown_method(self):
         """Clean up after each test."""
         if TemplateRegistry._instance:
             TemplateRegistry._instance.clear()
         TemplateRegistry.reset_instance()
-    
+
     def test_template_registration(self):
         registry = TemplateRegistry()
         template = MyTemplate()
-        
+
         registry.register(template)
         assert registry.is_registered(template.get_name())
 ```
@@ -244,7 +244,7 @@ def setup_templates():
     print(f"Registered template named {template_name}")
     template_name = TemplateRegistry.register(Seismic3DPreStackTemplate())
     print(f"Registered template named {template_name}")
-    
+
     print(f"Registered templates: {list_templates()}")
 
 # Application startup
@@ -252,7 +252,7 @@ setup_standard_templates()
 
 # Later in the application
 template = TemplateRegistry().get_template("PostStack3DDepth")
-dataset = template.create_dataset(name="Campos 3d m/m/ft", 
+dataset = template.create_dataset(name="Campos 3d m/m/ft",
                                   sizes = [256, 512, 384]
                                   coord_units = [
                                     AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),
@@ -278,4 +278,3 @@ try:
 except ValueError as e:
     print(f"Error: {e}")  # "Template 'duplicate' is already registered."
 ```
-

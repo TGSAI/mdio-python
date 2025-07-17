@@ -1,14 +1,16 @@
 """Unit tests for Seismic3DPreStackShotTemplate."""
 
+from tests.unit.v1.helpers import validate_variable
+
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.dtype import ScalarType
-from mdio.schemas.v0 import dataset
-from mdio.schemas.v1.dataset_builder import _get_named_dimension
 from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
-
-from mdio.schemas.v1.units import AllUnits, LengthUnitEnum, LengthUnitModel, TimeUnitEnum, TimeUnitModel
-from tests.unit.v1.helpers import validate_variable
+from mdio.schemas.v1.units import AllUnits
+from mdio.schemas.v1.units import LengthUnitEnum
+from mdio.schemas.v1.units import LengthUnitModel
+from mdio.schemas.v1.units import TimeUnitEnum
+from mdio.schemas.v1.units import TimeUnitModel
 
 _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
@@ -17,7 +19,7 @@ _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 class TestSeismic3DPreStackShotTemplate:
     """Unit tests for Seismic3DPreStackShotTemplate."""
 
-    def test_configuration_depth(self):
+    def test_configuration_depth(self) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate in depth domain."""
         t = Seismic3DPreStackShotTemplate(domain="DEPTH")
 
@@ -39,15 +41,15 @@ class TestSeismic3DPreStackShotTemplate:
         assert attrs.attributes == {
             "surveyDimensionality": "3D",
             "ensembleType": "shot",
-            "processingStage": "pre-stack"
+            "processingStage": "pre-stack",
         }
 
         assert t.get_name() == "PreStackShotGathers3DDepth"
 
-    def test_configuration_time(self):
+    def test_configuration_time(self) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate in time domain."""
         t = Seismic3DPreStackShotTemplate(domain="TIME")
-        
+
         # Template attributes for prestack shot
         assert t._trace_domain == "time"
         assert t._coord_dim_names == []
@@ -66,12 +68,12 @@ class TestSeismic3DPreStackShotTemplate:
         assert attrs.attributes == {
             "surveyDimensionality": "3D",
             "ensembleType": "shot",
-            "processingStage": "pre-stack"
+            "processingStage": "pre-stack",
         }
 
         assert t.get_name() == "PreStackShotGathers3DTime"
 
-    def test_domain_case_handling(self):
+    def test_domain_case_handling(self) -> None:
         """Test that domain parameter handles different cases correctly."""
         # Test uppercase
         t1 = Seismic3DPreStackShotTemplate("ELEVATION")
@@ -83,7 +85,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert t2._trace_domain == "elevation"
         assert t2.get_name() == "PreStackShotGathers3DElevation"
 
-    def test_build_dataset_depth(self):
+    def test_build_dataset_depth(self) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in depth domain."""
         t = Seismic3DPreStackShotTemplate(domain="depth")
 
@@ -91,7 +93,7 @@ class TestSeismic3DPreStackShotTemplate:
         dataset = t.build_dataset(
             "Gulf of Mexico 3D Shot Depth",
             sizes=[256, 512, 24, 2048],
-            coord_units=[_UNIT_METER, _UNIT_METER] 
+            coord_units=[_UNIT_METER, _UNIT_METER],
         )
 
         assert dataset.metadata.name == "Gulf of Mexico 3D Shot Depth"
@@ -104,7 +106,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert len(dataset.variables) == 6
 
         # Verify coordinate variables
-        gun = validate_variable(
+        validate_variable(
             dataset,
             name="gun",
             dims=[("shot_point", 256)],
@@ -162,7 +164,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
 
-    def test_build_dataset_time(self):
+    def test_build_dataset_time(self) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in time domain."""
         t = Seismic3DPreStackShotTemplate(domain="time")
 
@@ -170,7 +172,7 @@ class TestSeismic3DPreStackShotTemplate:
         dataset = t.build_dataset(
             "North Sea 3D Shot Time",
             sizes=[256, 512, 24, 2048],
-            coord_units=[_UNIT_METER, _UNIT_METER] 
+            coord_units=[_UNIT_METER, _UNIT_METER],
         )
 
         assert dataset.metadata.name == "North Sea 3D Shot Time"
@@ -178,12 +180,12 @@ class TestSeismic3DPreStackShotTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "shot"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
-          # Verify variables (including dimension variables)
+        # Verify variables (including dimension variables)
         # 5 coordinate variables + 1 data variable = 6 variables
         assert len(dataset.variables) == 6
 
         # Verify coordinate variables
-        gun = validate_variable(
+        validate_variable(
             dataset,
             name="gun",
             dims=[("shot_point", 256)],
@@ -240,5 +242,3 @@ class TestSeismic3DPreStackShotTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
-
- 

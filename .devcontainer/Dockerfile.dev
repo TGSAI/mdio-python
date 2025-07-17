@@ -39,7 +39,7 @@ RUN python3 -m pip install --no-cache-dir uv==${UV_VERSION} nox==${NOX_VERSION}
 # Prevent uv from trying to create hard links, which does not work in a container
 # that mounts local file systems (e.g. VS Code Dev Containers)
 ENV UV_LINK_MODE=copy
-# Add path to the site-packages 
+# Add path to the site-packages
 ENV PYTHONUSERBASE=/home/$USERNAME/.local
 ENV PATH="$PYTHONUSERBASE/bin:$PATH"
 
@@ -56,12 +56,3 @@ RUN uv pip install -e .
 RUN uv sync --group dev
 # Now one can run:
 #    pre-commit run --all-files
-
-
-
-
-
-
-
-
-
