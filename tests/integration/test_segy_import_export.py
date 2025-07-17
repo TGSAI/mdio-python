@@ -272,8 +272,8 @@ class TestReader:
     def test_meta_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         mdio = MDIOReader(zarr_tmp.__str__())
-        assert mdio.binary_header["samples_per_trace"] == 1501  # noqa: PLR2004
-        assert mdio.binary_header["sample_interval"] == 2000  # noqa: PLR2004
+        assert mdio.binary_header["samples_per_trace"] == 1501
+        assert mdio.binary_header["sample_interval"] == 2000
 
     def test_grid(self, zarr_tmp: Path) -> None:
         """Grid reading tests."""
