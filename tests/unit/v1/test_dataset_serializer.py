@@ -1,5 +1,7 @@
 """Tests the schema v1 dataset_serializer public API."""
 
+from pathlib import Path
+
 import pytest
 from dask import array as dask_array
 from numpy import array as np_array
@@ -38,16 +40,16 @@ from .helpers import make_seismic_poststack_3d_acceptance_dataset
 from .helpers import output_path
 
 try:
-    from zfpy import ZFPY as zfpy_ZFPY  # noqa: N811
+    from zfpy import ZFPY
 
     HAS_ZFPY = True
 except ImportError:
-    zfpy_ZFPY = None  # noqa: N816
+    ZFPY = None
     HAS_ZFPY = False
 
 from numcodecs import Blosc as nc_Blosc
 
-from mdio.schemas.compressors import ZFP as mdio_ZFP  # noqa: N811
+from mdio.schemas.compressors import ZFP as MDIO_ZFP
 from mdio.schemas.compressors import Blosc as mdio_Blosc
 from mdio.schemas.compressors import BloscAlgorithm as mdio_BloscAlgorithm
 from mdio.schemas.compressors import BloscShuffle as mdio_BloscShuffle
@@ -342,11 +344,11 @@ def test__convert_compressor() -> None:
     assert result_blosc_zero.blocksize == 0
 
     # Test 4: mdio_ZFP compressor - should return zfpy_ZFPY if available
-    zfp_compressor = mdio_ZFP(mode=mdio_ZFPMode.FIXED_RATE, tolerance=0.01, rate=8.0, precision=16)
+    zfp_compressor = MDIO_ZFP(mode=mdio_ZFPMode.FIXED_RATE, tolerance=0.01, rate=8.0, precision=16)
 
     if HAS_ZFPY:
         result_zfp = _convert_compressor(zfp_compressor)
-        assert isinstance(result_zfp, zfpy_ZFPY)
+        assert isinstance(result_zfp, ZFPY)
         assert result_zfp.mode == 1  # ZFPMode.FIXED_RATE.value = "fixed_rate"
         assert result_zfp.tolerance == 0.01
         assert result_zfp.rate == 8.0
@@ -367,7 +369,7 @@ def test__convert_compressor() -> None:
     assert "<class 'str'>" in error_message
 
 
-def test_to_xarray_dataset(tmp_path) -> None:  # noqa: ANN001 - tmp_path is a pytest fixture
+def test_to_xarray_dataset(tmp_path: Path) -> None:
     """Test building a complete dataset."""
     dataset = (
         MDIODatasetBuilder("test_dataset")
@@ -394,7 +396,7 @@ def test_to_xarray_dataset(tmp_path) -> None:  # noqa: ANN001 - tmp_path is a py
     to_zarr(xr_ds, file_path, mode="w")
 
 
-def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path) -> None:  # noqa: ANN001
+def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> None:
     """Test building a complete dataset."""
     dataset = make_seismic_poststack_3d_acceptance_dataset()
 
@@ -405,8 +407,8 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path) -> None:  #
 
 
 @pytest.mark.skip(reason="Issues serializing dask arrays of structured types to dask.")
-def test_to_zarr_dask(tmp_path) -> None:  # noqa: ANN001
-    """Test writing XArray dataset with data as dask array to Zar."""
+def test_to_zarr_dask(tmp_path: Path) -> None:
+    """Test writing XArray dataset with data as dask array to Zarr."""
     # Create a data type and the fill value
     dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
@@ -429,8 +431,8 @@ def test_to_zarr_dask(tmp_path) -> None:  # noqa: ANN001
     aa.to_zarr(file_path, mode="w", zarr_format=2, encoding=encoding, compute=False)
 
 
-def test_to_zarr_zarr_zerros_1(tmp_path) -> None:  # noqa: ANN001
-    """Test writing XArray dataset with data as Zarr zero array to Zar.
+def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:
+    """Test writing XArray dataset with data as Zarr zero array to Zarr.
 
     Set encoding in as DataArray attributes
     """
@@ -455,8 +457,8 @@ def test_to_zarr_zarr_zerros_1(tmp_path) -> None:  # noqa: ANN001
     aa.to_zarr(file_path, mode="w", zarr_format=2, compute=False)
 
 
-def test_to_zarr_zarr_zerros_2(tmp_path) -> None:  # noqa: ANN001
-    """Test writing XArray dataset with data as Zarr zero array to Zar.
+def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
+    """Test writing XArray dataset with data as Zarr zero array to Zarr.
 
     Set encoding in the to_zar method
     """
@@ -482,8 +484,8 @@ def test_to_zarr_zarr_zerros_2(tmp_path) -> None:  # noqa: ANN001
     aa.to_zarr(file_path, mode="w", zarr_format=2, encoding=encoding, compute=False)
 
 
-def test_to_zarr_np(tmp_path) -> None:  # noqa: ANN001
-    """Test writing XArray dataset with data as NumPy array to Zar."""
+def test_to_zarr_from_np(tmp_path: Path) -> None:
+    """Test writing XArray dataset with data as NumPy array to Zarr."""
     # Create a data type and the fill value
     dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
