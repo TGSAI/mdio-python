@@ -17,7 +17,7 @@ class TestDimension:
 
     def test_len(self, my_dimension: Dimension) -> None:
         """Test length method."""
-        assert len(my_dimension) == 4  # noqa: PLR2004
+        assert len(my_dimension) == 4
 
     @pytest.mark.parametrize(("index", "expected"), [(1, 12), (-1, 16), (2, 14)])
     def test_getitem(self, my_dimension: Dimension, index: int, expected: int) -> None:
