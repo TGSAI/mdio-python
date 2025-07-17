@@ -1,0 +1,48 @@
+# HOW TO BUILD AND RUN THIS DOCKERFILE
+# * Clone mdio-python and build a Docker image:
+#      git clone https://github.com/TGSAI/mdio-python.git
+#      cd mdio-python
+#      docker build -t mdio-cli -f .devcontainer/Dockerfile.cli . 
+# * Run /bin/bash in the Docker container:
+#
+#
+# USAGE:
+#  docker run -it --rm --name mdio-cli mdio-cli --version
+#  docker run -it --rm --name mdio-cli mdio-cli --help
+#
+#  LOCAL_DATA_DIR=$(pwd); \
+#  docker run -it --rm -v $LOCAL_DATA_DIR:/DATA --name mdio-cli mdio-cli \
+#     segy import \
+#     /DATA/segy_file.segy \
+#     /DATA/mdio_file.mdio \
+#     -loc 181,185 \
+#     -names inline,crossline
+#
+#  LOCAL_DATA_DIR=$(pwd); \
+#  docker run -it --rm -v $LOCAL_DATA_DIR:/DATA --name mdio-cli mdio-cli \
+#     segy export \
+#     /DATA/mdio_file.mdio \
+#     /DATA/segy_file_copy.segy
+#
+FROM python:3.13-bookworm
+# Create the user (https://code.visualstudio.com/remote/advancedcontainers/add-nonroot-user)
+ENV USERNAME=python
+ENV USER_UID=1000
+ENV USER_GID=$USER_UID
+RUN groupadd --gid $USER_GID $USERNAME && useradd --uid $USER_UID --gid $USER_GID -m $USERNAME 
+
+# Set the default non-root user
+USER $USERNAME
+
+# Add path to the user-installed packages
+ENV PYTHONUSERBASE=/home/$USERNAME/.local
+ENV PATH="$PYTHONUSERBASE/bin:$PATH"
+
+COPY --chown=$USERNAME:$USERNAME ./ /home/$USERNAME/mdio-python
+
+WORKDIR /home/$USERNAME/mdio-python
+RUN pip install pre-commit ruff
+RUN pip install .
+
+ENTRYPOINT ["mdio"]
+CMD ["--version"]

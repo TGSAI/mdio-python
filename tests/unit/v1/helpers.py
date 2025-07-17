@@ -129,7 +129,7 @@ def _get_coordinate(
 
 
 def _get_all_coordinates(dataset: Dataset) -> list[Coordinate]:
-    """Get all coordinates from the dataset."""
+    """Get all Coordinates from the Dataset."""
     all_coords: dict[str, Coordinate] = {}
     for v in dataset.variables:
         if v.coordinates is not None:
