@@ -12,7 +12,7 @@ The `TemplateRegistry` implements the singleton pattern to ensure there's only o
 - **Thread Safety**: All operations are thread-safe using locks
 - **Case Insensitive**: Template names are normalized to lowercase
 - **Global Access**: Convenient global functions for common operations
-- **Testing Support**: Reset functionality for clean test isolation
+- **Advanced Support**: Reset functionality for environment re-usability.
 
 ## Usage
 
@@ -140,12 +140,6 @@ Alternative way to get the singleton instance.
 
 - **Returns:** The singleton registry instance
 
-#### `reset_instance() -> None`
-
-Resets the singleton instance. Useful for testing to ensure clean state.
-
-**Warning:** This should only be used in tests, not in production code.
-
 ### Global Functions
 
 #### `get_template_registry() -> TemplateRegistry`
@@ -189,33 +183,6 @@ for thread in threads:
     thread.join()
 ```
 
-## Testing
-
-For testing, you can reset the singleton to ensure clean state:
-
-```python
-import pytest
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
-
-class TestMyFeature:
-    def setup_method(self):
-        """Reset singleton before each test."""
-        TemplateRegistry.reset_instance()
-
-    def teardown_method(self):
-        """Clean up after each test."""
-        if TemplateRegistry._instance:
-            TemplateRegistry._instance.clear()
-        TemplateRegistry.reset_instance()
-
-    def test_template_registration(self):
-        registry = TemplateRegistry()
-        template = MyTemplate()
-
-        registry.register(template)
-        assert registry.is_registered(template.get_name())
-```
-
 ## Best Practices
 
 1. **Use Global Functions**: For simple operations, prefer the global convenience functions
@@ -252,7 +219,7 @@ setup_standard_templates()
 
 # Later in the application
 template = TemplateRegistry().get_template("PostStack3DDepth")
-dataset = template.create_dataset(name="Campos 3d m/m/ft",
+dataset = template.create_dataset(name="Seismic 3d m/m/ft",
                                   sizes = [256, 512, 384]
                                   coord_units = [
                                     AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),

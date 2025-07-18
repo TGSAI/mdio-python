@@ -45,10 +45,10 @@ def test_build() -> None:
 
 def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR0915 Too many statements (57 > 50)
     """Test building a Seismic PostStack 3D Acceptance dataset."""
-    dataset = make_seismic_poststack_3d_acceptance_dataset()
+    dataset = make_seismic_poststack_3d_acceptance_dataset("Seismic")
 
     # Verify dataset structure
-    assert dataset.metadata.name == "campos_3d"
+    assert dataset.metadata.name == "Seismic"
     assert dataset.metadata.api_version == "1.0.0a1"
     assert dataset.metadata.attributes["foo"] == "bar"
     assert len(dataset.metadata.attributes["textHeader"]) == 3

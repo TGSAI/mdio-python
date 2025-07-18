@@ -398,7 +398,7 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
 
 def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> None:
     """Test building a complete dataset."""
-    dataset = make_seismic_poststack_3d_acceptance_dataset()
+    dataset = make_seismic_poststack_3d_acceptance_dataset("Seismic")
 
     xr_ds = to_xarray_dataset(dataset)
 

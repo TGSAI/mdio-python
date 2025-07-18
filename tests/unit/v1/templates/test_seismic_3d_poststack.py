@@ -85,10 +85,10 @@ class TestSeismic3DPostStackTemplate:
 
         assert t.get_name() == "PostStack3DDepth"
         dataset = t.build_dataset(
-            "Campos 3D", sizes=[256, 512, 1024], coord_units=[_UNIT_METER, _UNIT_METER]
+            "Seismic 3D", sizes=[256, 512, 1024], coord_units=[_UNIT_METER, _UNIT_METER]
         )
 
-        assert dataset.metadata.name == "Campos 3D"
+        assert dataset.metadata.name == "Seismic 3D"
         assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
@@ -136,10 +136,10 @@ class TestSeismic3DPostStackTemplate:
 
         assert t.get_name() == "PostStack3DTime"
         dataset = t.build_dataset(
-            "Campos 3D", sizes=[256, 512, 1024], coord_units=[_UNIT_METER, _UNIT_METER]
+            "Seismic 3D", sizes=[256, 512, 1024], coord_units=[_UNIT_METER, _UNIT_METER]
         )
 
-        assert dataset.metadata.name == "Campos 3D"
+        assert dataset.metadata.name == "Seismic 3D"
         assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"

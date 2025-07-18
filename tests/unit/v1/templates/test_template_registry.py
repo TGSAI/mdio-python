@@ -41,13 +41,13 @@ class TestTemplateRegistrySingleton:
 
     def setup_method(self) -> None:
         """Reset singleton before each test."""
-        TemplateRegistry.reset_instance()
+        TemplateRegistry._reset_instance()
 
     def teardown_method(self) -> None:
         """Clean up after each test."""
         if TemplateRegistry._instance:
             TemplateRegistry._instance.clear()
-        TemplateRegistry.reset_instance()
+        TemplateRegistry._reset_instance()
 
     def test_singleton_same_instance(self) -> None:
         """Test that multiple instantiations return the same instance."""
@@ -214,7 +214,7 @@ class TestTemplateRegistrySingleton:
         registry1.register(template)
 
         # Reset the instance
-        TemplateRegistry.reset_instance()
+        TemplateRegistry._reset_instance()
 
         # New instance should be different and empty
         registry2 = TemplateRegistry()
@@ -229,13 +229,13 @@ class TestGlobalFunctions:
 
     def setup_method(self) -> None:
         """Reset singleton before each test."""
-        TemplateRegistry.reset_instance()
+        TemplateRegistry._reset_instance()
 
     def teardown_method(self) -> None:
         """Clean up after each test."""
         if TemplateRegistry._instance:
             TemplateRegistry._instance.clear()
-        TemplateRegistry.reset_instance()
+        TemplateRegistry._reset_instance()
 
     def test_get_template_registry(self) -> None:
         """Test global registry getter."""
@@ -275,13 +275,13 @@ class TestConcurrentAccess:
 
     def setup_method(self) -> None:
         """Reset singleton before each test."""
-        TemplateRegistry.reset_instance()
+        TemplateRegistry._reset_instance()
 
     def teardown_method(self) -> None:
         """Clean up after each test."""
         if TemplateRegistry._instance:
             TemplateRegistry._instance.clear()
-        TemplateRegistry.reset_instance()
+        TemplateRegistry._reset_instance()
 
     def test_concurrent_registration(self) -> None:
         """Test concurrent template registration."""

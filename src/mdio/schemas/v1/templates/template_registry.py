@@ -14,7 +14,13 @@ class TemplateRegistry:
     _initialized = False
 
     def __new__(cls) -> "TemplateRegistry":
-        """Create or return the singleton instance."""
+        """Create or return the singleton instance.
+
+        Uses double-checked locking pattern to ensure thread safety.
+
+        Returns:
+            The singleton instance of TemplateRegistry.
+        """
         if cls._instance is None:
             with cls._lock:
                 # Double-checked locking pattern
@@ -31,10 +37,16 @@ class TemplateRegistry:
                     TemplateRegistry._initialized = True
 
     def register(self, instance: AbstractDatasetTemplate) -> str:
-        """Register a template instance.
+        """Register a template instance by its name.
 
-        This method registers a template instance and returns its name.
-        If the template name is already registered, it raises a ValueError.
+        Args:
+            instance: An instance of template to register.
+
+        Returns:
+            The name of the registered template.
+
+        Raises:
+            ValueError: If the template name is already registered.
         """
         with self._registry_lock:
             name = instance.get_name().lower()
@@ -45,7 +57,17 @@ class TemplateRegistry:
         return name
 
     def get(self, template_name: str) -> AbstractDatasetTemplate:
-        """Get a registered template instance."""
+        """Get a template from the registry by its name.
+
+        Args:
+            template_name: The name of the template to retrieve.
+
+        Returns:
+            The template instance if found.
+
+        Raises:
+            KeyError: If the template is not registered.
+        """
         with self._registry_lock:
             name = template_name.lower()
             if name not in self._templates:
@@ -54,7 +76,14 @@ class TemplateRegistry:
             return self._templates[name]
 
     def unregister(self, template_name: str) -> None:
-        """Unregister a template instance."""
+        """Unregister a template from the registry.
+
+        Args:
+            template_name: The name of the template to unregister.
+
+        Raises:
+            KeyError: If the template is not registered.
+        """
         with self._registry_lock:
             name = template_name.lower()
             if name not in self._templates:
@@ -63,13 +92,24 @@ class TemplateRegistry:
             del self._templates[name]
 
     def is_registered(self, template_name: str) -> bool:
-        """Check if a template instance is registered."""
+        """Check if a template is registered in the registry.
+
+        Args:
+            template_name: The name of the template to check.
+
+        Returns:
+            True if the template is registered, False otherwise.
+        """
         with self._registry_lock:
             name = template_name.lower()
             return name in self._templates
 
     def list_all_templates(self) -> list[str]:
-        """Get all registered template names."""
+        """Get all registered template names.
+
+        Returns:
+            A list of all registered template names.
+        """
         with self._registry_lock:
             return list(self._templates.keys())
 
@@ -80,11 +120,15 @@ class TemplateRegistry:
 
     @classmethod
     def get_instance(cls) -> "TemplateRegistry":
-        """Get the singleton instance (alternative to constructor)."""
+        """Get the singleton instance (alternative to constructor).
+
+        Returns:
+            The singleton instance of TemplateRegistry.
+        """
         return cls()
 
     @classmethod
-    def reset_instance(cls) -> None:
+    def _reset_instance(cls) -> None:
         """Reset the singleton instance (useful for testing)."""
         with cls._lock:
             cls._instance = None
@@ -93,25 +137,54 @@ class TemplateRegistry:
 
 # Global convenience functions
 def get_template_registry() -> TemplateRegistry:
-    """Get the global template registry instance."""
+    """Get the global template registry instance.
+
+    Returns:
+        The singleton instance of TemplateRegistry.
+    """
     return TemplateRegistry.get_instance()
 
 
 def register_template(template: AbstractDatasetTemplate) -> str:
-    """Register a template in the global registry."""
+    """Register a template in the global registry.
+
+    Args:
+        template: An instance of AbstractDatasetTemplate to register.
+
+    Returns:
+        The name of the registered template.
+    """
     return get_template_registry().register(template)
 
 
 def get_template(name: str) -> AbstractDatasetTemplate:
-    """Get a template from the global registry."""
+    """Get a template from the global registry.
+
+    Args:
+        name: The name of the template to retrieve.
+
+    Returns:
+        The template instance if found.
+    """
     return get_template_registry().get(name)
 
 
 def is_template_registered(name: str) -> bool:
-    """Check if a template is registered in the global registry."""
+    """Check if a template is registered in the global registry.
+
+    Args:
+        name: The name of the template to check.
+
+    Returns:
+        True if the template is registered, False otherwise.
+    """
     return get_template_registry().is_registered(name)
 
 
 def list_templates() -> list[str]:
-    """List all registered template names."""
+    """List all registered template names.
+
+    Returns:
+        A list of all registered template names.
+    """
     return get_template_registry().list_all_templates()
