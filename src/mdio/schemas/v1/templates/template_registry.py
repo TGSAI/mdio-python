@@ -4,6 +4,10 @@ import threading
 from typing import Optional
 
 from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.schemas.v1.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
+from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
+from mdio.schemas.v1.templates.seismic_3d_prestack_cdp import Seismic3DPreStackCDPTemplate
+from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
 
 
 class TemplateRegistry:
@@ -34,6 +38,7 @@ class TemplateRegistry:
                 if not self._initialized:
                     self._templates: dict[str, AbstractDatasetTemplate] = {}
                     self._registry_lock = threading.RLock()
+                    self._register_default_templates()
                     TemplateRegistry._initialized = True
 
     def register(self, instance: AbstractDatasetTemplate) -> str:
@@ -49,12 +54,29 @@ class TemplateRegistry:
             ValueError: If the template name is already registered.
         """
         with self._registry_lock:
-            name = instance.get_name().lower()
+            name = instance.get_name()
             if name in self._templates:
                 err = f"Template '{name}' is already registered."
                 raise ValueError(err)
             self._templates[name] = instance
         return name
+
+    def _register_default_templates(self) -> None:
+        """Register default templates if needed.
+
+        This method can be overridden by subclasses to register default templates.
+        """
+        self.register(Seismic2DPostStackTemplate("time"))
+        self.register(Seismic2DPostStackTemplate("depth"))
+
+        self.register(Seismic3DPostStackTemplate("time"))
+        self.register(Seismic3DPostStackTemplate("depth"))
+
+        self.register(Seismic3DPreStackCDPTemplate("time"))
+        self.register(Seismic3DPreStackCDPTemplate("depth"))
+
+        self.register(Seismic3DPreStackShotTemplate("time"))
+        self.register(Seismic3DPreStackShotTemplate("depth"))
 
     def get(self, template_name: str) -> AbstractDatasetTemplate:
         """Get a template from the registry by its name.
@@ -69,7 +91,7 @@ class TemplateRegistry:
             KeyError: If the template is not registered.
         """
         with self._registry_lock:
-            name = template_name.lower()
+            name = template_name
             if name not in self._templates:
                 err = f"Template '{name}' is not registered."
                 raise KeyError(err)
@@ -85,7 +107,7 @@ class TemplateRegistry:
             KeyError: If the template is not registered.
         """
         with self._registry_lock:
-            name = template_name.lower()
+            name = template_name
             if name not in self._templates:
                 err_msg = f"Template '{name}' is not registered."
                 raise KeyError(err_msg)
@@ -101,7 +123,7 @@ class TemplateRegistry:
             True if the template is registered, False otherwise.
         """
         with self._registry_lock:
-            name = template_name.lower()
+            name = template_name
             return name in self._templates
 
     def list_all_templates(self) -> list[str]:

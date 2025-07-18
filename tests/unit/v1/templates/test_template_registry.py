@@ -146,34 +146,22 @@ class TestTemplateRegistrySingleton:
         with pytest.raises(KeyError, match="Template 'nonexistent' is not registered"):
             registry.unregister("nonexistent")
 
-    def test_case_insensitive_operations(self) -> None:
-        """Test that all operations are case-insensitive."""
-        registry = TemplateRegistry()
-        template = MockDatasetTemplate("Test_Template")
-
-        # Register template
-        registry.register(template)
-
-        # All these should work (case insensitive)
-        assert registry.is_registered("test_template")
-        assert registry.is_registered("TEST_TEMPLATE")
-        assert registry.is_registered("Test_Template")
-
-        # Get with different cases
-        assert registry.get("test_template") is template
-        assert registry.get("TEST_TEMPLATE") is template
-        assert registry.get("Test_Template") is template
-
-        # Unregister with different case
-        registry.unregister("TEST_TEMPLATE")
-        assert not registry.is_registered("test_template")
-
     def test_list_all_templates(self) -> None:
         """Test listing all registered templates."""
         registry = TemplateRegistry()
 
-        # Initially empty
-        assert registry.list_all_templates() == []
+        # Default templates are always installed
+        templates = list_templates()
+        assert len(templates) == 8
+        assert "PostStack2DTime" in templates
+        assert "PostStack3DTime" in templates
+        assert "PreStackCdpGathers3DTime" in templates
+        assert "PreStackShotGathers3DTime" in templates
+
+        assert "PostStack2DDepth" in templates
+        assert "PostStack3DDepth" in templates
+        assert "PreStackCdpGathers3DDepth" in templates
+        assert "PreStackShotGathers3DDepth" in templates
 
         # Add some templates
         template1 = MockDatasetTemplate("Template_One")
@@ -183,29 +171,42 @@ class TestTemplateRegistrySingleton:
         registry.register(template2)
 
         templates = registry.list_all_templates()
-        assert len(templates) == 2
-        assert "template_one" in templates
-        assert "template_two" in templates
+        assert len(templates) == 10
+        assert "Template_One" in templates
+        assert "Template_Two" in templates
 
     def test_clear_templates(self) -> None:
         """Test clearing all templates."""
         registry = TemplateRegistry()
 
+        # Default templates are always installed
+        templates = list_templates()
+        assert len(templates) == 8
+
         # Add some templates
-        template1 = MockDatasetTemplate("template1")
-        template2 = MockDatasetTemplate("template2")
+        template1 = MockDatasetTemplate("Template1")
+        template2 = MockDatasetTemplate("Template2")
 
         registry.register(template1)
         registry.register(template2)
 
-        assert len(registry.list_all_templates()) == 2
+        assert len(registry.list_all_templates()) == 10
 
         # Clear all
         registry.clear()
 
         assert len(registry.list_all_templates()) == 0
-        assert not registry.is_registered("template1")
-        assert not registry.is_registered("template2")
+        assert not registry.is_registered("Template1")
+        assert not registry.is_registered("Template2")
+        # default templates are also cleared
+        assert not registry.is_registered("PostStack2DTime")
+        assert not registry.is_registered("PostStack3DTime")
+        assert not registry.is_registered("PreStackCdpGathers3DTime")
+        assert not registry.is_registered("PreStackShotGathers3DTime")
+        assert not registry.is_registered("PostStack2DDepth")
+        assert not registry.is_registered("PostStack3DDepth")
+        assert not registry.is_registered("PreStackCdpGathers3DDepth")
+        assert not registry.is_registered("PreStackShotGathers3DDepth")
 
     def test_reset_instance(self) -> None:
         """Test resetting the singleton instance."""
@@ -216,12 +217,22 @@ class TestTemplateRegistrySingleton:
         # Reset the instance
         TemplateRegistry._reset_instance()
 
-        # New instance should be different and empty
+        # New instance should be different and contain default templates only
         registry2 = TemplateRegistry()
 
         assert registry1 is not registry2
         assert not registry2.is_registered("test")
-        assert len(registry2.list_all_templates()) == 0
+
+        # default templates are registered
+        assert len(registry2.list_all_templates()) == 8
+        assert registry2.is_registered("PostStack2DTime")
+        assert registry2.is_registered("PostStack3DTime")
+        assert registry2.is_registered("PreStackCdpGathers3DTime")
+        assert registry2.is_registered("PreStackShotGathers3DTime")
+        assert registry2.is_registered("PostStack2DDepth")
+        assert registry2.is_registered("PostStack3DDepth")
+        assert registry2.is_registered("PreStackCdpGathers3DDepth")
+        assert registry2.is_registered("PreStackShotGathers3DDepth")
 
 
 class TestGlobalFunctions:
@@ -258,6 +269,19 @@ class TestGlobalFunctions:
 
     def test_list_templates_global(self) -> None:
         """Test global template listing."""
+        # Default templates are always installed
+        templates = list_templates()
+        assert len(templates) == 8
+        assert "PostStack2DTime" in templates
+        assert "PostStack3DTime" in templates
+        assert "PreStackCdpGathers3DTime" in templates
+        assert "PreStackShotGathers3DTime" in templates
+
+        assert "PostStack2DDepth" in templates
+        assert "PostStack3DDepth" in templates
+        assert "PreStackCdpGathers3DDepth" in templates
+        assert "PreStackShotGathers3DDepth" in templates
+
         template1 = MockDatasetTemplate("template1")
         template2 = MockDatasetTemplate("template2")
 
@@ -265,7 +289,7 @@ class TestGlobalFunctions:
         register_template(template2)
 
         templates = list_templates()
-        assert len(templates) == 2
+        assert len(templates) == 10
         assert "template1" in templates
         assert "template2" in templates
 
@@ -310,7 +334,8 @@ class TestConcurrentAccess:
         # All registrations should succeed
         assert len(errors) == 0
         assert len(results) == 10
-        assert len(registry.list_all_templates()) == 10
+        # Including 8 default templates
+        assert len(registry.list_all_templates()) == 18
 
         # Check all templates are registered
         for i in range(10):

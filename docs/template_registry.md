@@ -10,9 +10,17 @@ The `TemplateRegistry` implements the singleton pattern to ensure there's only o
 
 - **Singleton Pattern**: Ensures only one registry instance exists
 - **Thread Safety**: All operations are thread-safe using locks
-- **Case Insensitive**: Template names are normalized to lowercase
 - **Global Access**: Convenient global functions for common operations
 - **Advanced Support**: Reset functionality for environment re-usability.
+- **Default Templates**: The registry is instantiated with the default set of templates:
+  - PostStack2DTime
+  - PostStack3DTime
+  - PreStackCdpGathers3DTime
+  - PreStackShotGathers3DTime
+  - PostStack2DDepth
+  - PostStack3DDepth
+  - PreStackCdpGathers3DDepth
+  - PreStackShotGathers3DDepth
 
 ## Usage
 
@@ -94,7 +102,7 @@ Registers a template instance and returns its normalized name.
 
 - **Parameters:**
   - `instance`: Template instance implementing `AbstractDatasetTemplate`
-- **Returns:** The normalized template name (lowercase)
+- **Returns:** The template name
 - **Raises:** `ValueError` if template name is already registered
 
 #### `get(template_name: str) -> AbstractDatasetTemplate`
@@ -126,7 +134,7 @@ Checks if a template is registered.
 
 Returns a list of all registered template names.
 
-- **Returns:** List of template names (in lowercase)
+- **Returns:** List of template names
 
 #### `clear() -> None`
 
@@ -187,9 +195,8 @@ for thread in threads:
 
 1. **Use Global Functions**: For simple operations, prefer the global convenience functions
 2. **Register Early**: Register all templates during application startup
-3. **Case Insensitive Names**: Template names are automatically normalized to lowercase
-4. **Thread Safety**: The registry is thread-safe, but individual templates may not be
-5. **Testing Isolation**: Always reset the singleton in test setup/teardown
+3. **Thread Safety**: The registry is thread-safe, but individual templates may not be
+4. **Testing Isolation**: Always reset the singleton in test setup/teardown
 
 ## Example: Complete Template Management
 
