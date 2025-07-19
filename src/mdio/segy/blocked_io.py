@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import multiprocessing as mp
 import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
@@ -48,22 +47,23 @@ def to_zarr(segy_file: SegyFile, grid: Grid, data_array: Array, header_array: Ar
     chunker = ChunkIterator(data_array, chunk_samples=False)
     num_chunks = len(chunker)
 
-    # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
-    # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
     num_workers = min(num_chunks, num_cpus)
-    context = mp.get_context("spawn")
-    executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
 
     # Chunksize here is for multiprocessing, not Zarr chunksize.
     pool_chunksize, extra = divmod(num_chunks, num_workers * 4)
     pool_chunksize += 1 if extra else pool_chunksize
 
+    segy_kw = {
+        "url": segy_file.fs.unstrip_protocol(segy_file.url),
+        "spec": segy_file.spec,
+        "settings": segy_file.settings,
+    }
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
-    with executor:
+    with ProcessPoolExecutor(max_workers=num_workers) as executor:
         lazy_work = executor.map(
             trace_worker,  # fn
-            repeat(segy_file),
+            repeat(segy_kw),
             repeat(data_array),
             repeat(header_array),
             repeat(grid),
