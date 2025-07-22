@@ -155,10 +155,10 @@ def output_path(file_dir: str, file_name: str, debugging: bool = False) -> str:
     return file_path
 
 
-def make_seismic_poststack_3d_acceptance_dataset() -> Dataset:
+def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
     """Create in-memory Seismic PostStack 3D Acceptance dataset."""
     ds = MDIODatasetBuilder(
-        "campos_3d",
+        dataset_name,
         attributes=UserAttributes(
             attributes={
                 "textHeader": [
