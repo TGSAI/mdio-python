@@ -178,7 +178,7 @@ def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
     return None
 
 
-def to_xarray_dataset(mdio_ds: Dataset) -> xr_DataArray:  # noqa: PLR0912
+def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
     """Build an XArray dataset with correct dimensions and dtypes.
 
     This function constructs the underlying data structure for an XArray dataset,
