@@ -2,12 +2,12 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/python
 {
   "build": {
-    "dockerfile": "Dockerfile",
+    "dockerfile": "Dockerfile.dev",
     "context": ".."
   },
   // Use 'postCreateCommand' to run commands after the container is created.
   "postCreateCommand": {
-    "post_create_script": "bash ./.devcontainer/post-install.sh"
+    // "post_create_script": "bash ./.devcontainer/post-install.sh"
   },
   // Forward 8787 to enable us to view dask dashboard
   "forwardPorts": [8787],
@@ -16,8 +16,9 @@
     // Configure properties specific to VS Code.
     "vscode": {
       "settings": {
-        "python.terminal.activateEnvInCurrentTerminal": true,
-        "python.defaultInterpreterPath": "/opt/venv/bin/python"
+        "python.testing.pytestArgs": ["tests"],
+        "python.testing.unittestEnabled": false,
+        "python.testing.pytestEnabled": true
       },
       "extensions": [
         "ms-python.python",
@@ -27,17 +28,19 @@
         "ms-toolsai.jupyter-renderers",
         "vscode-icons-team.vscode-icons",
         "wayou.vscode-todo-highlight",
-        "streetsidesoftware.code-spell-checker"
+        "streetsidesoftware.code-spell-checker",
+        "eamodio.gitlens",
+        "visualstudioexptteam.vscodeintellicode",
+        "richie5um2.vscode-sort-json"
       ]
     }
   },
   // Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
   // "remoteUser": "root",
   "updateRemoteUserUID": true,
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/mdio-python,type=bind",
+  "workspaceFolder": "/workspaces/mdio-python",
   "mounts": [
-    // Re-use local Git configuration
-    "source=${localEnv:HOME}/.gitconfig,target=/home/vscode/.gitconfig_tmp,type=bind,consistency=cached",
-    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig_tmp,type=bind,consistency=cached",
-    "source=${localEnv:SCRATCH_DIR}/${localEnv:USER},target=/scratch/,type=bind,consistency=cached"
+    // "source=${localWorkspaceFolder}/../DATA/,target=/DATA/,type=bind,consistency=cached"
   ]
 }
