@@ -1,8 +1,8 @@
 Dmitriy Repin - EPAM
-Could you please take a look at a rough sketch.  Maybe we could discuss this tomorrow at the stand up    src/mdio/converters/segy_to_mdio_v1.py  def segy_to_mdio_v1(      input: StorageLocation,      output: StorageLocation,      segy_spec: SegySpec,      mdio_template: AbstractDatasetTemplate,    …
-Here are my thoughts while looking at the sketch
- 
 
+## Comment 1
+Here are my thoughts while looking at the sketch:
+ 
 1. We should have a single point of entry for standard and custom schemas
 2. blocked_io.to_zarr will need some heavy modification
   We need to make sure coordinates are written in parallel with the primary Variable.  
@@ -13,11 +13,15 @@ Here are my thoughts while looking at the sketch
 4. to_zarr is getting to be very overloaded. My preference would be to rename this convenience function to_mdio
   It might make sense to check for kwarg compute before blindly setting to false
  
- 
+# Comment 1
+```
 grid_chunksize = None  # Q: Where do we get an initial value. Do we need to expose them from mdio_template?
+```
 Looks like this is only used in grid overrides (and rarely)? We may need to re-think how this is done. 
  
-# Validate the specified MDIO template matches the SegySpec (how?)
+```
+- Validate the specified MDIO template matches the SegySpec (how?)
+```
 I think we just need to ensure the dimension names and coordinate names are in the SegySpec. That should be enough I believe?
  
  

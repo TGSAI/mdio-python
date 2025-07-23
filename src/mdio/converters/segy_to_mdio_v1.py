@@ -54,6 +54,7 @@ def segy_to_mdio_v1(
     # TODO: Set Units to None for now, will fix this later
     mdio_ds: Dataset = mdio_template.build_dataset(sizes=dimensions, coord_units=None)
     xr_sd: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
+    # Add coordinates and dimensions to the xarray dataset to write them
     to_zarr(dataset=xr_sd, store=output.uri, storage_options=output.options)
 
     # Write traces to the MDIO Zarr dataset
