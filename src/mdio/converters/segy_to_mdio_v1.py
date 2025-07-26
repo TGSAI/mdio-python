@@ -5,35 +5,31 @@ from typing import Any
 from typing import Dict
 import numpy as np
 import xarray as xr
-from segy import SegyFile
-from segy.config import SegySettings
-from segy.schema import SegySpec
-from segy.arrays import HeaderArray as segy_HeaderArray
+import zarr
 
 from xarray import Dataset as xr_Dataset
 from xarray import DataArray as xr_DataArray
-import zarr
+
+from segy import SegyFile
+from segy.config import SegySettings
+from segy.schema import SegySpec
+from segy.arrays import HeaderArray as SegyHeaderArray
+from mdio.segy import blocked_io_v0
+from mdio.segy import blocked_io_v1
+from mdio.segy.utilities import get_grid_plan
 
 from mdio.constants import UINT32_MAX
 from mdio.converters.segy import grid_density_qc
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.dimension import Dimension
 from mdio.core.grid import Grid
-from mdio.schemas.dtype import ScalarType, StructuredField, StructuredType
 from mdio.schemas.v1.dataset import Dataset
 from mdio.schemas.v1.dataset_builder import _to_dictionary
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.dataset_serializer import to_zarr
 from mdio.schemas.v1.stats import SummaryStatistics
 from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
-from mdio.segy import blocked_io_v0
-from mdio.segy import blocked_io_v1
-from mdio.segy.utilities import get_grid_plan
 
-# class StorageLocation:
-#     def __init__(self, uri: str, options: dict[str, Any] = {}):
-#         self.uri = uri
-#         self.options = options
 
 @dataclass
 class StorageLocation:
@@ -48,25 +44,19 @@ def _validate_segy(coordinates: list[Dimension], templated_dataset: xr_Dataset) 
         if name not in coord_names:
             raise ValueError(f"Coordinate '{name}' not found in SEG-Y specification.")
 
-def _scan_for_dimensions_and_index_headers(
+def _scan_for_dims_coords_headers(
     segy_file: SegyFile,
     mdio_template: AbstractDatasetTemplate,
-    
-    # header_fields = segy_file.spec.trace.header.fields
-    # header_dtype = np.dtype([(field.name, field.format) for field in header_fields])
-    # headers = np.empty(dtype=header_dtype, shape=segy_file.num_traces)
-    # Get header fields dict -> {name: dtype}
-    # header_fields = {field.name: field.format for field in header_fields}: list[str]
-) -> tuple[list[Dimension], segy_HeaderArray, str]:
+) -> tuple[list[Dimension], list[Dimension], SegyHeaderArray]:
     """Extract dimensions and index headers from the SEG-Y file.
     
-    This is an expensive operation and scans the SEG-Y file in chunks
-    by using ProcessPoolExecutor
-    """
+    This is an expensive operation. 
+    It scans the SEG-Y file in chunks by using ProcessPoolExecutor
+    The implementation is subject to change
 
-    # Q: Where do we get an initial value. 
-    # We might need to rewrite get_grid_plan
-    # BUG: segy_dimensions for coordinates do not have values 
+    """
+    # TODO: Q - Where do we get an initial value? Do we need the returned value?
+    # TODO: We might need to replace get_grid_plan with more efficient function
     grid_chunksize = None
     segy_dimensions, chunksize, index_headers = get_grid_plan(
         segy_file=segy_file,
@@ -75,11 +65,11 @@ def _scan_for_dimensions_and_index_headers(
         grid_overrides=None
     )
 
-    # Select a subset of the dimensions.
+    # Select a subset of the segy_dimensions that corresponds to the MDIO dimensions
+    # The dimensions are ordered as in the MDIO template.
     # The last dimension is always the vertical dimension and is treated specially
     dimensions = []
-    #TODO: expose mdio_template._dim_names as a public method
-    mdio_dimension_names = mdio_template._dim_names
+    mdio_dimension_names = mdio_template._dim_names  #TODO: expose as public
     for coord_name in mdio_dimension_names[:-1]:
         coord = next((dim for dim in segy_dimensions if dim.name == coord_name), None)
         if coord is None:
@@ -89,16 +79,12 @@ def _scan_for_dimensions_and_index_headers(
     # The last dimension returned by get_grid_plan is always the vertical dimension, 
     # which is not named as in the MDIO template. Correct this.
     segy_vertical_dim = segy_dimensions[-1]
-    #TODO: expose mdio_template._trace_domain as a public method
-    domain = mdio_template._trace_domain
+    domain = mdio_template._trace_domain  #TODO: expose as public
     segy_vertical_dim.name = domain
     dimensions.append(segy_vertical_dim)
 
     coordinates = []
-    #TODO: expose mdio_template._coord_names as a public method
-    #TODO: expose mdio_template._coord_dim_names as a public method
-    # mdio_coord_names = mdio_template._coord_dim_names + mdio_template._coord_names
-    mdio_coord_names = mdio_template._coord_names
+    mdio_coord_names = mdio_template._coord_names #TODO: expose as public
     for coord_name in mdio_coord_names:
         coord = next((c for c in segy_dimensions if c.name == coord_name), None)
         if coord is None:
@@ -108,46 +94,31 @@ def _scan_for_dimensions_and_index_headers(
 
     return dimensions, coordinates, index_headers
 
-def _get_dimension_sizes(segy_dimensions: list[Dimension], veritcal_dimension_name: str, mdio_dimension_names: list[str]) -> list[int]:
-    """Get the sizes of the dimensions.
-
-    Args:
-        segy_dimensions: The list of SEG-Y dimensions.
-        sample_dimension_name: The name of the sample dimension.
-        mdio_dimension_names: The list of MDIO dimension names.
-
-    Returns:
-        list[int]: The sizes of the dimensions.
-    """
-    # SPECIAL CASE: The vertical dimension ('time' or 'depth') is not found in the segy_dimensions
-    # src\segy\standards\fields\trace.py
-    # The non-standard name of that dimension is in veritcal_dimension_name.
-    dimension_names = list(mdio_dimension_names[:-1]) + [veritcal_dimension_name]
-    sizes = []
-    for dim_name in dimension_names:
-        # sz = len(dim.coords) for dim in segy_dimensions if dim.name == dim_name
-        dim = next((dim for dim in segy_dimensions if dim.name == dim_name), None)
-        if dim is None:
-            err = f"Dimension '{dim_name}' not found in SEG-Y dimensions."
-            raise ValueError(err)
-        sizes.append(len(dim.coords))
-    return sizes
-
-def _add_coordinates_to_dataset(
+def _populate_dims_coords_and_write_to_zarr(
     dataset: xr_Dataset,
     dimensions: list[Dimension],
-    coordinates: list[Dimension]
-) -> None:
-    """Add coordinates to the xarray dataset."""
+    coordinates: list[Dimension],
+    output: StorageLocation) -> None:
+    """Populate dimensions and coordinates in the xarray dataset and write to Zarr.
+
+    This will write the xr Dataset with coords and dimensions, but empty traces and headers.
+    """
+
     for c in dimensions:
         dataset.coords[c.name] = c.coords
 
     for c in coordinates:
         dataset.coords[c.name] = c.coords
 
+    dataset.to_zarr(store=output.uri,
+                    mode="w",
+                    write_empty_chunks=False,
+                    zarr_format=2,
+                    compute=True)
 
-def _get_trace_mask(grid: Grid):
-
+def _create_grid_map_trace_mask(grid: Grid) -> tuple[zarr.Array, zarr.Array]:
+    """Create a trace mask and grid map arrays for the grid."""
+    # Tuple of arrays of integer indexes along each dimension for every live traces
     live_indices = grid.header_index_arrays
 
     # We set dead traces to uint32 max. Should be far away from actual trace counts.
@@ -159,6 +130,38 @@ def _get_trace_mask(grid: Grid):
 
     return grid_map, trace_mask
 
+def _populate_trace_mask_and_write_to_zarr(segy_file: SegyFile, 
+                                              dimensions: list[Dimension],
+                                              index_headers: SegyHeaderArray, 
+                                              xr_sd: xr_Dataset, 
+                                              output: StorageLocation) -> zarr.Array:
+    """Populate and write the trace mask to Zarr, return the grid map as Zarr array.
+
+    Returns:
+      the grid map Zarr array.
+    """
+
+    # Create a grid and build live trace index
+    grid = Grid(dims=dimensions)
+    grid_density_qc(grid, segy_file.num_traces)
+    grid.build_map(index_headers)
+
+    # Create grid map and trace mask arrays
+    grid_map, trace_mask = _create_grid_map_trace_mask(grid=grid)
+    xr_sd.trace_mask.data[:] = trace_mask
+
+    # Populate the "trace_mask" variable in the xarray dataset and write it to Zarr
+    # Get subset of the dataset containing only "trace_mask"
+    #TODO: Should we write the trace mask inside of blocked_io_v1.to_zarr?
+    #TODO: Should we clear the coords from ds_to_write?
+    ds_to_write = xr_sd[["trace_mask"]]
+    ds_to_write.to_zarr(store=output.uri, 
+                        mode="r+", 
+                        write_empty_chunks=False,
+                        zarr_format=2,
+                        compute=True)
+    return grid_map
+
 def segy_to_mdio_v1(
     input: StorageLocation,
     output: StorageLocation,
@@ -169,20 +172,25 @@ def segy_to_mdio_v1(
     """A function that converts a SEG-Y file to an MDIO v1 file.
     """
     # Open a SEG-Y file according to the SegySpec
+    # This could be a spec from the registryy or a custom spec
     segy_settings = SegySettings(storage_options=input.options)
     segy_file = SegyFile(url=input.uri, spec=segy_spec, settings=segy_settings)
 
-    # Extract dimensions, index_headers (containing coords) and (optionally) units from the SEG-Y file
-    dimensions, coordinates, index_headers = _scan_for_dimensions_and_index_headers(
+    # Extract dimensions, coordinates, and index_headers
+    # This is an expensive read operation performed in chunks
+    dimensions, coordinates, index_headers = _scan_for_dims_coords_headers(
         segy_file, mdio_template)
-    dimension_sizes = [len(dim.coords) for dim in dimensions]
+    shape = [len(dim.coords) for dim in dimensions]
 
-    headers = None
+    # Specify the header structure for the MDIO dataset
     # TODO: Setting headers (and thus creating a variable with StructuredType data type)
-    # causes the error in dask/array/core.py:1346
+    # causes the error in _populate_dims_coords_and_write_to_zarr originating
+    # dask/array/core.py:1346 
     #   TypeError: Cannot cast array data from dtype([('trace_seq_num_line', '<i4'), ... 
     #   to dtype('bool') according to the rule 'unsafe'
-    #
+    # I believe Dask does not support StructuredType data type.
+    # Thus, we are not setting headers for now:
+    headers = None
     # headers = to_structured_type(index_headers.dtype)
     # headers = StructuredType(
     #     fields=[
@@ -192,47 +200,41 @@ def segy_to_mdio_v1(
     #             StructuredField(name="some_scalar", format=ScalarType.FLOAT16),
     #     ]
     # )
-    
-    # Create an empty MDIO Zarr dataset based on the specified MDIO template
     # TODO: Set Units to None for now, will fix this later
     mdio_ds: Dataset = mdio_template.build_dataset(name="NONE", 
-                                                   sizes=dimension_sizes, 
+                                                   sizes=shape, 
                                                    coord_units=None,
                                                    headers=headers)
-    data_variable_name = mdio_template.get_data_variable_name()
-    xr_sd: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
+    xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
     # Validate SEG-Y dimensions and headers against xarray dataset created from the template.
-    _validate_segy(coordinates=coordinates, templated_dataset=xr_sd)
+    _validate_segy(coordinates=coordinates, templated_dataset=xr_dataset)
 
-    # Create a grid and build trace map and live mask.
-    grid = Grid(dims=dimensions)
-    grid_density_qc(grid, segy_file.num_traces)
-    grid.build_map(index_headers)
+    # Write the xr Dataset with coords and dimensions, but empty traces and headers
+    # Writing traces and headers is an memory-expensive and time-consuming operation
+    # We will write them in chunks later
+    _populate_dims_coords_and_write_to_zarr(dataset=xr_dataset,
+                                            dimensions=dimensions,
+                                            coordinates=coordinates,
+                                            output=output)
 
-    # Add coordinates values to the xarray dataset
-    _add_coordinates_to_dataset(dataset=xr_sd, dimensions=dimensions, coordinates=coordinates)
-    # We will write coords and dimensions, but empty traces and headers
-    to_zarr(dataset=xr_sd, store=output.uri, storage_options=output.options)
+    grid_map: zarr.Array = _populate_trace_mask_and_write_to_zarr(segy_file=segy_file,
+                                                                  dimensions=dimensions,
+                                                                  index_headers=index_headers,
+                                                                  xr_sd=xr_dataset,
+                                                                  output=output)
 
-    # header_array / metadata_array: Handle for zarr.Array we are writing trace headers
-    data: xr_DataArray = xr_sd[data_variable_name]
-
-    # Create and populate trace mask
-    grid_map, trace_mask = _get_trace_mask(grid=grid)
-    xr_sd.trace_mask.data[:] = trace_mask
-
-    # Get subset of the dataset containing only "trace_mask"
-    #TODO: Should we write the trace mask inside of blocked_io_v1.to_zarr?
-    #TODO: Should we clear the coords from ds_to_write?
-    ds_to_write = xr_sd[["trace_mask"]]
-    ds_to_write.to_zarr(output.uri, mode="r+", write_empty_chunks=False)
-
+    # TODO: Maybe we should have saved the data_variable_name as a Dataset attribute?
+    # We can't hardcode it, for example to "amplitude", because it might else be 
+    # "velocity" or "pressure"
+    data_variable_name = mdio_template.get_data_variable_name()  
+    # This is an memory-expensive and time-consuming operation read-write operation 
+    # performed in chunks to save the memory
     stats: SummaryStatistics = blocked_io_v1.to_zarr(
         segy_file = segy_file,
         out_path = output.uri,
         grid_map = grid_map,
-        dataset = xr_sd,
+        dataset = xr_dataset,
         data_variable_name = data_variable_name
     )
 
