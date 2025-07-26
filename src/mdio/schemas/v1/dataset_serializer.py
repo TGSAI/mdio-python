@@ -7,8 +7,15 @@ from numcodecs import Blosc as nc_Blosc
 from numpy import dtype as np_dtype
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
+
+import xarray
 from zarr import zeros as zarr_zeros
+import zarr
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
+from xarray.backends import ZarrStore
+from dask.delayed import Delayed
+
+from mdio.converters.type_converter import to_numpy_dtype
 
 try:
     # zfpy is an optional dependency for ZFP compression
@@ -90,17 +97,6 @@ def _get_coord_names(var: Variable) -> list[str]:
                 coord_names.append(c)
     return coord_names
 
-
-def _get_np_datatype(data_type: ScalarType | StructuredType) -> np_dtype:
-    """Get the numpy dtype for a variable."""
-    if isinstance(data_type, ScalarType):
-        return np_dtype(data_type.value)
-    if isinstance(data_type, StructuredType):
-        return np_dtype([(f.name, f.format.value) for f in data_type.fields])
-    msg = f"Expected ScalarType or StructuredType, got '{type(data_type).__name__}'"
-    raise ValueError(msg)
-
-
 def _get_zarr_shape(var: Variable, all_named_dims: dict[str, NamedDimension]) -> tuple[int, ...]:
     """Get the shape of a variable for Zarr storage.
 
@@ -170,7 +166,7 @@ def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
     if isinstance(data_type, ScalarType):
         return fill_value_map.get(data_type)
     if isinstance(data_type, StructuredType):
-        d_type = _get_np_datatype(data_type)
+        d_type = to_numpy_dtype(data_type)
         return np.zeros((), dtype=d_type)
     if isinstance(data_type, str):
         return ""
@@ -203,7 +199,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
     data_arrays: dict[str, xr_DataArray] = {}
     for v in mdio_ds.variables:
         shape = _get_zarr_shape(v, all_named_dims=all_named_dims)
-        dtype = _get_np_datatype(v.data_type)
+        dtype = to_numpy_dtype(v.data_type)
         chunks = _get_zarr_chunks(v, all_named_dims=all_named_dims)
 
         # Use zarr.zeros to create an empty array with the specified shape and dtype
@@ -212,6 +208,8 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         # Create a DataArray for the variable. We will set coords in the second pass
         dim_names = _get_dimension_names(v)
         data_array = xr_DataArray(data, dims=dim_names)
+        chunk_dict = dict(zip(dim_names, chunks))
+        data_array = data_array.chunk(chunk_dict)
 
         # Add array attributes
         if v.metadata is not None:
@@ -261,6 +259,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         xr_ds.attrs["name"] = mdio_ds.metadata.name
         if mdio_ds.metadata.attributes:
             xr_ds.attrs["attributes"] = mdio_ds.metadata.attributes
+            
 
     return xr_ds
 
@@ -270,7 +269,7 @@ def to_zarr(
     store: str | None = None,
     *args: str | int | float | bool,
     **kwargs: Mapping[str, str | int | float | bool],
-) -> None:
+) -> ZarrStore | Delayed:
     """Write an XArray dataset to Zarr format.
 
     Args:
@@ -294,4 +293,5 @@ def to_zarr(
     """
     kwargs["zarr_format"] = 2
     kwargs["compute"] = False
+    kwargs["mode"] = "w"  # create (overwrite if exists)
     return dataset.to_zarr(*args, store=store, **kwargs)

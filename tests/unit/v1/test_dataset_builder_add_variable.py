@@ -115,17 +115,17 @@ def test_add_variable_with_coords() -> None:
 
     # Add non-dim coordinates (e.g., 2D coordinates)
     builder.add_coordinate(
-        "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
+        "cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
     )
     builder.add_coordinate(
-        "cdp-y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
+        "cdp_y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
     )
 
     # Add a variable with pre-defined dimension and non-dimension coordinates
     builder.add_variable(
         "ampl2",
         dimensions=["inline", "crossline", "depth"],
-        coordinates=["inline", "crossline", "cdp-x", "cdp-y"],
+        coordinates=["inline", "crossline", "cdp_x", "cdp_y"],
         data_type=ScalarType.FLOAT32,
     )
     validate_builder(builder, _BuilderState.HAS_VARIABLES, n_dims=3, n_coords=4, n_var=6)
@@ -133,7 +133,7 @@ def test_add_variable_with_coords() -> None:
         builder,
         "ampl2",
         dims=[("inline", 100), ("crossline", 200), ("depth", 300)],
-        coords=["inline", "crossline", "cdp-x", "cdp-y"],
+        coords=["inline", "crossline", "cdp_x", "cdp_y"],
         dtype=ScalarType.FLOAT32,
     )
 
@@ -186,10 +186,10 @@ def test_add_variable_full_parameters() -> None:
     builder.add_coordinate("depth", dimensions=["depth"], data_type=ScalarType.UINT32)
     # Add coordinates before we can add a data variable
     builder.add_coordinate(
-        "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64
+        "cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64
     )
     builder.add_coordinate(
-        "cdp-y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64
+        "cdp_y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64
     )
 
     # Add data variable with full parameters
@@ -199,7 +199,7 @@ def test_add_variable_full_parameters() -> None:
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT32,
         compressor=Blosc(algorithm="zstd"),
-        coordinates=["inline", "crossline", "depth", "cdp-x", "cdp-y"],
+        coordinates=["inline", "crossline", "depth", "cdp_x", "cdp_y"],
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
             UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"}),
@@ -223,7 +223,7 @@ def test_add_variable_full_parameters() -> None:
         builder,
         "ampl",
         dims=[("inline", 100), ("crossline", 200), ("depth", 300)],
-        coords=["inline", "crossline", "depth", "cdp-x", "cdp-y"],
+        coords=["inline", "crossline", "depth", "cdp_x", "cdp_y"],
         dtype=ScalarType.FLOAT32,
     )
     assert v.long_name == "Amplitude (dimensionless)"

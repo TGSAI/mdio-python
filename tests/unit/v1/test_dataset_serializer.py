@@ -28,7 +28,7 @@ from mdio.schemas.v1.dataset_serializer import _get_all_named_dimensions
 from mdio.schemas.v1.dataset_serializer import _get_coord_names
 from mdio.schemas.v1.dataset_serializer import _get_dimension_names
 from mdio.schemas.v1.dataset_serializer import _get_fill_value
-from mdio.schemas.v1.dataset_serializer import _get_np_datatype
+from mdio.converters.type_converter import to_numpy_dtype
 from mdio.schemas.v1.dataset_serializer import _get_zarr_chunks
 from mdio.schemas.v1.dataset_serializer import _get_zarr_shape
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
@@ -140,8 +140,8 @@ def test__get_coord_names() -> None:
     # Variable schema
 
 
-def test__get_np_datatype() -> None:
-    """Comprehensive test for _get_np_datatype function."""
+def test_to_numpy_dtype() -> None:
+    """Comprehensive test for to_numpy_dtype function."""
     # Test 1: ScalarType cases - all supported scalar types
     scalar_type_tests = [
         (ScalarType.FLOAT32, "float32"),
@@ -160,10 +160,10 @@ def test__get_np_datatype() -> None:
     ]
     err = "Expected ScalarType or StructuredType, got 'str'"
     with pytest.raises(ValueError, match=err):
-        _get_np_datatype("parameter of invalid type")
+        to_numpy_dtype("parameter of invalid type")
 
     for scalar_type, expected_numpy_type in scalar_type_tests:
-        result = _get_np_datatype(scalar_type)
+        result = to_numpy_dtype(scalar_type)
         expected = np_dtype(expected_numpy_type)
 
         assert result == expected
@@ -179,7 +179,7 @@ def test__get_np_datatype() -> None:
         StructuredField(name="valid", format=ScalarType.BOOL),
     ]
     structured_multi = StructuredType(fields=multi_fields)
-    result_multi = _get_np_datatype(structured_multi)
+    result_multi = to_numpy_dtype(structured_multi)
     expected_multi = np_dtype(
         [("x", "float64"), ("y", "float64"), ("z", "float64"), ("id", "int32"), ("valid", "bool")]
     )
@@ -282,8 +282,8 @@ def test__get_fill_value() -> None:
         assert np_isnan(val.imag)
 
     # Test 2: StructuredType
-    f1 = StructuredField(name="cdp-x", format=ScalarType.INT32)
-    f2 = StructuredField(name="cdp-y", format=ScalarType.INT32)
+    f1 = StructuredField(name="cdp_x", format=ScalarType.INT32)
+    f2 = StructuredField(name="cdp_y", format=ScalarType.INT32)
     f3 = StructuredField(name="elevation", format=ScalarType.FLOAT16)
     f4 = StructuredField(name="some_scalar", format=ScalarType.FLOAT16)
     structured_type = StructuredType(fields=[f1, f2, f3, f4])
@@ -291,7 +291,7 @@ def test__get_fill_value() -> None:
     expected = np_array(
         (0, 0, 0.0, 0.0),
         dtype=np_dtype(
-            [("cdp-x", "<i4"), ("cdp-y", "<i4"), ("elevation", "<f2"), ("some_scalar", "<f2")]
+            [("cdp_x", "<i4"), ("cdp_y", "<i4"), ("elevation", "<f2"), ("some_scalar", "<f2")]
         ),
     )
     result = _get_fill_value(structured_type)
@@ -410,7 +410,7 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
 def test_to_zarr_dask(tmp_path: Path) -> None:
     """Test writing XArray dataset with data as dask array to Zarr."""
     # Create a data type and the fill value
-    dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
+    dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
 
     # Use '_FillValue' instead of 'fill_value'
@@ -437,7 +437,7 @@ def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:
     Set encoding in as DataArray attributes
     """
     # Create a data type and the fill value
-    dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
+    dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
 
     # Use '_FillValue' instead of 'fill_value'
@@ -463,7 +463,7 @@ def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
     Set encoding in the to_zar method
     """
     # Create a data type and the fill value
-    dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
+    dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
 
     # Use '_FillValue' instead of 'fill_value'
@@ -487,7 +487,7 @@ def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
 def test_to_zarr_from_np(tmp_path: Path) -> None:
     """Test writing XArray dataset with data as NumPy array to Zarr."""
     # Create a data type and the fill value
-    dtype = np_dtype([("inline", "int32"), ("cdp-x", "float64")])
+    dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
 
     # Use '_FillValue' instead of 'fill_value'

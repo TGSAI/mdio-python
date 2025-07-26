@@ -1,10 +1,12 @@
 """Unit tests for Seismic3DPostStackTemplate."""
 
+from mdio.schemas.v1.dataset_builder import _to_dictionary
+from mdio.converters.type_converter import to_numpy_dtype
 from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import ScalarType, StructuredField, StructuredType
 from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
@@ -27,7 +29,7 @@ class TestSeismic3DPostStackTemplate:
         assert t._trace_domain == "depth"  # Domain should be lowercased
         assert t._coord_dim_names == ["inline", "crossline"]
         assert t._dim_names == ["inline", "crossline", "depth"]
-        assert t._coord_names == ["cdp-x", "cdp-y"]
+        assert t._coord_names == ["cdp_x", "cdp_y"]
         assert t._var_chunk_shape == [128, 128, 128]
 
         # Variables instantiated when build_dataset() is called
@@ -35,13 +37,14 @@ class TestSeismic3DPostStackTemplate:
         assert t._dim_sizes == []
         assert t._coord_units == []
 
-        assert t._load_dataset_attributes().attributes == {
+        # Verify dataset attributes
+        attrs = t._load_dataset_attributes()
+        assert attrs.attributes == {
             "surveyDimensionality": "3D",
             "ensembleType": "line",
             "processingStage": "post-stack",
         }
-
-        assert t.get_name() == "PostStack3DDepth"
+        assert t.get_data_variable_name() == "amplitude"
 
     def test_configuration_time(self) -> None:
         """Unit tests for Seismic3DPostStackTemplate with time domain."""
@@ -51,7 +54,7 @@ class TestSeismic3DPostStackTemplate:
         assert t._trace_domain == "time"  # Domain should be lowercased
         assert t._coord_dim_names == ["inline", "crossline"]
         assert t._dim_names == ["inline", "crossline", "time"]
-        assert t._coord_names == ["cdp-x", "cdp-y"]
+        assert t._coord_names == ["cdp_x", "cdp_y"]
         assert t._var_chunk_shape == [128, 128, 128]
 
         # Variables instantiated when build_dataset() is called
@@ -94,24 +97,24 @@ class TestSeismic3DPostStackTemplate:
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
         # Verify variables
-        # 2 coordinate variables + 1 data variables = 3 variables
-        assert len(dataset.variables) == 3
+        # 2 coordinate variables + 1 data variable + 1 trace mask = 4 variables
+        assert len(dataset.variables) == 4
 
         # Verify coordinate variables
         cdp_x = validate_variable(
             dataset,
-            name="cdp-x",
+            name="cdp_x",
             dims=[("inline", 256), ("crossline", 512)],
-            coords=["cdp-x"],
+            coords=["cdp_x"],
             dtype=ScalarType.FLOAT64,
         )
         assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
 
         cdp_y = validate_variable(
             dataset,
-            name="cdp-y",
+            name="cdp_y",
             dims=[("inline", 256), ("crossline", 512)],
-            coords=["cdp-y"],
+            coords=["cdp_y"],
             dtype=ScalarType.FLOAT64,
         )
         assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
@@ -119,9 +122,9 @@ class TestSeismic3DPostStackTemplate:
         # Verify seismic variable
         seismic = validate_variable(
             dataset,
-            name="StackedAmplitude",
+            name="amplitude",
             dims=[("inline", 256), ("crossline", 512), ("depth", 1024)],
-            coords=["cdp-x", "cdp-y"],
+            coords=["cdp_x", "cdp_y"],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
@@ -129,6 +132,8 @@ class TestSeismic3DPostStackTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
         assert seismic.metadata.stats_v1 is None
+
+        # TODO: Validate trace mask
 
     def test_build_dataset_time(self) -> None:
         """Unit tests for Seismic3DPostStackTimeTemplate build with time domain."""
@@ -145,24 +150,24 @@ class TestSeismic3DPostStackTemplate:
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
         # Verify variables
-        # 2 coordinate variables + 1 data variables = 3 variables
-        assert len(dataset.variables) == 3
+        # 2 coordinate variables + 1 data variable + 1 trace mask = 4 variables
+        assert len(dataset.variables) == 4
 
         # Verify coordinate variables
         cdp_x = validate_variable(
             dataset,
-            name="cdp-x",
+            name="cdp_x",
             dims=[("inline", 256), ("crossline", 512)],
-            coords=["cdp-x"],
+            coords=["cdp_x"],
             dtype=ScalarType.FLOAT64,
         )
         assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
 
         cdp_y = validate_variable(
             dataset,
-            name="cdp-y",
+            name="cdp_y",
             dims=[("inline", 256), ("crossline", 512)],
-            coords=["cdp-y"],
+            coords=["cdp_y"],
             dtype=ScalarType.FLOAT64,
         )
         assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
@@ -170,9 +175,9 @@ class TestSeismic3DPostStackTemplate:
         # Verify seismic variable
         seismic = validate_variable(
             dataset,
-            name="StackedAmplitude",
+            name="amplitude",
             dims=[("inline", 256), ("crossline", 512), ("time", 1024)],
-            coords=["cdp-x", "cdp-y"],
+            coords=["cdp_x", "cdp_y"],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
@@ -180,3 +185,47 @@ class TestSeismic3DPostStackTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
         assert seismic.metadata.stats_v1 is None
+
+        # TODO: Validate trace mask
+
+        
+    def test_build_dataset_w_trace_headers(self) -> None:
+        """Unit tests for Seismic3DPostStackTemplate build with depth domain."""
+
+        headers = StructuredType(
+            fields=[
+                    StructuredField(name="cdp_x", format=ScalarType.INT32),
+                    StructuredField(name="cdp_y", format=ScalarType.INT32),
+                    StructuredField(name="elevation", format=ScalarType.FLOAT16),
+                    StructuredField(name="some_scalar", format=ScalarType.FLOAT16),
+            ]
+        )
+        # headers_dict = _to_dictionary(headers)
+
+        t = Seismic3DPostStackTemplate(domain="depth")
+        dataset = t.build_dataset(
+            "Seismic 3D", 
+            sizes=[256, 512, 1024], 
+            coord_units=[_UNIT_METER, _UNIT_METER],
+            headers=headers
+        )
+
+        # Verify variables
+        # 2 coordinate + 1 data + 1 trace mask + 1 headers = 5 variables
+        assert len(dataset.variables) == 5
+
+        # Verify seismic variable
+        seismic = validate_variable(
+            dataset,
+            name="headers",
+            dims=[("inline", 256), ("crossline", 512)],
+            coords=["cdp_x", "cdp_y"],
+            dtype=headers,
+        )
+        assert isinstance(seismic.compressor, Blosc)
+        assert seismic.compressor.algorithm == "zstd"
+        assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == [128, 128]
+        assert seismic.metadata.stats_v1 is None
+
+        # TODO: Validate trace mask

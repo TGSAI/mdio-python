@@ -15,7 +15,6 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         self._coord_dim_names = []  # Custom coordinate definition for shot gathers
         self._dim_names = ["shot_point", "cable", "channel", self._trace_domain]
         self._coord_names = ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
-        self._var_name = "AmplitudeShot"
         self._var_chunk_shape = [1, 1, 512, 4096]
 
     def _get_name(self) -> str:

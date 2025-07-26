@@ -11,15 +11,10 @@ from segy.schema import HeaderField
 from segy.schema import SegySpec
 from segy.standards import get_segy_standard
 
-from mdio.converters.segy_to_mdio_v1 import segy_to_mdio_v1
+from mdio.converters.segy_to_mdio_v1 import StorageLocation, segy_to_mdio_v1
 from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 
-
-class StorageLocation:
-    def __init__(self, uri: str, options: dict[str, Any] | None = None):
-        self.uri = uri
-        self.options = options
 
 
 class DynamicallyLoadedModule:

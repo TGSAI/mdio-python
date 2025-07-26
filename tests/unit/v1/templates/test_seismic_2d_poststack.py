@@ -26,8 +26,7 @@ class TestSeismic2DPostStackTemplate:
         assert t._trace_domain == "depth"
         assert t._coord_dim_names == ["cdp"]
         assert t._dim_names == ["cdp", "depth"]
-        assert t._coord_names == ["cdp-x", "cdp-y"]
-        assert t._var_name == "StackedAmplitude"
+        assert t._coord_names == ["cdp_x", "cdp_y"]
         assert t._var_chunk_shape == [1024, 1024]
 
         # Variables instantiated when build_dataset() is called
@@ -43,6 +42,8 @@ class TestSeismic2DPostStackTemplate:
             "processingStage": "post-stack",
         }
 
+        assert t.get_data_variable_name() == "amplitude"
+
     def test_configuration_time(self) -> None:
         """Test configuration of Seismic2DPostStackTemplate with time domain."""
         t = Seismic2DPostStackTemplate("time")
@@ -51,14 +52,22 @@ class TestSeismic2DPostStackTemplate:
         assert t._trace_domain == "time"
         assert t._coord_dim_names == ["cdp"]
         assert t._dim_names == ["cdp", "time"]
-        assert t._coord_names == ["cdp-x", "cdp-y"]
-        assert t._var_name == "StackedAmplitude"
+        assert t._coord_names == ["cdp_x", "cdp_y"]
         assert t._var_chunk_shape == [1024, 1024]
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == []
         assert t._coord_units == []
+
+        # Verify dataset attributes
+        attrs = t._load_dataset_attributes()
+        assert attrs.attributes == {
+            "surveyDimensionality": "2D",
+            "ensembleType": "line",
+            "processingStage": "post-stack",
+        }
+        assert t.get_data_variable_name() == "amplitude"
 
     def test_domain_case_handling(self) -> None:
         """Test that domain parameter handles different cases correctly."""
@@ -88,24 +97,24 @@ class TestSeismic2DPostStackTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
-        # 2 coordinate variables + 1 data variable = 5 variables
-        assert len(dataset.variables) == 3
+        # 2 coordinate variables + 1 data variable + 1 trace mask = 4 variables
+        assert len(dataset.variables) == 4
 
         # Verify coordinate variables
         cdp_x = validate_variable(
             dataset,
-            name="cdp-x",
+            name="cdp_x",
             dims=[("cdp", 2048)],
-            coords=["cdp-x"],
+            coords=["cdp_x"],
             dtype=ScalarType.FLOAT64,
         )
         assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
 
         cdp_y = validate_variable(
             dataset,
-            name="cdp-y",
+            name="cdp_y",
             dims=[("cdp", 2048)],
-            coords=["cdp-y"],
+            coords=["cdp_y"],
             dtype=ScalarType.FLOAT64,
         )
         assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
@@ -113,14 +122,16 @@ class TestSeismic2DPostStackTemplate:
         # Verify seismic variable
         seismic = validate_variable(
             dataset,
-            name="StackedAmplitude",
+            name="amplitude",
             dims=[("cdp", 2048), ("depth", 4096)],
-            coords=["cdp-x", "cdp-y"],
+            coords=["cdp_x", "cdp_y"],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1024, 1024]
         assert seismic.metadata.stats_v1 is None
+
+        # TODO: Validate trace mask
 
     def test_build_dataset_time(self) -> None:
         """Test building a complete 2D time dataset."""
@@ -138,24 +149,24 @@ class TestSeismic2DPostStackTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
-        # Verify variables count
-        assert len(dataset.variables) == 3
+        # 2 coordinate variables + 1 data variable + 1 trace mask = 4 variables
+        assert len(dataset.variables) == 4
 
         # Verify coordinate variables
         v = validate_variable(
             dataset,
-            name="cdp-x",
+            name="cdp_x",
             dims=[("cdp", 2048)],
-            coords=["cdp-x"],
+            coords=["cdp_x"],
             dtype=ScalarType.FLOAT64,
         )
         assert v.metadata.units_v1.length == LengthUnitEnum.METER
 
         v = validate_variable(
             dataset,
-            name="cdp-y",
+            name="cdp_y",
             dims=[("cdp", 2048)],
-            coords=["cdp-y"],
+            coords=["cdp_y"],
             dtype=ScalarType.FLOAT64,
         )
         assert v.metadata.units_v1.length == LengthUnitEnum.METER
@@ -163,14 +174,16 @@ class TestSeismic2DPostStackTemplate:
         # Verify seismic variable
         v = validate_variable(
             dataset,
-            name="StackedAmplitude",
+            name="amplitude",
             dims=[("cdp", 2048), ("time", 4096)],
-            coords=["cdp-x", "cdp-y"],
+            coords=["cdp_x", "cdp_y"],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(v.metadata.chunk_grid, RegularChunkGrid)
         assert v.metadata.chunk_grid.configuration.chunk_shape == [1024, 1024]
         assert v.metadata.stats_v1 is None
+
+        # TODO: Validate trace mask
 
     def test_time_vs_depth_comparison(self) -> None:
         """Test differences between time and depth templates."""
@@ -188,5 +201,4 @@ class TestSeismic2DPostStackTemplate:
         # Same other attributes
         assert time_template._coord_dim_names == depth_template._coord_dim_names
         assert time_template._coord_names == depth_template._coord_names
-        assert time_template._var_name == depth_template._var_name
         assert time_template._var_chunk_shape == depth_template._var_chunk_shape

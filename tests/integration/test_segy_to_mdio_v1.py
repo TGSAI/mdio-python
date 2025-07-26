@@ -1,45 +1,17 @@
-from typing import Any
-import pytest
+from segy.standards import get_segy_standard
 
-from mdio.converters.segy_to_mdio_v1_custom import DynamicallyLoadedModule, StorageLocation
+from mdio.converters.segy_to_mdio_v1 import segy_to_mdio_v1
+from mdio.converters.segy_to_mdio_v1_custom import StorageLocation
 
-def test_customize_segy_specs() -> None:
-    # def customize_segy_specs(
-    #     segy_spec: SegySpec,
-    #     index_bytes: Sequence[int] | None = None,
-    #     index_names: Sequence[str] | None = None,
-    #     index_types: Sequence[str] | None = None,
-    # ) -> SegySpec:
-    pass
+from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 
+def test_segy_to_mdio_v1() -> None:
+    pref_path = "/DATA/export_masked/3d_stack"
 
-def test_get_segy_specs() -> None:
-    # def get_segy_specs(segy_spec: str | StorageLocation) -> SegySpec:
-    pass
+    segy_to_mdio_v1(
+        input= StorageLocation(f"{pref_path}.sgy"),
+        output= StorageLocation(f"{pref_path}_tmp.mdio"),
+        segy_spec= get_segy_standard(1.0),
+        mdio_template= TemplateRegistry().get("PostStack3DTime"))
 
-
-def test__load_mdio_dataset_seismic_custom_template() -> None:
-    # def _load_mdio_dataset_seismic_custom_template(
-    #     module: DynamicallyLoadedModule, domain: str
-    # ) -> AbstractDatasetTemplate:
-    pass
-
-
-def test_get_registered_mdio_template() -> None:
-    # t: AbstractDatasetTemplate = get_registered_mdio_template(
-    #     mdio_template: str | DynamicallyLoadedModule,
-    # )
-    pass
-
-
-def test_segy_to_mdio_v1_custom() -> None:
-    # def segy_to_mdio_v1_custom(
-    # input: StorageLocation,
-    # output: StorageLocation,
-    # segy_spec: str | StorageLocation,
-    # mdio_template: str | StorageLocation,
-    # index_bytes: Sequence[int] | None = None,
-    # index_names: Sequence[str] | None = None,
-    # index_types: Sequence[str] | None = None,
-    # overwrite: bool = False
     pass
