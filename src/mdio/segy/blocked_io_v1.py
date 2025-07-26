@@ -85,6 +85,7 @@ def _traces_to_zarr(  # noqa: PLR0913
         ds_to_write = dataset.drop_vars(["trace_mask"])
         ds_to_write["headers"].data[not_null] = traces.header
         ds_to_write["headers"].data[~not_null] = 0
+        # BUG: Fails here with "IndexError: Boolean array with size 400 is not long enough for axis 0 with size 20"
         ds_to_write[data_variable_name].data[not_null] = traces.sample
         ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False)
     else:
@@ -92,7 +93,7 @@ def _traces_to_zarr(  # noqa: PLR0913
         ds_to_write = dataset.reset_coords()
         ds_to_write = dataset.drop_vars(["trace_mask"])
         ddd = ds_to_write[data_variable_name]
-        ddd_data = ddd.data[not_null]
+        # BUG: Fails here with "IndexError: Boolean array with size 400 is not long enough for axis 0 with size 20"
         ddd.data[not_null] = traces.sample
         ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False)
 
