@@ -7,14 +7,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
-import zarr
 
-from mdio.constants import UINT32_MAX
 from mdio.core import Dimension
 from mdio.core.serialization import Serializer
-from mdio.core.utils_write import get_constrained_chunksize
 
 if TYPE_CHECKING:
+    import zarr
     from segy.arrays import HeaderArray
     from zarr import Array as ZarrArray
 
@@ -65,6 +63,9 @@ class Grid:
         self.dim_names = tuple(dim.name for dim in self.dims)
         self.shape = tuple(dim.size for dim in self.dims)
         self.ndim = len(self.dims)
+        # Prepare attributes for lazy mapping; they will be set in build_map
+        self.header_index_arrays: tuple[np.ndarray, ...] = ()
+        self.num_traces: int = 0
 
     def __getitem__(self, item: int) -> Dimension:
         """Get a dimension by index."""
@@ -106,47 +107,62 @@ class Grid:
         return cls(dims_list)
 
     def build_map(self, index_headers: HeaderArray) -> None:
-        """Build trace mapping and live mask from header indices.
+        """Compute per-trace grid coordinates (lazy map).
+
+        Instead of allocating a full `self.map` and `self.live_mask`, this computes, for each trace,
+        its integer index along each dimension (excluding the sample dimension) and stores them in
+        `self.header_index_arrays`. The full mapping can then be derived chunkwise when writing.
 
         Args:
-            index_headers: Header array containing dimension indices.
+            index_headers: Header array containing dimension indices (length = number of traces).
         """
-        # Determine data type for map based on grid size
-        grid_size = np.prod(self.shape[:-1], dtype=np.uint64)
-        map_dtype = np.uint64 if grid_size > UINT32_MAX else np.uint32
-        fill_value = np.iinfo(map_dtype).max
+        # Number of traces in the SEG-Y
+        self.num_traces = int(index_headers.shape[0])
 
-        # Initialize Zarr arrays
-        live_shape = self.shape[:-1]
-        chunks = get_constrained_chunksize(
-            shape=live_shape,
-            dtype=map_dtype,
-            max_bytes=self._INTERNAL_CHUNK_SIZE_TARGET,
-        )
-        self.map = zarr.full(live_shape, fill_value, dtype=map_dtype, chunks=chunks)
-        self.live_mask = zarr.zeros(live_shape, dtype=bool, chunks=chunks)
+        # For each dimension except the final sample dimension, compute a 1D array of length
+        # `num_traces` giving each trace's integer coordinate along that axis (via np.searchsorted).
+        # Cast to uint32.
+        idx_arrays: list[np.ndarray] = []
+        for dim in self.dims[:-1]:
+            hdr_vals = index_headers[dim.name]  # shape: (num_traces,)
+            coords = np.searchsorted(dim, hdr_vals)  # integer indices
+            coords = coords.astype(np.uint32)
+            idx_arrays.append(coords)
 
-        # Calculate batch size
-        memory_per_trace_index = index_headers.itemsize
-        batch_size = max(1, int(self._TARGET_MEMORY_PER_BATCH / memory_per_trace_index))
-        total_live_traces = index_headers.size
+        # Store as a tuple so that header_index_arrays[d][i] is "trace i's index along axis d"
+        self.header_index_arrays = tuple(idx_arrays)
 
-        # Process headers in batches
-        for start in range(0, total_live_traces, batch_size):
-            end = min(start + batch_size, total_live_traces)
-            live_dim_indices = []
+        # We no longer allocate `self.map` or `self.live_mask` here.
+        # The full grid shape is `self.shape`, but mapping is done lazily per chunk.
 
-            # Compute indices for the batch
-            for dim in self.dims[:-1]:
-                dim_hdr = index_headers[dim.name][start:end]
-                indices = np.searchsorted(dim, dim_hdr).astype(np.uint32)
-                live_dim_indices.append(indices)
-            live_dim_indices = tuple(live_dim_indices)
+    def get_traces_for_chunk(self, chunk_slices: tuple[slice, ...]) -> np.ndarray:
+        """Return all trace IDs whose grid-coordinates fall inside the given chunk slices.
 
-            # Assign trace indices
-            trace_indices = np.arange(start, end, dtype=np.uint64)
-            self.map.vindex[live_dim_indices] = trace_indices
-            self.live_mask.vindex[live_dim_indices] = True
+        Args:
+            chunk_slices: Tuple of slice objects, one per grid dimension. For example,
+                          (slice(i0, i1), slice(j0, j1), ...) corresponds to a single Zarr chunk
+                          in index space (excluding the sample axis).
+
+        Returns:
+            A 1D NumPy array of trace indices (0-based) that lie within the hyper-rectangle defined
+            by `chunk_slices`. If no traces fall in this chunk, returns an empty array.
+        """
+        # Initialize a boolean mask over all traces (shape: (num_traces,))
+        mask = np.ones((self.num_traces,), dtype=bool)
+
+        for dim_idx, sl in enumerate(chunk_slices):
+            arr = self.header_index_arrays[dim_idx]  # shape: (num_traces,)
+            start, stop = sl.start, sl.stop
+            if start is not None:
+                mask &= arr >= start
+            if stop is not None:
+                mask &= arr < stop
+            if not mask.any():
+                # No traces remain after this dimension's filtering
+                return np.empty((0,), dtype=np.uint32)
+
+        # Gather the trace IDs that survived all dimension tests
+        return np.nonzero(mask)[0].astype(np.uint32)
 
 
 class GridSerializer(Serializer):

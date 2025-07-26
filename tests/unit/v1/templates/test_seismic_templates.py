@@ -1,6 +1,10 @@
 """Unit tests for concrete seismic dataset template implementations."""
 
 # Import all concrete template classes
+from tests.unit.v1.helpers import validate_variable
+from tests.unit.v1.templates.test_seismic_2d_poststack import _UNIT_METER
+
+from mdio.schemas.dtype import ScalarType
 from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 from mdio.schemas.v1.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
 from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
@@ -10,6 +14,39 @@ from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStack
 
 class TestSeismicTemplates:
     """Test cases for Seismic2DPostStackTemplate."""
+
+    def test_custom_data_variable_name(self) -> None:
+        """Test get_data_variable_name with custom names."""
+
+        # Define a template with a custom data variable name 'velocity'
+        class Velocity2DPostStackTemplate(Seismic2DPostStackTemplate):
+            def __init__(self, domain: str):
+                super().__init__(domain=domain)
+
+            def _get_data_variable_name(self) -> str:
+                return "velocity"
+
+            def _get_name(self) -> str:
+                return f"Velocity2D{self._trace_domain.capitalize()}"
+
+        t = Velocity2DPostStackTemplate("depth")
+        assert t.get_name() == "Velocity2DDepth"
+        assert t.get_data_variable_name() == "velocity"
+
+        dataset = t.build_dataset(
+            "Velocity 2D Depth Line 001",
+            sizes=[2048, 4096],
+            coord_units=[_UNIT_METER, _UNIT_METER],  # Both coordinates and depth in meters
+        )
+
+        # Verify velocity variable
+        validate_variable(
+            dataset,
+            name="velocity",
+            dims=[("cdp", 2048), ("depth", 4096)],
+            coords=["cdp_x", "cdp_y"],
+            dtype=ScalarType.FLOAT32,
+        )
 
     def test_get_name_time(self) -> None:
         """Test get_name with domain."""

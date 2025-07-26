@@ -28,7 +28,6 @@ class TestSeismic3DPreStackShotTemplate:
         assert t._coord_dim_names == []
         assert t._dim_names == ["shot_point", "cable", "channel", "depth"]
         assert t._coord_names == ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
-        assert t._var_name == "AmplitudeShot"
         assert t._var_chunk_shape == [1, 1, 512, 4096]
 
         # Variables instantiated when build_dataset() is called
@@ -43,8 +42,7 @@ class TestSeismic3DPreStackShotTemplate:
             "ensembleType": "shot",
             "processingStage": "pre-stack",
         }
-
-        assert t.get_name() == "PreStackShotGathers3DDepth"
+        assert t.get_data_variable_name() == "amplitude"
 
     def test_configuration_time(self) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate in time domain."""
@@ -55,7 +53,6 @@ class TestSeismic3DPreStackShotTemplate:
         assert t._coord_dim_names == []
         assert t._dim_names == ["shot_point", "cable", "channel", "time"]
         assert t._coord_names == ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
-        assert t._var_name == "AmplitudeShot"
         assert t._var_chunk_shape == [1, 1, 512, 4096]
 
         # Variables instantiated when build_dataset() is called
@@ -102,8 +99,8 @@ class TestSeismic3DPreStackShotTemplate:
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
         # Verify variables (including dimension variables)
-        # 5 coordinate variables + 1 data variable = 6 variables
-        assert len(dataset.variables) == 6
+        # 5 coordinate variables + 1 data variable + 1 trace mask = 7 variables
+        assert len(dataset.variables) == 7
 
         # Verify coordinate variables
         validate_variable(
@@ -153,7 +150,7 @@ class TestSeismic3DPreStackShotTemplate:
         # Verify seismic variable (prestack shot depth data)
         seismic = validate_variable(
             dataset,
-            name="AmplitudeShot",
+            name="amplitude",
             dims=[("shot_point", 256), ("cable", 512), ("channel", 24), ("depth", 2048)],
             coords=["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"],
             dtype=ScalarType.FLOAT32,
@@ -163,6 +160,8 @@ class TestSeismic3DPreStackShotTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
+
+        # TODO: Validate trace mask
 
     def test_build_dataset_time(self) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in time domain."""
@@ -181,8 +180,8 @@ class TestSeismic3DPreStackShotTemplate:
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
         # Verify variables (including dimension variables)
-        # 5 coordinate variables + 1 data variable = 6 variables
-        assert len(dataset.variables) == 6
+        # 5 coordinate variables + 1 data variable + 1 trace mask = 7 variables
+        assert len(dataset.variables) == 7
 
         # Verify coordinate variables
         validate_variable(
@@ -232,7 +231,7 @@ class TestSeismic3DPreStackShotTemplate:
         # Verify seismic variable (prestack shot time data)
         seismic = validate_variable(
             dataset,
-            name="AmplitudeShot",
+            name="amplitude",
             dims=[("shot_point", 256), ("cable", 512), ("channel", 24), ("time", 2048)],
             coords=["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"],
             dtype=ScalarType.FLOAT32,
@@ -242,3 +241,5 @@ class TestSeismic3DPreStackShotTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
+
+        # TODO: Validate trace mask

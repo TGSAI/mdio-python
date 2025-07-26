@@ -78,18 +78,18 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
     # Verify coordinate variables
     cdp_x = validate_variable(
         dataset,
-        name="cdp-x",
+        name="cdp_x",
         dims=[("inline", 256), ("crossline", 512)],
-        coords=["cdp-x"],
+        coords=["cdp_x"],
         dtype=ScalarType.FLOAT32,
     )
     assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
 
     cdp_y = validate_variable(
         dataset,
-        name="cdp-y",
+        name="cdp_y",
         dims=[("inline", 256), ("crossline", 512)],
-        coords=["cdp-y"],
+        coords=["cdp_y"],
         dtype=ScalarType.FLOAT32,
     )
     assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
@@ -99,7 +99,7 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
         dataset,
         name="image",
         dims=[("inline", 256), ("crossline", 512), ("depth", 384)],
-        coords=["cdp-x", "cdp-y"],
+        coords=["cdp_x", "cdp_y"],
         dtype=ScalarType.FLOAT32,
     )
     assert image.metadata.units_v1 is None  # No units defined for image
@@ -111,7 +111,7 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
         dataset,
         name="velocity",
         dims=[("inline", 256), ("crossline", 512), ("depth", 384)],
-        coords=["cdp-x", "cdp-y"],
+        coords=["cdp_x", "cdp_y"],
         dtype=ScalarType.FLOAT16,
     )
     assert velocity.compressor is None
@@ -122,7 +122,7 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
         dataset,
         name="image_inline",
         dims=[("inline", 256), ("crossline", 512), ("depth", 384)],
-        coords=["cdp-x", "cdp-y"],
+        coords=["cdp_x", "cdp_y"],
         dtype=ScalarType.FLOAT32,
     )
     assert image_inline.long_name == "inline optimized version of 3d_stack"
@@ -133,17 +133,17 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
     headers = next(v for v in dataset.variables if v.name == "image_headers")
     assert isinstance(headers.data_type, StructuredType)
     assert len(headers.data_type.fields) == 4
-    assert headers.data_type.fields[0].name == "cdp-x"
+    assert headers.data_type.fields[0].name == "cdp_x"
 
     headers = validate_variable(
         dataset,
         name="image_headers",
         dims=[("inline", 256), ("crossline", 512)],
-        coords=["cdp-x", "cdp-y"],
+        coords=["cdp_x", "cdp_y"],
         dtype=StructuredType(
             fields=[
-                StructuredField(name="cdp-x", format=ScalarType.INT32),
-                StructuredField(name="cdp-y", format=ScalarType.INT32),
+                StructuredField(name="cdp_x", format=ScalarType.INT32),
+                StructuredField(name="cdp_y", format=ScalarType.INT32),
                 StructuredField(name="elevation", format=ScalarType.FLOAT16),
                 StructuredField(name="some_scalar", format=ScalarType.FLOAT16),
             ]
