@@ -75,7 +75,9 @@ def _traces_to_zarr(  # noqa: PLR0913
         return None
     
     not_null = grid_map != UINT32_MAX
-    traces = segy_file.trace[grid_map[not_null].tolist()]
+
+    live_trace_indexes = grid_map[not_null].tolist()
+    traces = segy_file.trace[live_trace_indexes]
 
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
@@ -85,16 +87,19 @@ def _traces_to_zarr(  # noqa: PLR0913
         ds_to_write = dataset.drop_vars(["trace_mask"])
         ds_to_write["headers"].data[not_null] = traces.header
         ds_to_write["headers"].data[~not_null] = 0
-        # BUG: Fails here with "IndexError: Boolean array with size 400 is not long enough for axis 0 with size 20"
+        # BUG: Fails here with "IndexError: Boolean array with size 400 is not long enough for axis 0 with size 20"At the moment
         ds_to_write[data_variable_name].data[not_null] = traces.sample
         ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False)
     else:
         ds_to_write = dataset[[data_variable_name]]
         ds_to_write = dataset.reset_coords()
         ds_to_write = dataset.drop_vars(["trace_mask"])
-        ddd = ds_to_write[data_variable_name]
+        # Note: the dimension and coordinates variables have already been dropped
         # BUG: Fails here with "IndexError: Boolean array with size 400 is not long enough for axis 0 with size 20"
-        ddd.data[not_null] = traces.sample
+        #  ds_to_write[data_variable_name].data[not_null] = traces.sample
+        # Fix it as following:
+        data_var = ds_to_write[data_variable_name]
+        data_var.data = traces.sample.reshape(data_var.shape)
         ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False)
 
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])

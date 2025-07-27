@@ -98,23 +98,32 @@ def _populate_dims_coords_and_write_to_zarr(
     dataset: xr_Dataset,
     dimensions: list[Dimension],
     coordinates: list[Dimension],
-    output: StorageLocation) -> None:
+    output: StorageLocation) -> xr_Dataset:
     """Populate dimensions and coordinates in the xarray dataset and write to Zarr.
 
     This will write the xr Dataset with coords and dimensions, but empty traces and headers.
     """
 
+    # Should we do xarray.DataArray.reset_coords first?
+
+    vars_to_drop = list()
+
     for c in dimensions:
         dataset.coords[c.name] = c.coords
+        vars_to_drop.append(c.name)
 
     for c in coordinates:
         dataset.coords[c.name] = c.coords
+        vars_to_drop.append(c.name)
 
     dataset.to_zarr(store=output.uri,
                     mode="w",
                     write_empty_chunks=False,
                     zarr_format=2,
                     compute=True)
+    
+    # Now we can drop them to simplify chunked write of the data variable
+    return dataset.drop_vars(vars_to_drop)
 
 def _create_grid_map_trace_mask(grid: Grid) -> tuple[zarr.Array, zarr.Array]:
     """Create a trace mask and grid map arrays for the grid."""
@@ -134,7 +143,7 @@ def _populate_trace_mask_and_write_to_zarr(segy_file: SegyFile,
                                               dimensions: list[Dimension],
                                               index_headers: SegyHeaderArray, 
                                               xr_sd: xr_Dataset, 
-                                              output: StorageLocation) -> zarr.Array:
+                                              output: StorageLocation) -> tuple[zarr.Array, xr_Dataset]:
     """Populate and write the trace mask to Zarr, return the grid map as Zarr array.
 
     Returns:
@@ -210,19 +219,20 @@ def segy_to_mdio_v1(
     # Validate SEG-Y dimensions and headers against xarray dataset created from the template.
     _validate_segy(coordinates=coordinates, templated_dataset=xr_dataset)
 
-    # Write the xr Dataset with coords and dimensions, but empty traces and headers
+    # Write the xr Dataset with coords and dimensions, but empty traces and headers.
+    # Drop them after the write, so we can write the data variable in chunks later
     # Writing traces and headers is an memory-expensive and time-consuming operation
     # We will write them in chunks later
-    _populate_dims_coords_and_write_to_zarr(dataset=xr_dataset,
-                                            dimensions=dimensions,
-                                            coordinates=coordinates,
-                                            output=output)
+    xr_dataset = _populate_dims_coords_and_write_to_zarr(dataset=xr_dataset,
+                                                         dimensions=dimensions,
+                                                         coordinates=coordinates,
+                                                         output=output)
 
-    grid_map: zarr.Array = _populate_trace_mask_and_write_to_zarr(segy_file=segy_file,
-                                                                  dimensions=dimensions,
-                                                                  index_headers=index_headers,
-                                                                  xr_sd=xr_dataset,
-                                                                  output=output)
+    grid_map = _populate_trace_mask_and_write_to_zarr(segy_file=segy_file,
+                                                      dimensions=dimensions,
+                                                      index_headers=index_headers,
+                                                      xr_sd=xr_dataset,
+                                                      output=output)
 
     # TODO: Maybe we should have saved the data_variable_name as a Dataset attribute?
     # We can't hardcode it, for example to "amplitude", because it might else be 
