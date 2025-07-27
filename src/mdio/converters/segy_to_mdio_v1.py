@@ -14,7 +14,6 @@ from segy import SegyFile
 from segy.config import SegySettings
 from segy.schema import SegySpec
 from segy.arrays import HeaderArray as SegyHeaderArray
-from mdio.segy import blocked_io_v0
 from mdio.segy import blocked_io_v1
 from mdio.segy.utilities import get_grid_plan
 
@@ -247,15 +246,5 @@ def segy_to_mdio_v1(
         dataset = xr_dataset,
         data_variable_name = data_variable_name
     )
-
-    # stats = blocked_io_v0.to_zarr(
-    #     segy_file=segy_file,
-    #     grid=grid,
-    #     data_array=data,
-    #     header_array=headers,
-    #     mdio_path_or_buffer=output.uri,
-    # )
-    # stats:
-    # {"mean": glob_mean, "std": glob_std, "rms": glob_rms, "min": glob_min, "max": glob_max}
 
     # TODO: Write actual stats to the MDIO Zarr dataset
