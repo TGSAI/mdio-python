@@ -403,8 +403,7 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
     xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
-    to_zarr(xr_ds, file_path, mode="w")
-
+    xr_ds.to_zarr(store=file_path, mode="w", zarr_format=2, compute=False)
 
 @pytest.mark.skip(reason="Issues serializing dask arrays of structured types to dask.")
 def test_to_zarr_dask(tmp_path: Path) -> None:

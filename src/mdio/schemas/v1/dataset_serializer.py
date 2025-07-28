@@ -208,8 +208,6 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         # Create a DataArray for the variable. We will set coords in the second pass
         dim_names = _get_dimension_names(v)
         data_array = xr_DataArray(data, dims=dim_names)
-        chunk_dict = dict(zip(dim_names, chunks))
-        data_array = data_array.chunk(chunk_dict)
 
         # Add array attributes
         if v.metadata is not None:

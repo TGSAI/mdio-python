@@ -12,9 +12,12 @@ import numpy as np
 if TYPE_CHECKING:
     from segy import SegyFile
     from segy.arrays import HeaderArray
-    from zarr import Array
+    from zarr import Array as zarr_Array
+    from xarray import Dataset as xr_Dataset
 
-    from mdio.core import Grid
+from mdio.constants import UINT32_MAX
+from mdio.schemas.v1.stats import SummaryStatistics
+from mdio.schemas.v1.stats import CenteredBinHistogram
 
 
 def header_scan_worker(segy_file: SegyFile, trace_range: tuple[int, int]) -> HeaderArray:
@@ -51,71 +54,50 @@ def header_scan_worker(segy_file: SegyFile, trace_range: tuple[int, int]) -> Hea
     return cast("HeaderArray", trace_header)
 
 
-def trace_worker(
+def trace_worker(  # noqa: PLR0913
     segy_file: SegyFile,
-    data_array: Array,
-    metadata_array: Array,
-    grid: Grid,
-    chunk_indices: tuple[slice, ...],
-) -> tuple[Any, ...] | None:
-    """Worker function for multi-process enabled blocked SEG-Y I/O.
-
-    Performance of `zarr.Array` writes is slow if data isn't aligned with chunk boundaries,
-    sacrificing sequential reads of SEG-Y files. This won't be an issue with SSDs or cloud.
-
-    It retrieves trace numbers from the grid and gathers the current chunk's SEG-Y trace indices.
-    Then, it fills a temporary array in memory and writes to the `zarr.Array` chunk. We take full
-    slices across the sample dimension since SEG-Y data isn't chunked, eliminating concern.
-
-    Args:
-        segy_file: SegyFile instance.
-        data_array: Handle for zarr.Array we are writing traces to
-        metadata_array: Handle for zarr.Array we are writing trace headers
-        grid: mdio.Grid instance
-        chunk_indices: Tuple consisting of the chunk slice indices for each dimension
-
-    Returns:
-        Partial statistics for chunk, or None
-    """
-    # Special case where there are no traces inside chunk.
-    live_subset = grid.live_mask[chunk_indices[:-1]]
-
-    if np.count_nonzero(live_subset) == 0:
+    out_path: str,
+    data_variable_name: str,
+    region: dict[str, slice],
+    grid_map: zarr_Array,
+    dataset: xr_Dataset
+) -> SummaryStatistics | None:
+    """Read a subset of traces and write to region of Zarr file."""
+    if dataset.trace_mask.sum() == 0:
         return None
+    
+    not_null = grid_map != UINT32_MAX
 
-    # Let's get trace numbers from grid map using the chunk indices.
-    seq_trace_indices = grid.map[chunk_indices[:-1]]
+    live_trace_indexes = grid_map[not_null].tolist()
+    traces = segy_file.trace[live_trace_indexes]
 
-    tmp_data = np.zeros(seq_trace_indices.shape + (grid.shape[-1],), dtype=data_array.dtype)
-    tmp_metadata = np.zeros(seq_trace_indices.shape, dtype=metadata_array.dtype)
+    # Get subset of the dataset that has not yet been saved
+    # The headers might not be present in the dataset
+    if "headers" in dataset.data_vars:
+        ds_to_write = dataset[[data_variable_name, "headers"]]
+        ds_to_write = dataset.reset_coords()
+        ds_to_write = dataset.drop_vars(["trace_mask"])
+        ds_to_write["headers"].data[not_null] = traces.header
+        ds_to_write["headers"].data[~not_null] = 0
+        ds_to_write[data_variable_name].data[not_null] = traces.sample
 
-    del grid  # To save some memory
+        xr_headers = ds_to_write["headers"].data
+        xr_data = ds_to_write[data_variable_name].data
 
-    # Read headers and traces for block
-    valid_indices = seq_trace_indices[live_subset]
+        ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
+    else:
+        ds_to_write = dataset[[data_variable_name]]
+        ds_to_write = dataset.reset_coords()
+        ds_to_write = dataset.drop_vars(["trace_mask"])
+        ds_to_write[data_variable_name].data[not_null] = traces.sample
+        ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
 
-    traces = segy_file.trace[valid_indices.tolist()]
-    headers, samples = traces["header"], traces["data"]
-
-    tmp_metadata[live_subset] = headers.view(tmp_metadata.dtype)
-    tmp_data[live_subset] = samples
-
-    # Flush metadata to zarr
-    metadata_array.set_basic_selection(selection=chunk_indices[:-1], value=tmp_metadata)
-
-    nonzero_mask = samples != 0
-    nonzero_count = nonzero_mask.sum(dtype="uint32")
-
-    if nonzero_count == 0:
-        return None
-
-    data_array.set_basic_selection(selection=chunk_indices, value=tmp_data)
-
-    # Calculate statistics
-    tmp_data = samples[nonzero_mask]
-    chunk_sum = tmp_data.sum(dtype="float64")
-    chunk_sum_squares = np.square(tmp_data, dtype="float64").sum()
-    min_val = tmp_data.min()
-    max_val = tmp_data.max()
-
-    return nonzero_count, chunk_sum, chunk_sum_squares, min_val, max_val
+    histogram = CenteredBinHistogram(bin_centers=[], counts=[])
+    return SummaryStatistics(
+        count=traces.sample.size,
+        min=traces.sample.min(),
+        max=traces.sample.max(),
+        sum=traces.sample.sum(),
+        sum_squares=(traces.sample**2).sum(),
+        histogram=histogram,
+    )

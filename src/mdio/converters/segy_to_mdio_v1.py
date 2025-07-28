@@ -8,13 +8,12 @@ import xarray as xr
 import zarr
 
 from xarray import Dataset as xr_Dataset
-from xarray import DataArray as xr_DataArray
 
 from segy import SegyFile
 from segy.config import SegySettings
 from segy.schema import SegySpec
 from segy.arrays import HeaderArray as SegyHeaderArray
-from mdio.segy import blocked_io_v1
+from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
 from mdio.constants import UINT32_MAX
@@ -160,7 +159,7 @@ def _populate_trace_mask_and_write_to_zarr(segy_file: SegyFile,
 
     # Populate the "trace_mask" variable in the xarray dataset and write it to Zarr
     # Get subset of the dataset containing only "trace_mask"
-    #TODO: Should we write the trace mask inside of blocked_io_v1.to_zarr?
+    #TODO: Should we write the trace mask inside of blocked_io.to_zarr?
     #TODO: Should we clear the coords from ds_to_write?
     ds_to_write = xr_sd[["trace_mask"]]
     ds_to_write.to_zarr(store=output.uri, 
@@ -200,14 +199,6 @@ def segy_to_mdio_v1(
     # Thus, we are not setting headers for now:
     headers = None
     # headers = to_structured_type(index_headers.dtype)
-    # headers = StructuredType(
-    #     fields=[
-    #             StructuredField(name="cdp_x", format=ScalarType.INT32),
-    #             StructuredField(name="cdp_y", format=ScalarType.INT32),
-    #             StructuredField(name="elevation", format=ScalarType.FLOAT16),
-    #             StructuredField(name="some_scalar", format=ScalarType.FLOAT16),
-    #     ]
-    # )
     # TODO: Set Units to None for now, will fix this later
     mdio_ds: Dataset = mdio_template.build_dataset(name="NONE", 
                                                    sizes=shape, 
@@ -239,7 +230,7 @@ def segy_to_mdio_v1(
     data_variable_name = mdio_template.get_data_variable_name()  
     # This is an memory-expensive and time-consuming operation read-write operation 
     # performed in chunks to save the memory
-    stats: SummaryStatistics = blocked_io_v1.to_zarr(
+    stats: SummaryStatistics = blocked_io.to_zarr(
         segy_file = segy_file,
         out_path = output.uri,
         grid_map = grid_map,
