@@ -197,8 +197,8 @@ def segy_to_mdio_v1(
     #   to dtype('bool') according to the rule 'unsafe'
     # I believe Dask does not support StructuredType data type.
     # Thus, we are not setting headers for now:
-    headers = None
-    # headers = to_structured_type(index_headers.dtype)
+    # headers = None
+    headers = to_structured_type(index_headers.dtype)
     # TODO: Set Units to None for now, will fix this later
     mdio_ds: Dataset = mdio_template.build_dataset(name="NONE", 
                                                    sizes=shape, 
