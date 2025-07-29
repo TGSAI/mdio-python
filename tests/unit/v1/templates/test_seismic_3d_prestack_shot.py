@@ -42,7 +42,7 @@ class TestSeismic3DPreStackShotTemplate:
             "ensembleType": "shot",
             "processingStage": "pre-stack",
         }
-        assert t.get_data_variable_name() == "amplitude"
+        assert t.trace_variable_name == "amplitude"
 
     def test_configuration_time(self) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate in time domain."""
@@ -68,25 +68,25 @@ class TestSeismic3DPreStackShotTemplate:
             "processingStage": "pre-stack",
         }
 
-        assert t.get_name() == "PreStackShotGathers3DTime"
+        assert t.name == "PreStackShotGathers3DTime"
 
     def test_domain_case_handling(self) -> None:
         """Test that domain parameter handles different cases correctly."""
         # Test uppercase
         t1 = Seismic3DPreStackShotTemplate("ELEVATION")
         assert t1._trace_domain == "elevation"
-        assert t1.get_name() == "PreStackShotGathers3DElevation"
+        assert t1.name == "PreStackShotGathers3DElevation"
 
         # Test mixed case
         t2 = Seismic3DPreStackShotTemplate("elevatioN")
         assert t2._trace_domain == "elevation"
-        assert t2.get_name() == "PreStackShotGathers3DElevation"
+        assert t2.name == "PreStackShotGathers3DElevation"
 
     def test_build_dataset_depth(self) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in depth domain."""
         t = Seismic3DPreStackShotTemplate(domain="depth")
 
-        assert t.get_name() == "PreStackShotGathers3DDepth"
+        assert t.name == "PreStackShotGathers3DDepth"
         dataset = t.build_dataset(
             "Gulf of Mexico 3D Shot Depth",
             sizes=[256, 512, 24, 2048],
@@ -167,7 +167,7 @@ class TestSeismic3DPreStackShotTemplate:
         """Unit tests for Seismic3DPreStackShotTemplate build in time domain."""
         t = Seismic3DPreStackShotTemplate(domain="time")
 
-        assert t.get_name() == "PreStackShotGathers3DTime"
+        assert t.name == "PreStackShotGathers3DTime"
         dataset = t.build_dataset(
             "North Sea 3D Shot Time",
             sizes=[256, 512, 24, 2048],

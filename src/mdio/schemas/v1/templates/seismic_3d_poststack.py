@@ -15,7 +15,8 @@ class Seismic3DPostStackTemplate(AbstractDatasetTemplate):
         self._coord_names = ["cdp_x", "cdp_y"]
         self._var_chunk_shape = [128, 128, 128]
 
-    def _get_name(self) -> str:
+    @property
+    def _name(self) -> str:
         return f"PostStack3D{self._trace_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> UserAttributes:

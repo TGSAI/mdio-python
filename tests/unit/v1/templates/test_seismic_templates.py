@@ -23,15 +23,17 @@ class TestSeismicTemplates:
             def __init__(self, domain: str):
                 super().__init__(domain=domain)
 
-            def _get_data_variable_name(self) -> str:
+            @property
+            def _trace_variable_name(self) -> str:
                 return "velocity"
 
-            def _get_name(self) -> str:
+            @property
+            def _name(self) -> str:
                 return f"Velocity2D{self._trace_domain.capitalize()}"
 
         t = Velocity2DPostStackTemplate("depth")
-        assert t.get_name() == "Velocity2DDepth"
-        assert t.get_data_variable_name() == "velocity"
+        assert t.name == "Velocity2DDepth"
+        assert t.trace_variable_name == "velocity"
 
         dataset = t.build_dataset(
             "Velocity 2D Depth Line 001",
@@ -53,26 +55,26 @@ class TestSeismicTemplates:
         time_template = Seismic2DPostStackTemplate("time")
         dpth_template = Seismic2DPostStackTemplate("depth")
 
-        assert time_template.get_name() == "PostStack2DTime"
-        assert dpth_template.get_name() == "PostStack2DDepth"
+        assert time_template.name == "PostStack2DTime"
+        assert dpth_template.name == "PostStack2DDepth"
 
         time_template = Seismic3DPostStackTemplate("time")
         dpth_template = Seismic3DPostStackTemplate("depth")
 
-        assert time_template.get_name() == "PostStack3DTime"
-        assert dpth_template.get_name() == "PostStack3DDepth"
+        assert time_template.name == "PostStack3DTime"
+        assert dpth_template.name == "PostStack3DDepth"
 
         time_template = Seismic3DPreStackCDPTemplate("time")
         dpth_template = Seismic3DPreStackCDPTemplate("depth")
 
-        assert time_template.get_name() == "PreStackCdpGathers3DTime"
-        assert dpth_template.get_name() == "PreStackCdpGathers3DDepth"
+        assert time_template.name == "PreStackCdpGathers3DTime"
+        assert dpth_template.name == "PreStackCdpGathers3DDepth"
 
         time_template = Seismic3DPreStackShotTemplate("time")
         dpth_template = Seismic3DPreStackShotTemplate("depth")
 
-        assert time_template.get_name() == "PreStackShotGathers3DTime"
-        assert dpth_template.get_name() == "PreStackShotGathers3DDepth"
+        assert time_template.name == "PreStackShotGathers3DTime"
+        assert dpth_template.name == "PreStackShotGathers3DDepth"
 
     def test_all_templates_inherit_from_abstract(self) -> None:
         """Test that all concrete templates inherit from AbstractDatasetTemplate."""
@@ -89,8 +91,13 @@ class TestSeismicTemplates:
 
         for template in templates:
             assert isinstance(template, AbstractDatasetTemplate)
-            assert hasattr(template, "get_name")
+            # That each template has the required properties and methods
+            assert hasattr(template, "name")
+            assert hasattr(template, "trace_variable_name")
+            assert hasattr(template, "trace_domain")
+            assert hasattr(template, "dimension_names")
+            assert hasattr(template, "coordinate_names")
             assert hasattr(template, "build_dataset")
 
-        names = [template.get_name() for template in templates]
+        names = [template.name for template in templates]
         assert len(names) == len(set(names)), f"Duplicate template names found: {names}"

@@ -67,8 +67,7 @@ def _scan_for_dims_coords_headers(
     # The dimensions are ordered as in the MDIO template.
     # The last dimension is always the vertical dimension and is treated specially
     dimensions = []
-    mdio_dimension_names = mdio_template._dim_names  #TODO: expose as public
-    for coord_name in mdio_dimension_names[:-1]:
+    for coord_name in mdio_template.dimension_names[:-1]:
         coord = next((dim for dim in segy_dimensions if dim.name == coord_name), None)
         if coord is None:
             err = f"Dimension '{coord_name}' not found in SEG-Y dimensions."
@@ -77,13 +76,11 @@ def _scan_for_dims_coords_headers(
     # The last dimension returned by get_grid_plan is always the vertical dimension, 
     # which is not named as in the MDIO template. Correct this.
     segy_vertical_dim = segy_dimensions[-1]
-    domain = mdio_template._trace_domain  #TODO: expose as public
-    segy_vertical_dim.name = domain
+    segy_vertical_dim.name = mdio_template.trace_domain
     dimensions.append(segy_vertical_dim)
 
     coordinates = []
-    mdio_coord_names = mdio_template._coord_names #TODO: expose as public
-    for coord_name in mdio_coord_names:
+    for coord_name in mdio_template.coordinate_names:
         coord = next((c for c in segy_dimensions if c.name == coord_name), None)
         if coord is None:
             err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
@@ -155,12 +152,9 @@ def _populate_trace_mask_and_write_to_zarr(segy_file: SegyFile,
 
     # Create grid map and trace mask arrays
     grid_map, trace_mask = _create_grid_map_trace_mask(grid=grid)
-    xr_sd.trace_mask.data[:] = trace_mask
 
     # Populate the "trace_mask" variable in the xarray dataset and write it to Zarr
-    # Get subset of the dataset containing only "trace_mask"
-    #TODO: Should we write the trace mask inside of blocked_io.to_zarr?
-    #TODO: Should we clear the coords from ds_to_write?
+    xr_sd.trace_mask.data[:] = trace_mask
     ds_to_write = xr_sd[["trace_mask"]]
     ds_to_write.to_zarr(store=output.uri, 
                         mode="r+", 
@@ -197,8 +191,8 @@ def segy_to_mdio_v1(
     #   to dtype('bool') according to the rule 'unsafe'
     # I believe Dask does not support StructuredType data type.
     # Thus, we are not setting headers for now:
-    # headers = None
-    headers = to_structured_type(index_headers.dtype)
+    headers = None
+    # headers = to_structured_type(index_headers.dtype)
     # TODO: Set Units to None for now, will fix this later
     mdio_ds: Dataset = mdio_template.build_dataset(name="NONE", 
                                                    sizes=shape, 
@@ -224,11 +218,9 @@ def segy_to_mdio_v1(
                                                       xr_sd=xr_dataset,
                                                       output=output)
 
-    # TODO: Maybe we should have saved the data_variable_name as a Dataset attribute?
-    # We can't hardcode it, for example to "amplitude", because it might else be 
-    # "velocity" or "pressure"
-    data_variable_name = mdio_template.get_data_variable_name()  
-    # This is an memory-expensive and time-consuming operation read-write operation 
+    # NOTE: Maybe we should have saved the data_variable_name as a Dataset attribute?
+    data_variable_name = mdio_template.trace_variable_name  
+    # This is an memory-expensive and time-consuming read-write operation 
     # performed in chunks to save the memory
     stats: SummaryStatistics = blocked_io.to_zarr(
         segy_file = segy_file,

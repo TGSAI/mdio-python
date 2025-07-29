@@ -42,7 +42,7 @@ class TestSeismic2DPostStackTemplate:
             "processingStage": "post-stack",
         }
 
-        assert t.get_data_variable_name() == "amplitude"
+        assert t.trace_variable_name == "amplitude"
 
     def test_configuration_time(self) -> None:
         """Test configuration of Seismic2DPostStackTemplate with time domain."""
@@ -67,19 +67,19 @@ class TestSeismic2DPostStackTemplate:
             "ensembleType": "line",
             "processingStage": "post-stack",
         }
-        assert t.get_data_variable_name() == "amplitude"
+        assert t.trace_variable_name == "amplitude"
 
     def test_domain_case_handling(self) -> None:
         """Test that domain parameter handles different cases correctly."""
         # Test uppercase
         t1 = Seismic2DPostStackTemplate("ELEVATION")
         assert t1._trace_domain == "elevation"
-        assert t1.get_name() == "PostStack2DElevation"
+        assert t1.name == "PostStack2DElevation"
 
         # Test mixed case
         t2 = Seismic2DPostStackTemplate("elevatioN")
         assert t2._trace_domain == "elevation"
-        assert t2.get_name() == "PostStack2DElevation"
+        assert t2.name == "PostStack2DElevation"
 
     def test_build_dataset_depth(self) -> None:
         """Test building a complete 2D depth dataset."""
@@ -195,8 +195,8 @@ class TestSeismic2DPostStackTemplate:
         assert depth_template._trace_domain == "depth"
 
         # Different names
-        assert time_template.get_name() == "PostStack2DTime"
-        assert depth_template.get_name() == "PostStack2DDepth"
+        assert time_template.name == "PostStack2DTime"
+        assert depth_template.name == "PostStack2DDepth"
 
         # Same other attributes
         assert time_template._coord_dim_names == depth_template._coord_dim_names

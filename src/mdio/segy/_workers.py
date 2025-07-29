@@ -73,21 +73,20 @@ def trace_worker(  # noqa: PLR0913
 
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
+    # TODO: Q: to save memory, should we overwrite the 'dataset'?
     if "headers" in dataset.data_vars:
         ds_to_write = dataset[[data_variable_name, "headers"]]
         ds_to_write = ds_to_write.reset_coords()
 
         ds_to_write["headers"].data[not_null] = traces.header
         ds_to_write["headers"].data[~not_null] = 0
-        ds_to_write[data_variable_name].data[not_null] = traces.sample
-
-        ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
     else:
         ds_to_write = dataset[[data_variable_name]]
         ds_to_write = ds_to_write.reset_coords()
-        ds_to_write = ds_to_write.drop_vars(["trace_mask"])
-        ds_to_write[data_variable_name].data[not_null] = traces.sample
-        ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
+
+    ds_to_write[data_variable_name].data[not_null] = traces.sample
+
+    ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
 
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
     return SummaryStatistics(

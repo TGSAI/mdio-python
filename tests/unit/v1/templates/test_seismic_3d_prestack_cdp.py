@@ -42,7 +42,7 @@ class TestSeismic3DPreStackCDPTemplate:
             "ensembleType": "cdp",
             "processingStage": "pre-stack",
         }
-        assert t.get_data_variable_name() == "amplitude"
+        assert t.trace_variable_name == "amplitude"
 
     def test_configuration_time(self) -> None:
         """Unit tests for Seismic3DPreStackCDPTemplate."""
@@ -68,25 +68,25 @@ class TestSeismic3DPreStackCDPTemplate:
             "processingStage": "pre-stack",
         }
 
-        assert t.get_name() == "PreStackCdpGathers3DTime"
+        assert t.name == "PreStackCdpGathers3DTime"
 
     def test_domain_case_handling(self) -> None:
         """Test that domain parameter handles different cases correctly."""
         # Test uppercase
         t1 = Seismic3DPreStackCDPTemplate("ELEVATION")
         assert t1._trace_domain == "elevation"
-        assert t1.get_name() == "PreStackCdpGathers3DElevation"
+        assert t1.name == "PreStackCdpGathers3DElevation"
 
         # Test mixed case
         t2 = Seismic3DPreStackCDPTemplate("elevatioN")
         assert t2._trace_domain == "elevation"
-        assert t2.get_name() == "PreStackCdpGathers3DElevation"
+        assert t2.name == "PreStackCdpGathers3DElevation"
 
     def test_build_dataset_depth(self) -> None:
         """Unit tests for Seismic3DPreStackCDPDepthTemplate build with depth domain."""
         t = Seismic3DPreStackCDPTemplate(domain="depth")
 
-        assert t.get_name() == "PreStackCdpGathers3DDepth"
+        assert t.name == "PreStackCdpGathers3DDepth"
         dataset = t.build_dataset(
             "North Sea 3D Prestack Depth",
             sizes=[512, 768, 36, 1536],
@@ -141,7 +141,7 @@ class TestSeismic3DPreStackCDPTemplate:
         """Unit tests for Seismic3DPreStackCDPTimeTemplate build with time domain."""
         t = Seismic3DPreStackCDPTemplate(domain="time")
 
-        assert t.get_name() == "PreStackCdpGathers3DTime"
+        assert t.name == "PreStackCdpGathers3DTime"
         dataset = t.build_dataset(
             "Santos Basin 3D Prestack",
             sizes=[512, 768, 36, 1536],

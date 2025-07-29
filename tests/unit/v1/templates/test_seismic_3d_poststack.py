@@ -44,7 +44,7 @@ class TestSeismic3DPostStackTemplate:
             "ensembleType": "line",
             "processingStage": "post-stack",
         }
-        assert t.get_data_variable_name() == "amplitude"
+        assert t.trace_variable_name == "amplitude"
 
     def test_configuration_time(self) -> None:
         """Unit tests for Seismic3DPostStackTemplate with time domain."""
@@ -68,25 +68,25 @@ class TestSeismic3DPostStackTemplate:
             "processingStage": "post-stack",
         }
 
-        assert t.get_name() == "PostStack3DTime"
+        assert t.name == "PostStack3DTime"
 
     def test_domain_case_handling(self) -> None:
         """Test that domain parameter handles different cases correctly."""
         # Test uppercase
         t1 = Seismic3DPostStackTemplate("ELEVATION")
         assert t1._trace_domain == "elevation"
-        assert t1.get_name() == "PostStack3DElevation"
+        assert t1.name == "PostStack3DElevation"
 
         # Test mixed case
         t2 = Seismic3DPostStackTemplate("elevatioN")
         assert t2._trace_domain == "elevation"
-        assert t2.get_name() == "PostStack3DElevation"
+        assert t2.name == "PostStack3DElevation"
 
     def test_build_dataset_depth(self) -> None:
         """Unit tests for Seismic3DPostStackTemplate build with depth domain."""
         t = Seismic3DPostStackTemplate(domain="depth")
 
-        assert t.get_name() == "PostStack3DDepth"
+        assert t.name == "PostStack3DDepth"
         dataset = t.build_dataset(
             "Seismic 3D", sizes=[256, 512, 1024], coord_units=[_UNIT_METER, _UNIT_METER]
         )
@@ -139,7 +139,7 @@ class TestSeismic3DPostStackTemplate:
         """Unit tests for Seismic3DPostStackTimeTemplate build with time domain."""
         t = Seismic3DPostStackTemplate(domain="time")
 
-        assert t.get_name() == "PostStack3DTime"
+        assert t.name == "PostStack3DTime"
         dataset = t.build_dataset(
             "Seismic 3D", sizes=[256, 512, 1024], coord_units=[_UNIT_METER, _UNIT_METER]
         )

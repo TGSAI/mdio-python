@@ -2,6 +2,7 @@
 
 from abc import ABC
 from abc import abstractmethod
+import copy
 from typing import Any
 
 from mdio.schemas import compressors
@@ -89,16 +90,34 @@ class AbstractDatasetTemplate(ABC):
             self._add_trace_headers(headers)
         return self._builder.build()
 
-    def get_name(self) -> str:
+    @property
+    def name(self) -> str:
         """Returns the name of the template."""
-        return self._get_name()
+        return self._name
 
-    def get_data_variable_name(self) -> str:
-        """Returns the name of the template."""
-        return self._get_data_variable_name()
+    @property
+    def trace_variable_name(self) -> str:
+        """Returns the name of the trace variable."""
+        return self._trace_variable_name
 
+    @property
+    def trace_domain(self) -> str:
+        """Returns the name of the trace domain."""
+        return self._trace_domain
+
+    @property
+    def dimension_names(self) -> list[str]:
+        """Returns the names of the dimensions."""
+        return copy.deepcopy(self._dim_names)
+
+    @property
+    def coordinate_names(self) -> list[str]:
+        """Returns the names of the coordinates."""
+        return copy.deepcopy(self._coord_names)
+
+    @property
     @abstractmethod
-    def _get_name(self) -> str:
+    def _name(self) -> str:
         """Abstract method to get the name of the template.
 
         Must be implemented by subclasses.
@@ -106,8 +125,10 @@ class AbstractDatasetTemplate(ABC):
         Returns:
             str: The name of the template
         """
+        pass
 
-    def _get_data_variable_name(self) -> str:
+    @property
+    def _trace_variable_name(self) -> str:
         """Get the name of the data variable.
 
         A virtual method that can be overwritten by subclasses to return a
@@ -200,7 +221,7 @@ class AbstractDatasetTemplate(ABC):
         Uses the class field 'builder' to add variables to the dataset.
         """
         self._builder.add_variable(
-            name=self._get_data_variable_name(),
+            name=self._trace_variable_name,
             dimensions=self._dim_names,
             data_type=ScalarType.FLOAT32,
             compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),

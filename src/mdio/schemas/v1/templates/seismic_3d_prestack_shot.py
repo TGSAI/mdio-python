@@ -17,7 +17,8 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         self._coord_names = ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
         self._var_chunk_shape = [1, 1, 512, 4096]
 
-    def _get_name(self) -> str:
+    @property
+    def _name(self) -> str:
         return f"PreStackShotGathers3D{self._trace_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> UserAttributes:
