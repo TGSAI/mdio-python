@@ -25,7 +25,7 @@ class TestSeismic3DPreStackCDPTemplate:
 
         # Template attributes for prestack CDP
         assert t._trace_domain == "depth"
-        assert t._coord_dim_names == ["inline", "crossline"]
+        assert t._coord_dim_names == ["inline", "crossline", "offset"]
         assert t._dim_names == ["inline", "crossline", "offset", "depth"]
         assert t._coord_names == ["cdp_x", "cdp_y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]
@@ -50,7 +50,7 @@ class TestSeismic3DPreStackCDPTemplate:
 
         # Template attributes for prestack CDP
         assert t._trace_domain == "time"
-        assert t._coord_dim_names == ["inline", "crossline"]
+        assert t._coord_dim_names == ["inline", "crossline", "offset"]
         assert t._dim_names == ["inline", "crossline", "offset", "time"]
         assert t._coord_names == ["cdp_x", "cdp_y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]
@@ -106,7 +106,7 @@ class TestSeismic3DPreStackCDPTemplate:
         cdp_x = validate_variable(
             dataset,
             name="cdp_x",
-            dims=[("inline", 512), ("crossline", 768)],
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
             coords=["cdp_x"],
             dtype=ScalarType.FLOAT64,
         )
@@ -115,7 +115,7 @@ class TestSeismic3DPreStackCDPTemplate:
         cdp_y = validate_variable(
             dataset,
             name="cdp_y",
-            dims=[("inline", 512), ("crossline", 768)],
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
             coords=["cdp_y"],
             dtype=ScalarType.FLOAT64,
         )
@@ -161,7 +161,7 @@ class TestSeismic3DPreStackCDPTemplate:
         cdp_x = validate_variable(
             dataset,
             name="cdp_x",
-            dims=[("inline", 512), ("crossline", 768)],
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
             coords=["cdp_x"],
             dtype=ScalarType.FLOAT64,
         )
@@ -170,7 +170,7 @@ class TestSeismic3DPreStackCDPTemplate:
         cdp_y = validate_variable(
             dataset,
             name="cdp_y",
-            dims=[("inline", 512), ("crossline", 768)],
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
             coords=["cdp_y"],
             dtype=ScalarType.FLOAT64,
         )

@@ -164,6 +164,8 @@ class AbstractDatasetTemplate(ABC):
         A virtual method that can be overwritten by subclasses to add custom coordinates.
         Uses the class field 'builder' to add coordinates to the dataset.
         """
+
+        # Add non-dimension coordinates
         for i in range(len(self._coord_names)):
             self._builder.add_coordinate(
                 self._coord_names[i],

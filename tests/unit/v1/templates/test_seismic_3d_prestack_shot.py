@@ -25,7 +25,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Template attributes for prestack shot
         assert t._trace_domain == "depth"
-        assert t._coord_dim_names == []
+        assert t._coord_dim_names == ["shot_point", "cable", "channel"]
         assert t._dim_names == ["shot_point", "cable", "channel", "depth"]
         assert t._coord_names == ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]
@@ -50,7 +50,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Template attributes for prestack shot
         assert t._trace_domain == "time"
-        assert t._coord_dim_names == []
+        assert t._coord_dim_names == ["shot_point", "cable", "channel"]
         assert t._dim_names == ["shot_point", "cable", "channel", "time"]
         assert t._coord_names == ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]

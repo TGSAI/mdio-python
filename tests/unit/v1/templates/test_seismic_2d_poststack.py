@@ -97,10 +97,10 @@ class TestSeismic2DPostStackTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
-        # 2 coordinate variables + 1 data variable + 1 trace mask = 4 variables
+        # 2 non-dim coords + 1 data + 1 trace mask = 4 variables
         assert len(dataset.variables) == 4
 
-        # Verify coordinate variables
+        # Verify non-dim coordinate variables
         cdp_x = validate_variable(
             dataset,
             name="cdp_x",
