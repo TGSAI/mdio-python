@@ -4,18 +4,114 @@ from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import ScalarType, StructuredType
 from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
 from mdio.schemas.v1.units import TimeUnitEnum
 from mdio.schemas.v1.units import TimeUnitModel
+from mdio.schemas.v1.dataset import Dataset
 
 _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
 
+def validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
+    # Verify variables
+    # 3 dim coords + 5 non-dim coords + 1 data + 1 trace mask + 1 headers = 11 variables
+    assert len(dataset.variables) == 11
+
+    # Verify trace headers
+    seismic = validate_variable(
+        dataset,
+        name="headers",
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
+        coords=["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"],
+        dtype=headers,
+    )
+
+    seismic = validate_variable(
+        dataset,
+        name="trace_mask",
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
+        coords=["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"],
+        dtype=ScalarType.BOOL,
+    )
+
+    # Verify dimension coordinate variables
+    inline = validate_variable(
+        dataset,
+        name="shot_point",
+        dims=[("shot_point", 256)],
+        coords=["shot_point"],
+        dtype=ScalarType.INT32,
+    )
+    assert inline.metadata is None
+
+    crossline = validate_variable(
+        dataset,
+        name="cable",
+        dims=[("cable", 512)],
+        coords=["cable"],
+        dtype=ScalarType.INT32,
+    )
+    assert crossline.metadata is None
+
+    crossline = validate_variable(
+        dataset,
+        name="channel",
+        dims=[("channel", 24)],
+        coords=["channel"],
+        dtype=ScalarType.INT32,
+    )
+    assert crossline.metadata is None
+
+    # Verify non-dimension coordinate variables
+    validate_variable(
+        dataset,
+        name="gun",
+        dims=[("shot_point", 256)],
+        coords=["gun"],
+        dtype=ScalarType.UINT8,
+    )
+
+    shot_x = validate_variable(
+        dataset,
+        name="shot-x",
+        dims=[("shot_point", 256)],
+        coords=["shot-x"],
+        dtype=ScalarType.FLOAT64,
+    )
+    assert shot_x.metadata.units_v1.length == LengthUnitEnum.METER
+
+    shot_y = validate_variable(
+        dataset,
+        name="shot-y",
+        dims=[("shot_point", 256)],
+        coords=["shot-y"],
+        dtype=ScalarType.FLOAT64,
+    )
+    assert shot_y.metadata.units_v1.length == LengthUnitEnum.METER
+
+    receiver_x = validate_variable(
+        dataset,
+        name="receiver-x",
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
+        coords=["receiver-x"],
+        dtype=ScalarType.FLOAT64,
+    )
+    assert receiver_x.metadata.units_v1.length == LengthUnitEnum.METER
+
+    receiver_y = validate_variable(
+        dataset,
+        name="receiver-y",
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
+        coords=["receiver-y"],
+        dtype=ScalarType.FLOAT64,
+    )
+    assert receiver_y.metadata.units_v1.length == LengthUnitEnum.METER
+    
 class TestSeismic3DPreStackShotTemplate:
     """Unit tests for Seismic3DPreStackShotTemplate."""
 
@@ -82,7 +178,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert t2._trace_domain == "elevation"
         assert t2.name == "PreStackShotGathers3DElevation"
 
-    def test_build_dataset_depth(self) -> None:
+    def test_build_dataset_depth(self, structured_headers) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in depth domain."""
         t = Seismic3DPreStackShotTemplate(domain="depth")
 
@@ -91,6 +187,7 @@ class TestSeismic3DPreStackShotTemplate:
             "Gulf of Mexico 3D Shot Depth",
             sizes=[256, 512, 24, 2048],
             coord_units=[_UNIT_METER, _UNIT_METER],
+            headers = structured_headers, 
         )
 
         assert dataset.metadata.name == "Gulf of Mexico 3D Shot Depth"
@@ -98,54 +195,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "shot"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
-        # Verify variables (including dimension variables)
-        # 5 coordinate variables + 1 data variable + 1 trace mask = 7 variables
-        assert len(dataset.variables) == 7
-
-        # Verify coordinate variables
-        validate_variable(
-            dataset,
-            name="gun",
-            dims=[("shot_point", 256)],
-            coords=["gun"],
-            dtype=ScalarType.UINT8,
-        )
-
-        shot_x = validate_variable(
-            dataset,
-            name="shot-x",
-            dims=[("shot_point", 256)],
-            coords=["shot-x"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert shot_x.metadata.units_v1.length == LengthUnitEnum.METER
-
-        shot_y = validate_variable(
-            dataset,
-            name="shot-y",
-            dims=[("shot_point", 256)],
-            coords=["shot-y"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert shot_y.metadata.units_v1.length == LengthUnitEnum.METER
-
-        receiver_x = validate_variable(
-            dataset,
-            name="receiver-x",
-            dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
-            coords=["receiver-x"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert receiver_x.metadata.units_v1.length == LengthUnitEnum.METER
-
-        receiver_y = validate_variable(
-            dataset,
-            name="receiver-y",
-            dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
-            coords=["receiver-y"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert receiver_y.metadata.units_v1.length == LengthUnitEnum.METER
+        validate_coordinates_headers_trace_mask(dataset, structured_headers)
 
         # Verify seismic variable (prestack shot depth data)
         seismic = validate_variable(
@@ -161,9 +211,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
 
-        # TODO: Validate trace mask
-
-    def test_build_dataset_time(self) -> None:
+    def test_build_dataset_time(self, structured_headers) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in time domain."""
         t = Seismic3DPreStackShotTemplate(domain="time")
 
@@ -172,6 +220,7 @@ class TestSeismic3DPreStackShotTemplate:
             "North Sea 3D Shot Time",
             sizes=[256, 512, 24, 2048],
             coord_units=[_UNIT_METER, _UNIT_METER],
+            headers = structured_headers, 
         )
 
         assert dataset.metadata.name == "North Sea 3D Shot Time"
@@ -179,55 +228,8 @@ class TestSeismic3DPreStackShotTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "shot"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
-        # Verify variables (including dimension variables)
-        # 5 coordinate variables + 1 data variable + 1 trace mask = 7 variables
-        assert len(dataset.variables) == 7
-
-        # Verify coordinate variables
-        validate_variable(
-            dataset,
-            name="gun",
-            dims=[("shot_point", 256)],
-            coords=["gun"],
-            dtype=ScalarType.UINT8,
-        )
-
-        shot_x = validate_variable(
-            dataset,
-            name="shot-x",
-            dims=[("shot_point", 256)],
-            coords=["shot-x"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert shot_x.metadata.units_v1.length == LengthUnitEnum.METER
-
-        shot_y = validate_variable(
-            dataset,
-            name="shot-y",
-            dims=[("shot_point", 256)],
-            coords=["shot-y"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert shot_y.metadata.units_v1.length == LengthUnitEnum.METER
-
-        receiver_x = validate_variable(
-            dataset,
-            name="receiver-x",
-            dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
-            coords=["receiver-x"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert receiver_x.metadata.units_v1.length == LengthUnitEnum.METER
-
-        receiver_y = validate_variable(
-            dataset,
-            name="receiver-y",
-            dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
-            coords=["receiver-y"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert receiver_y.metadata.units_v1.length == LengthUnitEnum.METER
-
+        validate_coordinates_headers_trace_mask(dataset, structured_headers)
+        
         # Verify seismic variable (prestack shot time data)
         seismic = validate_variable(
             dataset,
@@ -241,5 +243,3 @@ class TestSeismic3DPreStackShotTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
-
-        # TODO: Validate trace mask

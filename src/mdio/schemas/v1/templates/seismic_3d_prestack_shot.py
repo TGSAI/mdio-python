@@ -31,6 +31,17 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         )
 
     def _add_coordinates(self) -> None:
+        # Add dimension coordinates
+        pass
+        for name in self._coord_dim_names:
+            self._builder.add_coordinate(
+                name,
+                dimensions=[name],
+                data_type=ScalarType.INT32,
+                metadata_info=None,
+            )
+
+        # Add non-dimension coordinates
         self._builder.add_coordinate(
             "gun",
             dimensions=["shot_point"],

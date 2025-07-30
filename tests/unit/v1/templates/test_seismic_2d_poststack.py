@@ -1,9 +1,10 @@
 """Unit tests for Seismic2DPostStackTemplate."""
 
+from mdio.schemas.v1.dataset import Dataset
 from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import ScalarType, StructuredField, StructuredType
 from mdio.schemas.v1.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
@@ -14,6 +15,58 @@ from mdio.schemas.v1.units import TimeUnitModel
 _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
+def validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
+    """Validate the coordinate, headers, trace_mask variables in the dataset."""
+
+    # Verify variables
+    # 1 dim coords + 2 non-dim coords + 1 data + 1 trace mask + 1 headers = 6 variables
+    assert len(dataset.variables) == 6
+
+    # Verify trace headers
+    seismic = validate_variable(
+        dataset,
+        name="headers",
+        dims=[("cdp", 2048)],
+        coords=["cdp_x", "cdp_y"],
+        dtype=headers,
+    )
+
+    seismic = validate_variable(
+        dataset,
+        name="trace_mask",
+        dims=[("cdp", 2048)],
+        coords=["cdp_x", "cdp_y"],
+        dtype=ScalarType.BOOL,
+    )
+
+    # Verify dimension coordinate variables
+    inline = validate_variable(
+        dataset,
+        name="cdp",
+        dims=[("cdp", 2048)],
+        coords=["cdp"],
+        dtype=ScalarType.INT32,
+    )
+    assert inline.metadata is None
+
+    # Verify non-dimension coordinate variables
+    cdp_x = validate_variable(
+        dataset,
+        name="cdp_x",
+        dims=[("cdp", 2048)],
+        coords=["cdp_x"],
+        dtype=ScalarType.FLOAT64,
+    )
+    assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
+
+    cdp_y = validate_variable(
+        dataset,
+        name="cdp_y",
+        dims=[("cdp", 2048)],
+        coords=["cdp_y"],
+        dtype=ScalarType.FLOAT64,
+    )
+    assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
 
 class TestSeismic2DPostStackTemplate:
     """Unit tests for Seismic2DPostStackTemplate."""
@@ -81,7 +134,7 @@ class TestSeismic2DPostStackTemplate:
         assert t2._trace_domain == "elevation"
         assert t2.name == "PostStack2DElevation"
 
-    def test_build_dataset_depth(self) -> None:
+    def test_build_dataset_depth(self, structured_headers) -> None:
         """Test building a complete 2D depth dataset."""
         t = Seismic2DPostStackTemplate("depth")
 
@@ -89,6 +142,7 @@ class TestSeismic2DPostStackTemplate:
             "Seismic 2D Depth Line 001",
             sizes=[2048, 4096],
             coord_units=[_UNIT_METER, _UNIT_METER],  # Both coordinates and depth in meters
+            headers=structured_headers,
         )
 
         # Verify dataset metadata
@@ -97,27 +151,7 @@ class TestSeismic2DPostStackTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
-        # 2 non-dim coords + 1 data + 1 trace mask = 4 variables
-        assert len(dataset.variables) == 4
-
-        # Verify non-dim coordinate variables
-        cdp_x = validate_variable(
-            dataset,
-            name="cdp_x",
-            dims=[("cdp", 2048)],
-            coords=["cdp_x"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
-
-        cdp_y = validate_variable(
-            dataset,
-            name="cdp_y",
-            dims=[("cdp", 2048)],
-            coords=["cdp_y"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
+        validate_coordinates_headers_trace_mask(dataset, structured_headers)
 
         # Verify seismic variable
         seismic = validate_variable(
@@ -131,9 +165,7 @@ class TestSeismic2DPostStackTemplate:
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1024, 1024]
         assert seismic.metadata.stats_v1 is None
 
-        # TODO: Validate trace mask
-
-    def test_build_dataset_time(self) -> None:
+    def test_build_dataset_time(self, structured_headers) -> None:
         """Test building a complete 2D time dataset."""
         t = Seismic2DPostStackTemplate("time")
 
@@ -141,6 +173,7 @@ class TestSeismic2DPostStackTemplate:
             "Seismic 2D Time Line 001",
             sizes=[2048, 4096],
             coord_units=[_UNIT_METER, _UNIT_METER],  # Coordinates in meters, time in seconds
+            headers=structured_headers,
         )
 
         # Verify dataset metadata
@@ -149,27 +182,7 @@ class TestSeismic2DPostStackTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
-        # 2 coordinate variables + 1 data variable + 1 trace mask = 4 variables
-        assert len(dataset.variables) == 4
-
-        # Verify coordinate variables
-        v = validate_variable(
-            dataset,
-            name="cdp_x",
-            dims=[("cdp", 2048)],
-            coords=["cdp_x"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert v.metadata.units_v1.length == LengthUnitEnum.METER
-
-        v = validate_variable(
-            dataset,
-            name="cdp_y",
-            dims=[("cdp", 2048)],
-            coords=["cdp_y"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert v.metadata.units_v1.length == LengthUnitEnum.METER
+        validate_coordinates_headers_trace_mask(dataset, structured_headers)
 
         # Verify seismic variable
         v = validate_variable(
@@ -182,8 +195,6 @@ class TestSeismic2DPostStackTemplate:
         assert isinstance(v.metadata.chunk_grid, RegularChunkGrid)
         assert v.metadata.chunk_grid.configuration.chunk_shape == [1024, 1024]
         assert v.metadata.stats_v1 is None
-
-        # TODO: Validate trace mask
 
     def test_time_vs_depth_comparison(self) -> None:
         """Test differences between time and depth templates."""

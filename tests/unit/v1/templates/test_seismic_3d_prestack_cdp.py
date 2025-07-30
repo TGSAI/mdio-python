@@ -4,17 +4,85 @@ from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import ScalarType, StructuredType
 from mdio.schemas.v1.templates.seismic_3d_prestack_cdp import Seismic3DPreStackCDPTemplate
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
 from mdio.schemas.v1.units import TimeUnitEnum
 from mdio.schemas.v1.units import TimeUnitModel
-
+from mdio.schemas.v1.dataset import Dataset
 _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
+def validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
+        # Verify variables
+        # 3 dim coords + 2 non-dim coords + 1 data + 1 trace mask + 1 headers = 8 variables
+        assert len(dataset.variables) == 8
+
+        # Verify trace headers
+        seismic = validate_variable(
+            dataset,
+            name="headers",
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
+            coords=["cdp_x", "cdp_y"],
+            dtype=headers,
+        )
+
+        seismic = validate_variable(
+            dataset,
+            name="trace_mask",
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
+            coords=["cdp_x", "cdp_y"],
+            dtype=ScalarType.BOOL,
+        )
+
+        # Verify dimension coordinate variables
+        inline = validate_variable(
+            dataset,
+            name="inline",
+            dims=[("inline", 512)],
+            coords=["inline"],
+            dtype=ScalarType.INT32,
+        )
+        assert inline.metadata is None
+
+        crossline = validate_variable(
+            dataset,
+            name="crossline",
+            dims=[("crossline", 768)],
+            coords=["crossline"],
+            dtype=ScalarType.INT32,
+        )
+        assert crossline.metadata is None
+
+        crossline = validate_variable(
+            dataset,
+            name="offset",
+            dims=[("offset", 36)],
+            coords=["offset"],
+            dtype=ScalarType.INT32,
+        )
+        assert crossline.metadata is None
+
+        # Verify non-dimension coordinate variables
+        cdp_x = validate_variable(
+            dataset,
+            name="cdp_x",
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
+            coords=["cdp_x"],
+            dtype=ScalarType.FLOAT64,
+        )
+        assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
+
+        cdp_y = validate_variable(
+            dataset,
+            name="cdp_y",
+            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
+            coords=["cdp_y"],
+            dtype=ScalarType.FLOAT64,
+        )
+        assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
 
 class TestSeismic3DPreStackCDPTemplate:
     """Unit tests for Seismic3DPreStackCDPTemplate."""
@@ -82,7 +150,7 @@ class TestSeismic3DPreStackCDPTemplate:
         assert t2._trace_domain == "elevation"
         assert t2.name == "PreStackCdpGathers3DElevation"
 
-    def test_build_dataset_depth(self) -> None:
+    def test_build_dataset_depth(self, structured_headers) -> None:
         """Unit tests for Seismic3DPreStackCDPDepthTemplate build with depth domain."""
         t = Seismic3DPreStackCDPTemplate(domain="depth")
 
@@ -91,35 +159,15 @@ class TestSeismic3DPreStackCDPTemplate:
             "North Sea 3D Prestack Depth",
             sizes=[512, 768, 36, 1536],
             coord_units=[_UNIT_METER, _UNIT_METER],
+            headers = structured_headers, 
         )
 
         assert dataset.metadata.name == "North Sea 3D Prestack Depth"
         assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
         assert dataset.metadata.attributes["ensembleType"] == "cdp"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
-
-        # Verify variables
-        # 2 coordinate variables + 1 data variable + 1 trace mask = 4 variables
-        assert len(dataset.variables) == 4
-
-        # Verify coordinate variables
-        cdp_x = validate_variable(
-            dataset,
-            name="cdp_x",
-            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
-            coords=["cdp_x"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
-
-        cdp_y = validate_variable(
-            dataset,
-            name="cdp_y",
-            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
-            coords=["cdp_y"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
+        
+        validate_coordinates_headers_trace_mask(dataset, structured_headers)
 
         # Verify seismic variable (prestack depth data)
         seismic = validate_variable(
@@ -135,9 +183,7 @@ class TestSeismic3DPreStackCDPTemplate:
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
 
-        # TODO: Validate trace mask
-
-    def test_build_dataset_time(self) -> None:
+    def test_build_dataset_time(self, structured_headers) -> None:
         """Unit tests for Seismic3DPreStackCDPTimeTemplate build with time domain."""
         t = Seismic3DPreStackCDPTemplate(domain="time")
 
@@ -146,6 +192,7 @@ class TestSeismic3DPreStackCDPTemplate:
             "Santos Basin 3D Prestack",
             sizes=[512, 768, 36, 1536],
             coord_units=[_UNIT_METER, _UNIT_METER],
+            headers = structured_headers, 
         )
 
         assert dataset.metadata.name == "Santos Basin 3D Prestack"
@@ -153,28 +200,7 @@ class TestSeismic3DPreStackCDPTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "cdp"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
-        # Verify variables
-        # 2 coordinate variables + 1 data variable + 1 trace mask = 4 variables
-        assert len(dataset.variables) == 4
-
-        # Verify coordinate variables
-        cdp_x = validate_variable(
-            dataset,
-            name="cdp_x",
-            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
-            coords=["cdp_x"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
-
-        cdp_y = validate_variable(
-            dataset,
-            name="cdp_y",
-            dims=[("inline", 512), ("crossline", 768), ("offset", 36)],
-            coords=["cdp_y"],
-            dtype=ScalarType.FLOAT64,
-        )
-        assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
+        validate_coordinates_headers_trace_mask(dataset, structured_headers)
 
         # Verify seismic variable (prestack time data)
         seismic = validate_variable(
@@ -189,5 +215,3 @@ class TestSeismic3DPreStackCDPTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
-
-        # TODO: Validate trace mask
