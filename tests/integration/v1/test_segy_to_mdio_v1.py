@@ -7,12 +7,38 @@ import numcodecs
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
 from mdio.converters.segy_to_mdio_v1 import segy_to_mdio_v1
-from mdio.converters.segy_to_mdio_v1_custom import StorageLocation
+from mdio.converters.segy_to_mdio_v1 import segy_to_mdio_v1_customized
+from mdio.converters.segy_to_mdio_v1 import StorageLocation
 
 from mdio.converters.type_converter import to_numpy_dtype
 from mdio.schemas.dtype import ScalarType, StructuredField, StructuredType
 from mdio.schemas.v1.dataset_serializer import _get_fill_value
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
+
+def test_segy_to_mdio_v1_customized() -> None:
+    """Test the custom SEG-Y to MDIO conversion."""
+    pref_path = "/DATA/Teapot/filt_mig"
+    mdio_path = f"{pref_path}_custom_v1.mdio"
+
+    index_bytes = (181, 185)
+    index_names = ("inline", "crossline")
+    index_types = ("int32", "int32")
+
+    segy_to_mdio_v1_customized(
+        segy_spec="1.0",
+        mdio_template="PostStack3DTime",
+        input=StorageLocation(f"{pref_path}.segy"),
+        output=StorageLocation(mdio_path),
+        index_bytes=index_bytes,
+        index_names=index_names,
+        index_types=index_types,
+        overwrite=True
+    )
+
+    # Load Xarray dataset from the MDIO file
+    dataset = xr.open_dataset(mdio_path, engine="zarr")
+    pass
+
 
 def test_segy_to_mdio_v1() -> None:
     pref_path = "/DATA/export_masked/3d_stack"
@@ -20,10 +46,10 @@ def test_segy_to_mdio_v1() -> None:
     mdio_path = f"{pref_path}_v1.mdio"
 
     segy_to_mdio_v1(
+        segy_spec = get_segy_standard(1.0),
+        mdio_template = TemplateRegistry().get("PostStack3DTime"),
         input= StorageLocation(f"{pref_path}.sgy"),
-        output= StorageLocation(mdio_path),
-        segy_spec= get_segy_standard(1.0),
-        mdio_template= TemplateRegistry().get("PostStack3DTime"))
+        output= StorageLocation(mdio_path),)
 
 
     # Load Xarray dataset from the MDIO file
@@ -31,11 +57,9 @@ def test_segy_to_mdio_v1() -> None:
     pass
 
 
-
-
 def test_repro_structured_xr_to_zar() ->None:
     """Reproducer for problems with the segy_to_mdio_v1 function.
-    
+
     Will be removed in the when the final PR is submitted
     """
     shape = (4, 4, 2)
@@ -52,7 +76,7 @@ def test_repro_structured_xr_to_zar() ->None:
     )
 
     xr_dataset = xr.Dataset()
-    
+
     # Add traces to the dataset, shape = (4, 4, 2) of floats
     traces_zarr = zarr.zeros(shape=shape, dtype=np.float32, zarr_format=2)
     traces_xr = xr.DataArray(traces_zarr, dims=dim_names)
@@ -89,7 +113,7 @@ def test_repro_structured_xr_to_zar() ->None:
                         compute=True)
 
     # In _populate_trace_mask_and_write_to_zarr
-    # We do another write of "trace_mask" to the same Zarr store and remove it 
+    # We do another write of "trace_mask" to the same Zarr store and remove it
     # from the dataset
 
     # ----------------------------------------------
@@ -121,10 +145,10 @@ def test_repro_structured_xr_to_zar() ->None:
     }
 
     sub_dataset = ds_to_write.isel(region)
-    sub_dataset.to_zarr(store="/tmp/reproducer_xr.zarr", 
-                        region=region, 
-                        mode="r+", 
-                        write_empty_chunks=False, 
+    sub_dataset.to_zarr(store="/tmp/reproducer_xr.zarr",
+                        region=region,
+                        mode="r+",
+                        write_empty_chunks=False,
                         zarr_format=2)
 
     pass

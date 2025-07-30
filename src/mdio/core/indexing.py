@@ -63,15 +63,15 @@ class ChunkIterator:
             current_start = next(self._ranges)
 
             start_indices = tuple(
-                dim * chunk for dim, chunk in zip(current_start, self.len_chunks)
+                dim * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True)
             )
 
             stop_indices = tuple(
-                (dim + 1) * chunk for dim, chunk in zip(current_start, self.len_chunks)
+                (dim + 1) * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True)
             )
 
             slices = tuple(
-                slice(start, stop) for start, stop in zip(start_indices, stop_indices)
+                slice(start, stop) for start, stop in zip(start_indices, stop_indices, strict=True)
             )
 
             slices = dict(zip(self.dims, slices))

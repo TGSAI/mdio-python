@@ -1,4 +1,5 @@
 """Conversion from SEG-Y to MDIO v1 format."""
+from collections.abc import Sequence
 
 from dataclasses import dataclass, field
 from typing import Any
@@ -10,10 +11,13 @@ from xarray import Dataset as xr_Dataset
 from segy import SegyFile
 from segy.config import SegySettings
 from segy.schema import SegySpec
+from segy.schema import HeaderField
 from segy.arrays import HeaderArray as SegyHeaderArray
-
+from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
+from segy.standards import get_segy_standard
+
 from mdio.constants import UINT32_MAX
 from mdio.converters.segy import grid_density_qc
 from mdio.core.dimension import Dimension
@@ -29,6 +33,31 @@ class StorageLocation:
     """A class to represent a local or cloud storage location for SEG-Y or MDIO files."""
     uri: str
     options: Dict[str, Any] = field(default_factory=dict)
+
+def customize_segy_specs(
+    segy_spec: SegySpec,
+    index_bytes: Sequence[int] | None = None,
+    index_names: Sequence[str] | None = None,
+    index_types: Sequence[str] | None = None,
+) -> SegySpec:
+    """Customize SEG-Y specifications with user-defined index fields."""
+    if not index_bytes:
+        # No customization
+        return segy_spec
+
+    index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
+    index_types = index_types or ["int32"] * len(index_bytes)
+
+    if not (len(index_names) == len(index_bytes) == len(index_types)):
+        raise ValueError("All index fields must have the same length.")
+
+    # Index the dataset using a spec that interprets the user provided index headers.
+    index_fields = []
+    for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
+        index_fields.append(HeaderField(name=name, byte=byte, format=format_))
+
+    custom_spec = segy_spec.customize(trace_header_fields=index_fields)
+    return custom_spec
 
 def _scan_for_headers(segy_file: SegyFile) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
@@ -142,6 +171,51 @@ def _populate_trace_mask_write_to_zarr(segy_file: SegyFile,
                         zarr_format=2,
                         compute=True)
     return grid.map
+
+
+def segy_to_mdio_v1_customized(
+    segy_spec: str,
+    mdio_template: str,
+    input: StorageLocation,
+    output: StorageLocation,
+    index_bytes: Sequence[int] | None = None,
+    index_names: Sequence[str] | None = None,
+    index_types: Sequence[str] | None = None,
+    overwrite: bool = False,
+):
+    """A function that converts a SEG-Y file to an MDIO v1 file.
+
+    This function takes in various variations of input parameters and normalizes
+    them, performs necessary customizations before calling segy_2_mdio() to
+    perform the conversion from SEG-Y and MDIO v1 formats.
+    """
+    # Retrieve the SEG-Y specifications either from a registry or a storage location
+    try:
+        segy_spec = float(segy_spec)
+        segy_spec = get_segy_standard(segy_spec)
+    except:
+        err = f"SEG-Y spec '{segy_spec}' is not registered."
+        raise ValueError(err)
+
+    # Retrieve MDIO template either from a registry or a storage location
+    if not TemplateRegistry().is_registered(mdio_template):
+        err = f"MDIO template '{mdio_template}' is not registered."
+        raise ValueError(err)
+    mdio_template = TemplateRegistry().get(mdio_template)
+
+    # Customize the SEG-Y specs, if customizations are provided
+    segy_spec = customize_segy_specs(
+        segy_spec, index_bytes=index_bytes, index_names=index_names, index_types=index_types
+    )
+
+    # Proceed with the conversion
+    segy_to_mdio_v1(
+        segy_spec=segy_spec,
+        mdio_template=mdio_template,
+        input=input,
+        output=output,
+        overwrite=overwrite,
+    )
 
 
 def segy_to_mdio_v1(
