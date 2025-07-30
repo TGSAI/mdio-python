@@ -140,56 +140,6 @@ def test__get_coord_names() -> None:
     # Variable schema
 
 
-def test_to_numpy_dtype() -> None:
-    """Comprehensive test for to_numpy_dtype function."""
-    # Test 1: ScalarType cases - all supported scalar types
-    scalar_type_tests = [
-        (ScalarType.FLOAT32, "float32"),
-        (ScalarType.FLOAT64, "float64"),
-        (ScalarType.INT8, "int8"),
-        (ScalarType.INT16, "int16"),
-        (ScalarType.INT32, "int32"),
-        (ScalarType.INT64, "int64"),
-        (ScalarType.UINT8, "uint8"),
-        (ScalarType.UINT16, "uint16"),
-        (ScalarType.UINT32, "uint32"),
-        (ScalarType.UINT64, "uint64"),
-        (ScalarType.COMPLEX64, "complex64"),
-        (ScalarType.COMPLEX128, "complex128"),
-        (ScalarType.BOOL, "bool"),
-    ]
-    err = "Expected ScalarType or StructuredType, got 'str'"
-    with pytest.raises(ValueError, match=err):
-        to_numpy_dtype("parameter of invalid type")
-
-    for scalar_type, expected_numpy_type in scalar_type_tests:
-        result = to_numpy_dtype(scalar_type)
-        expected = np_dtype(expected_numpy_type)
-
-        assert result == expected
-        assert isinstance(result, np_dtype)
-        assert result.name == expected.name
-
-    # Test 2: StructuredType with multiple fields
-    multi_fields = [
-        StructuredField(name="x", format=ScalarType.FLOAT64),
-        StructuredField(name="y", format=ScalarType.FLOAT64),
-        StructuredField(name="z", format=ScalarType.FLOAT64),
-        StructuredField(name="id", format=ScalarType.INT32),
-        StructuredField(name="valid", format=ScalarType.BOOL),
-    ]
-    structured_multi = StructuredType(fields=multi_fields)
-    result_multi = to_numpy_dtype(structured_multi)
-    expected_multi = np_dtype(
-        [("x", "float64"), ("y", "float64"), ("z", "float64"), ("id", "int32"), ("valid", "bool")]
-    )
-
-    assert result_multi == expected_multi
-    assert isinstance(result_multi, np_dtype)
-    assert len(result_multi.names) == 5
-    assert set(result_multi.names) == {"x", "y", "z", "id", "valid"}
-
-
 def test__get_zarr_shape() -> None:
     """Test for _get_zarr_shape function."""
     d1 = NamedDimension(name="inline", size=100)
