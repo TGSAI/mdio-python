@@ -294,4 +294,3 @@ def segy_to_mdio_v1(
         data_variable_name = data_variable_name
     )
 
-    # TODO: Write actual stats to the MDIO Zarr dataset

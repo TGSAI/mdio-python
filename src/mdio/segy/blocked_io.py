@@ -27,6 +27,9 @@ from mdio.segy.creation import concat_files
 from mdio.segy.creation import serialize_to_segy_stack
 from mdio.segy.utilities import find_trailing_ones_index
 
+from zarr import open_group as zarr_open_group
+from zarr import consolidate_metadata as zarr_consolidate_metadata
+
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
@@ -85,7 +88,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     grid_map: zarr_Array,
     dataset: xr_Dataset,
     data_variable_name: str
-) -> SummaryStatistics:
+) -> None:
     """Blocked I/O from SEG-Y to chunked `xarray.Dataset`.
 
     Args:
@@ -96,7 +99,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
         header_array: Handle for xarray.Dataset we are writing trace headers
 
     Returns:
-        Global statistics for the SEG-Y as a SummaryStatistics.
+        None
     """
     data = dataset[data_variable_name]   
 
@@ -144,6 +147,18 @@ def to_zarr(  # noqa: PLR0913, PLR0915
             result = future.result()
             if result is not None:
                 _update_stats(final_stats, result)
+
+    # Xarray doesn't directly support incremental attribute updates when appending to an 
+    # existing Zarr store. 
+    # HACK: We will update the array attribute using zarr's API directly.
+    # Open the Zarr store using zarr directly
+    zarr_group = zarr_open_group(f"{out_path}", mode='a')
+    attr_json = final_stats.model_dump_json()
+    # Use the data_variable_name to get the array in the Zarr group
+    # and write "statistics" metadata there
+    zarr_group[data_variable_name].attrs.update({"statistics": attr_json})
+    # Consolidate metadata (important for Xarray to recognize changes)
+    zarr_consolidate_metadata(out_path)
 
     return final_stats
 

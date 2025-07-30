@@ -1,7 +1,6 @@
 from segy.standards import get_segy_standard
 import xarray as xr
 import numpy as np
-import zarr
 import numcodecs
 
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
