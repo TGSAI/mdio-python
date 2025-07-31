@@ -71,6 +71,8 @@ dev = [
     "typeguard (>=4.4.4,<5)",
     "xdoctest[colors] (>=1.2.0,<2)",
     "Pygments (>=2.19.2,<3)",
+    "matplotlib (>=3.10.3,<4)",
+    "jupyter (>=1.1.1,<2.0.0)"
 ]
 
 docs = [

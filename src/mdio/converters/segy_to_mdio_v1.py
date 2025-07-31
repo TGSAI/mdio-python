@@ -116,7 +116,7 @@ def _get_data_coordinates(segy_headers: list[Dimension],
 
 def populate_coordinate(dataset: xr_Dataset, 
                         coordinates: list[Dimension], 
-                        vars_to_drop_later: list[str]):
+                        vars_to_drop_later: list[str]) -> None:
     """Populate the xarray dataset with coordinate variable."""
     for c in coordinates:
         #  If we do not have data for the coordinate variable, drop it
@@ -127,7 +127,12 @@ def populate_coordinate(dataset: xr_Dataset,
                 dataset.drop_vars(c.name)
                 continue
         # Otherwise, populate the coordinate variable
-        dataset.coords[c.name] = c.coords
+        values = c.coords
+        shape = dataset.coords[c.name].shape
+        dims = dataset.coords[c.name].dims
+        if shape != values.shape:
+            values = values.reshape(shape)
+        dataset.coords[c.name] = (dims, values)
         vars_to_drop_later.append(c.name)
 
 
