@@ -1,13 +1,12 @@
 """Unit tests for Seismic3DPostStackTemplate."""
 
-from mdio.schemas.v1.dataset import Dataset
-from mdio.schemas.v1.dataset_builder import _to_dictionary
-from mdio.converters.type_converter import to_numpy_dtype
 from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType, StructuredField, StructuredType
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
+from mdio.schemas.v1.dataset import Dataset
 from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
@@ -18,15 +17,15 @@ from mdio.schemas.v1.units import TimeUnitModel
 _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
-def validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
-    """Validate the coordinate, headers, trace_mask variables in the dataset."""
 
+def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
+    """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
     # 2 dim coords + 2 non-dim coords + 1 data + 1 trace mask + 1 headers = 7 variables
     assert len(dataset.variables) == 7
 
     # Verify trace headers
-    seismic = validate_variable(
+    validate_variable(
         dataset,
         name="headers",
         dims=[("inline", 256), ("crossline", 512)],
@@ -34,7 +33,7 @@ def validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structure
         dtype=headers,
     )
 
-    seismic = validate_variable(
+    validate_variable(
         dataset,
         name="trace_mask",
         dims=[("inline", 256), ("crossline", 512)],
@@ -145,16 +144,16 @@ class TestSeismic3DPostStackTemplate:
         assert t2._trace_domain == "elevation"
         assert t2.name == "PostStack3DElevation"
 
-    def test_build_dataset_depth(self, structured_headers) -> None:
+    def test_build_dataset_depth(self, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic3DPostStackTemplate build with depth domain."""
         t = Seismic3DPostStackTemplate(domain="depth")
 
         assert t.name == "PostStack3DDepth"
         dataset = t.build_dataset(
-            "Seismic 3D", 
-            sizes=[256, 512, 1024], 
+            "Seismic 3D",
+            sizes=[256, 512, 1024],
             coord_units=[_UNIT_METER, _UNIT_METER],
-            headers = structured_headers, 
+            headers=structured_headers,
         )
 
         assert dataset.metadata.name == "Seismic 3D"
@@ -162,7 +161,7 @@ class TestSeismic3DPostStackTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
-        validate_coordinates_headers_trace_mask(dataset, structured_headers)
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers)
 
         # Verify seismic variable
         seismic = validate_variable(
@@ -178,14 +177,14 @@ class TestSeismic3DPostStackTemplate:
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
         assert seismic.metadata.stats_v1 is None
 
-    def test_build_dataset_time(self, structured_headers) -> None:
+    def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic3DPostStackTimeTemplate build with time domain."""
         t = Seismic3DPostStackTemplate(domain="time")
 
         assert t.name == "PostStack3DTime"
         dataset = t.build_dataset(
-            "Seismic 3D", 
-            sizes=[256, 512, 1024], 
+            "Seismic 3D",
+            sizes=[256, 512, 1024],
             coord_units=[_UNIT_METER, _UNIT_METER],
             headers=structured_headers,
         )
@@ -195,7 +194,7 @@ class TestSeismic3DPostStackTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
-        validate_coordinates_headers_trace_mask(dataset,structured_headers)
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers)
 
         # Verify seismic variable
         seismic = validate_variable(

@@ -1,5 +1,7 @@
-from numpy import dtype as np_dtype
+"""Unit tests for the type converter module."""
+
 import pytest
+from numpy import dtype as np_dtype
 
 from mdio.converters.type_converter import to_numpy_dtype
 from mdio.converters.type_converter import to_scalar_type
@@ -8,8 +10,10 @@ from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
 
+
 @pytest.fixture
-def supported_scalar_types_map():
+def supported_scalar_types_map() -> tuple[ScalarType, str]:
+    """Supported scalar types and their numpy equivalents."""
     return (
         (ScalarType.INT8, "int8"),
         (ScalarType.INT16, "int16"),
@@ -26,19 +30,28 @@ def supported_scalar_types_map():
         (ScalarType.BOOL, "bool"),
     )
 
+
 @pytest.fixture
 def a_structured_type() -> StructuredType:
-    return StructuredType(fields=[
-        StructuredField(name="x", format=ScalarType.FLOAT64),
-        StructuredField(name="y", format=ScalarType.FLOAT64),
-        StructuredField(name="z", format=ScalarType.FLOAT64),
-        StructuredField(name="id", format=ScalarType.INT32),
-        StructuredField(name="valid", format=ScalarType.BOOL),
-    ])
+    """Sample structured type.
 
-def test_to_numpy_dtype(supported_scalar_types_map, a_structured_type) -> None:
+    Returns a structured type.
+    """
+    return StructuredType(
+        fields=[
+            StructuredField(name="x", format=ScalarType.FLOAT64),
+            StructuredField(name="y", format=ScalarType.FLOAT64),
+            StructuredField(name="z", format=ScalarType.FLOAT64),
+            StructuredField(name="id", format=ScalarType.INT32),
+            StructuredField(name="valid", format=ScalarType.BOOL),
+        ]
+    )
+
+
+def test_to_numpy_dtype(
+    supported_scalar_types_map: tuple[ScalarType, str], a_structured_type: StructuredType
+) -> None:
     """Comprehensive test for to_numpy_dtype function."""
-
     # Test 0: invalid input
     err = "Expected ScalarType or StructuredType, got 'str'"
     with pytest.raises(ValueError, match=err):
@@ -63,24 +76,20 @@ def test_to_numpy_dtype(supported_scalar_types_map, a_structured_type) -> None:
     assert len(result_multi.names) == 5
     assert set(result_multi.names) == {"x", "y", "z", "id", "valid"}
 
-def test_to_scalar_type(supported_scalar_types_map) -> None:
+
+def test_to_scalar_type(supported_scalar_types_map: tuple[ScalarType, str]) -> None:
     """Test for to_scalar_type function."""
-    
     for expected_mdio_type, numpy_type in supported_scalar_types_map:
         result = to_scalar_type(np_dtype(numpy_type))
         assert result == expected_mdio_type
 
 
-def test_to_structured_type(supported_scalar_types_map, a_structured_type) -> None:
+def test_to_structured_type(a_structured_type: StructuredType) -> None:
     """Test for to_structured_type function."""
-
     dtype = np_dtype(
-        [("x", "float64"), ("y", "float64"), ("z", "float64"),
-         ("id", "int32"), ("valid", "bool")]
+        [("x", "float64"), ("y", "float64"), ("z", "float64"), ("id", "int32"), ("valid", "bool")]
     )
     assert a_structured_type == to_structured_type(dtype)
 
-    dtype = np_dtype(
-        [("x", "<f8"), ("y", "<f8"), ("z", "<f8"), ("id", "<i4"), ("valid", "?")]
-    )
-    assert a_structured_type == to_structured_type(dtype) 
+    dtype = np_dtype([("x", "<f8"), ("y", "<f8"), ("z", "<f8"), ("id", "<i4"), ("valid", "?")])
+    assert a_structured_type == to_structured_type(dtype)

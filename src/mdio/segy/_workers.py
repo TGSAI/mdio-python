@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import cast
 
 import numpy as np
@@ -12,12 +11,12 @@ import numpy as np
 if TYPE_CHECKING:
     from segy import SegyFile
     from segy.arrays import HeaderArray
-    from zarr import Array as zarr_Array
     from xarray import Dataset as xr_Dataset
+    from zarr import Array as zarr_Array
 
 from mdio.constants import UINT32_MAX
-from mdio.schemas.v1.stats import SummaryStatistics
 from mdio.schemas.v1.stats import CenteredBinHistogram
+from mdio.schemas.v1.stats import SummaryStatistics
 
 
 def header_scan_worker(segy_file: SegyFile, trace_range: tuple[int, int]) -> HeaderArray:
@@ -60,12 +59,12 @@ def trace_worker(  # noqa: PLR0913
     data_variable_name: str,
     region: dict[str, slice],
     grid_map: zarr_Array,
-    dataset: xr_Dataset
+    dataset: xr_Dataset,
 ) -> SummaryStatistics | None:
     """Read a subset of traces and write to region of Zarr file."""
     if dataset.trace_mask.sum() == 0:
         return None
-    
+
     not_null = grid_map != UINT32_MAX
 
     live_trace_indexes = grid_map[not_null].tolist()
@@ -73,7 +72,7 @@ def trace_worker(  # noqa: PLR0913
 
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
-    # TODO: Q: to save memory, should we overwrite the 'dataset'?
+    # Q: to save memory, should we overwrite the 'dataset'?
     if "headers" in dataset.data_vars:
         ds_to_write = dataset[[data_variable_name, "headers"]]
         ds_to_write = ds_to_write.reset_coords()

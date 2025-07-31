@@ -1,41 +1,42 @@
 """Conversion from SEG-Y to MDIO v1 format."""
+
 from collections.abc import Sequence
-
-from dataclasses import dataclass, field
+from dataclasses import dataclass
+from dataclasses import field
+from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-
-from zarr import Array as zarr_Array
-from xarray import Dataset as xr_Dataset
 
 from segy import SegyFile
-from segy.config import SegySettings
-from segy.schema import SegySpec
-from segy.schema import HeaderField
 from segy.arrays import HeaderArray as SegyHeaderArray
+from segy.config import SegySettings
+from segy.schema import HeaderField
+from segy.schema import SegySpec
+from segy.standards import get_segy_standard
+from xarray import Dataset as xr_Dataset
+from zarr import Array as zarr_Array
+
+from mdio.constants import fill_value_map
+from mdio.converters.segy import grid_density_qc
 from mdio.converters.type_converter import to_scalar_type
+from mdio.core.dimension import Dimension
+from mdio.core.grid import Grid
+from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
+from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
-from segy.standards import get_segy_standard
 
-from mdio.constants import UINT32_MAX
-from mdio.converters.segy import grid_density_qc
-from mdio.constants import fill_value_map
-from mdio.core.dimension import Dimension
-from mdio.core.grid import Grid
-from mdio.schemas.v1.dataset import Dataset
-from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
-from mdio.schemas.v1.stats import SummaryStatistics
-from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
-
+if TYPE_CHECKING:
+    from mdio.schemas.v1.dataset import Dataset
 
 
 @dataclass
 class StorageLocation:
     """A class to represent a local or cloud storage location for SEG-Y or MDIO files."""
+
     uri: str
-    options: Dict[str, Any] = field(default_factory=dict)
+    options: dict[str, Any] = field(default_factory=dict)
+
 
 def customize_segy_specs(
     segy_spec: SegySpec,
@@ -52,15 +53,16 @@ def customize_segy_specs(
     index_types = index_types or ["int32"] * len(index_bytes)
 
     if not (len(index_names) == len(index_bytes) == len(index_types)):
-        raise ValueError("All index fields must have the same length.")
+        err = "All index fields must have the same length."
+        raise ValueError(err)
 
     # Index the dataset using a spec that interprets the user provided index headers.
     index_fields = []
     for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
         index_fields.append(HeaderField(name=name, byte=byte, format=format_))
 
-    custom_spec = segy_spec.customize(trace_header_fields=index_fields)
-    return custom_spec
+    return segy_spec.customize(trace_header_fields=index_fields)
+
 
 def _scan_for_headers(segy_file: SegyFile) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
@@ -74,20 +76,18 @@ def _scan_for_headers(segy_file: SegyFile) -> tuple[list[Dimension], SegyHeaderA
     # While we do not support grid override, we can set it to None
     grid_chunksize = None
     segy_dimensions, chunksize, index_headers = get_grid_plan(
-        segy_file=segy_file,
-        return_headers=True,
-        chunksize=grid_chunksize,
-        grid_overrides=None
+        segy_file=segy_file, return_headers=True, chunksize=grid_chunksize, grid_overrides=None
     )
     return segy_dimensions, index_headers
 
 
-def _get_data_coordinates(segy_headers: list[Dimension], 
-                          mdio_template: AbstractDatasetTemplate) -> tuple[list[Dimension], list[Dimension]]:
+def _get_data_coordinates(
+    segy_headers: list[Dimension], mdio_template: AbstractDatasetTemplate
+) -> tuple[list[Dimension], list[Dimension]]:
     """Get the data dim and non-dim coordinates from the SEG-Y headers and MDIO template.
-        
+
     Select a subset of the segy_dimensions that corresponds to the MDIO dimensions
-    The dimensions are ordered as in the MDIO template. 
+    The dimensions are ordered as in the MDIO template.
     The last dimension is always the vertical domain dimension
     """
     dimensions_coords = []
@@ -97,7 +97,7 @@ def _get_data_coordinates(segy_headers: list[Dimension],
             err = f"Dimension '{coord_name}' was not found in SEG-Y dimensions."
             raise ValueError(err)
         dimensions_coords.append(coord)
-    # The last dimension returned by get_grid_plan is always the vertical dimension, 
+    # The last dimension returned by get_grid_plan is always the vertical dimension,
     # which is not named as in the MDIO template. Correct this.
     segy_vertical_dim = segy_headers[-1]
     segy_vertical_dim.name = mdio_template.trace_domain
@@ -114,9 +114,9 @@ def _get_data_coordinates(segy_headers: list[Dimension],
     return dimensions_coords, non_dim_coords
 
 
-def populate_coordinate(dataset: xr_Dataset, 
-                        coordinates: list[Dimension], 
-                        vars_to_drop_later: list[str]) -> None:
+def populate_coordinate(
+    dataset: xr_Dataset, coordinates: list[Dimension], vars_to_drop_later: list[str]
+) -> None:
     """Populate the xarray dataset with coordinate variable."""
     for c in coordinates:
         #  If we do not have data for the coordinate variable, drop it
@@ -140,42 +140,37 @@ def _populate_coordinates_write_to_zarr(
     dataset: xr_Dataset,
     dimension_coords: list[Dimension],
     non_dim_coords: list[Dimension],
-    output: StorageLocation) -> xr_Dataset:
+    output: StorageLocation,
+) -> xr_Dataset:
     """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
 
     This will write the xr Dataset with coords and dimensions, but empty traces and headers.
     """
-    vars_to_drop_later = list()
+    vars_to_drop_later = []
     # Populate the dimension coordinate variables (1-D arrays)
-    populate_coordinate(dataset,
-                        coordinates=dimension_coords,
-                        vars_to_drop_later=vars_to_drop_later)
+    populate_coordinate(
+        dataset, coordinates=dimension_coords, vars_to_drop_later=vars_to_drop_later
+    )
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
-    populate_coordinate(dataset,
-                        coordinates=non_dim_coords,
-                        vars_to_drop_later=vars_to_drop_later)
+    populate_coordinate(dataset, coordinates=non_dim_coords, vars_to_drop_later=vars_to_drop_later)
 
-    dataset.to_zarr(store=output.uri,
-                    mode="w",
-                    write_empty_chunks=False,
-                    zarr_format=2,
-                    compute=True)
+    dataset.to_zarr(
+        store=output.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=True
+    )
 
     # Now we can drop them to simplify chunked write of the data variable
     return dataset.drop_vars(vars_to_drop_later)
 
-def _populate_trace_mask_write_to_zarr(segy_file: SegyFile,
-                                        dimensions: list[Dimension],
-                                        segy_index_headers: SegyHeaderArray,
-                                        xr_sd: xr_Dataset,
-                                        output: StorageLocation) -> tuple[zarr_Array, xr_Dataset]:
-    """Populate and write the trace mask to Zarr, return the grid map as Zarr array.
 
-    Returns:
-      the grid map Zarr array.
-    """
-
+def _populate_trace_mask_write_to_zarr(
+    segy_file: SegyFile,
+    dimensions: list[Dimension],
+    segy_index_headers: SegyHeaderArray,
+    xr_sd: xr_Dataset,
+    output: StorageLocation,
+) -> tuple[zarr_Array, xr_Dataset]:
+    """Populate and write the trace mask to Zarr, return the grid map as Zarr array."""
     # Create a grid and build live trace index
     grid = Grid(dims=dimensions)
     grid_density_qc(grid, segy_file.num_traces)
@@ -186,24 +181,22 @@ def _populate_trace_mask_write_to_zarr(segy_file: SegyFile,
     # Populate the "trace_mask" variable in the xarray dataset and write it to Zarr
     xr_sd.trace_mask.data[:] = trace_mask
     ds_to_write = xr_sd[["trace_mask"]]
-    ds_to_write.to_zarr(store=output.uri,
-                        mode="r+",
-                        write_empty_chunks=False,
-                        zarr_format=2,
-                        compute=True)
+    ds_to_write.to_zarr(
+        store=output.uri, mode="r+", write_empty_chunks=False, zarr_format=2, compute=True
+    )
     return grid.map
 
 
-def segy_to_mdio_v1_customized(
+def segy_to_mdio_v1_customized(  # noqa PLR0913
     segy_spec: str,
     mdio_template: str,
-    input: StorageLocation,
-    output: StorageLocation,
+    input_location: StorageLocation,
+    output_location: StorageLocation,
     index_bytes: Sequence[int] | None = None,
     index_names: Sequence[str] | None = None,
     index_types: Sequence[str] | None = None,
     overwrite: bool = False,
-):
+) -> None:
     """A function that converts a SEG-Y file to an MDIO v1 file.
 
     This function takes in various variations of input parameters and normalizes
@@ -214,9 +207,9 @@ def segy_to_mdio_v1_customized(
     try:
         segy_spec = float(segy_spec)
         segy_spec = get_segy_standard(segy_spec)
-    except:
+    except Exception as exc:
         err = f"SEG-Y spec '{segy_spec}' is not registered."
-        raise ValueError(err)
+        raise ValueError(err) from exc
 
     # Retrieve MDIO template either from a registry or a storage location
     if not TemplateRegistry().is_registered(mdio_template):
@@ -233,8 +226,8 @@ def segy_to_mdio_v1_customized(
     segy_to_mdio_v1(
         segy_spec=segy_spec,
         mdio_template=mdio_template,
-        input=input,
-        output=output,
+        input_location=input_location,
+        output_location=output_location,
         overwrite=overwrite,
     )
 
@@ -242,16 +235,15 @@ def segy_to_mdio_v1_customized(
 def segy_to_mdio_v1(
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
-    input: StorageLocation,
-    output: StorageLocation,
-    overwrite: bool = False,
-):
-    """A function that converts a SEG-Y file to an MDIO v1 file.
-    """
+    input_location: StorageLocation,
+    output_location: StorageLocation,
+    overwrite: bool = False,  # noqa: ARG001
+) -> None:
+    """A function that converts a SEG-Y file to an MDIO v1 file."""
     # Open a SEG-Y file according to the SegySpec
     # This could be a spec from the registryy or a custom spec
-    segy_settings = SegySettings(storage_options=input.options)
-    segy_file = SegyFile(url=input.uri, spec=segy_spec, settings=segy_settings)
+    segy_settings = SegySettings(storage_options=input_location.options)
+    segy_file = SegyFile(url=input_location.uri, spec=segy_spec, settings=segy_settings)
 
     # Scan the SEG-Y file for headers
     # This is an memory-expensive and time-consuming read-write operation
@@ -261,41 +253,46 @@ def segy_to_mdio_v1(
     shape = [len(dim.coords) for dim in dimension_coords]
 
     # Specify the header structure for the MDIO dataset
-    #   TODO: Setting headers (and thus creating a variable with StructuredType data type)
+    # TODO: Setting headers (and thus creating a variable with         # noqa: TD002
+    # 0000
+    #   StructuredType data type)
     #   causes the error in _populate_dims_coords_and_write_to_zarr originating
     #   Thus, we are not setting headers for now:
     headers = None
     # headers = to_structured_type(index_headers.dtype)
     #
-    # TODO: Set Units to None for now, will fix this later
-    mdio_ds: Dataset = mdio_template.build_dataset(name=mdio_template.name,
-                                                   sizes=shape,
-                                                   coord_units=None,
-                                                   headers=headers)
+    # TODO: Set Units to None for now, will fix this later            # noqa: TD002
+    # 0000
+    mdio_ds: Dataset = mdio_template.build_dataset(
+        name=mdio_template.name, sizes=shape, coord_units=None, headers=headers
+    )
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
     # Write the xr Dataset with dim and non-dim coords, but empty traces and headers.
     # We will write traces and headers in chunks later
-    xr_dataset = _populate_coordinates_write_to_zarr(dataset=xr_dataset,
-                                                     dimension_coords=dimension_coords,
-                                                     non_dim_coords=non_dim_coords,
-                                                     output=output)
+    xr_dataset = _populate_coordinates_write_to_zarr(
+        dataset=xr_dataset,
+        dimension_coords=dimension_coords,
+        non_dim_coords=non_dim_coords,
+        output=output_location,
+    )
     # Populate the live traces mask and write it to Zarr
     # Also create a grid map for the live traces
-    grid_map = _populate_trace_mask_write_to_zarr(segy_file=segy_file,
-                                                  dimensions=dimension_coords,
-                                                  segy_index_headers=segy_index_headers,
-                                                  xr_sd=xr_dataset,
-                                                  output=output)
+    grid_map = _populate_trace_mask_write_to_zarr(
+        segy_file=segy_file,
+        dimensions=dimension_coords,
+        segy_index_headers=segy_index_headers,
+        xr_sd=xr_dataset,
+        output=output_location,
+    )
 
     data_variable_name = mdio_template.trace_variable_name
     # This is an memory-expensive and time-consuming read-write operation
     # performed in chunks to save the memory
-    stats: SummaryStatistics = blocked_io.to_zarr(
-        segy_file = segy_file,
-        out_path = output.uri,
-        grid_map = grid_map,
-        dataset = xr_dataset,
-        data_variable_name = data_variable_name
+    blocked_io.to_zarr(
+        segy_file=segy_file,
+        out_path=output_location.uri,
+        grid_map=grid_map,
+        dataset=xr_dataset,
+        data_variable_name=data_variable_name,
     )
-

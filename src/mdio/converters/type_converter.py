@@ -1,11 +1,11 @@
-from numpy import dtype as np_dtype
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.dtype import StructuredType
-from mdio.schemas.dtype import StructuredField
-from mdio.schemas.v1.dataset_builder import _to_dictionary
-from segy.arrays import HeaderArray as HeaderArray
+"""A module for converting numpy dtypes to MDIO scalar and structured types."""
 
-import numpy as np
+from numpy import dtype as np_dtype
+
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredField
+from mdio.schemas.dtype import StructuredType
+
 
 def to_scalar_type(data_type: np_dtype) -> ScalarType:
     """Convert numpy dtype to MDIO ScalarType.
@@ -26,43 +26,44 @@ def to_scalar_type(data_type: np_dtype) -> ScalarType:
         ScalarType.COMPLEX64 <-> complex64
         ScalarType.COMPLEX128 <-> complex128
         ScalarType.BOOL <-> bool
- 
+
     Args:
-        dtype: numpy dtype to convert
+        data_type: numpy dtype to convert
 
     Returns:
         ScalarType: corresponding MDIO scalar type
-        
+
     Raises:
         ValueError: if dtype is not supported
     """
     try:
         return ScalarType(data_type.name)
-    except ValueError:
+    except ValueError as exc:
         err = f"Unsupported numpy dtype '{data_type.name}' for conversion to ScalarType."
-        raise ValueError(err)
+        raise ValueError(err) from exc
+
 
 def to_structured_type(data_type: np_dtype) -> StructuredType:
     """Convert numpy dtype to MDIO StructuredType.
-    
+
     This function supports only a limited subset of structured types.
     In particular:
-    * It does not support nested structured types.
-    * It supports fields of only 13 out of 24 built-in numpy scalar types.
-      (see `to_scalar_type` for details).
+    It does not support nested structured types.
+    It supports fields of only 13 out of 24 built-in numpy scalar types.
+    (see `to_scalar_type` for details).
 
     Args:
-        dtype: numpy dtype to convert
-    
+        data_type: numpy dtype to convert
+
     Returns:
         StructuredType: corresponding MDIO structured type
 
     Raises:
-        ValueError: if dtype is not structured or has no fields 
-    
+        ValueError: if dtype is not structured or has no fields
+
     """
     if data_type is None or len(data_type.names or []) == 0:
-        err = f"None or empty dtype provided, cannot convert to StructuredType."
+        err = "None or empty dtype provided, cannot convert to StructuredType."
         raise ValueError(err)
 
     fields = []

@@ -1,20 +1,18 @@
 """Template method pattern implementation for MDIO v1 dataset template."""
 
+import copy
 from abc import ABC
 from abc import abstractmethod
-import copy
-from typing import Any
 
 from mdio.schemas import compressors
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
-from mdio.schemas.dtype import ScalarType, StructuredType
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.dataset import Dataset
 from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.converters.type_converter import to_numpy_dtype
-
 from mdio.schemas.v1.units import AllUnits
 
 
@@ -64,16 +62,20 @@ class AbstractDatasetTemplate(ABC):
         # build_dataset() is called
         self._coord_units = []
 
-    def build_dataset(self, name: str, 
-                      sizes: list[int], 
-                      coord_units: list[AllUnits],
-                      headers: StructuredType = None) -> Dataset:
+    def build_dataset(
+        self,
+        name: str,
+        sizes: list[int],
+        coord_units: list[AllUnits],
+        headers: StructuredType = None,
+    ) -> Dataset:
         """Template method that builds the dataset.
 
         Args:
             name: The name of the dataset.
             sizes: The sizes of the dimensions.
             coord_units: The units for the coordinates.
+            headers: Optional structured headers for the dataset.
 
         Returns:
             Dataset: The constructed dataset
@@ -125,7 +127,6 @@ class AbstractDatasetTemplate(ABC):
         Returns:
             str: The name of the template
         """
-        pass
 
     @property
     def _trace_variable_name(self) -> str:
@@ -183,19 +184,16 @@ class AbstractDatasetTemplate(ABC):
             )
 
     def _add_trace_mask(self) -> None:
-        """Add trace mask variables.
-
-        """
+        """Add trace mask variables."""
         self._builder.add_variable(
             name="trace_mask",
-            dimensions=self._dim_names[:-1], # All dimensions except vertical (the last one)
+            dimensions=self._dim_names[:-1],  # All dimensions except vertical (the last one)
             data_type=ScalarType.BOOL,
             compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
             coordinates=self._coord_names,
             metadata_info=[
                 ChunkGridMetadata(
                     chunk_grid=RegularChunkGrid(
-                        # TODO: Fix the chunk size
                         configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape[:-1])
                     )
                 )
@@ -203,21 +201,18 @@ class AbstractDatasetTemplate(ABC):
         )
 
     def _add_trace_headers(self, headers: StructuredType) -> None:
-        """Add trace mask variables.
-
-        """
+        """Add trace mask variables."""
         # headers = StructuredType.model_validate(header_fields)
 
         self._builder.add_variable(
             name="headers",
-            dimensions=self._dim_names[:-1], # All dimensions except vertical (the last one)
+            dimensions=self._dim_names[:-1],  # All dimensions except vertical (the last one)
             data_type=headers,
             compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
             coordinates=self._coord_names,
             metadata_info=[
                 ChunkGridMetadata(
                     chunk_grid=RegularChunkGrid(
-                        # TODO: Fix the chunk size
                         configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape[:-1])
                     )
                 )

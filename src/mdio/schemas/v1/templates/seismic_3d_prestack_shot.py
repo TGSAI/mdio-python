@@ -12,7 +12,11 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
     def __init__(self, domain: str):
         super().__init__(domain=domain)
 
-        self._coord_dim_names = ["shot_point", "cable", "channel"]  # Custom coordinate definition for shot gathers
+        self._coord_dim_names = [
+            "shot_point",
+            "cable",
+            "channel",
+        ]  # Custom coordinate definition for shot gathers
         self._dim_names = [*self._coord_dim_names, self._trace_domain]
         self._coord_names = ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
         self._var_chunk_shape = [1, 1, 512, 4096]
@@ -32,7 +36,6 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
-        pass
         for name in self._coord_dim_names:
             self._builder.add_coordinate(
                 name,

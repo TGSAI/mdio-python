@@ -4,26 +4,28 @@ from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType, StructuredType
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.dtype import StructuredType
+from mdio.schemas.v1.dataset import Dataset
 from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
 from mdio.schemas.v1.units import TimeUnitEnum
 from mdio.schemas.v1.units import TimeUnitModel
-from mdio.schemas.v1.dataset import Dataset
 
 _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
 
-def validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
+def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
+    """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
     # 3 dim coords + 5 non-dim coords + 1 data + 1 trace mask + 1 headers = 11 variables
     assert len(dataset.variables) == 11
 
     # Verify trace headers
-    seismic = validate_variable(
+    validate_variable(
         dataset,
         name="headers",
         dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
@@ -31,7 +33,7 @@ def validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structure
         dtype=headers,
     )
 
-    seismic = validate_variable(
+    validate_variable(
         dataset,
         name="trace_mask",
         dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
@@ -111,7 +113,8 @@ def validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structure
         dtype=ScalarType.FLOAT64,
     )
     assert receiver_y.metadata.units_v1.length == LengthUnitEnum.METER
-    
+
+
 class TestSeismic3DPreStackShotTemplate:
     """Unit tests for Seismic3DPreStackShotTemplate."""
 
@@ -178,7 +181,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert t2._trace_domain == "elevation"
         assert t2.name == "PreStackShotGathers3DElevation"
 
-    def test_build_dataset_depth(self, structured_headers) -> None:
+    def test_build_dataset_depth(self, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in depth domain."""
         t = Seismic3DPreStackShotTemplate(domain="depth")
 
@@ -187,7 +190,7 @@ class TestSeismic3DPreStackShotTemplate:
             "Gulf of Mexico 3D Shot Depth",
             sizes=[256, 512, 24, 2048],
             coord_units=[_UNIT_METER, _UNIT_METER],
-            headers = structured_headers, 
+            headers=structured_headers,
         )
 
         assert dataset.metadata.name == "Gulf of Mexico 3D Shot Depth"
@@ -195,7 +198,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "shot"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
-        validate_coordinates_headers_trace_mask(dataset, structured_headers)
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers)
 
         # Verify seismic variable (prestack shot depth data)
         seismic = validate_variable(
@@ -211,7 +214,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
 
-    def test_build_dataset_time(self, structured_headers) -> None:
+    def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in time domain."""
         t = Seismic3DPreStackShotTemplate(domain="time")
 
@@ -220,7 +223,7 @@ class TestSeismic3DPreStackShotTemplate:
             "North Sea 3D Shot Time",
             sizes=[256, 512, 24, 2048],
             coord_units=[_UNIT_METER, _UNIT_METER],
-            headers = structured_headers, 
+            headers=structured_headers,
         )
 
         assert dataset.metadata.name == "North Sea 3D Shot Time"
@@ -228,8 +231,8 @@ class TestSeismic3DPreStackShotTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "shot"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
-        validate_coordinates_headers_trace_mask(dataset, structured_headers)
-        
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers)
+
         # Verify seismic variable (prestack shot time data)
         seismic = validate_variable(
             dataset,

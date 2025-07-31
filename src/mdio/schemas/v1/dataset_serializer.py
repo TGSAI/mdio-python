@@ -3,17 +3,13 @@
 from collections.abc import Mapping
 
 import numpy as np
+from dask.delayed import Delayed
 from numcodecs import Blosc as nc_Blosc
-from numpy import dtype as np_dtype
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
-
-import xarray
-from zarr import zeros as zarr_zeros
-import zarr
-from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 from xarray.backends import ZarrStore
-from dask.delayed import Delayed
+from zarr import zeros as zarr_zeros
+from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
 from mdio.converters.type_converter import to_numpy_dtype
 
@@ -96,6 +92,7 @@ def _get_coord_names(var: Variable) -> list[str]:
             elif isinstance(c, str):
                 coord_names.append(c)
     return coord_names
+
 
 def _get_zarr_shape(var: Variable, all_named_dims: dict[str, NamedDimension]) -> tuple[int, ...]:
     """Get the shape of a variable for Zarr storage.
@@ -257,7 +254,6 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         xr_ds.attrs["name"] = mdio_ds.metadata.name
         if mdio_ds.metadata.attributes:
             xr_ds.attrs["attributes"] = mdio_ds.metadata.attributes
-            
 
     return xr_ds
 

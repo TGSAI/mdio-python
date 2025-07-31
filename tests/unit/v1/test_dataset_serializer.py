@@ -28,7 +28,6 @@ from mdio.schemas.v1.dataset_serializer import _get_all_named_dimensions
 from mdio.schemas.v1.dataset_serializer import _get_coord_names
 from mdio.schemas.v1.dataset_serializer import _get_dimension_names
 from mdio.schemas.v1.dataset_serializer import _get_fill_value
-from mdio.converters.type_converter import to_numpy_dtype
 from mdio.schemas.v1.dataset_serializer import _get_zarr_chunks
 from mdio.schemas.v1.dataset_serializer import _get_zarr_shape
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
@@ -354,6 +353,7 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     xr_ds.to_zarr(store=file_path, mode="w", zarr_format=2, compute=False)
+
 
 @pytest.mark.skip(reason="Issues serializing dask arrays of structured types to dask.")
 def test_to_zarr_dask(tmp_path: Path) -> None:

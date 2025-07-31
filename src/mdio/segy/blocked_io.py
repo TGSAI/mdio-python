@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import multiprocessing as mp
 import os
-from concurrent.futures import as_completed
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import as_completed
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -14,39 +14,33 @@ from dask.array import Array
 from dask.array import map_blocks
 from psutil import cpu_count
 from tqdm.auto import tqdm
+from zarr import consolidate_metadata as zarr_consolidate_metadata
+from zarr import open_group as zarr_open_group
 
 from mdio.core.indexing import ChunkIterator
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
-
 from mdio.segy._workers import trace_worker
-from mdio.segy.utilities import segy_export_rechunker
-
 from mdio.segy.creation import SegyPartRecord
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import serialize_to_segy_stack
 from mdio.segy.utilities import find_trailing_ones_index
-
-from zarr import open_group as zarr_open_group
-from zarr import consolidate_metadata as zarr_consolidate_metadata
+from mdio.segy.utilities import segy_export_rechunker
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
     from segy import SegyFile
-
-    from zarr import Array as zarr_Array
-    from xarray import Dataset as xr_Dataset
     from xarray import DataArray as xr_DataArray
+    from xarray import Dataset as xr_Dataset
+    from zarr import Array as zarr_Array
 
 default_cpus = cpu_count(logical=True)
 
+
 def _create_stats() -> SummaryStatistics:
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
-    stats = SummaryStatistics(
-        count=0, min=0, max=0, sum=0, sum_squares=0, histogram=histogram
-    )
-    return stats
+    return SummaryStatistics(count=0, min=0, max=0, sum=0, sum_squares=0, histogram=histogram)
 
 
 def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatistics) -> None:
@@ -63,8 +57,9 @@ class ShapeAndChunks:
     def __init__(self, data: xr_DataArray):
         optimal_chunks = segy_export_rechunker(
             shape=data.shape,
-            chunks= data.encoding.get("chunks"), # Must use this instead of data.chunks
-            dtype=data.dtype)
+            chunks=data.encoding.get("chunks"),  # Must use this instead of data.chunks
+            dtype=data.dtype,
+        )
         # Unroll it to a tuple
         optimal_chunks = sum(optimal_chunks, ())
         # Store shape and chunks
@@ -87,7 +82,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     out_path: str,
     grid_map: zarr_Array,
     dataset: xr_Dataset,
-    data_variable_name: str
+    data_variable_name: str,
 ) -> None:
     """Blocked I/O from SEG-Y to chunked `xarray.Dataset`.
 
@@ -95,13 +90,13 @@ def to_zarr(  # noqa: PLR0913, PLR0915
         segy_file: SEG-Y file instance.
         out_path: Path to the output Zarr file.
         grid_map: Zarr array with grid map for the traces.
-        data_array: Handle for xarray.Dataset we are writing trace data
-        header_array: Handle for xarray.Dataset we are writing trace headers
+        dataset: Handle for xarray.Dataset we are writing trace data
+        data_variable_name: Name of the data variable in the dataset.
 
     Returns:
         None
     """
-    data = dataset[data_variable_name]   
+    data = dataset[data_variable_name]
 
     final_stats = _create_stats()
 
@@ -131,7 +126,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
             subset_args = (
                 region,
                 grid_map[index_slices],
-                dataset.isel(region), 
+                dataset.isel(region),
             )
             future = executor.submit(trace_worker, *common_args, *subset_args)
             futures.append(future)
@@ -148,11 +143,11 @@ def to_zarr(  # noqa: PLR0913, PLR0915
             if result is not None:
                 _update_stats(final_stats, result)
 
-    # Xarray doesn't directly support incremental attribute updates when appending to an 
-    # existing Zarr store. 
+    # Xarray doesn't directly support incremental attribute updates when appending to an
+    # existing Zarr store.
     # HACK: We will update the array attribute using zarr's API directly.
     # Open the Zarr store using zarr directly
-    zarr_group = zarr_open_group(f"{out_path}", mode='a')
+    zarr_group = zarr_open_group(f"{out_path}", mode="a")
     attr_json = final_stats.model_dump_json()
     # Use the data_variable_name to get the array in the Zarr group
     # and write "statistics" metadata there
@@ -161,6 +156,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     zarr_consolidate_metadata(out_path)
 
     return final_stats
+
 
 def segy_record_concat(
     block_records: NDArray,

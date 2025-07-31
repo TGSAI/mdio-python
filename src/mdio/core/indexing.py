@@ -19,7 +19,7 @@ class ChunkIterator:
         chunk_samples: This is a flag to return the last dimension's
             slice as full, instead of chunks. Default is True.
 
-    Attributes:
+    Attributes:             # noqa: DOC602
         arr_shape: Shape of the array.
         len_chunks: Length of chunks in each dimension.
         dim_chunks: Number of chunks in each dimension.
@@ -38,7 +38,7 @@ class ChunkIterator:
         # Compute number of chunks per dimension, and total number of chunks
         self.dim_chunks = [
             ceil(len_dim / chunk)
-            for len_dim, chunk in zip(self.arr_shape, self.len_chunks)
+            for len_dim, chunk in zip(self.arr_shape, self.len_chunks, strict=False)
         ]
         self.num_chunks = np.prod(self.dim_chunks)
 
@@ -74,7 +74,7 @@ class ChunkIterator:
                 slice(start, stop) for start, stop in zip(start_indices, stop_indices, strict=True)
             )
 
-            slices = dict(zip(self.dims, slices))
+            slices = dict(zip(self.dims, slices, strict=False))
 
             self._idx += 1
 
