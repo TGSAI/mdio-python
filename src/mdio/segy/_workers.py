@@ -61,7 +61,19 @@ def trace_worker(  # noqa: PLR0913
     grid_map: zarr_Array,
     dataset: xr_Dataset,
 ) -> SummaryStatistics | None:
-    """Read a subset of traces and write to region of Zarr file."""
+    """Writes a subset of traces from a region of the dataset of Zarr file.
+
+    Args:
+        segy_file: SegyFile instance.
+        out_path: Output path for the Zarr file.
+        data_variable_name: Name of the data variable to write.
+        region: Region of the dataset to write to.
+        grid_map: Zarr array mapping live traces to their positions in the dataset.
+        dataset: Xarray dataset containing the data to write.
+
+    Returns:
+        SummaryStatistics object containing statistics about the written traces.
+    """
     if dataset.trace_mask.sum() == 0:
         return None
 
