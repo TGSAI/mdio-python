@@ -32,7 +32,7 @@ def test_segy_to_mdio_v1_customized() -> None:
     index_types = ("int32", "int32")
 
     segy_to_mdio_v1_customized(
-        segy_spec="1.0",
+        segy_spec_version="1.0",
         mdio_template="PostStack3DTime",
         input_location=StorageLocation(f"{pref_path}.segy"),
         output_location=StorageLocation(mdio_path),

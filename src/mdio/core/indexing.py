@@ -38,7 +38,7 @@ class ChunkIterator:
         # Compute number of chunks per dimension, and total number of chunks
         self.dim_chunks = [
             ceil(len_dim / chunk)
-            for len_dim, chunk in zip(self.arr_shape, self.len_chunks, strict=False)
+            for len_dim, chunk in zip(self.arr_shape, self.len_chunks, strict=True)
         ]
         self.num_chunks = np.prod(self.dim_chunks)
 

@@ -44,3 +44,6 @@ RUN uv pip install -e .
 RUN uv sync --group dev
 # Now one can run:
 #    pre-commit run --all-files
+# Install additional packages that are not in the pyproject.toml
+# These are needed for the development environment, but not for the production environment
+RUN uv pip install matplotlib

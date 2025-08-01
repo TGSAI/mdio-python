@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import field
+from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -12,6 +13,7 @@ from segy.config import SegySettings
 from segy.schema import HeaderField
 from segy.schema import SegySpec
 from segy.standards import get_segy_standard
+from segy.standards import SegyStandard
 from xarray import Dataset as xr_Dataset
 from zarr import Array as zarr_Array
 
@@ -36,6 +38,28 @@ class StorageLocation:
 
     uri: str
     options: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def storage_type(self) -> str:
+        """Determine the storage type based on the URI scheme."""
+        if self.uri.startswith("file://"):
+            return "file"
+        if self.uri.startswith("s3://"):
+            return "cloud:s3"
+        if self.uri.startswith("gs://"):
+            return "cloud:gs"
+        # Default to file storage type if no specific type is detected
+        return "file"
+
+    def exists(self) -> bool:
+        """Check if the storage location exists."""
+        if self.storage_type == "file":
+            return Path(self.uri).exists()
+        if self.storage_type.startswith("cloud:"):
+            err = "Existence check for cloud storage is not implemented yet."
+            raise NotImplementedError(err)
+        err = f"Unsupported storage type: {self.storage_type}"
+        raise ValueError(err)
 
 
 def customize_segy_specs(
@@ -89,6 +113,15 @@ def _get_data_coordinates(
     Select a subset of the segy_dimensions that corresponds to the MDIO dimensions
     The dimensions are ordered as in the MDIO template.
     The last dimension is always the vertical domain dimension
+
+    Args:
+        segy_headers: List of of all SEG-Y dimensions.
+        mdio_template: The MDIO template to use for the conversion. 
+
+    Returns:
+        A tuple containing:
+            - A list of dimension coordinates (1-D arrays).
+            - A list of non-dimension coordinates (N-D arrays).
     """
     dimensions_coords = []
     for coord_name in mdio_template.dimension_names[:-1]:
@@ -116,7 +149,7 @@ def _get_data_coordinates(
 
 def populate_coordinate(
     dataset: xr_Dataset, coordinates: list[Dimension], vars_to_drop_later: list[str]
-) -> None:
+) -> xr_Dataset:
     """Populate the xarray dataset with coordinate variable."""
     for c in coordinates:
         #  If we do not have data for the coordinate variable, drop it
@@ -124,7 +157,7 @@ def populate_coordinate(
             scalar_type = to_scalar_type(c.coords.dtype)
             full_value = fill_value_map[scalar_type]
             if c.coords[0] == full_value:
-                dataset.drop_vars(c.name)
+                dataset = dataset.drop_vars(c.name)
                 continue
         # Otherwise, populate the coordinate variable
         values = c.coords
@@ -134,6 +167,7 @@ def populate_coordinate(
             values = values.reshape(shape)
         dataset.coords[c.name] = (dims, values)
         vars_to_drop_later.append(c.name)
+    return dataset
 
 
 def _populate_coordinates_write_to_zarr(
@@ -148,14 +182,20 @@ def _populate_coordinates_write_to_zarr(
     """
     vars_to_drop_later = []
     # Populate the dimension coordinate variables (1-D arrays)
-    populate_coordinate(
-        dataset, coordinates=dimension_coords, vars_to_drop_later=vars_to_drop_later
+    dataset = populate_coordinate(
+        dataset,
+        coordinates=dimension_coords,
+        vars_to_drop_later=vars_to_drop_later
     )
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
-    populate_coordinate(dataset, coordinates=non_dim_coords, vars_to_drop_later=vars_to_drop_later)
+    dataset = populate_coordinate(
+        dataset,
+        coordinates=non_dim_coords,
+        vars_to_drop_later=vars_to_drop_later
+    )
 
-    dataset.to_zarr(
+    dataset = dataset.to_zarr(
         store=output.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=True
     )
 
@@ -187,8 +227,32 @@ def _populate_trace_mask_write_to_zarr(
     return grid.map
 
 
+def get_segy_standard_version(version_number_or_name: str) -> SegyStandard:
+    """Get the SEG-Y standard version. 
+    Args:
+        version_number_or_name: The SEG-Y standard version number or name (e.g., "REV21").
+    Returns:
+        The SEG-Y standard version as a SegyStandard enum member.
+    Raises:
+        ValueError: If the version number or name is invalid.   
+    """
+    try:
+        # Let's see, if it is a version number
+        version = float(version_number_or_name)
+        try:
+            return SegyStandard(version)
+        except ValueError as exc:
+            err = f"Invalid SEG-Y standard version '{version_number_or_name}'."   
+            raise ValueError(err) from exc
+    except ValueError as exc:
+        # If it is not a version number, it might the name
+        if version_number_or_name not in SegyStandard.__members__:  
+            err = f"Invalid SEG-Y standard version '{version_number_or_name}'."   
+            raise ValueError(err) from exc
+        return SegyStandard[version_number_or_name]
+
 def segy_to_mdio_v1_customized(  # noqa PLR0913
-    segy_spec: str,
+    segy_spec_version: str,
     mdio_template: str,
     input_location: StorageLocation,
     output_location: StorageLocation,
@@ -202,13 +266,27 @@ def segy_to_mdio_v1_customized(  # noqa PLR0913
     This function takes in various variations of input parameters and normalizes
     them, performs necessary customizations before calling segy_2_mdio() to
     perform the conversion from SEG-Y and MDIO v1 formats.
+
+    Args:
+        segy_spec_version: The SEG-Y specification number or name.
+        mdio_template: The MDIO template name to use for the conversion.
+        input_location: The storage location of the input SEG-Y file.
+        output_location: The storage location for the output MDIO v1 file.
+        index_bytes: Optional sequence of bytes for custom index fields.
+        index_names: Optional sequence of names for custom index fields.
+        index_types: Optional sequence of types for custom index fields.
+        overwrite: Whether to overwrite the output file if it already exists.
+
+    Raises:
+        ValueError: If the SEG-Y spec or MDIO template is not registered, or if
+                    the index fields do not match in length.
     """
     # Retrieve the SEG-Y specifications either from a registry or a storage location
     try:
-        segy_spec = float(segy_spec)
-        segy_spec = get_segy_standard(segy_spec)
+        segy_spec_version = get_segy_standard_version(segy_spec_version)
+        segy_spec = get_segy_standard(segy_spec_version)
     except Exception as exc:
-        err = f"SEG-Y spec '{segy_spec}' is not registered."
+        err = f"SEG-Y spec '{segy_spec_version}' is not registered."
         raise ValueError(err) from exc
 
     # Retrieve MDIO template either from a registry or a storage location
@@ -237,9 +315,27 @@ def segy_to_mdio_v1(
     mdio_template: AbstractDatasetTemplate,
     input_location: StorageLocation,
     output_location: StorageLocation,
-    overwrite: bool = False,  # noqa: ARG001
+    overwrite: bool = False,
 ) -> None:
-    """A function that converts a SEG-Y file to an MDIO v1 file."""
+    """A function that converts a SEG-Y file to an MDIO v1 file.
+
+    Args:
+        segy_spec: The SEG-Y specification to use for the conversion.
+        mdio_template: The MDIO template to use for the conversion.
+        input_location: The storage location of the input SEG-Y file.
+        output_location: The storage location for the output MDIO v1 file.
+        overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
+
+    Raises:
+        FileExistsError: If the output location already exists and overwrite is False.
+        ValueError: If the SEG-Y spec or MDIO template is not registered, or if
+                     the index fields do not match in length.
+    """
+    if overwrite and output_location.exists():
+        err = f"Output location '{output_location.uri}' already exists."
+        err += " Set 'overwrite' to True to overwrite it."
+        raise FileExistsError(err)
+
     # Open a SEG-Y file according to the SegySpec
     # This could be a spec from the registryy or a custom spec
     segy_settings = SegySettings(storage_options=input_location.options)
