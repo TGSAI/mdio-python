@@ -195,7 +195,7 @@ def _populate_coordinates_write_to_zarr(
         vars_to_drop_later=vars_to_drop_later
     )
 
-    dataset = dataset.to_zarr(
+    dataset.to_zarr(
         store=output.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=True
     )
 
