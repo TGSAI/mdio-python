@@ -50,33 +50,6 @@ def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatisti
     final_stats.sum += partial_stats.sum
     final_stats.sum_squares += partial_stats.sum_squares
 
-
-class ShapeAndChunks:
-    """Class to hold shape and chunks of an xarray.DataArray."""
-
-    def __init__(self, data: xr_DataArray):
-        optimal_chunks = segy_export_rechunker(
-            shape=data.shape,
-            chunks=data.encoding.get("chunks"),  # Must use this instead of data.chunks
-            dtype=data.dtype,
-        )
-        # Unroll it to a tuple
-        optimal_chunks = sum(optimal_chunks, ())
-        # Store shape and chunks
-        self._shape = data.shape
-        self._chunks = optimal_chunks
-
-    @property
-    def shape(self) -> tuple[int, ...]:
-        """Get the shape of the underlying array."""
-        return self._shape
-
-    @property
-    def chunks(self) -> tuple[int, ...]:
-        """Get the chunk sizes of the underlying array."""
-        return self._chunks
-
-
 def to_zarr(  # noqa: PLR0913, PLR0915
     segy_file: SegyFile,
     out_path: str,
@@ -99,12 +72,14 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     data = dataset[data_variable_name]
 
     final_stats = _create_stats()
-
-    # Initialize chunk iterator (returns next chunk slice indices each iteration)
-    # NOTE: The ChunkIterator signature ask for `array: Array` but all it needs is an object
-    # with .shape and .chunks properties.
-    chunk_iter = ChunkIterator(ShapeAndChunks(data), data.dims, False)
-    num_chunks = len(chunk_iter)
+    
+    chunks=data.encoding.get("chunks"),  # Must use this instead of data.chunks
+    chunks = sum(chunks, ())             # Unroll it to a tuple
+    dim_names = list(data.dims)
+    # Initialize chunk iterator
+    # Since the dimensions are provided, it will return a dict of slices
+    chunk_iter = ChunkIterator(shape=data.shape, chunks=chunks, dim_names=dim_names)
+    num_chunks = chunk_iter.num_chunks
 
     # The following could be extracted in a function to allow executor injection
     # (e.g. for unit testing or for debugging with non-parallelized processing)

@@ -10,14 +10,15 @@ from zarr import Array
 class ChunkIterator:
     """Chunk iterator multi-dimensional Zarr arrays.
 
-    This iterator takes a zarr array and every time it is iterated, returns
-    slices that align with chunk boundaries.
+    This iterator takes a zarr array and every time it is iterated, it returns
+    a dictionary (if dimensions are provided) or a tuple of slices that align with 
+    chunk boundaries. When dimensions are provided, they are used as the dictionary keys.
 
     Args:
-        array: zarr.Array to get shape, and chunks from.
-        dims: The names of the dimensions.
-        chunk_samples: This is a flag to return the last dimension's
-            slice as full, instead of chunks. Default is True.
+        shape: The shape of the array.
+        chunks: The chunk sizes for each dimension.
+        dim_names: The names of the array dimensions, to be used with DataArray.isel(). 
+        If the names are not provided, a tuple of the slices will be returned.
 
     Attributes:             # noqa: DOC602
         arr_shape: Shape of the array.
@@ -26,20 +27,16 @@ class ChunkIterator:
         num_chunks: Total number of chunks.
     """
 
-    def __init__(self, array: Array, dims: list[str], chunk_samples: bool = True):
-        self.arr_shape = array.shape
-        self.dims = dims
-        self.len_chunks = array.chunks
-
-        # Handle the case when we don't want to slice the sample axis.
-        if chunk_samples is False:
-            self.len_chunks = self.len_chunks[:-1] + (self.arr_shape[-1],)
+    def __init__(self, shape: tuple[int, ...], chunks: tuple[int, ...], dim_names: tuple[str, ...] = None):
+        self.arr_shape = tuple(shape)   # Deep copy to ensure immutability
+        self.len_chunks = tuple(chunks) # Deep copy to ensure immutability
+        self.dims = dim_names
 
         # Compute number of chunks per dimension, and total number of chunks
-        self.dim_chunks = [
+        self.dim_chunks = tuple([
             ceil(len_dim / chunk)
             for len_dim, chunk in zip(self.arr_shape, self.len_chunks, strict=True)
-        ]
+        ])
         self.num_chunks = np.prod(self.dim_chunks)
 
         # Under the hood stuff for the iterator. This generates C-ordered
@@ -74,10 +71,17 @@ class ChunkIterator:
                 slice(start, stop) for start, stop in zip(start_indices, stop_indices, strict=True)
             )
 
-            slices = dict(zip(self.dims, slices, strict=False))
+            if self.dims:
+                # Example
+                # {"inline":slice(3,6,None), "crossline":slice(0,4,None), "depth":slice(0,5,None)}
+                result = dict(zip(self.dims, slices, strict=False))
+            else:
+                # Example
+                # (slice(3,6,None), slice(0,4,None), slice(0,5,None))
+                result = slices
 
             self._idx += 1
 
-            return slices
+            return result
 
         raise StopIteration
