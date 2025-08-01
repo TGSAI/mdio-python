@@ -1,4 +1,4 @@
-furo==2024.8.6
+furo==2025.7.19
 linkify-it-py==2.0.3
 myst-nb==1.2.0
 sphinx==8.2.3
