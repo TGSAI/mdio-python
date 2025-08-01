@@ -105,6 +105,8 @@ def trace_worker(  # noqa: PLR0913
         min=traces.sample.min(),
         max=traces.sample.max(),
         sum=traces.sample.sum(),
+        # TODO(Altay): Look at how to do the sum squares statistic correctly
+        # https://github.com/TGSAI/mdio-python/issues/581
         sum_squares=(traces.sample**2).sum(),
         histogram=histogram,
     )
