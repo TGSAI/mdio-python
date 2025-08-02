@@ -256,36 +256,3 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
             xr_ds.attrs["attributes"] = mdio_ds.metadata.attributes
 
     return xr_ds
-
-
-def to_zarr(
-    dataset: xr_Dataset,
-    store: str | None = None,
-    *args: str | int | float | bool,
-    **kwargs: Mapping[str, str | int | float | bool],
-) -> ZarrStore | Delayed:
-    """Write an XArray dataset to Zarr format.
-
-    Args:
-        dataset: The XArray dataset to write.
-        store: The Zarr store to write to. If None, defaults to in-memory store.
-        *args: Additional positional arguments for the Zarr store.
-        **kwargs: Additional keyword arguments for the Zarr store.
-
-    Notes:
-        It sets the zarr_format to 2, which is the default for XArray datasets.
-        Since we set kwargs["compute"], this method will return a dask.delayed.Delayed object
-        and the arrays will not be immediately written.
-
-    References:
-            https://docs.xarray.dev/en/stable/user-guide/io.html
-            https://docs.xarray.dev/en/latest/generated/xarray.DataArray.to_zarr.html
-
-    Returns:
-        None: The function writes the dataset as dask.delayed.Delayed object to the
-        specified Zarr store.
-    """
-    kwargs["zarr_format"] = 2
-    kwargs["compute"] = False
-    kwargs["mode"] = "w"  # create (overwrite if exists)
-    return dataset.to_zarr(*args, store=store, **kwargs)

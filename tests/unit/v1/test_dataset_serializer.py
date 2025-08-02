@@ -31,7 +31,6 @@ from mdio.schemas.v1.dataset_serializer import _get_fill_value
 from mdio.schemas.v1.dataset_serializer import _get_zarr_chunks
 from mdio.schemas.v1.dataset_serializer import _get_zarr_shape
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
-from mdio.schemas.v1.dataset_serializer import to_zarr
 from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import Variable
 
@@ -342,7 +341,8 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
     xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
-    to_zarr(xr_ds, file_path, mode="w")
+    xr_ds.to_zarr(store=file_path, mode="w", zarr_format=2, compute=False)
+
 
 
 def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> None:

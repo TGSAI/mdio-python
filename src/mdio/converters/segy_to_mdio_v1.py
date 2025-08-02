@@ -62,32 +62,6 @@ class StorageLocation:
         raise ValueError(err)
 
 
-def customize_segy_specs(
-    segy_spec: SegySpec,
-    index_bytes: Sequence[int] | None = None,
-    index_names: Sequence[str] | None = None,
-    index_types: Sequence[str] | None = None,
-) -> SegySpec:
-    """Customize SEG-Y specifications with user-defined index fields."""
-    if not index_bytes:
-        # No customization
-        return segy_spec
-
-    index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
-    index_types = index_types or ["int32"] * len(index_bytes)
-
-    if not (len(index_names) == len(index_bytes) == len(index_types)):
-        err = "All index fields must have the same length."
-        raise ValueError(err)
-
-    # Index the dataset using a spec that interprets the user provided index headers.
-    index_fields = []
-    for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
-        index_fields.append(HeaderField(name=name, byte=byte, format=format_))
-
-    return segy_spec.customize(trace_header_fields=index_fields)
-
-
 def _scan_for_headers(segy_file: SegyFile) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
 
@@ -225,89 +199,6 @@ def _populate_trace_mask_write_to_zarr(
         store=output.uri, mode="r+", write_empty_chunks=False, zarr_format=2, compute=True
     )
     return grid.map
-
-
-def get_segy_standard_version(version_number_or_name: str) -> SegyStandard:
-    """Get the SEG-Y standard version. 
-    Args:
-        version_number_or_name: The SEG-Y standard version number or name (e.g., "REV21").
-    Returns:
-        The SEG-Y standard version as a SegyStandard enum member.
-    Raises:
-        ValueError: If the version number or name is invalid.   
-    """
-    try:
-        # Let's see, if it is a version number
-        version = float(version_number_or_name)
-        try:
-            return SegyStandard(version)
-        except ValueError as exc:
-            err = f"Invalid SEG-Y standard version '{version_number_or_name}'."   
-            raise ValueError(err) from exc
-    except ValueError as exc:
-        # If it is not a version number, it might the name
-        if version_number_or_name not in SegyStandard.__members__:  
-            err = f"Invalid SEG-Y standard version '{version_number_or_name}'."   
-            raise ValueError(err) from exc
-        return SegyStandard[version_number_or_name]
-
-def segy_to_mdio_v1_customized(  # noqa PLR0913
-    segy_spec_version: str,
-    mdio_template: str,
-    input_location: StorageLocation,
-    output_location: StorageLocation,
-    index_bytes: Sequence[int] | None = None,
-    index_names: Sequence[str] | None = None,
-    index_types: Sequence[str] | None = None,
-    overwrite: bool = False,
-) -> None:
-    """A function that converts a SEG-Y file to an MDIO v1 file.
-
-    This function takes in various variations of input parameters and normalizes
-    them, performs necessary customizations before calling segy_2_mdio() to
-    perform the conversion from SEG-Y and MDIO v1 formats.
-
-    Args:
-        segy_spec_version: The SEG-Y specification number or name.
-        mdio_template: The MDIO template name to use for the conversion.
-        input_location: The storage location of the input SEG-Y file.
-        output_location: The storage location for the output MDIO v1 file.
-        index_bytes: Optional sequence of bytes for custom index fields.
-        index_names: Optional sequence of names for custom index fields.
-        index_types: Optional sequence of types for custom index fields.
-        overwrite: Whether to overwrite the output file if it already exists.
-
-    Raises:
-        ValueError: If the SEG-Y spec or MDIO template is not registered, or if
-                    the index fields do not match in length.
-    """
-    # Retrieve the SEG-Y specifications either from a registry or a storage location
-    try:
-        segy_spec_version = get_segy_standard_version(segy_spec_version)
-        segy_spec = get_segy_standard(segy_spec_version)
-    except Exception as exc:
-        err = f"SEG-Y spec '{segy_spec_version}' is not registered."
-        raise ValueError(err) from exc
-
-    # Retrieve MDIO template either from a registry or a storage location
-    if not TemplateRegistry().is_registered(mdio_template):
-        err = f"MDIO template '{mdio_template}' is not registered."
-        raise ValueError(err)
-    mdio_template = TemplateRegistry().get(mdio_template)
-
-    # Customize the SEG-Y specs, if customizations are provided
-    segy_spec = customize_segy_specs(
-        segy_spec, index_bytes=index_bytes, index_names=index_names, index_types=index_types
-    )
-
-    # Proceed with the conversion
-    segy_to_mdio_v1(
-        segy_spec=segy_spec,
-        mdio_template=mdio_template,
-        input_location=input_location,
-        output_location=output_location,
-        overwrite=overwrite,
-    )
 
 
 def segy_to_mdio_v1(

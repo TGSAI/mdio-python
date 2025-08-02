@@ -11,39 +11,11 @@ from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
 from mdio.converters.segy_to_mdio_v1 import StorageLocation
 from mdio.converters.segy_to_mdio_v1 import segy_to_mdio_v1
-from mdio.converters.segy_to_mdio_v1 import segy_to_mdio_v1_customized
 from mdio.converters.type_converter import to_numpy_dtype
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
-
-
-@pytest.mark.skip(reason="Need a test dataset to customize.")
-def test_segy_to_mdio_v1_customized() -> None:
-    """Test the custom SEG-Y to MDIO conversion."""
-    pref_path = "/DATA/Teapot/filt_mig"
-    mdio_path = f"{pref_path}_custom_v1.mdio"
-
-    # NOTE: This test will fail because no indexes are provided in filt_mig.segy for the required
-    # 'cdp_x' and 'cdp_y' fields in the filt_mig dataset.
-    index_bytes = (181, 185)
-    index_names = ("inline", "crossline")
-    index_types = ("int32", "int32")
-
-    segy_to_mdio_v1_customized(
-        segy_spec_version="1.0",
-        mdio_template="PostStack3DTime",
-        input_location=StorageLocation(f"{pref_path}.segy"),
-        output_location=StorageLocation(mdio_path),
-        index_bytes=index_bytes,
-        index_names=index_names,
-        index_types=index_types,
-        overwrite=True,
-    )
-
-    # Load Xarray dataset from the MDIO file
-    # dataset = xr.open_dataset(mdio_path, engine="zarr")
 
 
 def _slice_three_values(dims: tuple[int], values_from_start: bool) -> Any:
