@@ -17,15 +17,14 @@ from tqdm.auto import tqdm
 from zarr import consolidate_metadata as zarr_consolidate_metadata
 from zarr import open_group as zarr_open_group
 
-from mdio.core.indexing import ChunkIterator
+from mdio.core.indexing import ChunkIteratorV1
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
-from mdio.segy._workers import trace_worker
+from mdio.segy._workers import trace_worker_v1
 from mdio.segy.creation import SegyPartRecord
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import serialize_to_segy_stack
 from mdio.segy.utilities import find_trailing_ones_index
-from mdio.segy.utilities import segy_export_rechunker
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -50,7 +49,7 @@ def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatisti
     final_stats.sum += partial_stats.sum
     final_stats.sum_squares += partial_stats.sum_squares
 
-def to_zarr(  # noqa: PLR0913, PLR0915
+def to_zarr_v1(  # noqa: PLR0913, PLR0915
     segy_file: SegyFile,
     out_path: str,
     grid_map: zarr_Array,
@@ -78,7 +77,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     dim_names = list(data.dims)
     # Initialize chunk iterator
     # Since the dimensions are provided, it will return a dict of slices
-    chunk_iter = ChunkIterator(shape=data.shape, chunks=chunks, dim_names=dim_names)
+    chunk_iter = ChunkIteratorV1(shape=data.shape, chunks=chunks, dim_names=dim_names)
     num_chunks = chunk_iter.num_chunks
 
     # The following could be extracted in a function to allow executor injection
@@ -103,7 +102,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
                 grid_map[index_slices],
                 dataset.isel(region),
             )
-            future = executor.submit(trace_worker, *common_args, *subset_args)
+            future = executor.submit(trace_worker_v1, *common_args, *subset_args)
             futures.append(future)
 
         iterable = tqdm(

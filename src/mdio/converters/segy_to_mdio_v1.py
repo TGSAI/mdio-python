@@ -385,7 +385,7 @@ def segy_to_mdio_v1(
     data_variable_name = mdio_template.trace_variable_name
     # This is an memory-expensive and time-consuming read-write operation
     # performed in chunks to save the memory
-    blocked_io.to_zarr(
+    blocked_io.to_zarr_v1(
         segy_file=segy_file,
         out_path=output_location.uri,
         grid_map=grid_map,

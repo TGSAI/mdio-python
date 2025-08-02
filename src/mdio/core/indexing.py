@@ -7,7 +7,7 @@ import numpy as np
 from zarr import Array
 
 
-class ChunkIterator:
+class ChunkIteratorV1:
     """Chunk iterator multi-dimensional Zarr arrays.
 
     This iterator takes a zarr array and every time it is iterated, it returns
@@ -18,6 +18,7 @@ class ChunkIterator:
         shape: The shape of the array.
         chunks: The chunk sizes for each dimension.
         dim_names: The names of the array dimensions, to be used with DataArray.isel(). 
+        
         If the names are not provided, a tuple of the slices will be returned.
 
     Attributes:             # noqa: DOC602
@@ -25,9 +26,29 @@ class ChunkIterator:
         len_chunks: Length of chunks in each dimension.
         dim_chunks: Number of chunks in each dimension.
         num_chunks: Total number of chunks.
+
+    Examples:
+        >> chunks = (3, 4, 5)
+        >> shape = (5, 11, 19)
+        >> dims = ["inline", "crossline", "depth"]
+        >>
+        >> iter = ChunkIteratorV1(shape=shape, chunks=chunks, dim_names=dims)
+        >> for i in range(13):
+        >>    region = iter.__next__()
+        >> print(region)
+        { "inline": slice(3,6, None), "crossline": slice(0,4, None), "depth": slice(0,5, None) }
+
+        >> iter = ChunkIteratorV1(shape=shape, chunks=chunks, dim_names=None)
+        >> for i in range(13):
+        >>    region = iter.__next__()
+        >> print(region)
+        (slice(3,6,None), slice(0,4,None), slice(0,5,None))
     """
 
-    def __init__(self, shape: tuple[int, ...], chunks: tuple[int, ...], dim_names: tuple[str, ...] = None):
+    def __init__(self, 
+                 shape: tuple[int, ...], 
+                 chunks: tuple[int, ...], 
+                 dim_names: tuple[str, ...] = None):
         self.arr_shape = tuple(shape)   # Deep copy to ensure immutability
         self.len_chunks = tuple(chunks) # Deep copy to ensure immutability
         self.dims = dim_names
@@ -45,7 +66,7 @@ class ChunkIterator:
         self._ranges = itertools.product(*dim_ranges)
         self._idx = 0
 
-    def __iter__(self) -> "ChunkIterator":
+    def __iter__(self) -> "ChunkIteratorV1":
         """Iteration context."""
         return self
 
