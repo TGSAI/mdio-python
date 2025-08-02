@@ -21,7 +21,8 @@ class MockDatasetTemplate(AbstractDatasetTemplate):
         super().__init__()
         self.template_name = name
 
-    def _get_name(self) -> str:
+    @property
+    def _name(self) -> str:
         return self.template_name
 
     def _load_dataset_attributes(self) -> None:

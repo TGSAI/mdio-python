@@ -54,7 +54,7 @@ class TemplateRegistry:
             ValueError: If the template name is already registered.
         """
         with self._registry_lock:
-            name = instance.get_name()
+            name = instance.name
             if name in self._templates:
                 err = f"Template '{name}' is already registered."
                 raise ValueError(err)

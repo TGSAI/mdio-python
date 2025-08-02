@@ -185,13 +185,13 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
     )
     # Add coordinates
     ds.add_coordinate(
-        "cdp-x",
+        "cdp_x",
         dimensions=["inline", "crossline"],
         data_type=ScalarType.FLOAT32,
         metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
     )
     ds.add_coordinate(
-        "cdp-y",
+        "cdp_y",
         dimensions=["inline", "crossline"],
         data_type=ScalarType.FLOAT32,
         metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
@@ -203,7 +203,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT32,
         compressor=Blosc(algorithm="zstd"),
-        coordinates=["cdp-x", "cdp-y"],
+        coordinates=["cdp_x", "cdp_y"],
         metadata_info=[
             ChunkGridMetadata(
                 chunk_grid=RegularChunkGrid(
@@ -228,7 +228,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         name="velocity",
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT16,
-        coordinates=["cdp-x", "cdp-y"],
+        coordinates=["cdp_x", "cdp_y"],
         metadata_info=[
             ChunkGridMetadata(
                 chunk_grid=RegularChunkGrid(
@@ -245,7 +245,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT32,
         compressor=Blosc(algorithm="zstd"),
-        coordinates=["cdp-x", "cdp-y"],
+        coordinates=["cdp_x", "cdp_y"],
         metadata_info=[
             ChunkGridMetadata(
                 chunk_grid=RegularChunkGrid(
@@ -258,11 +258,11 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
     ds.add_variable(
         name="image_headers",
         dimensions=["inline", "crossline"],
-        coordinates=["cdp-x", "cdp-y"],
+        coordinates=["cdp_x", "cdp_y"],
         data_type=StructuredType(
             fields=[
-                StructuredField(name="cdp-x", format=ScalarType.INT32),
-                StructuredField(name="cdp-y", format=ScalarType.INT32),
+                StructuredField(name="cdp_x", format=ScalarType.INT32),
+                StructuredField(name="cdp_y", format=ScalarType.INT32),
                 StructuredField(name="elevation", format=ScalarType.FLOAT16),
                 StructuredField(name="some_scalar", format=ScalarType.FLOAT16),
             ]

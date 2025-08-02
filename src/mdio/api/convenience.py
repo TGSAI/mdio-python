@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 from mdio import MDIOReader
 from mdio import MDIOWriter
 from mdio.core.factory import create_empty_like
-from mdio.core.indexing import ChunkIterator
+from mdio.core.indexing import ChunkIteratorV1
 
 if TYPE_CHECKING:
     from typing import Any
@@ -79,7 +79,13 @@ def copy_mdio(  # noqa: PLR0913
 
         writer.live_mask[:] = reader.live_mask[:]
 
-        iterator = ChunkIterator(reader._traces, chunk_samples=False)
+        # Formerly: 
+        # iterator = ChunkIterator(reader._traces, chunk_samples=False)
+        shape=reader._traces.shape
+        chunks=reader._traces.chunks
+        # Use the full extent of the last dimension
+        chunks = chunks[:-1] + (shape[-1],)
+        iterator = ChunkIteratorV1(shape=shape, chunks=chunks)
         progress = tqdm(iterator, unit="block")
         progress.set_description(desc=f"Copying data for '{access_pattern=}'")
         for slice_ in progress:
@@ -103,7 +109,7 @@ def create_rechunk_plan(
     suffix_list: list[str],
     compressors: CompressorsLike = None,
     overwrite: bool = False,
-) -> tuple[[list[Array]], list[Array], NDArray, ChunkIterator]:
+) -> tuple[[list[Array]], list[Array], NDArray, ChunkIteratorV1]:
     """Create a rechunk plan based on source and user input.
 
     It will buffer 512 x n-dimensions in memory. Approximately
@@ -177,7 +183,11 @@ def create_rechunk_plan(
 
     n_dimension = len(data_array.shape)
     dummy_array = zarr.empty(shape=data_array.shape, chunks=(MAX_BUFFER,) * n_dimension)
-    iterator = ChunkIterator(dummy_array)
+    # Formerly: 
+    # iterator = ChunkIterator(dummy_array, chunk_samples = True)
+    shape=dummy_array.shape
+    chunks=dummy_array.chunks
+    iterator = ChunkIteratorV1(shape=shape, chunks=chunks)
 
     return metadata_arrs, data_arrs, live_mask, iterator
 
@@ -188,7 +198,7 @@ def write_rechunked_values(  # noqa: PLR0913
     metadata_arrs_out: list[Array],
     data_arrs_out: list[Array],
     live_mask: NDArray,
-    iterator: ChunkIterator,
+    iterator: ChunkIteratorV1,
 ) -> None:
     """Create rechunk plan based on source and user input.
 
