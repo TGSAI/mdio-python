@@ -60,13 +60,13 @@ class AbstractDatasetTemplate(ABC):
         self._dim_sizes = []
         # Horizontal units for the coordinates (e.g, "m", "ft"), to be set when
         # build_dataset() is called
-        self._coord_units = []
+        self._horizontal_coord_unit = None
 
     def build_dataset(
         self,
         name: str,
         sizes: list[int],
-        coord_units: list[AllUnits],
+        horizontal_coord_unit: AllUnits,
         headers: StructuredType = None,
     ) -> Dataset:
         """Template method that builds the dataset.
@@ -74,14 +74,14 @@ class AbstractDatasetTemplate(ABC):
         Args:
             name: The name of the dataset.
             sizes: The sizes of the dimensions.
-            coord_units: The units for the coordinates.
+            horizontal_coord_unit: The units for the horizontal coordinates.
             headers: Optional structured headers for the dataset.
 
         Returns:
             Dataset: The constructed dataset
         """
         self._dim_sizes = sizes
-        self._coord_units = coord_units
+        self._horizontal_coord_unit = horizontal_coord_unit
 
         self._builder = MDIODatasetBuilder(name=name, attributes=self._load_dataset_attributes())
         self._add_dimensions()
@@ -175,12 +175,13 @@ class AbstractDatasetTemplate(ABC):
             )
 
         # Add non-dimension coordinates
+        hor_coord_units = [self._horizontal_coord_unit] * len(self._coord_dim_names)
         for i in range(len(self._coord_names)):
             self._builder.add_coordinate(
                 self._coord_names[i],
                 dimensions=self._coord_dim_names,
                 data_type=ScalarType.FLOAT64,
-                metadata_info=[self._coord_units],
+                metadata_info=hor_coord_units,
             )
 
     def _add_trace_mask(self) -> None:

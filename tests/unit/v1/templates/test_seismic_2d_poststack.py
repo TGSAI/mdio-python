@@ -87,7 +87,7 @@ class TestSeismic2DPostStackTemplate:
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == []
-        assert t._coord_units == []
+        assert t._horizontal_coord_unit is None
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
@@ -113,7 +113,7 @@ class TestSeismic2DPostStackTemplate:
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == []
-        assert t._coord_units == []
+        assert t._horizontal_coord_unit is None
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
@@ -143,7 +143,7 @@ class TestSeismic2DPostStackTemplate:
         dataset = t.build_dataset(
             "Seismic 2D Depth Line 001",
             sizes=[2048, 4096],
-            coord_units=[_UNIT_METER, _UNIT_METER],  # Both coordinates and depth in meters
+            horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
 
@@ -174,7 +174,7 @@ class TestSeismic2DPostStackTemplate:
         dataset = t.build_dataset(
             "Seismic 2D Time Line 001",
             sizes=[2048, 4096],
-            coord_units=[_UNIT_METER, _UNIT_METER],  # Coordinates in meters, time in seconds
+            horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
 

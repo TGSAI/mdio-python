@@ -36,9 +36,7 @@ class TestSeismicTemplates:
         assert t.trace_variable_name == "velocity"
 
         dataset = t.build_dataset(
-            "Velocity 2D Depth Line 001",
-            sizes=[2048, 4096],
-            coord_units=[_UNIT_METER, _UNIT_METER],  # Both coordinates and depth in meters
+            "Velocity 2D Depth Line 001", sizes=[2048, 4096], horizontal_coord_unit=_UNIT_METER
         )
 
         # Verify velocity variable

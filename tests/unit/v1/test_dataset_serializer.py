@@ -338,26 +338,31 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
         .build()
     )
 
-    xr_ds = to_xarray_dataset(dataset)
+    xr_ds = to_xarray_dataset(dataset, no_fill_var_names={})
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     xr_ds.to_zarr(store=file_path, mode="w", zarr_format=2, compute=False)
-
 
 
 def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> None:
     """Test building a complete dataset."""
     dataset = make_seismic_poststack_3d_acceptance_dataset("Seismic")
 
-    xr_ds = to_xarray_dataset(dataset)
+    # TODO(Dmitriy Repin): work around of the bug
+    # https://github.com/TGSAI/mdio-python/issues/582
+    # Do not set _FillValue for the "header" variable, which has structured data type
+    xr_ds = to_xarray_dataset(dataset, no_fill_var_names={"headers"})
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     xr_ds.to_zarr(store=file_path, mode="w", zarr_format=2, compute=False)
 
 
-@pytest.mark.skip(reason="Issues serializing dask arrays of structured types to dask.")
-def test_to_zarr_dask(tmp_path: Path) -> None:
-    """Test writing XArray dataset with data as dask array to Zarr."""
+@pytest.mark.skip(reason="Bug reproducer for the issue 582")
+def test_buf_reproducer_dask_to_zarr(tmp_path: Path) -> None:
+    """Bug reproducer for the issue https://github.com/TGSAI/mdio-python/issues/582.
+
+    Will be removed in the when the bug is fixed
+    """
     # Create a data type and the fill value
     dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)

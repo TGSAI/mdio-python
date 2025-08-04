@@ -106,7 +106,7 @@ class TestSeismic3DPreStackCDPTemplate:
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == []
-        assert t._coord_units == []
+        assert t._horizontal_coord_unit is None
 
         # Verify prestack CDP attributes
         attrs = t._load_dataset_attributes()
@@ -131,7 +131,7 @@ class TestSeismic3DPreStackCDPTemplate:
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == []
-        assert t._coord_units == []
+        assert t._horizontal_coord_unit is None
 
         # Verify prestack CDP attributes
         attrs = t._load_dataset_attributes()
@@ -163,7 +163,7 @@ class TestSeismic3DPreStackCDPTemplate:
         dataset = t.build_dataset(
             "North Sea 3D Prestack Depth",
             sizes=[512, 768, 36, 1536],
-            coord_units=[_UNIT_METER, _UNIT_METER],
+            horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
 
@@ -196,7 +196,7 @@ class TestSeismic3DPreStackCDPTemplate:
         dataset = t.build_dataset(
             "Santos Basin 3D Prestack",
             sizes=[512, 768, 36, 1536],
-            coord_units=[_UNIT_METER, _UNIT_METER],
+            horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
 

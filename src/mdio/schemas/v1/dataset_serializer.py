@@ -1,13 +1,9 @@
 """Convert MDIO v1 schema Dataset to Xarray DataSet and write it in Zarr."""
 
-from collections.abc import Mapping
-
 import numpy as np
-from dask.delayed import Delayed
 from numcodecs import Blosc as nc_Blosc
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
-from xarray.backends import ZarrStore
 from zarr import zeros as zarr_zeros
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
@@ -171,7 +167,7 @@ def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
     return None
 
 
-def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
+def to_xarray_dataset(mdio_ds: Dataset, no_fill_var_names: list[str]) -> xr_Dataset:  # noqa: PLR0912
     """Build an XArray dataset with correct dimensions and dtypes.
 
     This function constructs the underlying data structure for an XArray dataset,
@@ -179,6 +175,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
 
     Args:
         mdio_ds: The source MDIO dataset to construct from.
+        no_fill_var_names: A list of variable names that should not have a fill value.
 
     Notes:
         - We can't use Dask (e.g., dask_array.zeros) because of the problems with
@@ -221,12 +218,14 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         # Create a custom chunk key encoding with "/" as separator
         chunk_key_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
         encoding = {
-            # NOTE: See Zarr documentation on use of fill_value and _FillValue in Zarr v2 vs v3
-            "_FillValue": _get_fill_value(v.data_type),
             "chunks": chunks,
             "chunk_key_encoding": chunk_key_encoding,
             "compressor": _convert_compressor(v.compressor),
         }
+        if v.name not in no_fill_var_names:
+            # NOTE: See Zarr documentation on use of fill_value and _FillValue in Zarr v2 vs v3
+            encoding["_FillValue"] = _get_fill_value(v.data_type)
+
         data_array.encoding = encoding
 
         # Let's store the data array for the second pass

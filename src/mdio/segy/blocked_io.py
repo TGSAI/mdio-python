@@ -30,7 +30,6 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
     from segy import SegyFile
-    from xarray import DataArray as xr_DataArray
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
 
@@ -48,6 +47,7 @@ def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatisti
     final_stats.max = min(final_stats.max, partial_stats.max)
     final_stats.sum += partial_stats.sum
     final_stats.sum_squares += partial_stats.sum_squares
+
 
 def to_zarr_v1(  # noqa: PLR0913, PLR0915
     segy_file: SegyFile,
@@ -71,9 +71,9 @@ def to_zarr_v1(  # noqa: PLR0913, PLR0915
     data = dataset[data_variable_name]
 
     final_stats = _create_stats()
-    
-    chunks=data.encoding.get("chunks"),  # Must use this instead of data.chunks
-    chunks = sum(chunks, ())             # Unroll it to a tuple
+
+    chunks = (data.encoding.get("chunks"),)  # Must use this instead of data.chunks
+    chunks = sum(chunks, ())  # Unroll it to a tuple
     dim_names = list(data.dims)
     # Initialize chunk iterator
     # Since the dimensions are provided, it will return a dict of slices

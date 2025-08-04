@@ -97,7 +97,7 @@ class TestSeismic3DPostStackTemplate:
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == []
-        assert t._coord_units == []
+        assert t._horizontal_coord_unit is None
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
@@ -122,7 +122,7 @@ class TestSeismic3DPostStackTemplate:
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == []
-        assert t._coord_units == []
+        assert t._horizontal_coord_unit is None
 
         assert t._load_dataset_attributes().attributes == {
             "surveyDimensionality": "3D",
@@ -152,7 +152,7 @@ class TestSeismic3DPostStackTemplate:
         dataset = t.build_dataset(
             "Seismic 3D",
             sizes=[256, 512, 1024],
-            coord_units=[_UNIT_METER, _UNIT_METER],
+            horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
 
@@ -185,7 +185,7 @@ class TestSeismic3DPostStackTemplate:
         dataset = t.build_dataset(
             "Seismic 3D",
             sizes=[256, 512, 1024],
-            coord_units=[_UNIT_METER, _UNIT_METER],
+            horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
 

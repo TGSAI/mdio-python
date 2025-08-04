@@ -132,7 +132,7 @@ class TestSeismic3DPreStackShotTemplate:
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == []
-        assert t._coord_units == []
+        assert t._horizontal_coord_unit is None
 
         # Verify prestack shot attributes
         attrs = t._load_dataset_attributes()
@@ -157,7 +157,7 @@ class TestSeismic3DPreStackShotTemplate:
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == []
-        assert t._coord_units == []
+        assert t._horizontal_coord_unit is None
 
         # Verify prestack shot attributes
         attrs = t._load_dataset_attributes()
@@ -189,7 +189,7 @@ class TestSeismic3DPreStackShotTemplate:
         dataset = t.build_dataset(
             "Gulf of Mexico 3D Shot Depth",
             sizes=[256, 512, 24, 2048],
-            coord_units=[_UNIT_METER, _UNIT_METER],
+            horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
 
@@ -222,7 +222,7 @@ class TestSeismic3DPreStackShotTemplate:
         dataset = t.build_dataset(
             "North Sea 3D Shot Time",
             sizes=[256, 512, 24, 2048],
-            coord_units=[_UNIT_METER, _UNIT_METER],
+            horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
 

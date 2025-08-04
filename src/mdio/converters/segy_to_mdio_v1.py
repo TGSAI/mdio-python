@@ -1,6 +1,5 @@
 """Conversion from SEG-Y to MDIO v1 format."""
 
-from collections.abc import Sequence
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
@@ -10,21 +9,23 @@ from typing import Any
 from segy import SegyFile
 from segy.arrays import HeaderArray as SegyHeaderArray
 from segy.config import SegySettings
-from segy.schema import HeaderField
 from segy.schema import SegySpec
-from segy.standards import get_segy_standard
-from segy.standards import SegyStandard
+from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
+from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 from xarray import Dataset as xr_Dataset
 from zarr import Array as zarr_Array
 
 from mdio.constants import fill_value_map
 from mdio.converters.segy import grid_density_qc
 from mdio.converters.type_converter import to_scalar_type
+from mdio.converters.type_converter import to_structured_type
 from mdio.core.dimension import Dimension
 from mdio.core.grid import Grid
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
+from mdio.schemas.v1.units import AllUnits
+from mdio.schemas.v1.units import LengthUnitEnum
+from mdio.schemas.v1.units import LengthUnitModel
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -90,7 +91,11 @@ def _get_data_coordinates(
 
     Args:
         segy_headers: List of of all SEG-Y dimensions.
-        mdio_template: The MDIO template to use for the conversion. 
+        mdio_template: The MDIO template to use for the conversion.
+
+    Raises:
+        ValueError: If a dimension or coordinate name from the MDIO template is not found in
+                    the SEG-Y headers.
 
     Returns:
         A tuple containing:
@@ -144,6 +149,25 @@ def populate_coordinate(
     return dataset
 
 
+def _get_horizontal_coordinate_unite(segy_headers: list[Dimension]) -> LengthUnitEnum | None:
+    """Get the coordinate unit from the SEG-Y headers."""
+    name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
+    unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
+    if unit_hdr is None or len(unit_hdr.coords) == 0:
+        # If the coordinate unit header is not found or empty, return None
+        # This is a common case for SEG-Y files, where the coordinate unit is not specified
+        return None
+
+    if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.METERS:
+        # If the coordinate unit is in meters, return "m"
+        return AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
+    if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.FEET:
+        # If the coordinate unit is in feet, return "ft"
+        return AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))
+    err = f"Unsupported coordinate unit value: {unit_hdr.value[0]} in SEG-Y file."
+    raise ValueError(err)
+
+
 def _populate_coordinates_write_to_zarr(
     dataset: xr_Dataset,
     dimension_coords: list[Dimension],
@@ -157,16 +181,12 @@ def _populate_coordinates_write_to_zarr(
     vars_to_drop_later = []
     # Populate the dimension coordinate variables (1-D arrays)
     dataset = populate_coordinate(
-        dataset,
-        coordinates=dimension_coords,
-        vars_to_drop_later=vars_to_drop_later
+        dataset, coordinates=dimension_coords, vars_to_drop_later=vars_to_drop_later
     )
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
     dataset = populate_coordinate(
-        dataset,
-        coordinates=non_dim_coords,
-        vars_to_drop_later=vars_to_drop_later
+        dataset, coordinates=non_dim_coords, vars_to_drop_later=vars_to_drop_later
     )
 
     dataset.to_zarr(
@@ -219,8 +239,6 @@ def segy_to_mdio_v1(
 
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
-        ValueError: If the SEG-Y spec or MDIO template is not registered, or if
-                     the index fields do not match in length.
     """
     if overwrite and output_location.exists():
         err = f"Output location '{output_location.uri}' already exists."
@@ -238,22 +256,16 @@ def segy_to_mdio_v1(
     # Extract dim and non-dim coordinates according to the MDIO template
     dimension_coords, non_dim_coords = _get_data_coordinates(segy_headers, mdio_template)
     shape = [len(dim.coords) for dim in dimension_coords]
+    headers = to_structured_type(segy_index_headers.dtype)
 
-    # Specify the header structure for the MDIO dataset
-    # TODO: Setting headers (and thus creating a variable with         # noqa: TD002
-    # 0000
-    #   StructuredType data type)
-    #   causes the error in _populate_dims_coords_and_write_to_zarr originating
-    #   Thus, we are not setting headers for now:
-    headers = None
-    # headers = to_structured_type(index_headers.dtype)
-    #
-    # TODO: Set Units to None for now, will fix this later            # noqa: TD002
-    # 0000
+    horizontal_unit = _get_horizontal_coordinate_unite(segy_headers)
     mdio_ds: Dataset = mdio_template.build_dataset(
-        name=mdio_template.name, sizes=shape, coord_units=None, headers=headers
+        name=mdio_template.name, sizes=shape, horizontal_coord_unit=horizontal_unit, headers=headers
     )
-    xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
+    # TODO(Dmitriy Repin): work around of the bug
+    # https://github.com/TGSAI/mdio-python/issues/582
+    # Do not set _FillValue for the "header" variable, which has structured data type
+    xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds, no_fill_var_names={"headers"})
 
     # Write the xr Dataset with dim and non-dim coords, but empty traces and headers.
     # We will write traces and headers in chunks later

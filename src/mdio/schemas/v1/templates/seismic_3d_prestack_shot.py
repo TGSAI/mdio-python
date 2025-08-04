@@ -55,23 +55,23 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
             "shot-x",
             dimensions=["shot_point"],
             data_type=ScalarType.FLOAT64,
-            metadata_info=[self._coord_units[0]],
+            metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "shot-y",
             dimensions=["shot_point"],
             data_type=ScalarType.FLOAT64,
-            metadata_info=[self._coord_units[1]],
+            metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "receiver-x",
             dimensions=["shot_point", "cable", "channel"],
             data_type=ScalarType.FLOAT64,
-            metadata_info=[self._coord_units[0]],
+            metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "receiver-y",
             dimensions=["shot_point", "cable", "channel"],
             data_type=ScalarType.FLOAT64,
-            metadata_info=[self._coord_units[1]],
+            metadata_info=[self._horizontal_coord_unit],
         )
