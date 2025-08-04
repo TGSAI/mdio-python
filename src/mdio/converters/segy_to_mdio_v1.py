@@ -119,10 +119,10 @@ def populate_coordinate(
             values = values.reshape(shape)
         dataset.coords[c.name] = (dims, values)
         vars_to_drop_later.append(c.name)
-    return dataset
+    return dataset, vars_to_drop_later
 
 
-def _get_horizontal_coordinate_unite(segy_headers: list[Dimension]) -> LengthUnitEnum | None:
+def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitEnum | None:
     """Get the coordinate unit from the SEG-Y headers."""
     name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
     unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
@@ -153,12 +153,12 @@ def _populate_coordinates_write_to_zarr(
     """
     vars_to_drop_later = []
     # Populate the dimension coordinate variables (1-D arrays)
-    dataset = populate_coordinate(
+    dataset, vars_to_drop_later = populate_coordinate(
         dataset, coordinates=dimension_coords, vars_to_drop_later=vars_to_drop_later
     )
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
-    dataset = populate_coordinate(
+    dataset, vars_to_drop_later = populate_coordinate(
         dataset, coordinates=non_dim_coords, vars_to_drop_later=vars_to_drop_later
     )
 
@@ -231,7 +231,7 @@ def segy_to_mdio_v1(
     shape = [len(dim.coords) for dim in dimension_coords]
     headers = to_structured_type(segy_index_headers.dtype)
 
-    horizontal_unit = _get_horizontal_coordinate_unite(segy_headers)
+    horizontal_unit = _get_horizontal_coordinate_unit(segy_headers)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name, sizes=shape, horizontal_coord_unit=horizontal_unit, headers=headers
     )

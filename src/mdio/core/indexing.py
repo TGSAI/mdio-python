@@ -7,9 +7,9 @@ import numpy as np
 
 
 class ChunkIteratorV1:
-    """Chunk iterator multi-dimensional Zarr arrays.
+    """Chunk iterator for multi-dimensional arrays.
 
-    This iterator takes a zarr array and every time it is iterated, it returns
+    This iterator takes an array shape and chunks and every time it is iterated, it returns
     a dictionary (if dimensions are provided) or a tuple of slices that align with
     chunk boundaries. When dimensions are provided, they are used as the dictionary keys.
 
@@ -79,6 +79,8 @@ class ChunkIteratorV1:
             # We build slices here. It is dimension agnostic
             current_start = next(self._ranges)
 
+            # TODO (Dmitriy Repin): Enhance ChunkIteratorV1 to make the last slice, if needed, smaller 
+            # https://github.com/TGSAI/mdio-python/issues/586
             start_indices = tuple(
                 dim * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True)
             )

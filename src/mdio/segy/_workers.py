@@ -79,7 +79,7 @@ def trace_worker_v1(  # noqa: PLR0913
     Returns:
         SummaryStatistics object containing statistics about the written traces.
     """
-    if dataset.trace_mask.sum() == 0:
+    if not dataset.trace_mask.any():
         return None
 
     not_null = grid_map != UINT32_MAX
