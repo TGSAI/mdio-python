@@ -141,12 +141,11 @@ def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnit
     raise ValueError(err)
 
 
-def _populate_coordinates_write_to_zarr(
+def _populate_coordinates(
     dataset: xr_Dataset,
     dimension_coords: list[Dimension],
-    non_dim_coords: list[Dimension],
-    output: StorageLocation,
-) -> xr_Dataset:
+    non_dim_coords: list[Dimension]
+) -> tuple[xr_Dataset, list[str]]:
     """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
 
     This will write the xr Dataset with coords and dimensions, but empty traces and headers.
@@ -162,36 +161,22 @@ def _populate_coordinates_write_to_zarr(
         dataset, coordinates=non_dim_coords, vars_to_drop_later=vars_to_drop_later
     )
 
-    dataset.to_zarr(
-        store=output.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=True
-    )
-
-    # Now we can drop them to simplify chunked write of the data variable
-    return dataset.drop_vars(vars_to_drop_later)
+    return dataset, vars_to_drop_later
 
 
-def _populate_trace_mask_write_to_zarr(
+def _populate_trace_mask(
     segy_file: SegyFile,
     dimensions: list[Dimension],
     segy_index_headers: SegyHeaderArray,
-    xr_sd: xr_Dataset,
-    output: StorageLocation,
-) -> tuple[zarr_Array, xr_Dataset]:
+    dataset: xr_Dataset,
+) -> tuple[zarr_Array, zarr_Array]:
     """Populate and write the trace mask to Zarr, return the grid map as Zarr array."""
     # Create a grid and build live trace index
     grid = Grid(dims=dimensions)
     grid_density_qc(grid, segy_file.num_traces)
     grid.build_map(segy_index_headers)
-
-    trace_mask = grid.live_mask
-
-    # Populate the "trace_mask" variable in the xarray dataset and write it to Zarr
-    xr_sd.trace_mask.data[:] = trace_mask
-    ds_to_write = xr_sd[["trace_mask"]]
-    ds_to_write.to_zarr(
-        store=output.uri, mode="r+", write_empty_chunks=False, zarr_format=2, compute=True
-    )
-    return grid.map
+    dataset.trace_mask.data[:] = grid.live_mask
+    return dataset, grid.map
 
 
 def segy_to_mdio_v1(
@@ -240,24 +225,42 @@ def segy_to_mdio_v1(
     # Do not set _FillValue for the "header" variable, which has structured data type
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds, no_fill_var_names={"headers"})
 
-    # Write the xr Dataset with dim and non-dim coords, but empty traces and headers.
-    # We will write traces and headers in chunks later
-    xr_dataset = _populate_coordinates_write_to_zarr(
-        dataset=xr_dataset,
-        dimension_coords=dimension_coords,
-        non_dim_coords=non_dim_coords,
-        output=output_location,
-    )
-    # Populate the live traces mask and write it to Zarr
-    # Also create a grid map for the live traces
-    grid_map = _populate_trace_mask_write_to_zarr(
+    xr_dataset, vars_to_drop_later = _populate_coordinates(
+            dataset=xr_dataset,
+            dimension_coords=dimension_coords,
+            non_dim_coords=non_dim_coords,
+        )
+
+    xr_dataset, grid_map = _populate_trace_mask(
         segy_file=segy_file,
         dimensions=dimension_coords,
         segy_index_headers=segy_index_headers,
-        xr_sd=xr_dataset,
-        output=output_location,
+        dataset=xr_dataset,
+    )
+    # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
+    # blocked_io.to_zarr_v1() -> _workers.trace_worker_v1()
+
+    # Write the xarray dataset to Zarr with as following:
+    # Populated arrays:
+    # - 1D dimensional coordinates
+    # - ND non-dimensional coordinates
+    # - ND trace_mask 
+    # Empty arrays (will be populated later in chunks):
+    # - ND+1 traces
+    # - ND headers (no _FillValue set due to the bug https://github.com/TGSAI/mdio-python/issues/582)
+    # This will create the Zarr store with the correct structure
+    xr_dataset.to_zarr(
+        store=output_location.uri, 
+        mode="w",
+        write_empty_chunks=False, 
+        zarr_format=2, 
+        compute=True
     )
 
+    # Now we can drop them to simplify chunked write of the data variable
+    xr_dataset = xr_dataset.drop_vars(vars_to_drop_later)
+
+    # Write the headers and traces in chunks using grid_map to indicate dead traces
     data_variable_name = mdio_template.trace_variable_name
     # This is an memory-expensive and time-consuming read-write operation
     # performed in chunks to save the memory
