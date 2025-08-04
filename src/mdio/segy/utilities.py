@@ -23,9 +23,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_grid_plan(  # noqa:  C901
+def get_grid_plan_v1(  # noqa:  C901
     segy_file: SegyFile,
     chunksize: list[int],
+    domain: str,
     return_headers: bool = False,
     grid_overrides: dict[str, Any] | None = None,
 ) -> tuple[list[Dimension], tuple[int, ...]] | tuple[list[Dimension], tuple[int, ...], HeaderArray]:
@@ -72,7 +73,7 @@ def get_grid_plan(  # noqa:  C901
     if all(sample_labels.astype("int64") == sample_labels):
         sample_labels = sample_labels.astype("int64")
 
-    sample_dim = Dimension(coords=sample_labels, name="sample")
+    sample_dim = Dimension(coords=sample_labels, name=domain)
 
     dims.append(sample_dim)
 

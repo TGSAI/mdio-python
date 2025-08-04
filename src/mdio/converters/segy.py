@@ -24,7 +24,7 @@ from mdio.core.factory import create_empty
 from mdio.core.utils_write import write_attribute
 from mdio.segy import blocked_io
 from mdio.segy.compat import mdio_segy_spec
-from mdio.segy.utilities import get_grid_plan
+from mdio.segy.utilities import get_grid_plan_v1
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
