@@ -9,9 +9,9 @@ from pyparsing import Any
 from segy.standards import get_segy_standard
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
-from mdio.core.storage_location import StorageLocation
 from mdio.converters.segy_to_mdio_v1 import segy_to_mdio_v1
 from mdio.converters.type_converter import to_numpy_dtype
+from mdio.core.storage_location import StorageLocation
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
@@ -63,7 +63,7 @@ def test_segy_to_mdio_v1__f3() -> None:
         mdio_template=TemplateRegistry().get("PostStack3DTime"),
         input_location=StorageLocation(pref_path),
         output_location=StorageLocation(mdio_path),
-        overwrite= True
+        overwrite=True,
     )
 
     # Load Xarray dataset from the MDIO file

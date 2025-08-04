@@ -8,14 +8,13 @@ from typing import cast
 
 import numpy as np
 
-from mdio.core.storage_location import StorageLocation
-
-
 if TYPE_CHECKING:
     from segy import SegyFile
     from segy.arrays import HeaderArray
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
+
+    from mdio.core.storage_location import StorageLocation
 
 from mdio.constants import UINT32_MAX
 from mdio.schemas.v1.stats import CenteredBinHistogram

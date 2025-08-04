@@ -17,7 +17,6 @@ from tqdm.auto import tqdm
 from zarr import consolidate_metadata as zarr_consolidate_metadata
 from zarr import open_group as zarr_open_group
 
-from mdio.core.storage_location import StorageLocation
 from mdio.core.indexing import ChunkIteratorV1
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
@@ -33,6 +32,8 @@ if TYPE_CHECKING:
     from segy import SegyFile
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
+
+    from mdio.core.storage_location import StorageLocation
 
 default_cpus = cpu_count(logical=True)
 
@@ -135,7 +136,7 @@ def to_zarr_v1(  # noqa: PLR0913, PLR0915
     return final_stats
 
 
-def segy_record_concat( 
+def segy_record_concat(
     block_records: NDArray,
     file_root: str,
     block_info: dict | None = None,

@@ -1,10 +1,6 @@
 """Conversion from SEG-Y to MDIO v1 format."""
 
-from dataclasses import dataclass
-from dataclasses import field
-from pathlib import Path
 from typing import TYPE_CHECKING
-from typing import Any
 
 from segy import SegyFile
 from segy.arrays import HeaderArray as SegyHeaderArray
@@ -142,9 +138,7 @@ def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnit
 
 
 def _populate_coordinates(
-    dataset: xr_Dataset,
-    dimension_coords: list[Dimension],
-    non_dim_coords: list[Dimension]
+    dataset: xr_Dataset, dimension_coords: list[Dimension], non_dim_coords: list[Dimension]
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
 
@@ -226,10 +220,10 @@ def segy_to_mdio_v1(
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds, no_fill_var_names={"headers"})
 
     xr_dataset, vars_to_drop_later = _populate_coordinates(
-            dataset=xr_dataset,
-            dimension_coords=dimension_coords,
-            non_dim_coords=non_dim_coords,
-        )
+        dataset=xr_dataset,
+        dimension_coords=dimension_coords,
+        non_dim_coords=non_dim_coords,
+    )
 
     xr_dataset, grid_map = _populate_trace_mask(
         segy_file=segy_file,
@@ -244,7 +238,7 @@ def segy_to_mdio_v1(
     # Populated arrays:
     # - 1D dimensional coordinates
     # - ND non-dimensional coordinates
-    # - ND trace_mask 
+    # - ND trace_mask
     # Empty arrays (will be populated later in chunks):
     # - ND+1 traces
     # - ND headers (no _FillValue set due to the bug https://github.com/TGSAI/mdio-python/issues/582)
@@ -252,11 +246,7 @@ def segy_to_mdio_v1(
     # TODO(Dmitriy Repin): do chunked write for non-dimensional coordinates and trace_mask
     # https://github.com/TGSAI/mdio-python/issues/587
     xr_dataset.to_zarr(
-        store=output_location.uri, 
-        mode="w",
-        write_empty_chunks=False, 
-        zarr_format=2, 
-        compute=True
+        store=output_location.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=True
     )
 
     # Now we can drop them to simplify chunked write of the data variable

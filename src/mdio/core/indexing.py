@@ -79,7 +79,7 @@ class ChunkIteratorV1:
             # We build slices here. It is dimension agnostic
             current_start = next(self._ranges)
 
-            # TODO (Dmitriy Repin): Enhance ChunkIteratorV1 to make the last slice, if needed, smaller 
+            # TODO (Dmitriy Repin): Enhance ChunkIteratorV1 to make the last slice, if needed, smaller
             # https://github.com/TGSAI/mdio-python/issues/586
             start_indices = tuple(
                 dim * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True)
