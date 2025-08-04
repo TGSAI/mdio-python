@@ -128,7 +128,7 @@ def to_zarr_v1(  # noqa: PLR0913, PLR0915
     attr_json = final_stats.model_dump_json()
     # Use the data_variable_name to get the array in the Zarr group
     # and write "statistics" metadata there
-    zarr_group[data_variable_name].attrs.update({"statistics": attr_json})
+    zarr_group[data_variable_name].attrs.update({"statsV1": attr_json})
     # Consolidate metadata (important for Xarray to recognize changes)
     zarr_consolidate_metadata(output_location.uri)
 
