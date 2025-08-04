@@ -249,6 +249,8 @@ def segy_to_mdio_v1(
     # - ND+1 traces
     # - ND headers (no _FillValue set due to the bug https://github.com/TGSAI/mdio-python/issues/582)
     # This will create the Zarr store with the correct structure
+    # TODO(Dmitriy Repin): do chunked write for non-dimensional coordinates and trace_mask
+    # https://github.com/TGSAI/mdio-python/issues/587
     xr_dataset.to_zarr(
         store=output_location.uri, 
         mode="w",

@@ -175,6 +175,9 @@ class AbstractDatasetTemplate(ABC):
             )
 
         # Add non-dimension coordinates
+        # TODO(Dmitriy Repin): do chunked write for non-dimensional coordinates and trace_mask
+        # https://github.com/TGSAI/mdio-python/issues/587
+        # The chunk size used for trace mask will be different from the _var_chunk_shape
         hor_coord_units = [self._horizontal_coord_unit] * len(self._coord_dim_names)
         for i in range(len(self._coord_names)):
             self._builder.add_coordinate(
@@ -186,19 +189,16 @@ class AbstractDatasetTemplate(ABC):
 
     def _add_trace_mask(self) -> None:
         """Add trace mask variables."""
+        # TODO(Dmitriy Repin): do chunked write for non-dimensional coordinates and trace_mask
+        # https://github.com/TGSAI/mdio-python/issues/587
+        # The chunk size used for trace mask will be different from the _var_chunk_shape
         self._builder.add_variable(
             name="trace_mask",
             dimensions=self._dim_names[:-1],  # All dimensions except vertical (the last one)
             data_type=ScalarType.BOOL,
             compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
             coordinates=self._coord_names,
-            metadata_info=[
-                ChunkGridMetadata(
-                    chunk_grid=RegularChunkGrid(
-                        configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape[:-1])
-                    )
-                )
-            ],
+            metadata_info=None,
         )
 
     def _add_trace_headers(self, headers: StructuredType) -> None:
