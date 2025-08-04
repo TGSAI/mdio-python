@@ -21,6 +21,7 @@ from mdio.converters.type_converter import to_scalar_type
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.dimension import Dimension
 from mdio.core.grid import Grid
+from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 from mdio.schemas.v1.units import AllUnits
@@ -33,36 +34,6 @@ if TYPE_CHECKING:
     from mdio.schemas.v1.dataset import Dataset
 
 
-@dataclass
-class StorageLocation:
-    """A class to represent a local or cloud storage location for SEG-Y or MDIO files."""
-
-    uri: str
-    options: dict[str, Any] = field(default_factory=dict)
-
-    @property
-    def storage_type(self) -> str:
-        """Determine the storage type based on the URI scheme."""
-        if self.uri.startswith("file://"):
-            return "file"
-        if self.uri.startswith("s3://"):
-            return "cloud:s3"
-        if self.uri.startswith("gs://"):
-            return "cloud:gs"
-        # Default to file storage type if no specific type is detected
-        return "file"
-
-    def exists(self) -> bool:
-        """Check if the storage location exists."""
-        if self.storage_type == "file":
-            return Path(self.uri).exists()
-        if self.storage_type.startswith("cloud:"):
-            err = "Existence check for cloud storage is not implemented yet."
-            raise NotImplementedError(err)
-        err = f"Unsupported storage type: {self.storage_type}"
-        raise ValueError(err)
-
-
 def _scan_for_headers(segy_file: SegyFile) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
 
@@ -71,6 +42,8 @@ def _scan_for_headers(segy_file: SegyFile) -> tuple[list[Dimension], SegyHeaderA
     The implementation is subject to change
 
     """
+    # TODO(Dmitriy Repin): implement grid overrides
+    # https://github.com/TGSAI/mdio-python/issues/585
     # The 'grid_chunksize' is used only for grid_overrides
     # While we do not support grid override, we can set it to None
     grid_chunksize = None
@@ -240,7 +213,7 @@ def segy_to_mdio_v1(
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
     """
-    if overwrite and output_location.exists():
+    if not overwrite and output_location.exists():
         err = f"Output location '{output_location.uri}' already exists."
         err += " Set 'overwrite' to True to overwrite it."
         raise FileExistsError(err)
@@ -290,7 +263,7 @@ def segy_to_mdio_v1(
     # performed in chunks to save the memory
     blocked_io.to_zarr_v1(
         segy_file=segy_file,
-        out_path=output_location.uri,
+        output_location=output_location,
         grid_map=grid_map,
         dataset=xr_dataset,
         data_variable_name=data_variable_name,

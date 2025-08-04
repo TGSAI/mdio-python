@@ -8,6 +8,9 @@ from typing import cast
 
 import numpy as np
 
+from mdio.core.storage_location import StorageLocation
+
+
 if TYPE_CHECKING:
     from segy import SegyFile
     from segy.arrays import HeaderArray
@@ -55,7 +58,7 @@ def header_scan_worker(segy_file: SegyFile, trace_range: tuple[int, int]) -> Hea
 
 def trace_worker_v1(  # noqa: PLR0913
     segy_file: SegyFile,
-    out_path: str,
+    output_location: StorageLocation,
     data_variable_name: str,
     region: dict[str, slice],
     grid_map: zarr_Array,
@@ -65,7 +68,9 @@ def trace_worker_v1(  # noqa: PLR0913
 
     Args:
         segy_file: SegyFile instance.
-        out_path: Output path for the Zarr file.
+        output_location: StorageLocation for the output Zarr dataset
+            (e.g. local file path or cloud storage URI) the location
+            also includes storage options for cloud storage.
         data_variable_name: Name of the data variable to write.
         region: Region of the dataset to write to.
         grid_map: Zarr array mapping live traces to their positions in the dataset.
@@ -84,7 +89,8 @@ def trace_worker_v1(  # noqa: PLR0913
 
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
-    # Q: to save memory, should we overwrite the 'dataset'?
+    # TODO(Dmitriy Repin): Check, should we overwrite the 'dataset' instead to save the memory
+    # https://github.com/TGSAI/mdio-python/issues/584
     if "headers" in dataset.data_vars:
         ds_to_write = dataset[[data_variable_name, "headers"]]
         ds_to_write = ds_to_write.reset_coords()
@@ -97,6 +103,7 @@ def trace_worker_v1(  # noqa: PLR0913
 
     ds_to_write[data_variable_name].data[not_null] = traces.sample
 
+    out_path = output_location.uri
     ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
 
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])

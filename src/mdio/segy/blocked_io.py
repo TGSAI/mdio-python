@@ -17,6 +17,7 @@ from tqdm.auto import tqdm
 from zarr import consolidate_metadata as zarr_consolidate_metadata
 from zarr import open_group as zarr_open_group
 
+from mdio.core.storage_location import StorageLocation
 from mdio.core.indexing import ChunkIteratorV1
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
@@ -51,7 +52,7 @@ def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatisti
 
 def to_zarr_v1(  # noqa: PLR0913, PLR0915
     segy_file: SegyFile,
-    out_path: str,
+    output_location: StorageLocation,
     grid_map: zarr_Array,
     dataset: xr_Dataset,
     data_variable_name: str,
@@ -60,7 +61,9 @@ def to_zarr_v1(  # noqa: PLR0913, PLR0915
 
     Args:
         segy_file: SEG-Y file instance.
-        out_path: Path to the output Zarr file.
+        output_location: StorageLocation for the output Zarr dataset
+            (e.g. local file path or cloud storage URI) the location
+            also includes storage options for cloud storage.
         grid_map: Zarr array with grid map for the traces.
         dataset: Handle for xarray.Dataset we are writing trace data
         data_variable_name: Name of the data variable in the dataset.
@@ -94,7 +97,7 @@ def to_zarr_v1(  # noqa: PLR0913, PLR0915
 
     with executor:
         futures = []
-        common_args = (segy_file, out_path, data_variable_name)
+        common_args = (segy_file, output_location, data_variable_name)
         for region in chunk_iter:
             index_slices = tuple(region[key] for key in data.dims[:-1])
             subset_args = (
@@ -121,18 +124,18 @@ def to_zarr_v1(  # noqa: PLR0913, PLR0915
     # existing Zarr store.
     # HACK: We will update the array attribute using zarr's API directly.
     # Open the Zarr store using zarr directly
-    zarr_group = zarr_open_group(f"{out_path}", mode="a")
+    zarr_group = zarr_open_group(output_location.uri, mode="a")
     attr_json = final_stats.model_dump_json()
     # Use the data_variable_name to get the array in the Zarr group
     # and write "statistics" metadata there
     zarr_group[data_variable_name].attrs.update({"statistics": attr_json})
     # Consolidate metadata (important for Xarray to recognize changes)
-    zarr_consolidate_metadata(out_path)
+    zarr_consolidate_metadata(output_location.uri)
 
     return final_stats
 
 
-def segy_record_concat(
+def segy_record_concat( 
     block_records: NDArray,
     file_root: str,
     block_info: dict | None = None,
