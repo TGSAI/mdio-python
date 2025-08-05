@@ -1,11 +1,11 @@
 """End to end testing for SEG-Y to MDIO conversion v1."""
 
+from typing import Any
 import numcodecs
 import numpy as np
 import pytest
 import xarray as xr
 import zarr
-from pyparsing import Any
 from segy.standards import get_segy_standard
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 

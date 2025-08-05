@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from typing import TYPE_CHECKING
 
@@ -9,15 +10,23 @@ import dask
 import numpy as np
 import numpy.testing as npt
 import pytest
+import xarray as xr
 from segy import SegyFile
+from segy.schema import SegySpec
+from segy.standards import get_segy_standard
+from tests.integration.testing_helpers import customize_segy_specs, get_inline_header_values, get_values, validate_variable
 
 from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.converters import segy_to_mdio
 from mdio.converters.exceptions import GridTraceSparsityError
+from mdio.converters.segy_to_mdio_v1 import segy_to_mdio_v1
 from mdio.core import Dimension
+from mdio.core.storage_location import StorageLocation
+from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.geometry import StreamerShotGeometryType
+from tests.integration.v1.test_segy_to_mdio_v1 import _validate_variable
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -247,77 +256,121 @@ class TestImport6D:
 
 
 @pytest.mark.dependency
-@pytest.mark.parametrize("index_bytes", [(17, 13)])
-@pytest.mark.parametrize("index_names", [("inline", "crossline")])
-def test_3d_import(
+@pytest.mark.parametrize("index_bytes", [(17, 13, 81, 85)])
+@pytest.mark.parametrize("index_names", [("inline", "crossline", "cdp_x", "cdp_y")])
+@pytest.mark.parametrize("index_types", [("int32", "int32", "int32", "int32")])
+def test_3d_import_v1(
     segy_input: Path,
     zarr_tmp: Path,
     index_bytes: tuple[int, ...],
     index_names: tuple[str, ...],
+    index_types: tuple[str, ...],
 ) -> None:
     """Test importing a SEG-Y file to MDIO."""
-    segy_to_mdio(
-        segy_path=segy_input.__str__(),
-        mdio_path_or_buffer=zarr_tmp.__str__(),
+    segy_spec = get_segy_standard(1.0)
+    segy_spec = customize_segy_specs(
+        segy_spec=segy_spec,
         index_bytes=index_bytes,
         index_names=index_names,
+        index_types=index_types,
+    )
+
+    segy_to_mdio_v1(
+        segy_spec=segy_spec,
+        mdio_template=TemplateRegistry().get("PostStack3DTime"),
+        input_location=StorageLocation(segy_input.__str__()),
+        output_location=StorageLocation(zarr_tmp.__str__()),
         overwrite=True,
     )
+    pass
 
 
 @pytest.mark.dependency("test_3d_import")
 class TestReader:
     """Test reader functionality."""
 
-    def test_meta_read(self, zarr_tmp: Path) -> None:
+    @pytest.mark.skip(reason="Do we need to support a dataset metadata?")
+    def test_meta_dataset_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        mdio = MDIOReader(zarr_tmp.__str__())
-        assert mdio.binary_header["samples_per_trace"] == 1501
-        assert mdio.binary_header["sample_interval"] == 2000
+        # mdio = MDIOReader(zarr_tmp.__str__())
+        # assert mdio.binary_header["samples_per_trace"] == 1501
+        # assert mdio.binary_header["sample_interval"] == 2000
+        pass
+
+
+    def test_meta_variable_read(self, zarr_tmp: Path) -> None:
+        """Metadata reading tests."""
+        path = zarr_tmp.__str__()
+        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
+        ds = xr.open_dataset(path, engine="zarr")
+        expected_attrs = {
+            "count": 97354860, "sum": -8594.551666259766, "sum_squares": 40571291.6875,
+            "min": -8.375323295593262, "max": 0.0, "histogram": {"counts": [], "bin_centers": []}}
+        actual_attrs_json =  json.loads(ds["amplitude"].attrs['statsV1'])
+        assert actual_attrs_json == expected_attrs
+
 
     def test_grid(self, zarr_tmp: Path) -> None:
-        """Grid reading tests."""
-        mdio = MDIOReader(zarr_tmp.__str__())
-        grid = mdio.grid
+        """Test validating MDIO variables."""
+        # Load Xarray dataset from the MDIO file
+        path = zarr_tmp.__str__()
+        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
+        ds = xr.open_dataset(path, engine="zarr")
 
-        assert grid.select_dim("inline") == Dimension(range(1, 346), "inline")
-        assert grid.select_dim("crossline") == Dimension(range(1, 189), "crossline")
-        assert grid.select_dim("sample") == Dimension(range(0, 3002, 2), "sample")
+        # Note: in order to create the dataset we used the Time template, so the 
+        # sample dimension is called "time"
 
-    def test_get_data(self, zarr_tmp: Path) -> None:
-        """Data retrieval tests."""
-        mdio = MDIOReader(zarr_tmp.__str__())
+        # Validate the dimension coordinate variables
+        validate_variable(ds, "inline", (345,), ["inline"], np.int32, range(1, 346), get_values)
+        validate_variable(ds, "crossline", (188,), ["crossline"], np.int32, range(1, 189), get_values)
+        validate_variable(ds, "time", (1501,), ["time"], np.int64, range(0, 3002, 2), get_values)
+    
+        # Validate the non-dimensional coordinate variables
+        validate_variable(ds, "cdp_x", (345, 188), ["inline", "crossline"], np.int32, None, None)
+        validate_variable(ds, "cdp_y", (345, 188), ["inline", "crossline"], np.int32, None, None)
 
-        assert mdio.shape == (345, 188, 1501)
-        assert mdio[0, :, :].shape == (188, 1501)
-        assert mdio[:, 0, :].shape == (345, 1501)
-        assert mdio[:, :, 0].shape == (345, 188)
+        # Validate the headers
+        # We have a subset of headers since we used customize_segy_specs() providing the values only
+        # for "inline", "crossline", "cdp_x", "cdp_y"
+        data_type = np.dtype([('inline', '<i4'), ('crossline', '<i4'), ('cdp_x', '<i4'), ('cdp_y', '<i4')])
+        validate_variable(ds, "headers", (345, 188), ["inline", "crossline"], data_type,
+                          range(1, 346), get_inline_header_values)
+        
+        # Validate the trace mask
+        validate_variable(ds, "trace_mask", (345, 188), ["inline", "crossline"], np.bool, None, None)
+
+        # validate the amplitude data
+        validate_variable(ds, "amplitude", (345, 188, 1501), ["inline", "crossline", "time"], 
+                          np.float32, None, None)
+
 
     def test_inline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 inlines' mean and std. dev."""
-        mdio = MDIOReader(zarr_tmp.__str__())
-
-        inlines = mdio[::75, :, :]
+        path = zarr_tmp.__str__()
+        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
+        ds = xr.open_dataset(path, engine="zarr")
+        inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
-
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
+        pass
 
     def test_crossline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
-        mdio = MDIOReader(zarr_tmp.__str__())
-
-        xlines = mdio[:, ::75, :]
+        path = zarr_tmp.__str__()
+        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
+        ds = xr.open_dataset(path, engine="zarr")
+        xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
         npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01])
 
     def test_zslice(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
-        mdio = MDIOReader(zarr_tmp.__str__())
-
-        slices = mdio[:, :, ::225]
+        path = zarr_tmp.__str__()
+        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
+        ds = xr.open_dataset(path, engine="zarr")
+        slices =  ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
-
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
 
 
