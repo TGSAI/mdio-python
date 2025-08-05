@@ -76,8 +76,12 @@ def to_zarr_v1(  # noqa: PLR0913, PLR0915
 
     final_stats = _create_stats()
 
-    chunks = (data.encoding.get("chunks"),)  # Must use this instead of data.chunks
-    chunks = sum(chunks, ())  # Unroll it to a tuple
+    # Must use data.encoding.get instead of data.chunks
+    chunks_t_of_t = (data.encoding.get("chunks"),)  
+    # Unroll tuple of tuples into a flat list
+    chunks = list([c for sub_tuple in chunks_t_of_t for c in sub_tuple])
+    # We will not chunk traces (old option chunk_samples=False)
+    chunks[-1] = data.shape[-1]  
     dim_names = list(data.dims)
     # Initialize chunk iterator
     # Since the dimensions are provided, it will return a dict of slices

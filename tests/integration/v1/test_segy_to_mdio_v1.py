@@ -83,23 +83,25 @@ def test_segy_to_mdio_v1__f3() -> None:
 
     # Tests "cdp_x" variable
     expected = np.array(
-        [[6201819, 6201826, 6201833], [6201944, 6201951, 6201958], [6202159, 6202166, 6202173]]
+        [[6201972, 6202222, 6202472],
+         [6201965, 6202215, 6202465],
+         [6201958, 6202208, 6202458]]
     )
     _validate_variable(
-        ds, "cdp_x", (23, 18), ["inline", "crossline"], np.int32, expected, _get_actual_value
+        ds, "cdp_x", (23, 18), [
+            "inline", "crossline"], np.int32, expected, _get_actual_value
     )
 
     # Tests "cdp_y" variable
     expected = np.array(
-        [
-            [60742329, 60742336, 60742343],
-            [60742579, 60742586, 60742593],
-            [60742828, 60742835, 60742842],
-        ]
+        [[60742329, 60742336, 60742343],
+         [60742579, 60742586, 60742593],
+         [60742828, 60742835, 60742842]]
     )
     _validate_variable(
         ds, "cdp_y", (23, 18), ["inline", "crossline"], np.int32, expected, _get_actual_value
     )
+
 
     # Tests "headers" variable
     data_type = np.dtype(
