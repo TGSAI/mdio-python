@@ -145,11 +145,7 @@ COCA_3D_CONF = MaskedExportConfig(
 # fmt: on
 
 
-def mock_nd_segy(
-    path: str,
-    grid_conf: GridConfig,
-    segy_factory_conf: SegyFactoryConfig,
-) -> None:
+def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactoryConfig) -> None:
     """Create a fake SEG-Y file with a multidimensional grid."""
     spec = get_segy_standard(segy_factory_conf.revision)
 
@@ -160,6 +156,19 @@ def mock_nd_segy(
 
     header_flds.append(HeaderField(name="samples_per_trace", byte=115, format="int16"))
     header_flds.append(HeaderField(name="sample_interval", byte=117, format="int16"))
+
+    # Add coordinates: {SRC-REC-CDP}-X/Y
+    header_flds.extend(
+        [
+            HeaderField(name="coord_scalar", byte=71, format="int16"),
+            HeaderField(name="src_x", byte=73, format="int32"),
+            HeaderField(name="src_y", byte=77, format="int32"),
+            HeaderField(name="rec_x", byte=81, format="int32"),
+            HeaderField(name="rec_y", byte=85, format="int32"),
+            HeaderField(name="cdp_x", byte=181, format="int32"),
+            HeaderField(name="cdp_y", byte=185, format="int32"),
+        ]
+    )
 
     spec = spec.customize(trace_header_fields=header_flds)
     spec.segy_standard = segy_factory_conf.revision
@@ -177,8 +186,16 @@ def mock_nd_segy(
     samples = factory.create_trace_sample_template(trace_numbers.size)
     headers = factory.create_trace_header_template(trace_numbers.size)
 
+    # Fill dimension coordinates (e.g. inline, crossline, etc.)
     for dim_idx, dim in enumerate(grid_conf.dims):
         headers[dim.name] = dim_grid[dim_idx].ravel()
+
+    # Fill coordinates (e.g. {SRC-REC-CDP}-X/Y
+    headers["coord_scalar"] = -100
+    for field in ["cdp_x", "src_x", "rec_x"]:
+        headers[field] = np.random.randint(low=700000, high=900000, size=trace_numbers.size) * 100
+    for field in ["cdp_y", "src_y", "rec_y"]:
+        headers[field] = np.random.randint(low=4000000, high=5000000, size=trace_numbers.size) * 100
 
     samples[:] = trace_numbers[..., None]
 
@@ -188,10 +205,7 @@ def mock_nd_segy(
         fp.write(factory.create_traces(headers, samples))
 
 
-def generate_selection_mask(
-    selection_conf: SelectionMaskConfig,
-    grid_conf: GridConfig,
-) -> NDArray:
+def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: GridConfig) -> NDArray:
     """Generate a boolean selection mask for a masked export test."""
     spatial_shape = [dim.size for dim in grid_conf.dims]
     mask_dims = selection_conf.mask_num_dims
@@ -224,9 +238,7 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
 class TestNdImportExport:
     """Test import/export of n-D SEG-Ys to MDIO, with and without selection mask."""
 
-    def test_import(
-        self, test_conf: MaskedExportConfig, export_masked_path: Path
-    ) -> None:
+    def test_import(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test import of an n-D SEG-Y file to MDIO."""
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
 
@@ -249,9 +261,7 @@ class TestNdImportExport:
             overwrite=True,
         )
 
-    def test_export(
-        self, test_conf: MaskedExportConfig, export_masked_path: Path
-    ) -> None:
+    def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test export of an n-D MDIO file back to SEG-Y."""
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
 
@@ -277,9 +287,7 @@ class TestNdImportExport:
         actual_sgy = SegyFile(segy_rt_path)
         assert_array_equal(actual_sgy.trace[:], expected_sgy.trace[:])
 
-    def test_export_masked(
-        self, test_conf: MaskedExportConfig, export_masked_path: Path
-    ) -> None:
+    def test_export_masked(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test export of an n-D MDIO file back to SEG-Y with masked export."""
         grid_conf, segy_factory_conf, segy_to_mdio_conf, selection_conf = test_conf
 
