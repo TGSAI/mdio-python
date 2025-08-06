@@ -165,8 +165,8 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
             HeaderField(name="src_y", byte=77, format="int32"),
             HeaderField(name="rec_x", byte=81, format="int32"),
             HeaderField(name="rec_y", byte=85, format="int32"),
-            HeaderField(name="cdp_x", byte=115, format="int32"),
-            HeaderField(name="cdp_y", byte=117, format="int32"),
+            HeaderField(name="cdp_x", byte=181, format="int32"),
+            HeaderField(name="cdp_y", byte=185, format="int32"),
         ]
     )
 
