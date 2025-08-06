@@ -138,7 +138,7 @@ STREAMER_3D_CONF = MaskedExportConfig(
 
 COCA_3D_CONF = MaskedExportConfig(
     GridConfig(name="3d_coca", dims=[Dimension("inline", 10, 8, 1), Dimension("crossline", 100, 8, 2), Dimension("offset", 25, 15, 25), Dimension("azimuth", 0, 4, 30)]),
-    SegyFactoryConfig(revision=1, header_byte_map={"inline": 189, "crossline": 193, "offset": 37, "azimuth": 181}, num_samples=201),
+    SegyFactoryConfig(revision=1, header_byte_map={"inline": 189, "crossline": 193, "offset": 37, "azimuth": 232}, num_samples=201),
     SegyToMdioConfig(chunks=[4, 4, 4, 1, 128]),
     SelectionMaskConfig(mask_num_dims=2, remove_frac=0.9),
 )
