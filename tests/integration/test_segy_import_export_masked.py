@@ -193,9 +193,9 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
     # Fill coordinates (e.g. {SRC-REC-CDP}-X/Y
     headers["coord_scalar"] = -100
     for field in ["cdp_x", "src_x", "rec_x"]:
-        headers[field] = np.random.randint(low=700000, high=900000, size=trace_numbers.size)
+        headers[field] = np.random.randint(low=700000, high=900000, size=trace_numbers.size) * 100
     for field in ["cdp_y", "src_y", "rec_y"]:
-        headers[field] = np.random.randint(low=4000000, high=5000000, size=trace_numbers.size)
+        headers[field] = np.random.randint(low=4000000, high=5000000, size=trace_numbers.size) * 100
 
     samples[:] = trace_numbers[..., None]
 
