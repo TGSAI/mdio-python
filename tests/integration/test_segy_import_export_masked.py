@@ -261,6 +261,38 @@ class TestNdImportExport:
             overwrite=True,
         )
 
+    def test_ingested_mdio(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+        """Verify if ingested data is correct."""
+        grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
+        mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
+
+        ndim = len(segy_to_mdio_conf.chunks)
+        access_pattern = "".join(map(str, range(ndim)))
+        actual_reader = MDIOReader(mdio_path, access_pattern=access_pattern, return_metadata=True)
+
+        # Test dimensions and ingested dimension headers
+        expected_dims = grid_conf.dims
+        for expected_dim in expected_dims:
+            actual_dim = actual_reader.grid.select_dim(expected_dim.name)
+            assert expected_dim.name == actual_dim.name
+            assert expected_dim.size == actual_dim.coords.size
+            assert expected_dim.start == actual_dim.coords[0]
+
+        num_traces = np.prod(actual_reader.live_mask.shape)
+
+        # Read all the data into memory
+        live, headers, traces = actual_reader[..., 0]
+
+        # Ensure live mask is full
+        np.testing.assert_equal(live, True)
+
+        # TODO(Altay): Check if all dimension headers are correct
+        # https://github.com/TGSAI/mdio-python/issues/593
+
+        # Check if all trace values are correct (e.g. == sequential 1 to N)
+        np.testing.assert_array_equal(traces.ravel(), np.arange(1, num_traces + 1))
+
+
     def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test export of an n-D MDIO file back to SEG-Y."""
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
