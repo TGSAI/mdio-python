@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import multiprocessing as mp
 import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
@@ -48,15 +47,17 @@ def parse_index_headers(
 
         trace_ranges.append((start, stop))
 
-    # For Unix async reads with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
-    # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
     num_workers = min(n_blocks, num_cpus)
-    context = mp.get_context("spawn")
 
+    segy_kw = {
+        "url": segy_file.fs.unstrip_protocol(segy_file.url),
+        "spec": segy_file.spec,
+        "settings": segy_file.settings,
+    }
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
-    with ProcessPoolExecutor(num_workers, mp_context=context) as executor:
-        lazy_work = executor.map(header_scan_worker, repeat(segy_file), trace_ranges)
+    with ProcessPoolExecutor(num_workers) as executor:
+        lazy_work = executor.map(header_scan_worker, repeat(segy_kw), trace_ranges)
 
         if progress_bar is True:
             lazy_work = tqdm(

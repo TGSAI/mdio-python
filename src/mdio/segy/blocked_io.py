@@ -100,9 +100,14 @@ def to_zarr_v1(  # noqa: PLR0913, PLR0915
     executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
     # return executor
 
+    segy_kw = {
+        "url": segy_file.fs.unstrip_protocol(segy_file.url),
+        "spec": segy_file.spec,
+        "settings": segy_file.settings,
+    }
     with executor:
         futures = []
-        common_args = (segy_file, output_location, data_variable_name)
+        common_args = (segy_kw, output_location, data_variable_name)
         for region in chunk_iter:
             index_slices = tuple(region[key] for key in data.dims[:-1])
             subset_args = (

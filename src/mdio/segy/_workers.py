@@ -4,13 +4,16 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
+from typing import TypedDict
 from typing import cast
 
 import numpy as np
+from segy import SegyFile
 
 if TYPE_CHECKING:
-    from segy import SegyFile
     from segy.arrays import HeaderArray
+    from segy.config import SegySettings
+    from segy.schema import SegySpec
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
 
@@ -21,19 +24,29 @@ from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
 
 
-def header_scan_worker(segy_file: SegyFile, trace_range: tuple[int, int]) -> HeaderArray:
+class SegyFileArguments(TypedDict):
+    """Arguments to open SegyFile instance creation."""
+
+    url: str
+    spec: SegySpec | None
+    settings: SegySettings | None
+
+
+def header_scan_worker(segy_kw: SegyFileArguments, trace_range: tuple[int, int]) -> HeaderArray:
     """Header scan worker.
 
     If SegyFile is not open, it can either accept a path string or a handle that was opened in
     a different context manager.
 
     Args:
-        segy_file: SegyFile instance.
+        segy_kw: Arguments to open SegyFile instance.
         trace_range: Tuple consisting of the trace ranges to read.
 
     Returns:
         HeaderArray parsed from SEG-Y library.
     """
+    segy_file = SegyFile(**segy_kw)
+
     slice_ = slice(*trace_range)
 
     cloud_native_mode = os.getenv("MDIO__IMPORT__CLOUD_NATIVE", default="False")
@@ -56,7 +69,7 @@ def header_scan_worker(segy_file: SegyFile, trace_range: tuple[int, int]) -> Hea
 
 
 def trace_worker_v1(  # noqa: PLR0913
-    segy_file: SegyFile,
+    segy_kw: SegyFileArguments,
     output_location: StorageLocation,
     data_variable_name: str,
     region: dict[str, slice],
@@ -66,7 +79,7 @@ def trace_worker_v1(  # noqa: PLR0913
     """Writes a subset of traces from a region of the dataset of Zarr file.
 
     Args:
-        segy_file: SegyFile instance.
+        segy_kw: Arguments to open SegyFile instance.
         output_location: StorageLocation for the output Zarr dataset
             (e.g. local file path or cloud storage URI) the location
             also includes storage options for cloud storage.
@@ -80,6 +93,10 @@ def trace_worker_v1(  # noqa: PLR0913
     """
     if not dataset.trace_mask.any():
         return None
+
+    # Open the SEG-Y file in every new process / spawned worker since the
+    # open file handles cannot be shared across processes.
+    segy_file = SegyFile(**segy_kw)
 
     not_null = grid_map != UINT32_MAX
 
