@@ -145,11 +145,7 @@ COCA_3D_CONF = MaskedExportConfig(
 # fmt: on
 
 
-def mock_nd_segy(
-    path: str,
-    grid_conf: GridConfig,
-    segy_factory_conf: SegyFactoryConfig,
-) -> None:
+def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactoryConfig) -> None:
     """Create a fake SEG-Y file with a multidimensional grid."""
     spec = get_segy_standard(segy_factory_conf.revision)
 
@@ -209,10 +205,7 @@ def mock_nd_segy(
         fp.write(factory.create_traces(headers, samples))
 
 
-def generate_selection_mask(
-    selection_conf: SelectionMaskConfig,
-    grid_conf: GridConfig,
-) -> NDArray:
+def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: GridConfig) -> NDArray:
     """Generate a boolean selection mask for a masked export test."""
     spatial_shape = [dim.size for dim in grid_conf.dims]
     mask_dims = selection_conf.mask_num_dims
@@ -245,9 +238,7 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
 class TestNdImportExport:
     """Test import/export of n-D SEG-Ys to MDIO, with and without selection mask."""
 
-    def test_import(
-        self, test_conf: MaskedExportConfig, export_masked_path: Path
-    ) -> None:
+    def test_import(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test import of an n-D SEG-Y file to MDIO."""
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
 
@@ -270,9 +261,7 @@ class TestNdImportExport:
             overwrite=True,
         )
 
-    def test_export(
-        self, test_conf: MaskedExportConfig, export_masked_path: Path
-    ) -> None:
+    def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test export of an n-D MDIO file back to SEG-Y."""
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
 
@@ -298,9 +287,7 @@ class TestNdImportExport:
         actual_sgy = SegyFile(segy_rt_path)
         assert_array_equal(actual_sgy.trace[:], expected_sgy.trace[:])
 
-    def test_export_masked(
-        self, test_conf: MaskedExportConfig, export_masked_path: Path
-    ) -> None:
+    def test_export_masked(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test export of an n-D MDIO file back to SEG-Y with masked export."""
         grid_conf, segy_factory_conf, segy_to_mdio_conf, selection_conf = test_conf
 
