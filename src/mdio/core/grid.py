@@ -76,6 +76,9 @@ class Grid:
 
     def select_dim(self, name: str) -> Dimension:
         """Get a dimension by name."""
+        if name not in self.dim_names:
+            msg = f"Invalid dimension name '{name}'. Available dimensions: {self.dim_names}."
+            raise ValueError(msg)
         index = self.dim_names.index(name)
         return self.dims[index]
 
