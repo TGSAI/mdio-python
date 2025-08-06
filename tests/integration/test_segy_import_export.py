@@ -289,14 +289,20 @@ def test_3d_import_v1(
 class TestReader:
     """Test reader functionality."""
 
-    @pytest.mark.skip(reason="Do we need to support a dataset metadata?")
     def test_meta_dataset_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        # mdio = MDIOReader(zarr_tmp.__str__())
-        # assert mdio.binary_header["samples_per_trace"] == 1501
-        # assert mdio.binary_header["sample_interval"] == 2000
-        pass
-
+        path = zarr_tmp.__str__()
+        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
+        ds = xr.open_dataset(path, engine="zarr")
+        expected_attrs = {'apiVersion': '1.0.0a1', 'createdOn': '2025-08-06 16:21:54.747880+00:00', 'name': 'PostStack3DTime'}
+        actual_attrs_json = ds.attrs
+        # compare one by one due to ever changing createdOn. For it, we only check existence
+        for key, value in expected_attrs.items():
+            assert key in actual_attrs_json
+            if key == "createdOn":
+                assert actual_attrs_json[key] is not None
+            else:
+                assert actual_attrs_json[key] == value
 
     def test_meta_variable_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
