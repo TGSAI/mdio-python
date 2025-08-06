@@ -161,6 +161,19 @@ def mock_nd_segy(
     header_flds.append(HeaderField(name="samples_per_trace", byte=115, format="int16"))
     header_flds.append(HeaderField(name="sample_interval", byte=117, format="int16"))
 
+    # Add coordinates: {SRC-REC-CDP}-X/Y
+    header_flds.extend(
+        [
+            HeaderField(name="coord_scalar", byte=71, format="int16"),
+            HeaderField(name="src_x", byte=73, format="int32"),
+            HeaderField(name="src_y", byte=77, format="int32"),
+            HeaderField(name="rec_x", byte=81, format="int32"),
+            HeaderField(name="rec_y", byte=85, format="int32"),
+            HeaderField(name="cdp_x", byte=115, format="int32"),
+            HeaderField(name="cdp_y", byte=117, format="int32"),
+        ]
+    )
+
     spec = spec.customize(trace_header_fields=header_flds)
     spec.segy_standard = segy_factory_conf.revision
     factory = SegyFactory(spec=spec, samples_per_trace=segy_factory_conf.num_samples)
@@ -177,8 +190,16 @@ def mock_nd_segy(
     samples = factory.create_trace_sample_template(trace_numbers.size)
     headers = factory.create_trace_header_template(trace_numbers.size)
 
+    # Fill dimension coordinates (e.g. inline, crossline, etc.)
     for dim_idx, dim in enumerate(grid_conf.dims):
         headers[dim.name] = dim_grid[dim_idx].ravel()
+
+    # Fill coordinates (e.g. {SRC-REC-CDP}-X/Y
+    headers["coord_scalar"] = -100
+    for field in ["cdp_x", "src_x", "rec_x"]:
+        headers[field] = np.random.randint(low=700000, high=900000, size=trace_numbers.size)
+    for field in ["cdp_y", "src_y", "rec_y"]:
+        headers[field] = np.random.randint(low=4000000, high=5000000, size=trace_numbers.size)
 
     samples[:] = trace_numbers[..., None]
 
