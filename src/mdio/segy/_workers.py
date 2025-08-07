@@ -5,31 +5,47 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 from typing import Any
+from typing import TypedDict
 from typing import cast
 
 import numpy as np
+from segy import SegyFile
 
 if TYPE_CHECKING:
-    from segy import SegyFile
     from segy.arrays import HeaderArray
+    from segy.config import SegySettings
+    from segy.schema import SegySpec
     from zarr import Array
 
     from mdio.core import Grid
 
 
-def header_scan_worker(segy_file: SegyFile, trace_range: tuple[int, int]) -> HeaderArray:
+class SegyFileArguments(TypedDict):
+    """Arguments to open SegyFile instance creation."""
+
+    url: str
+    spec: SegySpec | None
+    settings: SegySettings | None
+
+
+def header_scan_worker(
+    segy_kw: SegyFileArguments,
+    trace_range: tuple[int, int],
+) -> HeaderArray:
     """Header scan worker.
 
     If SegyFile is not open, it can either accept a path string or a handle that was opened in
     a different context manager.
 
     Args:
-        segy_file: SegyFile instance.
+        segy_kw: Arguments to open SegyFile instance.
         trace_range: Tuple consisting of the trace ranges to read.
 
     Returns:
         HeaderArray parsed from SEG-Y library.
     """
+    segy_file = SegyFile(**segy_kw)
+
     slice_ = slice(*trace_range)
 
     cloud_native_mode = os.getenv("MDIO__IMPORT__CLOUD_NATIVE", default="False")
@@ -52,7 +68,7 @@ def header_scan_worker(segy_file: SegyFile, trace_range: tuple[int, int]) -> Hea
 
 
 def trace_worker(
-    segy_file: SegyFile,
+    segy_kw: SegyFileArguments,
     data_array: Array,
     metadata_array: Array,
     grid: Grid,
@@ -68,7 +84,7 @@ def trace_worker(
     slices across the sample dimension since SEG-Y data isn't chunked, eliminating concern.
 
     Args:
-        segy_file: SegyFile instance.
+        segy_kw: Arguments to open SegyFile instance.
         data_array: Handle for zarr.Array we are writing traces to
         metadata_array: Handle for zarr.Array we are writing trace headers
         grid: mdio.Grid instance
@@ -78,6 +94,7 @@ def trace_worker(
         Partial statistics for chunk, or None
     """
     # Special case where there are no traces inside chunk.
+    segy_file = SegyFile(**segy_kw)
     live_subset = grid.live_mask[chunk_indices[:-1]]
 
     if np.count_nonzero(live_subset) == 0:
