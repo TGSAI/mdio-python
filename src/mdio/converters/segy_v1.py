@@ -35,31 +35,29 @@ def _scan_for_headers(segy_file: SegyFile, domain: str) -> tuple[list[Dimension]
 
     This is an expensive operation.
     It scans the SEG-Y file in chunks by using ProcessPoolExecutor
-    The implementation is subject to change
-
     """
-    # TODO(Dmitriy Repin): Enhance get_grid_plan_v1 to return only needed headers
+    # TODO(Dmitriy): Enhance get_grid_plan_v1 to return only needed headers
     # https://github.com/TGSAI/mdio-python/issues/589
-    # TODO(Dmitriy Repin): implement grid overrides
+    # TODO(Dmitriy): implement grid overrides
     # https://github.com/TGSAI/mdio-python/issues/585
     # The 'grid_chunksize' is used only for grid_overrides
     # While we do not support grid override, we can set it to None
     grid_chunksize = None
     segy_dimensions, chunksize, index_headers = get_grid_plan_v1(
-        segy_file=segy_file, 
+        segy_file=segy_file,
         return_headers=True,
         domain=domain,
-        chunksize=grid_chunksize, 
-        grid_overrides=None
+        chunksize=grid_chunksize,
+        grid_overrides=None,
     )
     return segy_dimensions, index_headers
 
 
 def _get_data_coordinates(
-    segy_headers: list[Dimension], 
-    segy_index_headers: SegyHeaderArray,
-    mdio_template: AbstractDatasetTemplate
-) -> tuple[list[Dimension], list[Dimension]]:
+    segy_dimensions: list[Dimension],
+    segy_headers: SegyHeaderArray,
+    mdio_template: AbstractDatasetTemplate,
+) -> tuple[list[Dimension], dict[str, SegyHeaderArray]]:
     """Get the data dim and non-dim coordinates from the SEG-Y headers and MDIO template.
 
     Select a subset of the segy_dimensions that corresponds to the MDIO dimensions
@@ -67,7 +65,8 @@ def _get_data_coordinates(
     The last dimension is always the vertical domain dimension
 
     Args:
-        segy_headers: List of of all SEG-Y dimensions.
+        segy_dimensions: List of of all SEG-Y dimensions.
+        segy_headers: Headers read in from SEG-Y file.
         mdio_template: The MDIO template to use for the conversion.
 
     Raises:
@@ -77,29 +76,25 @@ def _get_data_coordinates(
     Returns:
         A tuple containing:
             - A list of dimension coordinates (1-D arrays).
-            - A list of non-dimension coordinates (N-D arrays).
+            - A dict of non-dimension coordinates (str: N-D arrays).
     """
-
-    # The segy_headers contain only sorted unique values
     dimensions_coords = []
-    for coord_name in mdio_template.dimension_names:
-        coord = next((dim for dim in segy_headers if dim.name == coord_name), None)
-        if coord is None:
-            err = f"Dimension '{coord_name}' was not found in SEG-Y dimensions."
-            raise ValueError(err)
-        # segy_headers are suitable to get the dimension coordinates
-        dimensions_coords.append(coord)
+    dim_names = [dim.name for dim in segy_dimensions]
+    for dim_name in mdio_template.dimension_names:
+        try:
+            dim_index = dim_names.index(dim_name)
+        except ValueError:
+            err = f"Dimension '{dim_name}' was not found in SEG-Y dimensions."
+            raise ValueError(err) from err
+        dimensions_coords.append(segy_dimensions[dim_index])
 
-    non_dim_coords: list[Dimension] = []
-    for dim_name in mdio_template.coordinate_names:
-        coord = next((c for c in segy_headers if c.name == dim_name), None)
-        if coord is None:
-            err = f"Coordinate '{dim_name}' not found in SEG-Y dimensions."
+    non_dim_coords: dict[str, SegyHeaderArray] = {}
+    available_headers = segy_headers.dtype.names
+    for coord_name in mdio_template.coordinate_names:
+        if coord_name not in available_headers:
+            err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
             raise ValueError(err)
-        # For N-D the non-dimensional coordinates we need to use segy_index_headers instead
-        ind_hdr = segy_index_headers[dim_name]
-        d = Dimension(name=dim_name, coords=ind_hdr)
-        non_dim_coords.append(d)
+        non_dim_coords[coord_name] = segy_headers[coord_name]
 
     return dimensions_coords, non_dim_coords
 
@@ -215,7 +210,9 @@ def segy_to_mdio_v1(
     # This is an memory-expensive and time-consuming read-write operation
     segy_headers, segy_index_headers = _scan_for_headers(segy_file, mdio_template.trace_domain)
     # Extract dim and non-dim coordinates according to the MDIO template
-    dimension_coords, non_dim_coords = _get_data_coordinates(segy_headers, segy_index_headers, mdio_template)
+    dimension_coords, non_dim_coords = _get_data_coordinates(
+        segy_headers, segy_index_headers, mdio_template
+    )
     shape = [len(dim.coords) for dim in dimension_coords]
     headers = to_structured_type(segy_index_headers.dtype)
 
