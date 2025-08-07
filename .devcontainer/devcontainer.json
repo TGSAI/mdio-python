@@ -42,6 +42,6 @@
   "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/mdio-python,type=bind",
   "workspaceFolder": "/workspaces/mdio-python",
   "mounts": [
-    "source=${localWorkspaceFolder}/../DATA/,target=/DATA/,type=bind,consistency=cached"
+    // "source=${localWorkspaceFolder}/../DATA/,target=/DATA/,type=bind,consistency=cached"
   ]
 }
