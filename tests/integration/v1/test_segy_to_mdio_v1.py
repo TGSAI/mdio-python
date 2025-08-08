@@ -12,7 +12,7 @@ import zarr
 from segy.standards import get_segy_standard
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
-from mdio.converters.segy_to_mdio_v1 import segy_to_mdio_v1
+from mdio.converters.segy_v1 import segy_to_mdio_v1
 from mdio.converters.type_converter import to_numpy_dtype
 from mdio.core.storage_location import StorageLocation
 from mdio.schemas.dtype import ScalarType
