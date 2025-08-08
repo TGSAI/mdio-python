@@ -12,7 +12,7 @@ import zarr
 from segy.standards import get_segy_standard
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
-from mdio.converters.segy_v1 import segy_to_mdio_v1
+from mdio.converters.segy import segy_to_mdio
 from mdio.converters.type_converter import to_numpy_dtype
 from mdio.core.storage_location import StorageLocation
 from mdio.schemas.dtype import ScalarType
@@ -64,7 +64,7 @@ def test_segy_to_mdio_v1__f3() -> None:
     pref_path = "/DATA/equinor-segyio/f3.sgy"
     mdio_path = f"{pref_path}_mdio_v1"
 
-    segy_to_mdio_v1(
+    segy_to_mdio(
         segy_spec=get_segy_standard(1.0),
         mdio_template=TemplateRegistry().get("PostStack3DTime"),
         input_location=StorageLocation(pref_path),

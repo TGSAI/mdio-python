@@ -20,9 +20,8 @@ from tests.integration.testing_helpers import validate_variable
 
 from mdio import MDIOReader
 from mdio import mdio_to_segy
-from mdio.converters import segy_to_mdio
 from mdio.converters.exceptions import GridTraceSparsityError
-from mdio.converters.segy_v1 import segy_to_mdio_v1
+from mdio.converters.segy import segy_to_mdio
 from mdio.core import Dimension
 from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
@@ -276,7 +275,7 @@ def test_3d_import_v1(
         index_types=index_types,
     )
 
-    segy_to_mdio_v1(
+    segy_to_mdio(
         segy_spec=segy_spec,
         mdio_template=TemplateRegistry().get("PostStack3DTime"),
         input_location=StorageLocation(segy_input.__str__()),
