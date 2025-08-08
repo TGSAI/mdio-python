@@ -32,7 +32,9 @@ class SegyFileArguments(TypedDict):
     settings: SegySettings | None
 
 
-def header_scan_worker(segy_kw: SegyFileArguments, trace_range: tuple[int, int]) -> HeaderArray:
+def header_scan_worker(
+    segy_kw: SegyFileArguments, trace_range: tuple[int, int], subset: list[str] | None = None
+) -> HeaderArray:
     """Header scan worker.
 
     If SegyFile is not open, it can either accept a path string or a handle that was opened in
@@ -41,6 +43,7 @@ def header_scan_worker(segy_kw: SegyFileArguments, trace_range: tuple[int, int])
     Args:
         segy_kw: Arguments to open SegyFile instance.
         trace_range: Tuple consisting of the trace ranges to read.
+        subset: List of header names to filter and keep.
 
     Returns:
         HeaderArray parsed from SEG-Y library.
@@ -55,6 +58,9 @@ def header_scan_worker(segy_kw: SegyFileArguments, trace_range: tuple[int, int])
         trace_header = segy_file.trace[slice_].header
     else:
         trace_header = segy_file.header[slice_]
+
+    if subset is not None:
+        trace_header = trace_header[subset]
 
     # Get non-void fields from dtype and copy to new array for memory efficiency
     fields = trace_header.dtype.fields
