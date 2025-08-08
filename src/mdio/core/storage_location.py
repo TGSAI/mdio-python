@@ -6,6 +6,8 @@ from typing import Any
 import fsspec
 
 
+# TODO(Dmitriy Repin): Reuse fsspec functions for some methods we implemented here
+# https://github.com/TGSAI/mdio-python/issues/597
 class StorageLocation:
     """A class to represent a local or cloud storage location for SEG-Y or MDIO files.
 
