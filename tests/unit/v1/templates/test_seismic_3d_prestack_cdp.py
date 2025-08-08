@@ -21,8 +21,8 @@ _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 def validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
     """A helper method to validate coordinates, headers, and trace mask."""
     # Verify variables
-    # 3 dim coords + 2 non-dim coords + 1 data + 1 trace mask + 1 headers = 8 variables
-    assert len(dataset.variables) == 8
+    # 4 dim coords + 2 non-dim coords + 1 data + 1 trace mask + 1 headers = 8 variables
+    assert len(dataset.variables) == 9
 
     # Verify trace headers
     validate_variable(
