@@ -1,17 +1,24 @@
 """This module provides testing helpers for integration testing."""
 
-from typing import Any
-from pyparsing import Sequence
-from segy.schema import SegySpec
-from segy.schema import HeaderField
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
-import xarray as xr
+from segy.schema import HeaderField
+from segy.schema import SegySpec
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    import xarray as xr
+
 
 def customize_segy_specs(
     segy_spec: SegySpec,
-    index_bytes: Sequence[int] | None = None,
-    index_names: Sequence[str] | None = None,
-    index_types: Sequence[str] | None = None,
+    index_bytes: tuple[int, ...] | None = None,
+    index_names: tuple[int, ...] | None = None,
+    index_types: tuple[int, ...] | None = None,
 ) -> SegySpec:
     """Customize SEG-Y specifications with user-defined index fields."""
     if not index_bytes:
@@ -32,13 +39,16 @@ def customize_segy_specs(
 
     return segy_spec.customize(trace_header_fields=index_fields)
 
+
 def get_values(arr: xr.DataArray) -> np.ndarray:
     """Extract actual values from an Xarray DataArray."""
     return arr.values
 
+
 def get_inline_header_values(dataset: xr.Dataset) -> np.ndarray:
     """Extract a specific header value from an Xarray DataArray."""
     return dataset["inline"].values
+
 
 def validate_variable(  # noqa PLR0913
     dataset: xr.Dataset,
@@ -46,8 +56,8 @@ def validate_variable(  # noqa PLR0913
     shape: list[int],
     dims: list[str],
     data_type: np.dtype,
-    expected_values: Any,
-    actual_value_generator: Any,
+    expected_values: range | None,
+    actual_value_generator: Callable,
 ) -> None:
     """Validate the properties of a variable in an Xarray dataset."""
     arr = dataset[name]
