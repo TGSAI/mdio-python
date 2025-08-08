@@ -18,7 +18,9 @@ _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
 
-def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
+def _validate_coordinates_headers_trace_mask(
+    dataset: Dataset, headers: StructuredType, domain: str
+) -> None:
     """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
     # 3 dim coords + 2 non-dim coords + 1 data + 1 trace mask + 1 headers = 7 variables
