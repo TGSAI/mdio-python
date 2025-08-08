@@ -20,7 +20,7 @@ from zarr import open_group as zarr_open_group
 from mdio.core.indexing import ChunkIteratorV1
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
-from mdio.segy._workers import trace_worker_v1
+from mdio.segy._workers import trace_worker
 from mdio.segy.creation import SegyPartRecord
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import serialize_to_segy_stack
@@ -51,7 +51,7 @@ def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatisti
     final_stats.sum_squares += partial_stats.sum_squares
 
 
-def to_zarr_v1(  # noqa: PLR0913, PLR0915
+def to_zarr(  # noqa: PLR0913, PLR0915
     segy_file: SegyFile,
     output_location: StorageLocation,
     grid_map: zarr_Array,
@@ -115,7 +115,7 @@ def to_zarr_v1(  # noqa: PLR0913, PLR0915
                 grid_map[index_slices],
                 dataset.isel(region),
             )
-            future = executor.submit(trace_worker_v1, *common_args, *subset_args)
+            future = executor.submit(trace_worker, *common_args, *subset_args)
             futures.append(future)
 
         iterable = tqdm(

@@ -326,7 +326,7 @@ def segy_to_mdio(
     # https://github.com/TGSAI/mdio-python/issues/595
 
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
-    # blocked_io.to_zarr_v1() -> _workers.trace_worker_v1()
+    # blocked_io.to_zarr() -> _workers.trace_worker()
 
     # Write the xarray dataset to Zarr with as following:
     # Populated arrays:
@@ -350,7 +350,7 @@ def segy_to_mdio(
     data_variable_name = mdio_template.trace_variable_name
     # This is an memory-expensive and time-consuming read-write operation
     # performed in chunks to save the memory
-    blocked_io.to_zarr_v1(
+    blocked_io.to_zarr(
         segy_file=segy_file,
         output_location=output_location,
         grid_map=grid.map,
