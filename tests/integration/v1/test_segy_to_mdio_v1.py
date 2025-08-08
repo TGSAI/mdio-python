@@ -1,6 +1,9 @@
 """End to end testing for SEG-Y to MDIO conversion v1."""
 
-from typing import Any
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numcodecs
 import numpy as np
 import pytest
@@ -17,8 +20,11 @@ from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
-def _slice_three_values(dims: tuple[int], values_from_start: bool) -> Any:
+
+def _slice_three_values(dims: tuple[int], values_from_start: bool) -> tuple[slice, ...]:
     if values_from_start:
         slices = tuple([slice(0, 3) for _ in range(len(dims))])
     else:
@@ -36,8 +42,8 @@ def _validate_variable(  # noqa PLR0913
     shape: list[int],
     dims: list[str],
     data_type: np.dtype,
-    expected_values: Any,
-    actual_func: Any,
+    expected_values: range | None,
+    actual_func: Callable,
 ) -> None:
     arr = dataset[name]
     assert shape == arr.shape
@@ -83,25 +89,23 @@ def test_segy_to_mdio_v1__f3() -> None:
 
     # Tests "cdp_x" variable
     expected = np.array(
-        [[6201972, 6202222, 6202472],
-         [6201965, 6202215, 6202465],
-         [6201958, 6202208, 6202458]]
+        [[6201972, 6202222, 6202472], [6201965, 6202215, 6202465], [6201958, 6202208, 6202458]]
     )
     _validate_variable(
-        ds, "cdp_x", (23, 18), [
-            "inline", "crossline"], np.int32, expected, _get_actual_value
+        ds, "cdp_x", (23, 18), ["inline", "crossline"], np.int32, expected, _get_actual_value
     )
 
     # Tests "cdp_y" variable
     expected = np.array(
-        [[60742329, 60742336, 60742343],
-         [60742579, 60742586, 60742593],
-         [60742828, 60742835, 60742842]]
+        [
+            [60742329, 60742336, 60742343],
+            [60742579, 60742586, 60742593],
+            [60742828, 60742835, 60742842],
+        ]
     )
     _validate_variable(
         ds, "cdp_y", (23, 18), ["inline", "crossline"], np.int32, expected, _get_actual_value
     )
-
 
     # Tests "headers" variable
     data_type = np.dtype(
@@ -348,8 +352,3 @@ def test_bug_reproducer_structured_xr_to_zar() -> None:
         write_empty_chunks=False,
         zarr_format=2,
     )
-
-
-# /home/vscode/.venv/lib/python3.13/site-packages/xarray/backends/zarr.py:945: in store
-#     existing_vars, _, _ = conventions.decode_cf_variables(
-# E - TypeError: Failed to decode variable 'headers': unhashable type: 'writeable void-scalar'
