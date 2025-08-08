@@ -339,7 +339,7 @@ class TestReader:
         validate_variable(
             ds, "crossline", (188,), ["crossline"], np.int32, range(1, 189), get_values
         )
-        validate_variable(ds, "time", (1501,), ["time"], np.int64, range(0, 3002, 2), get_values)
+        validate_variable(ds, "time", (1501,), ["time"], np.int32, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables
         validate_variable(ds, "cdp_x", (345, 188), ["inline", "crossline"], np.float64, None, None)
