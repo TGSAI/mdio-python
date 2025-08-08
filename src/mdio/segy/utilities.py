@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_grid_plan_v1(  # noqa:  C901
+def get_grid_plan(  # noqa:  C901
     segy_file: SegyFile,
     chunksize: tuple[int, ...] | None,
     template: AbstractDatasetTemplate,
