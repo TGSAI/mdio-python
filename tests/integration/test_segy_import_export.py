@@ -342,8 +342,8 @@ class TestReader:
         validate_variable(ds, "time", (1501,), ["time"], np.int64, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables
-        validate_variable(ds, "cdp_x", (345, 188), ["inline", "crossline"], np.int32, None, None)
-        validate_variable(ds, "cdp_y", (345, 188), ["inline", "crossline"], np.int32, None, None)
+        validate_variable(ds, "cdp_x", (345, 188), ["inline", "crossline"], np.float64, None, None)
+        validate_variable(ds, "cdp_y", (345, 188), ["inline", "crossline"], np.float64, None, None)
 
         # Validate the headers
         # We have a subset of headers since we used customize_segy_specs() providing the values only
