@@ -338,7 +338,7 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
         .build()
     )
 
-    xr_ds = to_xarray_dataset(dataset, no_fill_var_names={})
+    xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     xr_ds.to_zarr(store=file_path, mode="w", zarr_format=2, compute=False)
@@ -348,10 +348,7 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
     """Test building a complete dataset."""
     dataset = make_seismic_poststack_3d_acceptance_dataset("Seismic")
 
-    # TODO(Dmitriy Repin): work around of the bug
-    # https://github.com/TGSAI/mdio-python/issues/582
-    # Do not set _FillValue for the "header" variable, which has structured data type
-    xr_ds = to_xarray_dataset(dataset, no_fill_var_names={"headers"})
+    xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     xr_ds.to_zarr(store=file_path, mode="w", zarr_format=2, compute=False)

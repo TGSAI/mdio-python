@@ -167,7 +167,7 @@ def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
     return None
 
 
-def to_xarray_dataset(mdio_ds: Dataset, no_fill_var_names: list[str]) -> xr_Dataset:  # noqa: PLR0912
+def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
     """Build an XArray dataset with correct dimensions and dtypes.
 
     This function constructs the underlying data structure for an XArray dataset,
@@ -175,7 +175,6 @@ def to_xarray_dataset(mdio_ds: Dataset, no_fill_var_names: list[str]) -> xr_Data
 
     Args:
         mdio_ds: The source MDIO dataset to construct from.
-        no_fill_var_names: A list of variable names that should not have a fill value.
 
     Notes:
         - We can't use Dask (e.g., dask_array.zeros) because of the problems with
@@ -222,7 +221,11 @@ def to_xarray_dataset(mdio_ds: Dataset, no_fill_var_names: list[str]) -> xr_Data
             "chunk_key_encoding": chunk_key_encoding,
             "compressor": _convert_compressor(v.compressor),
         }
-        if v.name not in no_fill_var_names:
+        # NumPy structured data types have fields attribute, while scalar types do not.
+        if not hasattr(v.data_type, "fields"):
+            # TODO(Dmitriy Repin): work around of the bug
+            # https://github.com/TGSAI/mdio-python/issues/582
+            # For structured data types we will not use the _FillValue
             # NOTE: See Zarr documentation on use of fill_value and _FillValue in Zarr v2 vs v3
             encoding["_FillValue"] = _get_fill_value(v.data_type)
 

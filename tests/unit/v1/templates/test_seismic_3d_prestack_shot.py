@@ -18,11 +18,11 @@ _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
 
-def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
+def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
     """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
-    # 3 dim coords + 5 non-dim coords + 1 data + 1 trace mask + 1 headers = 11 variables
-    assert len(dataset.variables) == 11
+    # 4 dim coords + 5 non-dim coords + 1 data + 1 trace mask + 1 headers = 12 variables
+    assert len(dataset.variables) == 12
 
     # Verify trace headers
     validate_variable(
@@ -68,6 +68,15 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         dtype=ScalarType.INT32,
     )
     assert crossline.metadata is None
+
+    domain = validate_variable(
+        dataset,
+        name=domain,
+        dims=[(domain, 2048)],
+        coords=[domain],
+        dtype=ScalarType.INT32,
+    )
+    assert domain.metadata is None
 
     # Verify non-dimension coordinate variables
     validate_variable(
@@ -198,7 +207,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "shot"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
-        _validate_coordinates_headers_trace_mask(dataset, structured_headers)
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers, "depth")
 
         # Verify seismic variable (prestack shot depth data)
         seismic = validate_variable(
@@ -231,7 +240,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "shot"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
-        _validate_coordinates_headers_trace_mask(dataset, structured_headers)
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
 
         # Verify seismic variable (prestack shot time data)
         seismic = validate_variable(

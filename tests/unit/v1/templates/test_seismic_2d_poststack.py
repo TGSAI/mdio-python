@@ -17,7 +17,7 @@ _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
 
-def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
+def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
     """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
     # 2 dim coords + 2 non-dim coords + 1 data + 1 trace mask + 1 headers = 6 variables
@@ -49,6 +49,15 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         dtype=ScalarType.INT32,
     )
     assert inline.metadata is None
+    
+    domain = validate_variable(
+        dataset,
+        name=domain,
+        dims=[(domain, 4096)],
+        coords=[domain],
+        dtype=ScalarType.INT32,
+    )
+    assert domain.metadata is None
 
     # Verify non-dimension coordinate variables
     cdp_x = validate_variable(
@@ -153,7 +162,7 @@ class TestSeismic2DPostStackTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
-        _validate_coordinates_headers_trace_mask(dataset, structured_headers)
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers, "depth")
 
         # Verify seismic variable
         seismic = validate_variable(
@@ -184,7 +193,7 @@ class TestSeismic2DPostStackTemplate:
         assert dataset.metadata.attributes["ensembleType"] == "line"
         assert dataset.metadata.attributes["processingStage"] == "post-stack"
 
-        _validate_coordinates_headers_trace_mask(dataset, structured_headers)
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
 
         # Verify seismic variable
         v = validate_variable(
