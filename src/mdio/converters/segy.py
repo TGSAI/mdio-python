@@ -120,8 +120,6 @@ def _scan_for_headers(
     This is an expensive operation.
     It scans the SEG-Y file in chunks by using ProcessPoolExecutor
     """
-    # TODO(Dmitriy): Enhance get_grid_plan_v1 to return only needed headers
-    # https://github.com/TGSAI/mdio-python/issues/589
     # TODO(Dmitriy): implement grid overrides
     # https://github.com/TGSAI/mdio-python/issues/585
     # The 'grid_chunksize' is used only for grid_overrides
