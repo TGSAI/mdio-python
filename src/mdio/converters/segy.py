@@ -149,7 +149,7 @@ def _build_and_check_grid(
         A grid instance populated with the dimensions and trace index map.
 
     Raises:
-        GridTraceCountError: If number of traces in SEG-Y file does not match the parsed gri
+        GridTraceCountError: If number of traces in SEG-Y file does not match the parsed grid
     """
     grid = Grid(dims=segy_dimensions)
     grid_density_qc(grid, segy_file.num_traces)
