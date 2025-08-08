@@ -326,10 +326,7 @@ def segy_to_mdio(
         name=mdio_template.name, sizes=shape, horizontal_coord_unit=horizontal_unit, headers=headers
     )
 
-    # TODO(Dmitriy Repin): work around of the bug
-    # https://github.com/TGSAI/mdio-python/issues/582
-    # Do not set _FillValue for the "header" variable, which has structured data type
-    xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds, no_fill_var_names=["headers"])
+    xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
     xr_dataset, drop_vars_delayed = _populate_coordinates(
         dataset=xr_dataset,

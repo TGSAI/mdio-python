@@ -36,7 +36,7 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
-        for name in self._coord_dim_names:
+        for name in self._dim_names:
             self._builder.add_coordinate(
                 name,
                 dimensions=[name],
