@@ -54,7 +54,7 @@ from mdio.schemas.compressors import BloscShuffle as mdio_BloscShuffle
 from mdio.schemas.compressors import ZFPMode as mdio_ZFPMode
 
 
-def test__get_all_named_dimensions() -> None:
+def test_get_all_named_dimensions() -> None:
     """Test _get_all_named_dimensions function."""
     dim1 = NamedDimension(name="inline", size=100)
     dim2 = NamedDimension(name="crossline", size=200)
@@ -83,7 +83,7 @@ def test__get_all_named_dimensions() -> None:
     assert set(all_dims) == {"inline", "crossline", "depth"}
 
 
-def test__get_dimension_names() -> None:
+def test_get_dimension_names() -> None:
     """Test _get_dimension_names function with various dimension types."""
     dim1 = NamedDimension(name="inline", size=100)
     dim2 = NamedDimension(name="crossline", size=200)
@@ -108,7 +108,7 @@ def test__get_dimension_names() -> None:
     # NOTE: mixing NamedDimension and string dimensions is not allowed by the Variable schema
 
 
-def test__get_coord_names() -> None:
+def test_get_coord_names() -> None:
     """Comprehensive test for _get_coord_names function covering all scenarios."""
     dim1 = NamedDimension(name="inline", size=100)
     dim2 = NamedDimension(name="crossline", size=200)
@@ -138,7 +138,7 @@ def test__get_coord_names() -> None:
     # Variable schema
 
 
-def test__get_zarr_shape() -> None:
+def test_get_zarr_shape() -> None:
     """Test for _get_zarr_shape function."""
     d1 = NamedDimension(name="inline", size=100)
     d2 = NamedDimension(name="crossline", size=200)
@@ -163,7 +163,7 @@ def test__get_zarr_shape() -> None:
     assert _get_zarr_shape(v2, all_named_dims) == (100, 200, 300)
 
 
-def test__get_zarr_chunks() -> None:
+def test_get_zarr_chunks() -> None:
     """Test for _get_zarr_chunks function."""
     d1 = NamedDimension(name="inline", size=100)
     d2 = NamedDimension(name="crossline", size=200)
@@ -189,7 +189,7 @@ def test__get_zarr_chunks() -> None:
     assert _get_zarr_chunks(v, all_named_dims=[d1, d2, d3]) == (100, 200, 300)
 
 
-def test__get_fill_value() -> None:
+def test_get_fill_value() -> None:
     """Test for _get_fill_value function."""
     # Test 1: ScalarType cases - should return values from fill_value_map
     scalar_types = [
@@ -258,7 +258,7 @@ def test__get_fill_value() -> None:
     assert result_none_input is None
 
 
-def test__convert_compressor() -> None:
+def test_convert_compressor() -> None:
     """Simple test for _convert_compressor function covering basic scenarios."""
     # Test 1: None input - should return None
     result_none = _convert_compressor(None)
@@ -359,10 +359,10 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
 
 @pytest.mark.skip(reason="Bug reproducer for the issue 582")
 def test_buf_reproducer_dask_to_zarr(tmp_path: Path) -> None:
-    """Bug reproducer for the issue https://github.com/TGSAI/mdio-python/issues/582.
+    """Bug reproducer for the issue https://github.com/TGSAI/mdio-python/issues/582."""
+    # TODO(Dmitriy Repin): Remove this test after the bug is fixed
+    # https://github.com/TGSAI/mdio-python/issues/582
 
-    Will be removed in the when the bug is fixed
-    """
     # Create a data type and the fill value
     dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
