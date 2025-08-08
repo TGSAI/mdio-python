@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING
 
+import numpy as np
 from segy import SegyFile
 from segy.arrays import HeaderArray as SegyHeaderArray
 from segy.config import SegySettings
@@ -30,7 +31,9 @@ if TYPE_CHECKING:
     from mdio.schemas.v1.dataset import Dataset
 
 
-def _scan_for_headers(segy_file: SegyFile, domain: str) -> tuple[list[Dimension], SegyHeaderArray]:
+def _scan_for_headers(
+    segy_file: SegyFile, template: AbstractDatasetTemplate
+) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
 
     This is an expensive operation.
@@ -43,17 +46,17 @@ def _scan_for_headers(segy_file: SegyFile, domain: str) -> tuple[list[Dimension]
     # The 'grid_chunksize' is used only for grid_overrides
     # While we do not support grid override, we can set it to None
     grid_chunksize = None
-    segy_dimensions, chunksize, index_headers = get_grid_plan_v1(
+    segy_dimensions, chunksize, segy_headers = get_grid_plan_v1(
         segy_file=segy_file,
         return_headers=True,
-        domain=domain,
+        template=template,
         chunksize=grid_chunksize,
         grid_overrides=None,
     )
-    return segy_dimensions, index_headers
+    return segy_dimensions, segy_headers
 
 
-def _get_data_coordinates(
+def _get_coordinates(
     segy_dimensions: list[Dimension],
     segy_headers: SegyHeaderArray,
     mdio_template: AbstractDatasetTemplate,
@@ -99,26 +102,41 @@ def _get_data_coordinates(
     return dimensions_coords, non_dim_coords
 
 
-def populate_coordinate(
-    dataset: xr_Dataset, coordinates: list[Dimension], vars_to_drop_later: list[str]
+def _populate_coord(
+    dataset: xr_Dataset, name: str, values: np.ndarray, vars_to_drop_later: list[str]
 ) -> xr_Dataset:
-    """Populate the xarray dataset with coordinate variable."""
+    """Helper to populate or drop a single coordinate."""
+    # If we do not have data for the coordinate variable, drop it
+    if len(values) == 1:
+        scalar_type = to_scalar_type(values.dtype)
+        fill_value = fill_value_map[scalar_type]
+        if values[0] == fill_value:
+            return dataset.drop_vars(name)
+    # Otherwise, populate the coordinate
+    shape = dataset.coords[name].shape
+    dims = dataset.coords[name].dims
+    if shape != values.shape:
+        values = values.reshape(shape)
+    dataset.coords[name] = (dims, values)
+    vars_to_drop_later.append(name)
+    return dataset
+
+
+def populate_dim_coordinate(
+    dataset: xr_Dataset, coordinates: list[Dimension], vars_to_drop_later: list[str]
+) -> tuple[xr_Dataset, list[str]]:
+    """Populate the xarray dataset with dimension coordinate variables."""
     for c in coordinates:
-        #  If we do not have data for the coordinate variable, drop it
-        if len(c.coords) == 1:
-            scalar_type = to_scalar_type(c.coords.dtype)
-            full_value = fill_value_map[scalar_type]
-            if c.coords[0] == full_value:
-                dataset = dataset.drop_vars(c.name)
-                continue
-        # Otherwise, populate the coordinate variable
-        values = c.coords
-        shape = dataset.coords[c.name].shape
-        dims = dataset.coords[c.name].dims
-        if shape != values.shape:
-            values = values.reshape(shape)
-        dataset.coords[c.name] = (dims, values)
-        vars_to_drop_later.append(c.name)
+        dataset = _populate_coord(dataset, c.name, c.coords, vars_to_drop_later)
+    return dataset, vars_to_drop_later
+
+
+def populate_non_dim_coordinate(
+    dataset: xr_Dataset, coordinates: dict[str, SegyHeaderArray], vars_to_drop_later: list[str]
+) -> tuple[xr_Dataset, list[str]]:
+    """Populate the xarray dataset with coordinate variables."""
+    for c_name, c_values in coordinates.items():
+        dataset = _populate_coord(dataset, c_name, c_values, vars_to_drop_later)
     return dataset, vars_to_drop_later
 
 
@@ -142,7 +160,9 @@ def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnit
 
 
 def _populate_coordinates(
-    dataset: xr_Dataset, dimension_coords: list[Dimension], non_dim_coords: list[Dimension]
+    dataset: xr_Dataset,
+    dimension_coords: list[Dimension],
+    non_dim_coords: dict[str, SegyHeaderArray],
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
 
@@ -150,12 +170,12 @@ def _populate_coordinates(
     """
     vars_to_drop_later = []
     # Populate the dimension coordinate variables (1-D arrays)
-    dataset, vars_to_drop_later = populate_coordinate(
+    dataset, vars_to_drop_later = populate_dim_coordinate(
         dataset, coordinates=dimension_coords, vars_to_drop_later=vars_to_drop_later
     )
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
-    dataset, vars_to_drop_later = populate_coordinate(
+    dataset, vars_to_drop_later = populate_non_dim_coordinate(
         dataset, coordinates=non_dim_coords, vars_to_drop_later=vars_to_drop_later
     )
 
@@ -164,15 +184,15 @@ def _populate_coordinates(
 
 def _populate_trace_mask(
     segy_file: SegyFile,
-    dimensions: list[Dimension],
-    segy_index_headers: SegyHeaderArray,
+    segy_dimensions: list[Dimension],
+    segy_headers: SegyHeaderArray,
     dataset: xr_Dataset,
-) -> tuple[zarr_Array, zarr_Array]:
+) -> tuple[xr_Dataset, zarr_Array]:
     """Populate and write the trace mask to Zarr, return the grid map as Zarr array."""
     # Create a grid and build live trace index
-    grid = Grid(dims=dimensions)
+    grid = Grid(dims=segy_dimensions)
     grid_density_qc(grid, segy_file.num_traces)
-    grid.build_map(segy_index_headers)
+    grid.build_map(segy_headers)
     dataset.trace_mask.data[:] = grid.live_mask
     return dataset, grid.map
 
@@ -186,6 +206,8 @@ def segy_to_mdio_v1(
 ) -> None:
     """A function that converts a SEG-Y file to an MDIO v1 file.
 
+    Ingest a SEG-Y file according to the segy_spec. This could be a spec from registry or custom.
+
     Args:
         segy_spec: The SEG-Y specification to use for the conversion.
         mdio_template: The MDIO template to use for the conversion.
@@ -197,33 +219,29 @@ def segy_to_mdio_v1(
         FileExistsError: If the output location already exists and overwrite is False.
     """
     if not overwrite and output_location.exists():
-        err = f"Output location '{output_location.uri}' already exists."
-        err += " Set 'overwrite' to True to overwrite it."
+        err = f"Output location '{output_location.uri}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)
 
-    # Open a SEG-Y file according to the SegySpec
-    # This could be a spec from the registryy or a custom spec
     segy_settings = SegySettings(storage_options=input_location.options)
     segy_file = SegyFile(url=input_location.uri, spec=segy_spec, settings=segy_settings)
 
     # Scan the SEG-Y file for headers
-    # This is an memory-expensive and time-consuming read-write operation
-    segy_headers, segy_index_headers = _scan_for_headers(segy_file, mdio_template.trace_domain)
-    # Extract dim and non-dim coordinates according to the MDIO template
-    dimension_coords, non_dim_coords = _get_data_coordinates(
-        segy_headers, segy_index_headers, mdio_template
+    segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template)
+
+    dimension_coords, non_dim_coords = _get_coordinates(
+        segy_dimensions, segy_headers, mdio_template
     )
     shape = [len(dim.coords) for dim in dimension_coords]
-    headers = to_structured_type(segy_index_headers.dtype)
+    headers = to_structured_type(segy_headers.dtype)
 
-    horizontal_unit = _get_horizontal_coordinate_unit(segy_headers)
+    horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name, sizes=shape, horizontal_coord_unit=horizontal_unit, headers=headers
     )
     # TODO(Dmitriy Repin): work around of the bug
     # https://github.com/TGSAI/mdio-python/issues/582
     # Do not set _FillValue for the "header" variable, which has structured data type
-    xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds, no_fill_var_names={"headers"})
+    xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds, no_fill_var_names=["headers"])
 
     xr_dataset, vars_to_drop_later = _populate_coordinates(
         dataset=xr_dataset,
@@ -233,8 +251,8 @@ def segy_to_mdio_v1(
 
     xr_dataset, grid_map = _populate_trace_mask(
         segy_file=segy_file,
-        dimensions=dimension_coords,
-        segy_index_headers=segy_index_headers,
+        segy_dimensions=dimension_coords,
+        segy_headers=segy_headers,
         dataset=xr_dataset,
     )
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
