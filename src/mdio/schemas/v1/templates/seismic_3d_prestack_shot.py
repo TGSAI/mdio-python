@@ -12,13 +12,17 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
     def __init__(self, domain: str):
         super().__init__(domain=domain)
 
-        self._coord_dim_names = []  # Custom coordinate definition for shot gathers
-        self._dim_names = ["shot_point", "cable", "channel", self._trace_domain]
+        self._coord_dim_names = [
+            "shot_point",
+            "cable",
+            "channel",
+        ]  # Custom coordinate definition for shot gathers
+        self._dim_names = [*self._coord_dim_names, self._trace_domain]
         self._coord_names = ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
-        self._var_name = "AmplitudeShot"
         self._var_chunk_shape = [1, 1, 512, 4096]
 
-    def _get_name(self) -> str:
+    @property
+    def _name(self) -> str:
         return f"PreStackShotGathers3D{self._trace_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> UserAttributes:
@@ -31,6 +35,16 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         )
 
     def _add_coordinates(self) -> None:
+        # Add dimension coordinates
+        for name in self._dim_names:
+            self._builder.add_coordinate(
+                name,
+                dimensions=[name],
+                data_type=ScalarType.INT32,
+                metadata_info=None,
+            )
+
+        # Add non-dimension coordinates
         self._builder.add_coordinate(
             "gun",
             dimensions=["shot_point"],
@@ -41,23 +55,23 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
             "shot-x",
             dimensions=["shot_point"],
             data_type=ScalarType.FLOAT64,
-            metadata_info=[self._coord_units[0]],
+            metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "shot-y",
             dimensions=["shot_point"],
             data_type=ScalarType.FLOAT64,
-            metadata_info=[self._coord_units[1]],
+            metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "receiver-x",
             dimensions=["shot_point", "cable", "channel"],
             data_type=ScalarType.FLOAT64,
-            metadata_info=[self._coord_units[0]],
+            metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "receiver-y",
             dimensions=["shot_point", "cable", "channel"],
             data_type=ScalarType.FLOAT64,
-            metadata_info=[self._coord_units[1]],
+            metadata_info=[self._horizontal_coord_unit],
         )

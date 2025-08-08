@@ -12,12 +12,14 @@ from dask.array.core import normalize_chunks
 
 from mdio.core import Dimension
 from mdio.segy.geometry import GridOverrider
-from mdio.segy.parsers import parse_index_headers
+from mdio.segy.parsers import parse_headers
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
     from segy import SegyFile
     from segy.arrays import HeaderArray
+
+    from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 def get_grid_plan(  # noqa:  C901
     segy_file: SegyFile,
-    chunksize: list[int],
+    chunksize: tuple[int, ...] | None,
+    template: AbstractDatasetTemplate,
     return_headers: bool = False,
     grid_overrides: dict[str, Any] | None = None,
 ) -> tuple[list[Dimension], tuple[int, ...]] | tuple[list[Dimension], tuple[int, ...], HeaderArray]:
@@ -40,6 +43,7 @@ def get_grid_plan(  # noqa:  C901
     Args:
         segy_file: SegyFile instance.
         chunksize:  Chunk sizes to be used in grid plan.
+        template: MDIO template where coordinate names and domain will be taken.
         return_headers: Option to return parsed headers with `Dimension` objects. Default is False.
         grid_overrides: Option to add grid overrides. See main documentation.
 
@@ -49,37 +53,37 @@ def get_grid_plan(  # noqa:  C901
     if grid_overrides is None:
         grid_overrides = {}
 
-    index_headers = parse_index_headers(segy_file=segy_file)
-    index_names = list(index_headers.dtype.names)
-
-    dims = []
+    # Keep only dimension and non-dimension coordinates excluding the vertical axis
+    horizontal_dimensions = template.dimension_names[:-1]
+    horizontal_coordinates = horizontal_dimensions + template.coordinate_names
+    headers_subset = parse_headers(segy_file=segy_file, subset=horizontal_coordinates)
 
     # Handle grid overrides.
     override_handler = GridOverrider()
-    index_headers, index_names, chunksize = override_handler.run(
-        index_headers,
-        index_names,
+    headers_subset, horizontal_coordinates, chunksize = override_handler.run(
+        headers_subset,
+        horizontal_coordinates,
         chunksize=chunksize,
         grid_overrides=grid_overrides,
     )
 
-    for index_name in index_names:
-        dim_unique = np.unique(index_headers[index_name])
-        dims.append(Dimension(coords=dim_unique, name=index_name))
+    dimensions = []
+    for dim_name in horizontal_dimensions:
+        dim_unique = np.unique(headers_subset[dim_name])
+        dimensions.append(Dimension(coords=dim_unique, name=dim_name))
 
     sample_labels = segy_file.sample_labels / 1000  # normalize
 
     if all(sample_labels.astype("int64") == sample_labels):
         sample_labels = sample_labels.astype("int64")
 
-    sample_dim = Dimension(coords=sample_labels, name="sample")
-
-    dims.append(sample_dim)
+    vertical_dim = Dimension(coords=sample_labels, name=template.trace_domain)
+    dimensions.append(vertical_dim)
 
     if return_headers:
-        return dims, chunksize, index_headers
+        return dimensions, chunksize, headers_subset
 
-    return dims, chunksize
+    return dimensions, chunksize
 
 
 def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:

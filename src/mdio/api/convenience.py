@@ -79,7 +79,11 @@ def copy_mdio(  # noqa: PLR0913
 
         writer.live_mask[:] = reader.live_mask[:]
 
-        iterator = ChunkIterator(reader._traces, chunk_samples=False)
+        shape = reader._traces.shape
+        chunks = reader._traces.chunks
+        chunks = chunks[:-1] + (shape[-1],)  # don't chunk samples
+
+        iterator = ChunkIterator(shape=shape, chunks=chunks)
         progress = tqdm(iterator, unit="block")
         progress.set_description(desc=f"Copying data for '{access_pattern=}'")
         for slice_ in progress:
@@ -177,7 +181,10 @@ def create_rechunk_plan(
 
     n_dimension = len(data_array.shape)
     dummy_array = zarr.empty(shape=data_array.shape, chunks=(MAX_BUFFER,) * n_dimension)
-    iterator = ChunkIterator(dummy_array)
+
+    shape = dummy_array.shape
+    chunks = dummy_array.chunks
+    iterator = ChunkIterator(shape=shape, chunks=chunks)
 
     return metadata_arrs, data_arrs, live_mask, iterator
 

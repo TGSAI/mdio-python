@@ -38,9 +38,9 @@ def test_add_coordinate() -> None:
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
         builder.add_coordinate("", dimensions=["speed"], data_type=ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_coordinate("cdp-x", dimensions=None, data_type=ScalarType.FLOAT32)
+        builder.add_coordinate("cdp_x", dimensions=None, data_type=ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_coordinate("cdp-x", dimensions=[], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate("cdp_x", dimensions=[], data_type=ScalarType.FLOAT32)
 
     # Add a variable using non-existent dimensions
     msg = "Pre-existing dimension named 'xline' is not found"
@@ -51,14 +51,14 @@ def test_add_coordinate() -> None:
 
     # Validate state transition
     builder.add_coordinate(
-        "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
+        "cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
     )
     validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
     validate_variable(
         builder,
-        name="cdp-x",
+        name="cdp_x",
         dims=[("inline", 100), ("crossline", 200)],
-        coords=["cdp-x"],
+        coords=["cdp_x"],
         dtype=ScalarType.FLOAT32,
     )
 
@@ -66,7 +66,7 @@ def test_add_coordinate() -> None:
     msg = "Adding coordinate with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
         builder.add_coordinate(
-            "cdp-x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
+            "cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
         )
 
 

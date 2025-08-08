@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from mdio.api.accessor import MDIOWriter
-from mdio.converters.segy import get_compressor
 from mdio.core.dimension import Dimension
 from mdio.core.factory import MDIOCreateConfig
 from mdio.core.factory import MDIOVariableConfig
@@ -136,6 +135,11 @@ def numpy_to_mdio(  # noqa: PLR0913
     suffix = [dim_chunks if dim_chunks > 0 else None for dim_chunks in chunksize]
     suffix = [str(idx) for idx, value in enumerate(suffix) if value is not None]
     suffix = "".join(suffix)
+
+    # TODO(Dmitrit Repin): Implement Numpy converted in MDIO v1
+    # https://github.com/TGSAI/mdio-python/issues/596
+    def get_compressor(lossless: bool, tolerance: float) -> list[str]:
+        pass
 
     compressors = get_compressor(lossless, compression_tolerance)
     mdio_var = MDIOVariableConfig(

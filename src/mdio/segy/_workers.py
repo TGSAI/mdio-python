@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import TypedDict
 from typing import cast
 
@@ -15,9 +14,14 @@ if TYPE_CHECKING:
     from segy.arrays import HeaderArray
     from segy.config import SegySettings
     from segy.schema import SegySpec
-    from zarr import Array
+    from xarray import Dataset as xr_Dataset
+    from zarr import Array as zarr_Array
 
-    from mdio.core import Grid
+    from mdio.core.storage_location import StorageLocation
+
+from mdio.constants import UINT32_MAX
+from mdio.schemas.v1.stats import CenteredBinHistogram
+from mdio.schemas.v1.stats import SummaryStatistics
 
 
 class SegyFileArguments(TypedDict):
@@ -29,8 +33,7 @@ class SegyFileArguments(TypedDict):
 
 
 def header_scan_worker(
-    segy_kw: SegyFileArguments,
-    trace_range: tuple[int, int],
+    segy_kw: SegyFileArguments, trace_range: tuple[int, int], subset: list[str] | None = None
 ) -> HeaderArray:
     """Header scan worker.
 
@@ -40,6 +43,7 @@ def header_scan_worker(
     Args:
         segy_kw: Arguments to open SegyFile instance.
         trace_range: Tuple consisting of the trace ranges to read.
+        subset: List of header names to filter and keep.
 
     Returns:
         HeaderArray parsed from SEG-Y library.
@@ -55,6 +59,9 @@ def header_scan_worker(
     else:
         trace_header = segy_file.header[slice_]
 
+    if subset is not None:
+        trace_header = trace_header[subset]
+
     # Get non-void fields from dtype and copy to new array for memory efficiency
     fields = trace_header.dtype.fields
     non_void_fields = [(name, dtype) for name, (dtype, _) in fields.items()]
@@ -67,72 +74,68 @@ def header_scan_worker(
     return cast("HeaderArray", trace_header)
 
 
-def trace_worker(
+def trace_worker(  # noqa: PLR0913
     segy_kw: SegyFileArguments,
-    data_array: Array,
-    metadata_array: Array,
-    grid: Grid,
-    chunk_indices: tuple[slice, ...],
-) -> tuple[Any, ...] | None:
-    """Worker function for multi-process enabled blocked SEG-Y I/O.
-
-    Performance of `zarr.Array` writes is slow if data isn't aligned with chunk boundaries,
-    sacrificing sequential reads of SEG-Y files. This won't be an issue with SSDs or cloud.
-
-    It retrieves trace numbers from the grid and gathers the current chunk's SEG-Y trace indices.
-    Then, it fills a temporary array in memory and writes to the `zarr.Array` chunk. We take full
-    slices across the sample dimension since SEG-Y data isn't chunked, eliminating concern.
+    output_location: StorageLocation,
+    data_variable_name: str,
+    region: dict[str, slice],
+    grid_map: zarr_Array,
+    dataset: xr_Dataset,
+) -> SummaryStatistics | None:
+    """Writes a subset of traces from a region of the dataset of Zarr file.
 
     Args:
         segy_kw: Arguments to open SegyFile instance.
-        data_array: Handle for zarr.Array we are writing traces to
-        metadata_array: Handle for zarr.Array we are writing trace headers
-        grid: mdio.Grid instance
-        chunk_indices: Tuple consisting of the chunk slice indices for each dimension
+        output_location: StorageLocation for the output Zarr dataset
+            (e.g. local file path or cloud storage URI) the location
+            also includes storage options for cloud storage.
+        data_variable_name: Name of the data variable to write.
+        region: Region of the dataset to write to.
+        grid_map: Zarr array mapping live traces to their positions in the dataset.
+        dataset: Xarray dataset containing the data to write.
 
     Returns:
-        Partial statistics for chunk, or None
+        SummaryStatistics object containing statistics about the written traces.
     """
-    # Special case where there are no traces inside chunk.
+    if not dataset.trace_mask.any():
+        return None
+
+    # Open the SEG-Y file in every new process / spawned worker since the
+    # open file handles cannot be shared across processes.
     segy_file = SegyFile(**segy_kw)
-    live_subset = grid.live_mask[chunk_indices[:-1]]
 
-    if np.count_nonzero(live_subset) == 0:
-        return None
+    not_null = grid_map != UINT32_MAX
 
-    # Let's get trace numbers from grid map using the chunk indices.
-    seq_trace_indices = grid.map[chunk_indices[:-1]]
+    live_trace_indexes = grid_map[not_null].tolist()
+    traces = segy_file.trace[live_trace_indexes]
 
-    tmp_data = np.zeros(seq_trace_indices.shape + (grid.shape[-1],), dtype=data_array.dtype)
-    tmp_metadata = np.zeros(seq_trace_indices.shape, dtype=metadata_array.dtype)
+    # Get subset of the dataset that has not yet been saved
+    # The headers might not be present in the dataset
+    # TODO(Dmitriy Repin): Check, should we overwrite the 'dataset' instead to save the memory
+    # https://github.com/TGSAI/mdio-python/issues/584
+    if "headers" in dataset.data_vars:
+        ds_to_write = dataset[[data_variable_name, "headers"]]
+        ds_to_write = ds_to_write.reset_coords()
 
-    del grid  # To save some memory
+        ds_to_write["headers"].data[not_null] = traces.header
+        ds_to_write["headers"].data[~not_null] = 0
+    else:
+        ds_to_write = dataset[[data_variable_name]]
+        ds_to_write = ds_to_write.reset_coords()
 
-    # Read headers and traces for block
-    valid_indices = seq_trace_indices[live_subset]
+    ds_to_write[data_variable_name].data[not_null] = traces.sample
 
-    traces = segy_file.trace[valid_indices.tolist()]
-    headers, samples = traces["header"], traces["data"]
+    out_path = output_location.uri
+    ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
 
-    tmp_metadata[live_subset] = headers.view(tmp_metadata.dtype)
-    tmp_data[live_subset] = samples
-
-    # Flush metadata to zarr
-    metadata_array.set_basic_selection(selection=chunk_indices[:-1], value=tmp_metadata)
-
-    nonzero_mask = samples != 0
-    nonzero_count = nonzero_mask.sum(dtype="uint32")
-
-    if nonzero_count == 0:
-        return None
-
-    data_array.set_basic_selection(selection=chunk_indices, value=tmp_data)
-
-    # Calculate statistics
-    tmp_data = samples[nonzero_mask]
-    chunk_sum = tmp_data.sum(dtype="float64")
-    chunk_sum_squares = np.square(tmp_data, dtype="float64").sum()
-    min_val = tmp_data.min()
-    max_val = tmp_data.max()
-
-    return nonzero_count, chunk_sum, chunk_sum_squares, min_val, max_val
+    histogram = CenteredBinHistogram(bin_centers=[], counts=[])
+    return SummaryStatistics(
+        count=traces.sample.size,
+        min=traces.sample.min(),
+        max=traces.sample.max(),
+        sum=traces.sample.sum(),
+        # TODO(Altay): Look at how to do the sum squares statistic correctly
+        # https://github.com/TGSAI/mdio-python/issues/581
+        sum_squares=(traces.sample**2).sum(),
+        histogram=histogram,
+    )
