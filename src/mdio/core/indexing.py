@@ -6,7 +6,7 @@ from math import ceil
 import numpy as np
 
 
-class ChunkIteratorV1:
+class ChunkIterator:
     """Chunk iterator for multi-dimensional arrays.
 
     This iterator takes an array shape and chunks and every time it is iterated, it returns
@@ -30,13 +30,13 @@ class ChunkIteratorV1:
         >> shape = (5, 11, 19)
         >> dims = ["inline", "crossline", "depth"]
         >>
-        >> iter = ChunkIteratorV1(shape=shape, chunks=chunks, dim_names=dims)
+        >> iter = ChunkIterator(shape=shape, chunks=chunks, dim_names=dims)
         >> for i in range(13):
         >>    region = iter.__next__()
         >> print(region)
         { "inline": slice(3,6, None), "crossline": slice(0,4, None), "depth": slice(0,5, None) }
 
-        >> iter = ChunkIteratorV1(shape=shape, chunks=chunks, dim_names=None)
+        >> iter = ChunkIterator(shape=shape, chunks=chunks, dim_names=None)
         >> for i in range(13):
         >>    region = iter.__next__()
         >> print(region)
@@ -65,7 +65,7 @@ class ChunkIteratorV1:
         self._ranges = itertools.product(*dim_ranges)
         self._idx = 0
 
-    def __iter__(self) -> "ChunkIteratorV1":
+    def __iter__(self) -> "ChunkIterator":
         """Iteration context."""
         return self
 
@@ -79,7 +79,7 @@ class ChunkIteratorV1:
             # We build slices here. It is dimension agnostic
             current_start = next(self._ranges)
 
-            # TODO (Dmitriy Repin): Enhance ChunkIteratorV1 to make the last slice, if needed, smaller
+            # TODO (Dmitriy Repin): Enhance ChunkIterator to make the last slice, if needed, smaller
             # https://github.com/TGSAI/mdio-python/issues/586
             start_indices = tuple(
                 dim * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True)

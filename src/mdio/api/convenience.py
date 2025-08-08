@@ -11,7 +11,7 @@ from tqdm.auto import tqdm
 from mdio import MDIOReader
 from mdio import MDIOWriter
 from mdio.core.factory import create_empty_like
-from mdio.core.indexing import ChunkIteratorV1
+from mdio.core.indexing import ChunkIterator
 
 if TYPE_CHECKING:
     from typing import Any
@@ -83,7 +83,7 @@ def copy_mdio(  # noqa: PLR0913
         chunks = reader._traces.chunks
         chunks = chunks[:-1] + (shape[-1],)  # don't chunk samples
 
-        iterator = ChunkIteratorV1(shape=shape, chunks=chunks)
+        iterator = ChunkIterator(shape=shape, chunks=chunks)
         progress = tqdm(iterator, unit="block")
         progress.set_description(desc=f"Copying data for '{access_pattern=}'")
         for slice_ in progress:
@@ -107,7 +107,7 @@ def create_rechunk_plan(
     suffix_list: list[str],
     compressors: CompressorsLike = None,
     overwrite: bool = False,
-) -> tuple[[list[Array]], list[Array], NDArray, ChunkIteratorV1]:
+) -> tuple[[list[Array]], list[Array], NDArray, ChunkIterator]:
     """Create a rechunk plan based on source and user input.
 
     It will buffer 512 x n-dimensions in memory. Approximately
@@ -184,7 +184,7 @@ def create_rechunk_plan(
 
     shape = dummy_array.shape
     chunks = dummy_array.chunks
-    iterator = ChunkIteratorV1(shape=shape, chunks=chunks)
+    iterator = ChunkIterator(shape=shape, chunks=chunks)
 
     return metadata_arrs, data_arrs, live_mask, iterator
 
@@ -195,7 +195,7 @@ def write_rechunked_values(  # noqa: PLR0913
     metadata_arrs_out: list[Array],
     data_arrs_out: list[Array],
     live_mask: NDArray,
-    iterator: ChunkIteratorV1,
+    iterator: ChunkIterator,
 ) -> None:
     """Create rechunk plan based on source and user input.
 

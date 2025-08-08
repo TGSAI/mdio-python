@@ -4,16 +4,16 @@ import numpy as np
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
 
-from mdio.core.indexing import ChunkIteratorV1
+from mdio.core.indexing import ChunkIterator
 
 
 def test_chunk_iterator_returning_dict() -> None:
-    """Test the ChunkIteratorV1 class."""
+    """Test the ChunkIterator class."""
     dims = ["inline", "crossline", "depth"]
     chunks = (3, 4, 5)
 
     shape = (6, 12, 20)
-    iter1 = ChunkIteratorV1(shape=shape, chunks=chunks, dim_names=dims)
+    iter1 = ChunkIterator(shape=shape, chunks=chunks, dim_names=dims)
     assert iter1.arr_shape == shape
     assert iter1.dims == dims
     assert iter1.len_chunks == chunks
@@ -21,7 +21,7 @@ def test_chunk_iterator_returning_dict() -> None:
     assert iter1.num_chunks == 24
 
     shape = (5, 11, 19)
-    iter2 = ChunkIteratorV1(shape=shape, chunks=chunks, dim_names=dims)
+    iter2 = ChunkIterator(shape=shape, chunks=chunks, dim_names=dims)
     assert iter2.dim_chunks == (2, 3, 4)
     assert iter2.num_chunks == 24
 
@@ -45,11 +45,11 @@ def test_chunk_iterator_returning_dict() -> None:
 
 
 def test_chunk_iterator_returning_tuple() -> None:
-    """Test the ChunkIteratorV1 class."""
+    """Test the ChunkIterator class."""
     chunks = (3, 4, 5)
 
     shape = (6, 12, 20)
-    iter1 = ChunkIteratorV1(shape=shape, chunks=chunks)
+    iter1 = ChunkIterator(shape=shape, chunks=chunks)
     assert iter1.arr_shape == shape
     assert iter1.dims is None
     assert iter1.len_chunks == chunks
@@ -57,7 +57,7 @@ def test_chunk_iterator_returning_tuple() -> None:
     assert iter1.num_chunks == 24
 
     shape = (5, 11, 19)
-    iter2 = ChunkIteratorV1(shape=shape, chunks=chunks)
+    iter2 = ChunkIterator(shape=shape, chunks=chunks)
     assert iter2.dim_chunks == (2, 3, 4)
     assert iter2.num_chunks == 24
 
@@ -108,7 +108,7 @@ def mock_trace_worker(
 
 
 def test_chunk_iterator_with_dataset() -> None:
-    """Test the ChunkIteratorV1 with a dataset."""
+    """Test the ChunkIterator with a dataset."""
     shape = (6, 12, 20)
     dims = ["inline", "crossline", "depth"]
     chunks = (3, 4, 5)
@@ -117,7 +117,7 @@ def test_chunk_iterator_with_dataset() -> None:
     amplitude = xr_DataArray(data3, dims=dims, name="amplitude")
     ds = xr_Dataset({"amplitude": amplitude})
 
-    chunk_iter = ChunkIteratorV1(shape, chunks, dims)
+    chunk_iter = ChunkIterator(shape, chunks, dims)
     for region in chunk_iter:
         # If one needs both a dict and a tuple of slices,
         # one can use the following line an example to strip dim names out

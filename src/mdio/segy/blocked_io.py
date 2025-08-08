@@ -17,7 +17,7 @@ from tqdm.auto import tqdm
 from zarr import consolidate_metadata as zarr_consolidate_metadata
 from zarr import open_group as zarr_open_group
 
-from mdio.core.indexing import ChunkIteratorV1
+from mdio.core.indexing import ChunkIterator
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
 from mdio.segy._workers import trace_worker
@@ -85,7 +85,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     dim_names = list(data.dims)
     # Initialize chunk iterator
     # Since the dimensions are provided, it will return a dict of slices
-    chunk_iter = ChunkIteratorV1(shape=data.shape, chunks=chunks, dim_names=dim_names)
+    chunk_iter = ChunkIterator(shape=data.shape, chunks=chunks, dim_names=dim_names)
     num_chunks = chunk_iter.num_chunks
 
     # The following could be extracted in a function to allow executor injection
