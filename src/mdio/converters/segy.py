@@ -135,6 +135,35 @@ def _scan_for_headers(
     return segy_dimensions, segy_headers
 
 
+def _build_and_check_grid(
+    segy_dimensions: list[Dimension], segy_file: SegyFile, segy_headers: SegyHeaderArray
+) -> Grid:
+    """Build and check the grid from the SEG-Y headers and dimensions.
+
+    Args:
+        segy_dimensions: List of of all SEG-Y dimensions to build grid from.
+        segy_file: Instance of SegyFile to check for trace count.
+        segy_headers: Headers read in from SEG-Y file for building the trace map.
+
+    Returns:
+        A grid instance populated with the dimensions and trace index map.
+
+    Raises:
+        GridTraceCountError: If number of traces in SEG-Y file does not match the parsed gri
+    """
+    grid = Grid(dims=segy_dimensions)
+    grid_density_qc(grid, segy_file.num_traces)
+    grid.build_map(segy_headers)
+    # Check grid validity by comparing trace numbers
+    if np.sum(grid.live_mask) != segy_file.num_traces:
+        for dim_name in grid.dim_names:
+            dim_min, dim_max = grid.get_min(dim_name), grid.get_max(dim_name)
+            logger.warning("%s min: %s max: %s", dim_name, dim_min, dim_max)
+        logger.warning("Ingestion grid shape: %s.", grid.shape)
+        raise GridTraceCountError(np.sum(grid.live_mask), segy_file.num_traces)
+    return grid
+
+
 def _get_coordinates(
     segy_dimensions: list[Dimension],
     segy_headers: SegyHeaderArray,
@@ -275,7 +304,6 @@ def segy_to_mdio(
 
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
-        GridTraceCountError: If number of traces in SEG-Y file does not match the parsed grid
     """
     if not overwrite and output_location.exists():
         err = f"Output location '{output_location.uri}' exists. Set `overwrite=True` if intended."
@@ -287,18 +315,7 @@ def segy_to_mdio(
     # Scan the SEG-Y file for headers
     segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template)
 
-    # Build grid
-    grid = Grid(dims=segy_dimensions)
-    grid_density_qc(grid, segy_file.num_traces)
-    grid.build_map(segy_headers)
-
-    # Check grid validity by comparing trace numbers
-    if np.sum(grid.live_mask) != segy_file.num_traces:
-        for dim_name in grid.dim_names:
-            dim_min, dim_max = grid.get_min(dim_name), grid.get_max(dim_name)
-            logger.warning("%s min: %s max: %s", dim_name, dim_min, dim_max)
-        logger.warning("Ingestion grid shape: %s.", grid.shape)
-        raise GridTraceCountError(np.sum(grid.live_mask), segy_file.num_traces)
+    grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
 
     dimensions, non_dim_coords = _get_coordinates(segy_dimensions, segy_headers, mdio_template)
     shape = [len(dim.coords) for dim in dimensions]
