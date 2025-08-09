@@ -13,12 +13,18 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         super().__init__(domain=domain)
 
         self._coord_dim_names = [
-            "shot_point",
+            "energy_source_point_num",
             "cable",
             "channel",
         ]  # Custom coordinate definition for shot gathers
         self._dim_names = [*self._coord_dim_names, self._trace_domain]
-        self._coord_names = ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
+        self._coord_names = [
+            "gun",
+            "source_coord_x",
+            "source_coord_y",
+            "group_coord_x",
+            "group_coord_y",
+        ]
         self._var_chunk_shape = [1, 1, 512, 4096]
 
     @property
@@ -47,31 +53,31 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         # Add non-dimension coordinates
         self._builder.add_coordinate(
             "gun",
-            dimensions=["shot_point"],
+            dimensions=["energy_source_point_num", "cable", "channel"],
             data_type=ScalarType.UINT8,
             metadata_info=[AllUnits(units_v1=None)],
         )
         self._builder.add_coordinate(
-            "shot-x",
-            dimensions=["shot_point"],
+            "source_coord_x",
+            dimensions=["energy_source_point_num", "cable", "channel"],
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
-            "shot-y",
-            dimensions=["shot_point"],
+            "source_coord_y",
+            dimensions=["energy_source_point_num", "cable", "channel"],
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
-            "receiver-x",
-            dimensions=["shot_point", "cable", "channel"],
+            "group_coord_x",
+            dimensions=["energy_source_point_num", "cable", "channel"],
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
-            "receiver-y",
-            dimensions=["shot_point", "cable", "channel"],
+            "group_coord_y",
+            dimensions=["energy_source_point_num", "cable", "channel"],
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )

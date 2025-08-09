@@ -38,14 +38,15 @@ class AbstractDatasetTemplate(ABC):
         # e.g. ["cdp", "depth"] for 2D post-stack depth
         # e.g. ["inline", "crossline", "depth"] for 3D post-stack depth
         # e.g. ["inline", "crossline", "offset", "depth"] for 3D pre-stack depth CPD gathers
-        # e.g. ["shot_point", "cable", "channel", "time"] for 3D pre-stack time Shot gathers
+        # e.g. ["energy_source_point_num", "cable", "channel", "time"] for 3D pre-stack
+        #      time Shot gathers
         self._dim_names = []
         # Names of all coordinates in the dataset
         # e.g. ["cdp_x", "cdp_y"] for 2D post-stack depth
         # e.g. ["cdp_x", "cdp_y"] for 3D post-stack depth
         # e.g. ["cdp_x", "cdp_y"] for 3D pre-stack CPD depth
-        # e.g. ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"] for 3D pre-stack
-        #      time Shot gathers
+        # e.g. ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
+        #      for 3D pre-stack time Shot gathers
         self._coord_names = []
         # Chunk shape for the variable in the dataset
         # e.g. [1024, 1024] for 2D post-stack depth
