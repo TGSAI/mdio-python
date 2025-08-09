@@ -1,17 +1,11 @@
 """This module provides testing helpers for integration testing."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from typing import Callable
 
 import numpy as np
+import xarray as xr
 from segy.schema import HeaderField
 from segy.schema import SegySpec
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    import xarray as xr
 
 
 def customize_segy_specs(

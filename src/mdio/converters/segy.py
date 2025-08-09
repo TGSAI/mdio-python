@@ -319,7 +319,7 @@ def segy_to_mdio(
 
     dimensions, non_dim_coords = _get_coordinates(segy_dimensions, segy_headers, mdio_template)
     shape = [len(dim.coords) for dim in dimensions]
-    headers = to_structured_type(segy_headers.dtype)
+    headers = to_structured_type(segy_spec.trace.header.dtype)
 
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
