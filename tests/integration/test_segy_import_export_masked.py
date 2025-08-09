@@ -316,9 +316,7 @@ class TestNdImportExport:
             assert expected.start == actual_dim.values[0]
 
         live_mask = ds["trace_mask"].values
-
-        expected_sizes = [d.size for d in expected_dims]
-        num_traces = np.prod(expected_sizes)
+        num_traces = np.prod(live_mask.shape)
 
         # Ensure live mask is full
         np.testing.assert_equal(live_mask.ravel(), True)
