@@ -5,6 +5,8 @@ from typing import Optional
 
 from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 from mdio.schemas.v1.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
+from mdio.schemas.v1.templates.seismic_2d_prestack_cdp import Seismic2DPreStackCDPTemplate
+from mdio.schemas.v1.templates.seismic_2d_prestack_shot import Seismic2DPreStackShotTemplate
 from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.schemas.v1.templates.seismic_3d_prestack_cdp import Seismic3DPreStackCDPTemplate
 from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
@@ -68,6 +70,12 @@ class TemplateRegistry:
         """
         self.register(Seismic2DPostStackTemplate("time"))
         self.register(Seismic2DPostStackTemplate("depth"))
+
+        self.register(Seismic2DPreStackCDPTemplate("time"))
+        self.register(Seismic2DPreStackCDPTemplate("depth"))
+
+        self.register(Seismic2DPreStackShotTemplate("time"))
+        self.register(Seismic2DPreStackShotTemplate("depth"))
 
         self.register(Seismic3DPostStackTemplate("time"))
         self.register(Seismic3DPostStackTemplate("depth"))
