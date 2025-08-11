@@ -308,7 +308,9 @@ class TestNdImportExport:
         mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
 
         # Open the MDIO file
-        ds = xr.open_dataset(mdio_path, engine="zarr")
+        # NOTE: If mask_and_scale is not set, 
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(mdio_path, engine="zarr", mask_and_scale=False)
 
         # Test dimensions and ingested dimension headers
         expected_dims = grid_conf.dims

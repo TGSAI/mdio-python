@@ -292,7 +292,9 @@ class TestReader:
         """Metadata reading tests."""
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set, 
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         expected_attrs = {
             "apiVersion": "1.0.0a1",
             "createdOn": "2025-08-06 16:21:54.747880+00:00",
@@ -310,8 +312,10 @@ class TestReader:
     def test_meta_variable_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         path = zarr_tmp.__str__()
+        # NOTE: If mask_and_scale is not set, 
+        # Xarray will convert int to float and replace _FillValue with NaN        
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         expected_attrs = {
             "count": 97354860,
             "sum": -8594.551666259766,
@@ -328,7 +332,9 @@ class TestReader:
         # Load Xarray dataset from the MDIO file
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set, 
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
 
         # Note: in order to create the dataset we used the Time template, so the
         # sample dimension is called "time"
@@ -380,7 +386,9 @@ class TestReader:
         """Read and compare every 75 inlines' mean and std. dev."""
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set, 
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
@@ -389,7 +397,9 @@ class TestReader:
         """Read and compare every 75 crosslines' mean and std. dev."""
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set, 
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
@@ -399,7 +409,9 @@ class TestReader:
         """Read and compare every 225 z-slices' mean and std. dev."""
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set, 
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935])

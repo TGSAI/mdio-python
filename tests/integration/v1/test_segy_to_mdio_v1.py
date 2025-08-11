@@ -45,7 +45,7 @@ def _validate_variable(  # noqa PLR0913
     arr = dataset[name]
     assert shape == arr.shape
     assert set(dims) == set(arr.dims)
-    # assert data_type == arr.dtype
+    assert data_type == arr.dtype
     actual_values = actual_func(arr)
     assert np.array_equal(expected_values, actual_values)
 
@@ -69,8 +69,11 @@ def test_segy_to_mdio_v1__f3() -> None:
     )
 
     # Load Xarray dataset from the MDIO file
-    ds = xr.open_dataset(mdio_path, engine="zarr")
+    # NOTE: If mask_and_scale is not set, 
+    # Xarray will convert int to float and replace _FillValue with NaN
+    ds = xr.open_dataset(mdio_path, engine="zarr", mask_and_scale=False)
 
+    # The template uses data_type=ScalarType.INT32 for dimensional coordinates
     # Tests "inline" variable
     expected = np.array([111, 112, 113])
     _validate_variable(ds, "inline", (23,), ["inline"], np.int32, expected, _get_actual_value)
@@ -81,14 +84,15 @@ def test_segy_to_mdio_v1__f3() -> None:
 
     # Tests "time" variable
     expected = np.array([0, 4, 8])
-    _validate_variable(ds, "time", (75,), ["time"], np.int64, expected, _get_actual_value)
+    _validate_variable(ds, "time", (75,), ["time"], np.int32, expected, _get_actual_value)
 
+    # The template uses data_type=ScalarType.FLOAT64 for non-dimensional coordinates
     # Tests "cdp_x" variable
     expected = np.array(
         [[6201972, 6202222, 6202472], [6201965, 6202215, 6202465], [6201958, 6202208, 6202458]]
     )
     _validate_variable(
-        ds, "cdp_x", (23, 18), ["inline", "crossline"], np.int32, expected, _get_actual_value
+        ds, "cdp_x", (23, 18), ["inline", "crossline"], np.float64, expected, _get_actual_value
     )
 
     # Tests "cdp_y" variable
@@ -100,11 +104,16 @@ def test_segy_to_mdio_v1__f3() -> None:
         ]
     )
     _validate_variable(
-        ds, "cdp_y", (23, 18), ["inline", "crossline"], np.int32, expected, _get_actual_value
+        ds, "cdp_y", (23, 18), ["inline", "crossline"], np.float64, expected, _get_actual_value
     )
 
     # Tests "headers" variable
-    data_type = segy_sec.trace.header.dtype
+    # NOTE: segy_sec.trace.header.dtype includes offsets. 
+    # Let's ignore them assuming there is no overlaps and gaps
+    dtype_names = segy_sec.trace.header.names
+    dtype_formats = segy_sec.trace.header.formats
+    dtype_conf = {"names": dtype_names, "formats": dtype_formats}
+    data_type = np.dtype(dtype_conf) 
     expected = np.array(
         [
             [6201972, 6202222, 6202472],
@@ -113,11 +122,9 @@ def test_segy_to_mdio_v1__f3() -> None:
         ],
         dtype=np.int32,
     )
-
     def get_actual_headers(arr: xr.DataArray) -> np.ndarray:
         cdp_x_headers = arr.values["cdp_x"]
         return cdp_x_headers[_slice_three_values(arr.shape, values_from_start=True)]
-
     _validate_variable(
         ds, "headers", (23, 18), ["inline", "crossline"], data_type, expected, get_actual_headers
     )
