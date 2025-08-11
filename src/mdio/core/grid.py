@@ -149,8 +149,6 @@ class Grid:
             # Assign trace indices
             trace_indices = np.arange(start, end, dtype=np.uint64)
 
-            # Q: For small datasets, the below assignment is dtype('<u4') = dtype('uint64')
-            # Is this a problem?
             self.map.vindex[live_dim_indices] = trace_indices
             self.live_mask.vindex[live_dim_indices] = True
 
