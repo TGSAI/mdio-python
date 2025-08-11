@@ -8,6 +8,9 @@ import pytest
 import xarray as xr
 import zarr
 from segy.standards import get_segy_standard
+from tests.integration.testing_data import binary_header_f3
+from tests.integration.testing_data import text_header_f3
+from tests.integration.testing_helpers import f3_segy_path
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
 from mdio.converters.segy import segy_to_mdio
@@ -50,20 +53,16 @@ def _validate_variable(  # noqa PLR0913
     assert np.array_equal(expected_values, actual_values)
 
 
-def test_segy_to_mdio_v1__f3() -> None:
+def test_tiny_3d_import_v1() -> None:
     """Test the SEG-Y to MDIO conversion for the f3 equinor/segyio dataset."""
-    # The f3 dataset comes from
-    # equinor/segyio (https://github.com/equinor/segyio) project (GNU LGPL license)
-    # wget https://github.com/equinor/segyio/blob/main/test-data/f3.sgy
-
-    pref_path = "/DATA/equinor-segyio/f3.sgy"
+    pref_path = f3_segy_path()
     mdio_path = f"{pref_path}_mdio_v1"
 
     segy_sec = get_segy_standard(1.0)
     segy_to_mdio(
         segy_spec=segy_sec,
         mdio_template=TemplateRegistry().get("PostStack3DTime"),
-        input_location=StorageLocation(pref_path),
+        input_location=StorageLocation(str(pref_path)),
         output_location=StorageLocation(mdio_path),
         overwrite=True,
     )
@@ -148,6 +147,12 @@ def test_segy_to_mdio_v1__f3() -> None:
         expected,
         get_actual_amplitudes,
     )
+
+    # Validate text header
+    assert ds.attrs["attributes"]["text_header"] == text_header_f3()
+
+    # Validate binary header
+    assert ds.attrs["attributes"]["binary_header"] == binary_header_f3()
 
 
 @pytest.mark.skip(reason="Bug reproducer for the issue 582")
