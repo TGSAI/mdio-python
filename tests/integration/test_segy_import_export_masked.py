@@ -215,8 +215,7 @@ def mock_nd_segy(
     # Array filled with repeating sequence
     sequence = np.array([1, 2, 3])
     # Calculate the number of times the sequence needs to be repeated
-    aaa = trace_numbers.size / len(sequence)
-    num_repetitions = int(np.ceil(aaa))
+    num_repetitions = int(np.ceil(trace_numbers.size / len(sequence)))
     repeated_array = np.tile(sequence, num_repetitions)[: trace_numbers.size]
     headers["gun"] = repeated_array
 
