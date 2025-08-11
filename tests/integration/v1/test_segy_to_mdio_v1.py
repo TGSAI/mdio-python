@@ -45,7 +45,7 @@ def _validate_variable(  # noqa PLR0913
     arr = dataset[name]
     assert shape == arr.shape
     assert set(dims) == set(arr.dims)
-    # assert data_type == arr.dtype
+    assert data_type == arr.dtype
     actual_values = actual_func(arr)
     assert np.array_equal(expected_values, actual_values)
 
@@ -102,7 +102,12 @@ def test_segy_to_mdio_v1__f3() -> None:
     _validate_variable(ds, "cdp_y", (23, 18), ["inline", "crossline"], np.float64, expected, _get_actual_value)
 
     # Tests "headers" variable
-    data_type = segy_sec.trace.header.dtype
+    # NOTE: segy_sec.trace.header.dtype includes offsets.
+    # Let's ignore them assuming there is no overlaps and gaps
+    dtype_names = segy_sec.trace.header.names
+    dtype_formats = segy_sec.trace.header.formats
+    dtype_conf = {"names": dtype_names, "formats": dtype_formats}
+    data_type = np.dtype(dtype_conf)
     expected = np.array(
         [
             [6201972, 6202222, 6202472],
@@ -111,7 +116,6 @@ def test_segy_to_mdio_v1__f3() -> None:
         ],
         dtype=np.int32,
     )
-
     def get_actual_headers(arr: xr.DataArray) -> np.ndarray:
         cdp_x_headers = arr.values["cdp_x"]
         return cdp_x_headers[_slice_three_values(arr.shape, values_from_start=True)]
