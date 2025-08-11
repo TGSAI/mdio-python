@@ -116,6 +116,7 @@ def test_segy_to_mdio_v1__f3() -> None:
         ],
         dtype=np.int32,
     )
+
     def get_actual_headers(arr: xr.DataArray) -> np.ndarray:
         cdp_x_headers = arr.values["cdp_x"]
         return cdp_x_headers[_slice_three_values(arr.shape, values_from_start=True)]
