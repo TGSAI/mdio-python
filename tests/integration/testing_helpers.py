@@ -1,6 +1,6 @@
 """This module provides testing helpers for integration testing."""
 
-from typing import Callable
+from collections.abc import Callable
 
 import numpy as np
 import xarray as xr
@@ -51,7 +51,7 @@ def validate_variable(  # noqa PLR0913
     dims: list[str],
     data_type: np.dtype,
     expected_values: range | None,
-    actual_value_generator: Callable,
+    actual_value_generator: Callable[[xr.DataArray], np.ndarray] | None = None,
 ) -> None:
     """Validate the properties of a variable in an Xarray dataset."""
     arr = dataset[name]

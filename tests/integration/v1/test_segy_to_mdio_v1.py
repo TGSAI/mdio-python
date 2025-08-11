@@ -69,7 +69,7 @@ def test_segy_to_mdio_v1__f3() -> None:
     )
 
     # Load Xarray dataset from the MDIO file
-    # NOTE: If mask_and_scale is not set, 
+    # NOTE: If mask_and_scale is not set,
     # Xarray will convert int to float and replace _FillValue with NaN
     ds = xr.open_dataset(mdio_path, engine="zarr", mask_and_scale=False)
 
@@ -108,12 +108,12 @@ def test_segy_to_mdio_v1__f3() -> None:
     )
 
     # Tests "headers" variable
-    # NOTE: segy_sec.trace.header.dtype includes offsets. 
+    # NOTE: segy_sec.trace.header.dtype includes offsets.
     # Let's ignore them assuming there is no overlaps and gaps
     dtype_names = segy_sec.trace.header.names
     dtype_formats = segy_sec.trace.header.formats
     dtype_conf = {"names": dtype_names, "formats": dtype_formats}
-    data_type = np.dtype(dtype_conf) 
+    data_type = np.dtype(dtype_conf)
     expected = np.array(
         [
             [6201972, 6202222, 6202472],
@@ -122,9 +122,11 @@ def test_segy_to_mdio_v1__f3() -> None:
         ],
         dtype=np.int32,
     )
+
     def get_actual_headers(arr: xr.DataArray) -> np.ndarray:
         cdp_x_headers = arr.values["cdp_x"]
         return cdp_x_headers[_slice_three_values(arr.shape, values_from_start=True)]
+
     _validate_variable(
         ds, "headers", (23, 18), ["inline", "crossline"], data_type, expected, get_actual_headers
     )
