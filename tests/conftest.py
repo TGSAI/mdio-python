@@ -3,14 +3,10 @@
 from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING
+from pathlib import Path  # noqa TC003
 from urllib.request import urlretrieve
 
 import pytest
-
-if TYPE_CHECKING:
-    from pathlib import Path
-
 
 # Suppress Dask's chunk balancing warning
 warnings.filterwarnings(
@@ -46,7 +42,10 @@ def segy_input(segy_input_uri: str, tmp_path_factory: pytest.TempPathFactory) ->
 @pytest.fixture(scope="module")
 def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
-    return tmp_path_factory.mktemp(r"mdio")
+    path = tmp_path_factory.mktemp(r"mdio")
+    # For debugging purposes to use a fixed path, uncomment the following:
+    # path = Path("./TMP/zarr_tmp")
+    return path  # noqa RET504
 
 
 @pytest.fixture(scope="module")

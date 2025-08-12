@@ -13,6 +13,8 @@ import pytest
 import xarray as xr
 from segy import SegyFile
 from segy.standards import get_segy_standard
+from tests.integration.testing_data import binary_header_teapot_dome
+from tests.integration.testing_data import text_header_teapot_dome
 from tests.integration.testing_helpers import customize_segy_specs
 from tests.integration.testing_helpers import get_inline_header_values
 from tests.integration.testing_helpers import get_values
@@ -266,8 +268,8 @@ def test_3d_import(
     segy_to_mdio(
         segy_spec=segy_spec,
         mdio_template=TemplateRegistry().get("PostStack3DTime"),
-        input_location=StorageLocation(segy_input.__str__()),
-        output_location=StorageLocation(zarr_tmp.__str__()),
+        input_location=StorageLocation(str(segy_input)),
+        output_location=StorageLocation(str(zarr_tmp)),
         overwrite=True,
     )
 
@@ -278,11 +280,9 @@ class TestReader:
 
     def test_meta_dataset_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        path = zarr_tmp.__str__()
-        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
+        ds = xr.open_dataset(str(zarr_tmp), engine="zarr", mask_and_scale=False)
         expected_attrs = {
             "apiVersion": "1.0.0a1",
             "createdOn": "2025-08-06 16:21:54.747880+00:00",
@@ -297,13 +297,25 @@ class TestReader:
             else:
                 assert actual_attrs_json[key] == value
 
+        attributes = ds.attrs["attributes"]
+        assert attributes is not None
+
+        # Validate attributes provided by the template
+        assert attributes["surveyDimensionality"] == "3D"
+        assert attributes["ensembleType"] == "line"
+        assert attributes["processingStage"] == "post-stack"
+
+        # Validate text header
+        assert attributes["textHeader"] == text_header_teapot_dome()
+
+        # Validate binary header
+        assert attributes["binaryHeader"] == binary_header_teapot_dome()
+
     def test_meta_variable_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        path = zarr_tmp.__str__()
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
+        ds = xr.open_dataset(str(zarr_tmp), engine="zarr", mask_and_scale=False)
         expected_attrs = {
             "count": 97354860,
             "sum": -8594.551666259766,
@@ -318,11 +330,9 @@ class TestReader:
     def test_grid(self, zarr_tmp: Path) -> None:
         """Test validating MDIO variables."""
         # Load Xarray dataset from the MDIO file
-        path = zarr_tmp.__str__()
-        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
+        ds = xr.open_dataset(str(zarr_tmp), engine="zarr", mask_and_scale=False)
 
         # Note: in order to create the dataset we used the Time template, so the
         # sample dimension is called "time"
@@ -366,22 +376,18 @@ class TestReader:
 
     def test_inline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 inlines' mean and std. dev."""
-        path = zarr_tmp.__str__()
-        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
+        ds = xr.open_dataset(str(zarr_tmp), engine="zarr", mask_and_scale=False)
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
 
     def test_crossline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
-        path = zarr_tmp.__str__()
-        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
+        ds = xr.open_dataset(str(zarr_tmp), engine="zarr", mask_and_scale=False)
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
@@ -389,11 +395,9 @@ class TestReader:
 
     def test_zslice(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
-        path = zarr_tmp.__str__()
-        # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
+        ds = xr.open_dataset(str(zarr_tmp), engine="zarr", mask_and_scale=False)
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
