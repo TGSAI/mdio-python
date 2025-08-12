@@ -69,11 +69,7 @@ def test_get_all_named_dimensions() -> None:
     ds = Dataset(
         variables=[v1, v2, v3],
         metadata=_to_dictionary(
-            [
-                DatasetInfo(
-                    name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z"
-                )
-            ]
+            [DatasetInfo(name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z")]
         ),
     )
 
@@ -145,17 +141,11 @@ def test_get_zarr_shape() -> None:
     d3 = NamedDimension(name="depth", size=300)
     all_named_dims = {"inline": d1, "crossline": d2, "depth": d3}
     v1 = Variable(name="named dims var", data_type=ScalarType.FLOAT32, dimensions=[d1, d2, d3])
-    v2 = Variable(
-        name="str var", data_type=ScalarType.FLOAT32, dimensions=["inline", "crossline", "depth"]
-    )
+    v2 = Variable(name="str var", data_type=ScalarType.FLOAT32, dimensions=["inline", "crossline", "depth"])
     Dataset(
         variables=[v1, v2],
         metadata=_to_dictionary(
-            [
-                DatasetInfo(
-                    name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z"
-                )
-            ]
+            [DatasetInfo(name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z")]
         ),
     )
 
@@ -175,11 +165,7 @@ def test_get_zarr_chunks() -> None:
         data_type=ScalarType.FLOAT32,
         dimensions=[d1, d2, d3],
         metadata=_to_dictionary(
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[10, 20, 30])
-                )
-            )
+            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[10, 20, 30])))
         ),
     )
     assert _get_zarr_chunks(v, all_named_dims=[d1, d2, d3]) == (10, 20, 30)
@@ -238,9 +224,7 @@ def test_get_fill_value() -> None:
 
     expected = np_array(
         (0, 0, 0.0, 0.0),
-        dtype=np_dtype(
-            [("cdp_x", "<i4"), ("cdp_y", "<i4"), ("elevation", "<f2"), ("some_scalar", "<f2")]
-        ),
+        dtype=np_dtype([("cdp_x", "<i4"), ("cdp_y", "<i4"), ("elevation", "<f2"), ("some_scalar", "<f2")]),
     )
     result = _get_fill_value(structured_type)
     assert expected == result

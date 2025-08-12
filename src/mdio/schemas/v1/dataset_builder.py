@@ -24,13 +24,9 @@ from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import Variable
 
-AnyMetadataList: TypeAlias = list[
-    AllUnits | UserAttributes | ChunkGridMetadata | StatisticsMetadata | DatasetInfo
-]
+AnyMetadataList: TypeAlias = list[AllUnits | UserAttributes | ChunkGridMetadata | StatisticsMetadata | DatasetInfo]
 CoordinateMetadataList: TypeAlias = list[AllUnits | UserAttributes]
-VariableMetadataList: TypeAlias = list[
-    AllUnits | UserAttributes | ChunkGridMetadata | StatisticsMetadata
-]
+VariableMetadataList: TypeAlias = list[AllUnits | UserAttributes | ChunkGridMetadata | StatisticsMetadata]
 DatasetMetadataList: TypeAlias = list[DatasetInfo | UserAttributes]
 
 
@@ -43,9 +39,7 @@ class _BuilderState(Enum):
     HAS_VARIABLES = auto()
 
 
-def _get_named_dimension(
-    dimensions: list[NamedDimension], name: str, size: int | None = None
-) -> NamedDimension | None:
+def _get_named_dimension(dimensions: list[NamedDimension], name: str, size: int | None = None) -> NamedDimension | None:
     """Get a dimension by name and optional size from the list[NamedDimension]."""
     if dimensions is None:
         return False

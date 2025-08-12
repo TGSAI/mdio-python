@@ -51,14 +51,10 @@ def test_add_variable_no_coords() -> None:
     # Validate: Add a variable using non-existent dimensions is not allowed
     msg = "Pre-existing dimension named 'il' is not found"
     with pytest.raises(ValueError, match=msg):
-        builder.add_variable(
-            "bad_amplitude", dimensions=["il", "xl", "depth"], data_type=ScalarType.FLOAT32
-        )
+        builder.add_variable("bad_amplitude", dimensions=["il", "xl", "depth"], data_type=ScalarType.FLOAT32)
 
     # Add a variable without coordinates
-    builder.add_variable(
-        "amplitude", dimensions=["inline", "crossline", "depth"], data_type=ScalarType.FLOAT32
-    )
+    builder.add_variable("amplitude", dimensions=["inline", "crossline", "depth"], data_type=ScalarType.FLOAT32)
     validate_builder(builder, _BuilderState.HAS_VARIABLES, n_dims=3, n_coords=0, n_var=1)
     validate_variable(
         builder,
@@ -71,9 +67,7 @@ def test_add_variable_no_coords() -> None:
     # Validate: adding a variable with the same name twice is not allowed
     msg = "Adding variable with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
-        builder.add_variable(
-            "amplitude", dimensions=["inline", "crossline", "depth"], data_type=ScalarType.FLOAT32
-        )
+        builder.add_variable("amplitude", dimensions=["inline", "crossline", "depth"], data_type=ScalarType.FLOAT32)
 
 
 def test_add_variable_with_coords() -> None:
@@ -114,12 +108,8 @@ def test_add_variable_with_coords() -> None:
     )
 
     # Add non-dim coordinates (e.g., 2D coordinates)
-    builder.add_coordinate(
-        "cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
-    )
-    builder.add_coordinate(
-        "cdp_y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32
-    )
+    builder.add_coordinate("cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+    builder.add_coordinate("cdp_y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
 
     # Add a variable with pre-defined dimension and non-dimension coordinates
     builder.add_variable(
@@ -156,9 +146,7 @@ def test_add_variable_with_defaults() -> None:
     )
 
     # Add data variable using defaults
-    builder.add_variable(
-        "ampl", dimensions=["inline", "crossline", "depth"], data_type=ScalarType.FLOAT32
-    )
+    builder.add_variable("ampl", dimensions=["inline", "crossline", "depth"], data_type=ScalarType.FLOAT32)
     validate_builder(builder, _BuilderState.HAS_VARIABLES, n_dims=3, n_coords=3, n_var=4)
     v = validate_variable(
         builder,
@@ -185,12 +173,8 @@ def test_add_variable_full_parameters() -> None:
     builder.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
     builder.add_coordinate("depth", dimensions=["depth"], data_type=ScalarType.UINT32)
     # Add coordinates before we can add a data variable
-    builder.add_coordinate(
-        "cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64
-    )
-    builder.add_coordinate(
-        "cdp_y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64
-    )
+    builder.add_coordinate("cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)
+    builder.add_coordinate("cdp_y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)
 
     # Add data variable with full parameters
     builder.add_variable(
@@ -203,9 +187,7 @@ def test_add_variable_full_parameters() -> None:
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
             UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"}),
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[20]))
-            ),
+            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[20]))),
             StatisticsMetadata(
                 stats_v1=SummaryStatistics(
                     count=100,

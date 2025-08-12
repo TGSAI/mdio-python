@@ -58,9 +58,7 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
     assert len(dataset.variables) == 9
 
     # Verify dimension coordinate variables
-    validate_variable(
-        dataset, name="inline", dims=[("inline", 256)], coords=["inline"], dtype=ScalarType.UINT32
-    )
+    validate_variable(dataset, name="inline", dims=[("inline", 256)], coords=["inline"], dtype=ScalarType.UINT32)
 
     validate_variable(
         dataset,
@@ -70,9 +68,7 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
         dtype=ScalarType.UINT32,
     )
 
-    depth = validate_variable(
-        dataset, name="depth", dims=[("depth", 384)], coords=["depth"], dtype=ScalarType.UINT32
-    )
+    depth = validate_variable(dataset, name="depth", dims=[("depth", 384)], coords=["depth"], dtype=ScalarType.UINT32)
     assert depth.metadata.units_v1.length == LengthUnitEnum.METER
 
     # Verify coordinate variables

@@ -88,12 +88,8 @@ def test_segy_to_mdio_v1__f3() -> None:
 
     # The template uses data_type=ScalarType.FLOAT64 for non-dimensional coordinates
     # Tests "cdp_x" variable
-    expected = np.array(
-        [[6201972, 6202222, 6202472], [6201965, 6202215, 6202465], [6201958, 6202208, 6202458]]
-    )
-    _validate_variable(
-        ds, "cdp_x", (23, 18), ["inline", "crossline"], np.float64, expected, _get_actual_value
-    )
+    expected = np.array([[6201972, 6202222, 6202472], [6201965, 6202215, 6202465], [6201958, 6202208, 6202458]])
+    _validate_variable(ds, "cdp_x", (23, 18), ["inline", "crossline"], np.float64, expected, _get_actual_value)
 
     # Tests "cdp_y" variable
     expected = np.array(
@@ -103,9 +99,7 @@ def test_segy_to_mdio_v1__f3() -> None:
             [60742828, 60742835, 60742842],
         ]
     )
-    _validate_variable(
-        ds, "cdp_y", (23, 18), ["inline", "crossline"], np.float64, expected, _get_actual_value
-    )
+    _validate_variable(ds, "cdp_y", (23, 18), ["inline", "crossline"], np.float64, expected, _get_actual_value)
 
     # Tests "headers" variable
     # NOTE: segy_sec.trace.header.dtype includes offsets.
@@ -127,15 +121,11 @@ def test_segy_to_mdio_v1__f3() -> None:
         cdp_x_headers = arr.values["cdp_x"]
         return cdp_x_headers[_slice_three_values(arr.shape, values_from_start=True)]
 
-    _validate_variable(
-        ds, "headers", (23, 18), ["inline", "crossline"], data_type, expected, get_actual_headers
-    )
+    _validate_variable(ds, "headers", (23, 18), ["inline", "crossline"], data_type, expected, get_actual_headers)
 
     # Tests "trace_mask" variable
     expected = np.array([[True, True, True], [True, True, True], [True, True, True]])
-    _validate_variable(
-        ds, "trace_mask", (23, 18), ["inline", "crossline"], np.bool, expected, _get_actual_value
-    )
+    _validate_variable(ds, "trace_mask", (23, 18), ["inline", "crossline"], np.bool, expected, _get_actual_value)
 
     # Tests "amplitude" variable
     expected = np.array(
@@ -196,9 +186,7 @@ def test_bug_reproducer_structured_xr_to_zar() -> None:
     data_type = to_numpy_dtype(structured_type)
 
     # Validate the conversion
-    assert data_type == np.dtype(
-        [("cdp_x", "<i4"), ("cdp_y", "<i4"), ("elevation", "<f2"), ("some_scalar", "<f2")]
-    )
+    assert data_type == np.dtype([("cdp_x", "<i4"), ("cdp_y", "<i4"), ("elevation", "<f2"), ("some_scalar", "<f2")])
     fill_value = np.zeros((), dtype=data_type)
     headers_zarr = zarr.zeros(shape=shape[:-1], dtype=data_type, zarr_format=2)
     headers_xr = xr.DataArray(headers_zarr, dims=dim_names[:-1])
@@ -238,9 +226,7 @@ def test_bug_reproducer_structured_xr_to_zar() -> None:
     )
     hdr = (11, 22, -33.0, 44.0)
     headers = np.array([hdr, hdr, hdr, hdr], dtype=data_type)
-    trace = np.array(
-        [[100.0, 200.0], [300.0, 400.0], [500.0, 600.0], [700.0, 800.0]], dtype=np.float32
-    )
+    trace = np.array([[100.0, 200.0], [300.0, 400.0], [500.0, 600.0], [700.0, 800.0]], dtype=np.float32)
 
     # Here is one iteration of it:
     ds_to_write = xr_dataset[["traces", "headers"]]

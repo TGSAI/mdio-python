@@ -214,9 +214,7 @@ class AbstractDatasetTemplate(ABC):
             coordinates=self._coord_names,
             metadata_info=[
                 ChunkGridMetadata(
-                    chunk_grid=RegularChunkGrid(
-                        configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape[:-1])
-                    )
+                    chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape[:-1]))
                 )
             ],
         )
@@ -235,9 +233,7 @@ class AbstractDatasetTemplate(ABC):
             coordinates=self._coord_names,
             metadata_info=[
                 ChunkGridMetadata(
-                    chunk_grid=RegularChunkGrid(
-                        configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape)
-                    )
+                    chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape))
                 )
             ],
         )

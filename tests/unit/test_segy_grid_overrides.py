@@ -136,9 +136,7 @@ class TestStreamerGridOverrides:
         index_names = ("shot", "cable", "channel")
         grid_overrides = {"ChannelWrap": True, "ChannelsPerCable": len(RECEIVERS)}
 
-        new_headers, new_names, new_chunks = run_override(
-            grid_overrides, index_names, mock_streamer_headers
-        )
+        new_headers, new_names, new_chunks = run_override(grid_overrides, index_names, mock_streamer_headers)
 
         assert new_names == index_names
         assert new_chunks is None
@@ -157,9 +155,7 @@ class TestStreamerGridOverrides:
         index_names = ("shot", "cable", "channel")
         grid_overrides = {"CalculateCable": True, "ChannelsPerCable": len(RECEIVERS)}
 
-        new_headers, new_names, new_chunks = run_override(
-            grid_overrides, index_names, mock_streamer_headers
-        )
+        new_headers, new_names, new_chunks = run_override(grid_overrides, index_names, mock_streamer_headers)
 
         assert new_names == index_names
         assert new_chunks is None
@@ -188,9 +184,7 @@ class TestStreamerGridOverrides:
             "ChannelsPerCable": len(RECEIVERS),
         }
 
-        new_headers, new_names, new_chunks = run_override(
-            grid_overrides, index_names, mock_streamer_headers
-        )
+        new_headers, new_names, new_chunks = run_override(grid_overrides, index_names, mock_streamer_headers)
 
         assert new_names == index_names
         assert new_chunks is None
