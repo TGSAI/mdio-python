@@ -1,8 +1,8 @@
-"""Integration tests data"""
+"""Integration tests data for teapot dome SEG-Y."""
 
-from typing import Any
 
 def text_header_teapot_dome() -> list[str]:
+    """Return the teapot dome expected text header."""
     return [
         "C 1 CLIENT: ROCKY MOUNTAIN OILFIELD TESTING CENTER                              ",
         "C 2 PROJECT: NAVAL PETROLEUM RESERVE #3 (TEAPOT DOME); NATRONA COUNTY, WYOMING  ",
@@ -43,40 +43,42 @@ def text_header_teapot_dome() -> list[str]:
         "C37               8301 East Prentice Ave. Ste. 402                              ",
         "C38               Englewood, Colorado 80111                                     ",
         "C39               (voice) 303.694.9629 (fax) 303.771.1646                       ",
-        "C40 END EBCDIC                                                                  "
+        "C40 END EBCDIC                                                                  ",
     ]
 
-def binary_header_teapot_dome()  -> dict[str, Any]:
+
+def binary_header_teapot_dome() -> dict[str, int]:
+    """Return the teapot dome expected binary header."""
     return {
-          "job_id": 9999,
-          "line_num": 9999,
-          "reel_num": 1,
-          "data_traces_per_ensemble": 188,
-          "aux_traces_per_ensemble": 0,
-          "sample_interval": 2000,
-          "orig_sample_interval": 0,
-          "samples_per_trace": 1501,
-          "orig_samples_per_trace": 1501,
-          "data_sample_format": 1,
-          "ensemble_fold": 57,
-          "trace_sorting_code": 4,
-          "vertical_sum_code": 1,
-          "sweep_freq_start": 0,
-          "sweep_freq_end": 0,
-          "sweep_length": 0,
-          "sweep_type_code": 0,
-          "sweep_trace_num": 0,
-          "sweep_taper_start": 0,
-          "sweep_taper_end": 0,
-          "taper_type_code": 0,
-          "correlated_data_code": 2,
-          "binary_gain_code": 1,
-          "amp_recovery_code": 4,
-          "measurement_system_code": 2,
-          "impulse_polarity_code": 1,
-          "vibratory_polarity_code": 0,
-          "fixed_length_trace_flag": 0,
-          "num_extended_text_headers": 0,
-          "segy_revision_major": 0,
-          "segy_revision_minor": 0
-        }
+        "job_id": 9999,
+        "line_num": 9999,
+        "reel_num": 1,
+        "data_traces_per_ensemble": 188,
+        "aux_traces_per_ensemble": 0,
+        "sample_interval": 2000,
+        "orig_sample_interval": 0,
+        "samples_per_trace": 1501,
+        "orig_samples_per_trace": 1501,
+        "data_sample_format": 1,
+        "ensemble_fold": 57,
+        "trace_sorting_code": 4,
+        "vertical_sum_code": 1,
+        "sweep_freq_start": 0,
+        "sweep_freq_end": 0,
+        "sweep_length": 0,
+        "sweep_type_code": 0,
+        "sweep_trace_num": 0,
+        "sweep_taper_start": 0,
+        "sweep_taper_end": 0,
+        "taper_type_code": 0,
+        "correlated_data_code": 2,
+        "binary_gain_code": 1,
+        "amp_recovery_code": 4,
+        "measurement_system_code": 2,
+        "impulse_polarity_code": 1,
+        "vibratory_polarity_code": 0,
+        "fixed_length_trace_flag": 0,
+        "num_extended_text_headers": 0,
+        "segy_revision_major": 0,
+        "segy_revision_minor": 0,
+    }
