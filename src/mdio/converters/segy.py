@@ -280,7 +280,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_text_binary_headers(dataset: xr_Dataset, segy_file: SegyFile) -> None:
+def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
     text_header = segy_file.text_header.splitlines()
     # Validate:
     # text_header this should be a 40-items array of strings with width of 80 characters.
@@ -300,8 +300,18 @@ def _add_text_binary_headers(dataset: xr_Dataset, segy_file: SegyFile) -> None:
     if ext_text_header is not None:
         for ext_hdr in ext_text_header:
             text_header.append(ext_hdr.splitlines())
-    dataset.metadata.attributes["text_header"] = text_header
-    dataset.metadata.attributes["binary_header"] = segy_file.binary_header.to_dict()
+
+    # Handle case where it may not have any metadata yet
+    if dataset.metadata.attributes is None:
+        dataset.attrs["attributes"] = {}
+
+    # Update the attributes with the text and binary headers.
+    dataset.metadata.attributes.update(
+        {
+            "textHeader": text_header,
+            "binaryHeader": segy_file.binary_header.to_dict(),
+        }
+    )
 
 
 def segy_to_mdio(
