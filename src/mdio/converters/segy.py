@@ -280,6 +280,40 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
+def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
+    text_header = segy_file.text_header.splitlines()
+    # Validate:
+    # text_header this should be a 40-items array of strings with width of 80 characters.
+    item_count = 40
+    if len(text_header) != item_count:
+        err = f"Invalid text header count: expected {item_count}, got {len(text_header)}"
+        raise ValueError(err)
+    char_count = 80
+    for i, line in enumerate(text_header):
+        if len(line) != char_count:
+            err = f"Invalid text header {i} line length: expected {char_count}, got {len(line)}"
+            raise ValueError(err)
+    ext_text_header = segy_file.ext_text_header
+
+    # If using SegyFile.ext_text_header this should be a minimum of 40 elements and must
+    # capture all textual information (ensure text_header is a subset of ext_text_header).
+    if ext_text_header is not None:
+        for ext_hdr in ext_text_header:
+            text_header.append(ext_hdr.splitlines())
+
+    # Handle case where it may not have any metadata yet
+    if dataset.metadata.attributes is None:
+        dataset.attrs["attributes"] = {}
+
+    # Update the attributes with the text and binary headers.
+    dataset.metadata.attributes.update(
+        {
+            "textHeader": text_header,
+            "binaryHeader": segy_file.binary_header.to_dict(),
+        }
+    )
+
+
 def segy_to_mdio(
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
@@ -323,6 +357,8 @@ def segy_to_mdio(
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name, sizes=shape, horizontal_coord_unit=horizontal_unit, headers=headers
     )
+
+    _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
