@@ -319,6 +319,8 @@ def segy_to_mdio(
 
     dimensions, non_dim_coords = _get_coordinates(segy_dimensions, segy_headers, mdio_template)
     shape = [len(dim.coords) for dim in dimensions]
+    # TODO(Altay): Turn this dtype into packed representation
+    # https://github.com/TGSAI/mdio-python/issues/601
     headers = to_structured_type(segy_spec.trace.header.dtype)
 
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
