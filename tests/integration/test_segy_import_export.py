@@ -37,9 +37,7 @@ dask.config.set(scheduler="synchronous")
 @pytest.mark.parametrize("index_bytes", [(17, 137)])
 @pytest.mark.parametrize("index_names", [("shot_point", "cable")])
 @pytest.mark.parametrize("index_types", [("int32", "int16")])
-@pytest.mark.parametrize(
-    "grid_overrides", [{"NonBinned": True, "chunksize": 2}, {"HasDuplicates": True}]
-)
+@pytest.mark.parametrize("grid_overrides", [{"NonBinned": True, "chunksize": 2}, {"HasDuplicates": True}])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
@@ -81,9 +79,7 @@ class TestImport4DNonReg:
 
         assert grid.select_dim(index_names[0]) == Dimension(shots, index_names[0])
         assert grid.select_dim(index_names[1]) == Dimension(cables, index_names[1])
-        assert grid.select_dim("trace") == Dimension(
-            range(1, np.amax(receivers_per_cable) + 1), "trace"
-        )
+        assert grid.select_dim("trace") == Dimension(range(1, np.amax(receivers_per_cable) + 1), "trace")
         samples_exp = Dimension(range(0, num_samples, 1), "sample")
         assert grid.select_dim("sample") == samples_exp
 
@@ -92,9 +88,7 @@ class TestImport4DNonReg:
 @pytest.mark.parametrize("index_names", [("shot_point", "cable", "channel")])
 @pytest.mark.parametrize("index_types", [("int32", "int16", "int32")])
 @pytest.mark.parametrize("grid_overrides", [{"AutoChannelWrap": True}, None])
-@pytest.mark.parametrize(
-    "chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B]
-)
+@pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
 class TestImport4D:
     """Test for 4D segy import with grid overrides."""
 
@@ -181,18 +175,14 @@ class TestImport4DSparse:
             )
 
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "10"
-        assert "This grid is very sparse and most likely user error with indexing." in str(
-            execinfo.value
-        )
+        assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
 
 
 @pytest.mark.parametrize("index_bytes", [(133, 171, 17, 137, 13)])
 @pytest.mark.parametrize("index_names", [("shot_line", "gun", "shot_point", "cable", "channel")])
 @pytest.mark.parametrize("index_types", [("int16", "int16", "int32", "int16", "int32")])
 @pytest.mark.parametrize("grid_overrides", [{"AutoChannelWrap": True, "AutoShotWrap": True}, None])
-@pytest.mark.parametrize(
-    "chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B]
-)
+@pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
 class TestImport6D:
     """Test for 6D segy import with grid overrides."""
 
@@ -224,9 +214,7 @@ class TestImport6D:
         num_samples = 25
         shots = [2, 3, 5, 6, 7, 8, 9]  # original shot list
         if grid_overrides is not None and "AutoShotWrap" in grid_overrides:
-            shots_new = [
-                int(shot / 2) for shot in shots
-            ]  # Updated shot index when ingesting with 2 guns
+            shots_new = [int(shot / 2) for shot in shots]  # Updated shot index when ingesting with 2 guns
             shots_set = set(shots_new)  # remove duplicates
             shots = list(shots_set)  # Unique shot points for 6D indexed with gun
         cables = [0, 101, 201, 301]
@@ -259,7 +247,7 @@ class TestImport6D:
 @pytest.mark.parametrize("index_bytes", [(17, 13, 81, 85)])
 @pytest.mark.parametrize("index_names", [("inline", "crossline", "cdp_x", "cdp_y")])
 @pytest.mark.parametrize("index_types", [("int32", "int32", "int32", "int32")])
-def test_3d_import_v1(
+def test_3d_import(
     segy_input: Path,
     zarr_tmp: Path,
     index_bytes: tuple[int, ...],
@@ -292,7 +280,9 @@ class TestReader:
         """Metadata reading tests."""
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set,
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         expected_attrs = {
             "apiVersion": "1.0.0a1",
             "createdOn": "2025-08-06 16:21:54.747880+00:00",
@@ -310,8 +300,10 @@ class TestReader:
     def test_meta_variable_read(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         path = zarr_tmp.__str__()
+        # NOTE: If mask_and_scale is not set,
+        # Xarray will convert int to float and replace _FillValue with NaN
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         expected_attrs = {
             "count": 97354860,
             "sum": -8594.551666259766,
@@ -328,16 +320,16 @@ class TestReader:
         # Load Xarray dataset from the MDIO file
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set,
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
 
         # Note: in order to create the dataset we used the Time template, so the
         # sample dimension is called "time"
 
         # Validate the dimension coordinate variables
         validate_variable(ds, "inline", (345,), ["inline"], np.int32, range(1, 346), get_values)
-        validate_variable(
-            ds, "crossline", (188,), ["crossline"], np.int32, range(1, 189), get_values
-        )
+        validate_variable(ds, "crossline", (188,), ["crossline"], np.int32, range(1, 189), get_values)
         validate_variable(ds, "time", (1501,), ["time"], np.int32, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables
@@ -347,9 +339,7 @@ class TestReader:
         # Validate the headers
         # We have a subset of headers since we used customize_segy_specs() providing the values only
         # for "inline", "crossline", "cdp_x", "cdp_y"
-        data_type = np.dtype(
-            [("inline", "<i4"), ("crossline", "<i4"), ("cdp_x", "<i4"), ("cdp_y", "<i4")]
-        )
+        data_type = np.dtype([("inline", "<i4"), ("crossline", "<i4"), ("cdp_x", "<i4"), ("cdp_y", "<i4")])
         validate_variable(
             ds,
             "headers",
@@ -361,9 +351,7 @@ class TestReader:
         )
 
         # Validate the trace mask
-        validate_variable(
-            ds, "trace_mask", (345, 188), ["inline", "crossline"], np.bool, None, None
-        )
+        validate_variable(ds, "trace_mask", (345, 188), ["inline", "crossline"], np.bool, None, None)
 
         # validate the amplitude data
         validate_variable(
@@ -380,7 +368,9 @@ class TestReader:
         """Read and compare every 75 inlines' mean and std. dev."""
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set,
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
@@ -389,7 +379,9 @@ class TestReader:
         """Read and compare every 75 crosslines' mean and std. dev."""
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set,
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
@@ -399,7 +391,9 @@ class TestReader:
         """Read and compare every 225 z-slices' mean and std. dev."""
         path = zarr_tmp.__str__()
         # path = "/tmp/pytest-of-vscode/my-mdio/mdio0"
-        ds = xr.open_dataset(path, engine="zarr")
+        # NOTE: If mask_and_scale is not set,
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(path, engine="zarr", mask_and_scale=False)
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935])

@@ -24,9 +24,7 @@ from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import Variable
 
 
-def validate_builder(
-    builder: MDIODatasetBuilder, state: _BuilderState, n_dims: int, n_coords: int, n_var: int
-) -> None:
+def validate_builder(builder: MDIODatasetBuilder, state: _BuilderState, n_dims: int, n_coords: int, n_var: int) -> None:
     """Validate the state of the builder, the number of dimensions, coordinates, and variables."""
     assert builder._state == state
     assert len(builder._dimensions) == n_dims
@@ -206,9 +204,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         coordinates=["cdp_x", "cdp_y"],
         metadata_info=[
             ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128])
-                )
+                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[128, 128, 128]))
             ),
             StatisticsMetadata(
                 stats_v1=SummaryStatistics(
@@ -231,9 +227,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         coordinates=["cdp_x", "cdp_y"],
         metadata_info=[
             ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[128, 128, 128])
-                )
+                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[128, 128, 128]))
             ),
             AllUnits(units_v1=SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)),
         ],
@@ -247,11 +241,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         compressor=Blosc(algorithm="zstd"),
         coordinates=["cdp_x", "cdp_y"],
         metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(
-                    configuration=RegularChunkShape(chunk_shape=[4, 512, 512])
-                )
-            )
+            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[4, 512, 512])))
         ],
     )
     # Add headers variable with structured dtype
@@ -268,9 +258,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
             ]
         ),
         metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[128, 128]))
-            )
+            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[128, 128])))
         ],
     )
     return ds.build()

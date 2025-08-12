@@ -43,19 +43,14 @@ class ChunkIterator:
         (slice(3,6,None), slice(0,4,None), slice(0,5,None))
     """
 
-    def __init__(
-        self, shape: tuple[int, ...], chunks: tuple[int, ...], dim_names: tuple[str, ...] = None
-    ):
+    def __init__(self, shape: tuple[int, ...], chunks: tuple[int, ...], dim_names: tuple[str, ...] = None):
         self.arr_shape = tuple(shape)  # Deep copy to ensure immutability
         self.len_chunks = tuple(chunks)  # Deep copy to ensure immutability
         self.dims = dim_names
 
         # Compute number of chunks per dimension, and total number of chunks
         self.dim_chunks = tuple(
-            [
-                ceil(len_dim / chunk)
-                for len_dim, chunk in zip(self.arr_shape, self.len_chunks, strict=True)
-            ]
+            [ceil(len_dim / chunk) for len_dim, chunk in zip(self.arr_shape, self.len_chunks, strict=True)]
         )
         self.num_chunks = np.prod(self.dim_chunks)
 
@@ -81,17 +76,11 @@ class ChunkIterator:
 
             # TODO (Dmitriy Repin): Enhance ChunkIterator to make the last slice, if needed, smaller
             # https://github.com/TGSAI/mdio-python/issues/586
-            start_indices = tuple(
-                dim * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True)
-            )
+            start_indices = tuple(dim * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True))
 
-            stop_indices = tuple(
-                (dim + 1) * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True)
-            )
+            stop_indices = tuple((dim + 1) * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True))
 
-            slices = tuple(
-                slice(start, stop) for start, stop in zip(start_indices, stop_indices, strict=True)
-            )
+            slices = tuple(slice(start, stop) for start, stop in zip(start_indices, stop_indices, strict=True))
 
             if self.dims:  # noqa SIM108
                 # Example

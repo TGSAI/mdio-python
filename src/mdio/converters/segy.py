@@ -135,9 +135,7 @@ def _scan_for_headers(
     return segy_dimensions, segy_headers
 
 
-def _build_and_check_grid(
-    segy_dimensions: list[Dimension], segy_file: SegyFile, segy_headers: SegyHeaderArray
-) -> Grid:
+def _build_and_check_grid(segy_dimensions: list[Dimension], segy_file: SegyFile, segy_headers: SegyHeaderArray) -> Grid:
     """Build and check the grid from the SEG-Y headers and dimensions.
 
     Args:
@@ -272,9 +270,7 @@ def _populate_coordinates(
     """
     drop_vars_delayed = []
     # Populate the dimension coordinate variables (1-D arrays)
-    dataset, vars_to_drop_later = populate_dim_coordinates(
-        dataset, grid, drop_vars_delayed=drop_vars_delayed
-    )
+    dataset, vars_to_drop_later = populate_dim_coordinates(dataset, grid, drop_vars_delayed=drop_vars_delayed)
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
     dataset, vars_to_drop_later = populate_non_dim_coordinates(
@@ -319,7 +315,9 @@ def segy_to_mdio(
 
     dimensions, non_dim_coords = _get_coordinates(segy_dimensions, segy_headers, mdio_template)
     shape = [len(dim.coords) for dim in dimensions]
-    headers = to_structured_type(segy_headers.dtype)
+    # TODO(Altay): Turn this dtype into packed representation
+    # https://github.com/TGSAI/mdio-python/issues/601
+    headers = to_structured_type(segy_spec.trace.header.dtype)
 
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
@@ -353,9 +351,7 @@ def segy_to_mdio(
     # This will create the Zarr store with the correct structure
     # TODO(Dmitriy Repin): do chunked write for non-dimensional coordinates and trace_mask
     # https://github.com/TGSAI/mdio-python/issues/587
-    xr_dataset.to_zarr(
-        store=output_location.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=True
-    )
+    xr_dataset.to_zarr(store=output_location.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=True)
 
     # Now we can drop them to simplify chunked write of the data variable
     xr_dataset = xr_dataset.drop_vars(drop_vars_delayed)

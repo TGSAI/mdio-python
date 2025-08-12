@@ -47,11 +47,7 @@ class VariableBuilder:
         if isinstance(dimensions[0], str):
             dims = list(dimensions)
         elif isinstance(dimensions[0], dict):
-            dims = [
-                NamedDimension(name=name, size=size)
-                for dim in dimensions
-                for name, size in dim.items()
-            ]
+            dims = [NamedDimension(name=name, size=size) for dim in dimensions for name, size in dim.items()]
         else:
             raise NotImplementedError
 

@@ -8,20 +8,25 @@ expected full or partial files.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 import fsspec
 import numpy as np
 import pytest
+import xarray as xr
 from numpy.testing import assert_array_equal
 from segy import SegyFile
 from segy.factory import SegyFactory
 from segy.schema import HeaderField
+from segy.schema import SegySpec
 from segy.standards import get_segy_standard
 
 from mdio import MDIOReader
 from mdio import mdio_to_segy
-from mdio import segy_to_mdio
+from mdio.converters.segy import segy_to_mdio
+from mdio.core.storage_location import StorageLocation
+from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy.utilities import segy_export_rechunker
 
 if TYPE_CHECKING:
@@ -123,15 +128,15 @@ GATHER_3D_CONF = MaskedExportConfig(
 )
 
 STREAMER_2D_CONF = MaskedExportConfig(
-    GridConfig(name="2d_streamer", dims=[Dimension("shot", 10, 10, 1), Dimension("channel", 25, 60, 25)]),
-    SegyFactoryConfig(revision=1, header_byte_map={"shot": 7, "channel": 131}, num_samples=201),
+    GridConfig(name="2d_streamer", dims=[Dimension("energy_source_point_num", 10, 10, 1), Dimension("channel", 25, 60, 25)]),
+    SegyFactoryConfig(revision=1, header_byte_map={"energy_source_point_num": 7, "channel": 131}, num_samples=201),
     SegyToMdioConfig(chunks=[2, 12, 128]),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.7),
 )
 
 STREAMER_3D_CONF = MaskedExportConfig(
-    GridConfig(name="3d_streamer", dims=[Dimension("shot", 10, 5, 1), Dimension("cable", 1, 6, 1), Dimension("channel", 25, 60, 25)]),
-    SegyFactoryConfig(revision=1, header_byte_map={"shot": 7, "cable": 193, "channel": 131}, num_samples=201),
+    GridConfig(name="3d_streamer", dims=[Dimension("energy_source_point_num", 10, 5, 1), Dimension("cable", 1, 6, 1), Dimension("channel", 25, 60, 25)]),
+    SegyFactoryConfig(revision=1, header_byte_map={"energy_source_point_num": 7, "cable": 193, "channel": 131}, num_samples=201),
     SegyToMdioConfig(chunks=[1, 2, 12, 128]),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.5),
 )
@@ -145,7 +150,7 @@ COCA_3D_CONF = MaskedExportConfig(
 # fmt: on
 
 
-def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactoryConfig) -> None:
+def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactoryConfig) -> SegySpec:
     """Create a fake SEG-Y file with a multidimensional grid."""
     spec = get_segy_standard(segy_factory_conf.revision)
 
@@ -161,12 +166,14 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
     header_flds.extend(
         [
             HeaderField(name="coord_scalar", byte=71, format="int16"),
-            HeaderField(name="src_x", byte=73, format="int32"),
-            HeaderField(name="src_y", byte=77, format="int32"),
-            HeaderField(name="rec_x", byte=81, format="int32"),
-            HeaderField(name="rec_y", byte=85, format="int32"),
+            HeaderField(name="source_coord_x", byte=73, format="int32"),
+            HeaderField(name="source_coord_y", byte=77, format="int32"),
+            HeaderField(name="group_coord_x", byte=81, format="int32"),
+            HeaderField(name="group_coord_y", byte=85, format="int32"),
             HeaderField(name="cdp_x", byte=181, format="int32"),
             HeaderField(name="cdp_y", byte=185, format="int32"),
+            # "gun" is not a standard header. Let's put it at ALIAS_FILTER_FREQ / 141
+            HeaderField(name="gun", byte=141, format="int16"),
         ]
     )
 
@@ -192,10 +199,23 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
 
     # Fill coordinates (e.g. {SRC-REC-CDP}-X/Y
     headers["coord_scalar"] = -100
-    for field in ["cdp_x", "src_x", "rec_x"]:
-        headers[field] = np.random.randint(low=700000, high=900000, size=trace_numbers.size) * 100
-    for field in ["cdp_y", "src_y", "rec_y"]:
-        headers[field] = np.random.randint(low=4000000, high=5000000, size=trace_numbers.size) * 100
+    for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
+        start = 700000
+        step = 100
+        stop = start + step * (trace_numbers.size - 0)
+        headers[field] = np.arange(start=start, stop=stop, step=step)
+    for field in ["cdp_y", "source_coord_y", "group_coord_y"]:
+        start = 4000000
+        step = 100
+        stop = start + step * (trace_numbers.size - 0)
+        headers[field] = np.arange(start=start, stop=stop, step=step)
+
+    # Array filled with repeating sequence
+    sequence = np.array([1, 2, 3])
+    # Calculate the number of times the sequence needs to be repeated
+    num_repetitions = int(np.ceil(trace_numbers.size / len(sequence)))
+    repeated_array = np.tile(sequence, num_repetitions)[: trace_numbers.size]
+    headers["gun"] = repeated_array
 
     samples[:] = trace_numbers[..., None]
 
@@ -203,6 +223,8 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
         fp.write(factory.create_textual_header())
         fp.write(factory.create_binary_header())
         fp.write(factory.create_traces(headers, samples))
+
+    return spec
 
 
 def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: GridConfig) -> NDArray:
@@ -242,22 +264,36 @@ class TestNdImportExport:
         """Test import of an n-D SEG-Y file to MDIO."""
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
 
+        domain = "Time"
+        match grid_conf.name:
+            case "2d_stack":
+                template_name = "PostStack2D" + domain
+            case "3d_stack":
+                template_name = "PostStack3D" + domain
+            case "2d_gather":
+                template_name = "PreStackCdpGathers2D" + domain
+            case "3d_gather":
+                template_name = "PreStackCdpGathers3D" + domain
+            case "2d_streamer":
+                template_name = "PreStackShotGathers2D" + domain
+            case "3d_streamer":
+                template_name = "PreStackShotGathers3D" + domain
+            # case "3d_coca":
+            #     templateName = "PostStack3D" + domain
+            case _:
+                err = f"Unsupported test configuration: {grid_conf.name}"
+                raise ValueError(err)
+
         segy_path = export_masked_path / f"{grid_conf.name}.sgy"
         mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
-        print(mdio_path)
 
-        mock_nd_segy(segy_path, grid_conf, segy_factory_conf)
-
-        index_names = segy_factory_conf.header_byte_map.keys()
-        index_bytes = segy_factory_conf.header_byte_map.values()
-        chunksize = segy_to_mdio_conf.chunks
+        segy_spec: SegySpec = mock_nd_segy(segy_path, grid_conf, segy_factory_conf)
 
         segy_to_mdio(
-            segy_path.__str__(),
-            mdio_path.__str__(),
-            index_bytes,
-            index_names,
-            chunksize=chunksize,
+            segy_spec=segy_spec,
+            mdio_template=TemplateRegistry().get(template_name),
+            input_location=StorageLocation(str(segy_path)),
+            output_location=StorageLocation(str(mdio_path)),
             overwrite=True,
         )
 
@@ -266,31 +302,54 @@ class TestNdImportExport:
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
         mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
 
-        ndim = len(segy_to_mdio_conf.chunks)
-        access_pattern = "".join(map(str, range(ndim)))
-        actual_reader = MDIOReader(mdio_path, access_pattern=access_pattern, return_metadata=True)
+        # Open the MDIO file
+        # NOTE: If mask_and_scale is not set,
+        # Xarray will convert int to float and replace _FillValue with NaN
+        ds = xr.open_dataset(mdio_path, engine="zarr", mask_and_scale=False)
 
         # Test dimensions and ingested dimension headers
         expected_dims = grid_conf.dims
-        for expected_dim in expected_dims:
-            actual_dim = actual_reader.grid.select_dim(expected_dim.name)
-            assert expected_dim.name == actual_dim.name
-            assert expected_dim.size == actual_dim.coords.size
-            assert expected_dim.start == actual_dim.coords[0]
+        for expected in expected_dims:
+            actual_dim = ds[expected.name]
+            assert expected.name == actual_dim.name
+            assert expected.size == actual_dim.values.size
+            assert expected.start == actual_dim.values[0]
 
-        num_traces = np.prod(actual_reader.live_mask.shape)
+        live_mask = ds["trace_mask"].values
 
-        # Read all the data into memory
-        live, headers, traces = actual_reader[..., 0]
+        expected_sizes = [d.size for d in expected_dims]
+        num_traces = np.prod(expected_sizes)
 
         # Ensure live mask is full
-        np.testing.assert_equal(live, True)
+        np.testing.assert_equal(live_mask.ravel(), True)
 
-        # TODO(Altay): Check if all dimension headers are correct
-        # https://github.com/TGSAI/mdio-python/issues/593
+        # Validate trace headers
+        headers = ds["headers"]
+        assert headers.shape == live_mask.shape
+        assert set(headers.dims) == {dim.name for dim in grid_conf.dims}
+        # Validate header values
+        trace_index = 0
+        trace_header = headers.values.flatten()[trace_index]
+        expected_x = 700000 + trace_index * 100
+        expected_y = 4000000 + trace_index * 100
+        expected_gun = 1 + (trace_index % 3)
+        assert trace_header["coord_scalar"] == -100
+        assert trace_header["source_coord_x"] == expected_x
+        assert trace_header["source_coord_y"] == expected_y
+        assert trace_header["group_coord_x"] == expected_x
+        assert trace_header["group_coord_y"] == expected_y
+        assert trace_header["cdp_x"] == expected_x
+        assert trace_header["cdp_y"] == expected_y
+        assert trace_header["gun"] == expected_gun
 
-        # Check if all trace values are correct (e.g. == sequential 1 to N)
-        np.testing.assert_array_equal(traces.ravel(), np.arange(1, num_traces + 1))
+        # Validate trace samples
+        # Traces have constant samples with the value equal to the trace index
+        # Let's get a horizontal slice of the traces at the first sample
+        actual = ds["amplitude"].values[..., 0]
+        # Create expected array with trace indices
+        # The trace index goes from 1 to num_traces
+        expected = np.arange(1, num_traces + 1, dtype=np.float32).reshape(live_mask.shape)
+        assert np.array_equal(actual, expected)
 
 
     def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:

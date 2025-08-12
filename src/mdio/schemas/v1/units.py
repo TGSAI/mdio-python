@@ -84,9 +84,7 @@ class FrequencyUnitEnum(UnitEnum):
     HERTZ = ureg.hertz
 
 
-FrequencyUnitModel = create_unit_model(
-    FrequencyUnitEnum, "FrequencyUnitModel", "frequency", __name__
-)
+FrequencyUnitModel = create_unit_model(FrequencyUnitEnum, "FrequencyUnitModel", "frequency", __name__)
 
 
 class VoltageUnitEnum(UnitEnum):

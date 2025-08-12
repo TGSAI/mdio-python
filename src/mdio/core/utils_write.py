@@ -12,9 +12,7 @@ if TYPE_CHECKING:
 
 MAX_SIZE_LIVE_MASK = 512 * 1024**2
 
-JsonSerializable = (
-    str | int | float | bool | None | dict[str, "JsonSerializable"] | list["JsonSerializable"]
-)
+JsonSerializable = str | int | float | bool | None | dict[str, "JsonSerializable"] | list["JsonSerializable"]
 
 
 def write_attribute(name: str, attribute: JsonSerializable, zarr_group: "Group") -> None:

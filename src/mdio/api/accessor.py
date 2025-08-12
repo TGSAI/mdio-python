@@ -205,14 +205,10 @@ class MDIOAccessor:
 
         if self._backend == "dask" and self._new_chunks is not None:
             # Handle None values (take original chunksize)
-            new_chunks = tuple(
-                self.chunks[idx] if dim is None else dim for idx, dim in enumerate(self._new_chunks)
-            )
+            new_chunks = tuple(self.chunks[idx] if dim is None else dim for idx, dim in enumerate(self._new_chunks))
 
             # Handle "-1" values, which means don't chunk that dimension
-            new_chunks = tuple(
-                self.shape[idx] if dim == -1 else dim for idx, dim in enumerate(new_chunks)
-            )
+            new_chunks = tuple(self.shape[idx] if dim == -1 else dim for idx, dim in enumerate(new_chunks))
 
             self._orig_chunks = self.chunks
             self.chunks = new_chunks
@@ -458,10 +454,7 @@ class MDIOAccessor:
             msg = "Coordinate queries not the same size as n_dimensions"
             raise ShapeError(msg, ("# Coord Dims", "# Dimensions"), (len(queries), ndim_expect))
 
-        if dimensions is None:
-            dims = self.grid.dims
-        else:
-            dims = [self.grid.select_dim(dim_name) for dim_name in dimensions]
+        dims = self.grid.dims if dimensions is None else [self.grid.select_dim(dim_name) for dim_name in dimensions]
 
         dim_indices = ()
         for mdio_dim, dim_query_coords in zip(dims, queries):  # noqa: B905

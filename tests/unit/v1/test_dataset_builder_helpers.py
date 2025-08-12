@@ -25,9 +25,7 @@ def test__get_named_dimension() -> None:
         _get_named_dimension(dimensions, None)
     with pytest.raises(TypeError, match="Expected str, got int"):
         _get_named_dimension(dimensions, 42)
-    with pytest.raises(
-        ValueError, match="Dimension 'inline' found but size 2 does not match expected size 200"
-    ):
+    with pytest.raises(ValueError, match="Dimension 'inline' found but size 2 does not match expected size 200"):
         _get_named_dimension(dimensions, "inline", size=200)
 
 
@@ -45,13 +43,9 @@ def test__to_dictionary() -> None:
     class SomeModel(StrictModel):
         count: int = Field(default=None, description="Samples count")
         samples: list[float] = Field(default_factory=list, description="Samples.")
-        created: datetime = Field(
-            default_factory=datetime.now, description="Creation time with TZ info."
-        )
+        created: datetime = Field(default_factory=datetime.now, description="Creation time with TZ info.")
 
-    md = SomeModel(
-        count=3, samples=[1.0, 2.0, 3.0], created=datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)
-    )
+    md = SomeModel(count=3, samples=[1.0, 2.0, 3.0], created=datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC))
     result = _to_dictionary(md)
     assert isinstance(result, dict)
     assert result == {"count": 3, "created": "2023-10-01T12:00:00Z", "samples": [1.0, 2.0, 3.0]}
@@ -73,9 +67,7 @@ def test__to_dictionary() -> None:
     # Validate conversion of a dictionary
     lst = [
         None,
-        SomeModel(
-            count=3, samples=[1.0, 2.0, 3.0], created=datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)
-        ),
+        SomeModel(count=3, samples=[1.0, 2.0, 3.0], created=datetime(2023, 10, 1, 12, 0, 0, tzinfo=UTC)),
         {
             "count2": 3,
             "samples2": [1.0, 2.0, 3.0],

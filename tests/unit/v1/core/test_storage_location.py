@@ -56,9 +56,7 @@ class TestStorageLocation:
         uri = "s3://my-bucket/file.segy"
         options = {"region": "us-west-2"}
         location = StorageLocation(uri=uri, options=options)
-        expected = (
-            "StorageLocation(uri='s3://my-bucket/file.segy', options={'region': 'us-west-2'})"
-        )
+        expected = "StorageLocation(uri='s3://my-bucket/file.segy', options={'region': 'us-west-2'})"
         assert repr(location) == expected
 
     def test_from_path(self) -> None:

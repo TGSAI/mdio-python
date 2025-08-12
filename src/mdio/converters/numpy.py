@@ -106,9 +106,7 @@ def numpy_to_mdio(  # noqa: PLR0913
     storage_options = storage_options or {}
 
     if len(chunksize) != array.ndim:
-        message = (
-            f"Length of chunks={len(chunksize)} must be equal to array dimensions={array.ndim}",
-        )
+        message = (f"Length of chunks={len(chunksize)} must be equal to array dimensions={array.ndim}",)
         raise ValueError(message)
 
     if index_names is None:
@@ -127,8 +125,7 @@ def numpy_to_mdio(  # noqa: PLR0913
 
             if index_coords[name].size != size:
                 message = (
-                    f"Size of index_coords[{name}]={index_coords[name].size} "
-                    f"does not match array dimension={size}"
+                    f"Size of index_coords[{name}]={index_coords[name].size} does not match array dimension={size}"
                 )
                 raise ValueError(message)
 

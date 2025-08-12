@@ -143,9 +143,7 @@ def create_rechunk_plan(
     trace_compressor = Blosc("zstd") if compressors is None else compressors
 
     for chunks, suffix in zip(chunks_list, suffix_list, strict=True):
-        norm_chunks = tuple(
-            min(chunk, size) for chunk, size in zip(chunks, source.shape, strict=True)
-        )
+        norm_chunks = tuple(min(chunk, size) for chunk, size in zip(chunks, source.shape, strict=True))
 
         if suffix == source.access_pattern:
             msg = f"Can't write over source data with suffix {suffix}"

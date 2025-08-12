@@ -261,9 +261,7 @@ def to_segy(
     # Calculate axes with only one chunk to be reduced
     num_blocks = samples.numblocks
     non_consecutive_axes = find_trailing_ones_index(num_blocks)
-    reduce_axes = tuple(
-        i for i in range(non_consecutive_axes - 1, len(num_blocks)) if num_blocks[i] == 1
-    )
+    reduce_axes = tuple(i for i in range(non_consecutive_axes - 1, len(num_blocks)) if num_blocks[i] == 1)
 
     # Append headers, and write block as stack of SEG-Ys (full sample dim).
     # Output is N-1 dimensions. We merged headers + samples to new dtype.

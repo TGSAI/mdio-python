@@ -18,9 +18,7 @@ _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
 
-def _validate_coordinates_headers_trace_mask(
-    dataset: Dataset, headers: StructuredType, domain: str
-) -> None:
+def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
     """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
     # 4 dim coords + 5 non-dim coords + 1 data + 1 trace mask + 1 headers = 12 variables
@@ -30,25 +28,25 @@ def _validate_coordinates_headers_trace_mask(
     validate_variable(
         dataset,
         name="headers",
-        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
-        coords=["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"],
+        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
         dtype=headers,
     )
 
     validate_variable(
         dataset,
         name="trace_mask",
-        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
-        coords=["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"],
+        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
         dtype=ScalarType.BOOL,
     )
 
     # Verify dimension coordinate variables
     inline = validate_variable(
         dataset,
-        name="shot_point",
-        dims=[("shot_point", 256)],
-        coords=["shot_point"],
+        name="energy_source_point_num",
+        dims=[("energy_source_point_num", 256)],
+        coords=["energy_source_point_num"],
         dtype=ScalarType.INT32,
     )
     assert inline.metadata is None
@@ -84,46 +82,46 @@ def _validate_coordinates_headers_trace_mask(
     validate_variable(
         dataset,
         name="gun",
-        dims=[("shot_point", 256)],
+        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
         coords=["gun"],
         dtype=ScalarType.UINT8,
     )
 
-    shot_x = validate_variable(
+    source_coord_x = validate_variable(
         dataset,
-        name="shot-x",
-        dims=[("shot_point", 256)],
-        coords=["shot-x"],
+        name="source_coord_x",
+        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        coords=["source_coord_x"],
         dtype=ScalarType.FLOAT64,
     )
-    assert shot_x.metadata.units_v1.length == LengthUnitEnum.METER
+    assert source_coord_x.metadata.units_v1.length == LengthUnitEnum.METER
 
-    shot_y = validate_variable(
+    source_coord_y = validate_variable(
         dataset,
-        name="shot-y",
-        dims=[("shot_point", 256)],
-        coords=["shot-y"],
+        name="source_coord_y",
+        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        coords=["source_coord_y"],
         dtype=ScalarType.FLOAT64,
     )
-    assert shot_y.metadata.units_v1.length == LengthUnitEnum.METER
+    assert source_coord_y.metadata.units_v1.length == LengthUnitEnum.METER
 
-    receiver_x = validate_variable(
+    group_coord_x = validate_variable(
         dataset,
-        name="receiver-x",
-        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
-        coords=["receiver-x"],
+        name="group_coord_x",
+        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        coords=["group_coord_x"],
         dtype=ScalarType.FLOAT64,
     )
-    assert receiver_x.metadata.units_v1.length == LengthUnitEnum.METER
+    assert group_coord_x.metadata.units_v1.length == LengthUnitEnum.METER
 
-    receiver_y = validate_variable(
+    group_coord_y = validate_variable(
         dataset,
-        name="receiver-y",
-        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
-        coords=["receiver-y"],
+        name="group_coord_y",
+        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        coords=["group_coord_y"],
         dtype=ScalarType.FLOAT64,
     )
-    assert receiver_y.metadata.units_v1.length == LengthUnitEnum.METER
+    assert group_coord_y.metadata.units_v1.length == LengthUnitEnum.METER
 
 
 class TestSeismic3DPreStackShotTemplate:
@@ -135,9 +133,9 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Template attributes for prestack shot
         assert t._trace_domain == "depth"
-        assert t._coord_dim_names == ["shot_point", "cable", "channel"]
-        assert t._dim_names == ["shot_point", "cable", "channel", "depth"]
-        assert t._coord_names == ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
+        assert t._coord_dim_names == ["energy_source_point_num", "cable", "channel"]
+        assert t._dim_names == ["energy_source_point_num", "cable", "channel", "depth"]
+        assert t._coord_names == ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]
 
         # Variables instantiated when build_dataset() is called
@@ -160,9 +158,9 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Template attributes for prestack shot
         assert t._trace_domain == "time"
-        assert t._coord_dim_names == ["shot_point", "cable", "channel"]
-        assert t._dim_names == ["shot_point", "cable", "channel", "time"]
-        assert t._coord_names == ["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"]
+        assert t._coord_dim_names == ["energy_source_point_num", "cable", "channel"]
+        assert t._dim_names == ["energy_source_point_num", "cable", "channel", "time"]
+        assert t._coord_names == ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]
 
         # Variables instantiated when build_dataset() is called
@@ -215,8 +213,8 @@ class TestSeismic3DPreStackShotTemplate:
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[("shot_point", 256), ("cable", 512), ("channel", 24), ("depth", 2048)],
-            coords=["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"],
+            dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24), ("depth", 2048)],
+            coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
@@ -248,8 +246,8 @@ class TestSeismic3DPreStackShotTemplate:
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[("shot_point", 256), ("cable", 512), ("channel", 24), ("time", 2048)],
-            coords=["gun", "shot-x", "shot-y", "receiver-x", "receiver-y"],
+            dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24), ("time", 2048)],
+            coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
