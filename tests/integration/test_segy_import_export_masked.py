@@ -150,9 +150,7 @@ COCA_3D_CONF = MaskedExportConfig(
 # fmt: on
 
 
-def mock_nd_segy(
-    path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactoryConfig
-) -> SegySpec:
+def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactoryConfig) -> SegySpec:
     """Create a fake SEG-Y file with a multidimensional grid."""
     spec = get_segy_standard(segy_factory_conf.revision)
 
@@ -249,8 +247,6 @@ def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: Grid
 @pytest.fixture
 def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Fixture that generates temp directory for export tests."""
-    # For debugging purposes, we can use a fixed path
-    # return Path("./TMP/export_masked")
     return tmp_path_factory.getbasetemp() / "export_masked"
 
 
@@ -332,19 +328,19 @@ class TestNdImportExport:
         assert headers.shape == live_mask.shape
         assert set(headers.dims) == {dim.name for dim in grid_conf.dims}
         # Validate header values
-        i = 0
-        h = headers.values.flatten()[i]
-        a = 700000 + i * 100
-        b = 4000000 + i * 100
-        c = 1 + (i % 3)
-        assert h["coord_scalar"] == -100
-        assert h["source_coord_x"] == a
-        assert h["source_coord_y"] == b
-        assert h["group_coord_x"] == a
-        assert h["group_coord_y"] == b
-        assert h["cdp_x"] == a
-        assert h["cdp_y"] == b
-        assert h["gun"] == c
+        trace_index = 0
+        trace_header = headers.values.flatten()[trace_index]
+        expected_x = 700000 + trace_index * 100
+        expected_y = 4000000 + trace_index * 100
+        expected_gun = 1 + (trace_index % 3)
+        assert trace_header["coord_scalar"] == -100
+        assert trace_header["source_coord_x"] == expected_x
+        assert trace_header["source_coord_y"] == expected_y
+        assert trace_header["group_coord_x"] == expected_x
+        assert trace_header["group_coord_y"] == expected_y
+        assert trace_header["cdp_x"] == expected_x
+        assert trace_header["cdp_y"] == expected_y
+        assert trace_header["gun"] == expected_gun
 
         # Validate trace samples
         # Traces have constant samples with the value equal to the trace index
