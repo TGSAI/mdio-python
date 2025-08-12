@@ -11,6 +11,7 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
+
 # Suppress Dask's chunk balancing warning
 warnings.filterwarnings(
     "ignore",
@@ -45,8 +46,7 @@ def segy_input(segy_input_uri: str, tmp_path_factory: pytest.TempPathFactory) ->
 @pytest.fixture(scope="module")
 def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
-    path = tmp_path_factory.mktemp(r"mdio")
-    return path  # noqa RET504
+    return tmp_path_factory.mktemp(r"mdio")
 
 
 @pytest.fixture(scope="module")
