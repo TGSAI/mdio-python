@@ -12,19 +12,9 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
     def __init__(self, domain: str):
         super().__init__(domain=domain)
 
-        self._coord_dim_names = [
-            "energy_source_point_num",
-            "cable",
-            "channel",
-        ]  # Custom coordinate definition for shot gathers
+        self._coord_dim_names = ["energy_source_point_num", "cable", "channel"]  # Custom coordinates for shot gathers
         self._dim_names = [*self._coord_dim_names, self._trace_domain]
-        self._coord_names = [
-            "gun",
-            "source_coord_x",
-            "source_coord_y",
-            "group_coord_x",
-            "group_coord_y",
-        ]
+        self._coord_names = ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
         self._var_chunk_shape = [1, 1, 512, 4096]
 
     @property
