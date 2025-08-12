@@ -18,9 +18,7 @@ _UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 _UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
 
 
-def _validate_coordinates_headers_trace_mask(
-    dataset: Dataset, headers: StructuredType, domain: str
-) -> None:
+def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
     """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
     # 4 dim coords + 5 non-dim coords + 1 data + 1 trace mask + 1 headers = 12 variables
@@ -137,13 +135,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert t._trace_domain == "depth"
         assert t._coord_dim_names == ["energy_source_point_num", "cable", "channel"]
         assert t._dim_names == ["energy_source_point_num", "cable", "channel", "depth"]
-        assert t._coord_names == [
-            "gun",
-            "source_coord_x",
-            "source_coord_y",
-            "group_coord_x",
-            "group_coord_y",
-        ]
+        assert t._coord_names == ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]
 
         # Variables instantiated when build_dataset() is called
@@ -168,13 +160,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert t._trace_domain == "time"
         assert t._coord_dim_names == ["energy_source_point_num", "cable", "channel"]
         assert t._dim_names == ["energy_source_point_num", "cable", "channel", "time"]
-        assert t._coord_names == [
-            "gun",
-            "source_coord_x",
-            "source_coord_y",
-            "group_coord_x",
-            "group_coord_y",
-        ]
+        assert t._coord_names == ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]
 
         # Variables instantiated when build_dataset() is called
@@ -227,12 +213,7 @@ class TestSeismic3DPreStackShotTemplate:
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[
-                ("energy_source_point_num", 256),
-                ("cable", 512),
-                ("channel", 24),
-                ("depth", 2048),
-            ],
+            dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24), ("depth", 2048)],
             coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
             dtype=ScalarType.FLOAT32,
         )
@@ -265,12 +246,7 @@ class TestSeismic3DPreStackShotTemplate:
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[
-                ("energy_source_point_num", 256),
-                ("cable", 512),
-                ("channel", 24),
-                ("time", 2048),
-            ],
+            dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24), ("time", 2048)],
             coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
             dtype=ScalarType.FLOAT32,
         )
