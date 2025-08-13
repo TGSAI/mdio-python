@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from segy import SegyFile
@@ -113,7 +113,7 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
 
 def _scan_for_headers(
-    segy_file: SegyFile, template: AbstractDatasetTemplate
+    segy_file: SegyFile, template: AbstractDatasetTemplate, grid_overrides: dict[str, Any]
 ) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
 
@@ -124,13 +124,13 @@ def _scan_for_headers(
     # https://github.com/TGSAI/mdio-python/issues/585
     # The 'grid_chunksize' is used only for grid_overrides
     # While we do not support grid override, we can set it to None
-    grid_chunksize = None
+    grid_chunksize = template.grid_chunks
     segy_dimensions, chunksize, segy_headers = get_grid_plan(
         segy_file=segy_file,
         return_headers=True,
         template=template,
         chunksize=grid_chunksize,
-        grid_overrides=None,
+        grid_overrides=grid_overrides,
     )
     return segy_dimensions, segy_headers
 
@@ -320,6 +320,7 @@ def segy_to_mdio(
     input_location: StorageLocation,
     output_location: StorageLocation,
     overwrite: bool = False,
+    grid_overrides: dict[str, Any] = {}
 ) -> None:
     """A function that converts a SEG-Y file to an MDIO v1 file.
 
@@ -343,7 +344,7 @@ def segy_to_mdio(
     segy_file = SegyFile(url=input_location.uri, spec=segy_spec, settings=segy_settings)
 
     # Scan the SEG-Y file for headers
-    segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template)
+    segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
     grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
 

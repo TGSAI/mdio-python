@@ -14,6 +14,7 @@ class Seismic3DPreStackCDPTemplate(AbstractDatasetTemplate):
         self._dim_names = [*self._coord_dim_names, self._trace_domain]
         self._coord_names = ["cdp_x", "cdp_y"]
         self._var_chunk_shape = [1, 1, 512, 4096]
+        self._grid_chunk_shape = [16, 16, 4096]
 
     @property
     def _name(self) -> str:

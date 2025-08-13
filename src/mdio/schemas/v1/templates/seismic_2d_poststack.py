@@ -14,6 +14,7 @@ class Seismic2DPostStackTemplate(AbstractDatasetTemplate):
         self._dim_names = [*self._coord_dim_names, self._trace_domain]
         self._coord_names = ["cdp_x", "cdp_y"]
         self._var_chunk_shape = [1024, 1024]
+        self._grid_chunk_shape = [1048576]
 
     @property
     def _name(self) -> str:

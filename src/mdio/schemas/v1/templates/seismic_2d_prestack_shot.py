@@ -16,6 +16,7 @@ class Seismic2DPreStackShotTemplate(AbstractDatasetTemplate):
         self._dim_names = [*self._coord_dim_names, self._trace_domain]
         self._coord_names = ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
         self._var_chunk_shape = [1, 512, 4096]
+        self._grid_chunk_shape = [1024, 1024]
 
     @property
     def _name(self) -> str:

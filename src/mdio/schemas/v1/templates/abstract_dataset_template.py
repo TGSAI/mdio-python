@@ -54,6 +54,12 @@ class AbstractDatasetTemplate(ABC):
         # e.g. [1, 1, 512, 4096] for 3D pre-stack CPD depth
         # e.g. [1, 1, 512, 4096] for 3D pre-stack time Shot gathers
         self._var_chunk_shape = []
+        # Grid chunk shape for the variable in the dataset
+        # e.g. [1048576] for 2D post-stack depth
+        # e.g. [1024, 1024] for 3D post-stack depth
+        # e.g. [16, 16, 4096] for 3D pre-stack CPD depth
+        # e.g. [16, 16, 4096] for 3D pre-stack time Shot gathers
+        self._grid_chunk_shape = []
 
         # Variables instantiated when build_dataset() is called
         self._builder: MDIODatasetBuilder = None
@@ -117,6 +123,11 @@ class AbstractDatasetTemplate(ABC):
     def coordinate_names(self) -> list[str]:
         """Returns the names of the coordinates."""
         return copy.deepcopy(self._coord_names)
+
+    @property
+    def grid_chunks(self) -> list[int]:
+        """Returns the chunk shape for the grid."""
+        return copy.deepcopy(self._grid_chunk_shape)
 
     @property
     @abstractmethod
