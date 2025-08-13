@@ -128,15 +128,15 @@ GATHER_3D_CONF = MaskedExportConfig(
 )
 
 STREAMER_2D_CONF = MaskedExportConfig(
-    GridConfig(name="2d_streamer", dims=[Dimension("energy_source_point_num", 10, 10, 1), Dimension("channel", 25, 60, 25)]),
-    SegyFactoryConfig(revision=1, header_byte_map={"energy_source_point_num": 7, "channel": 131}, num_samples=201),
+    GridConfig(name="2d_streamer", dims=[Dimension("shot_point", 10, 10, 1), Dimension("channel", 25, 60, 25)]),
+    SegyFactoryConfig(revision=1, header_byte_map={"shot_point": 7, "channel": 131}, num_samples=201),
     SegyToMdioConfig(chunks=[2, 12, 128]),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.7),
 )
 
 STREAMER_3D_CONF = MaskedExportConfig(
-    GridConfig(name="3d_streamer", dims=[Dimension("energy_source_point_num", 10, 5, 1), Dimension("cable", 1, 6, 1), Dimension("channel", 25, 60, 25)]),
-    SegyFactoryConfig(revision=1, header_byte_map={"energy_source_point_num": 7, "cable": 193, "channel": 131}, num_samples=201),
+    GridConfig(name="3d_streamer", dims=[Dimension("shot_point", 10, 5, 1), Dimension("cable", 1, 6, 1), Dimension("channel", 25, 60, 25)]),
+    SegyFactoryConfig(revision=1, header_byte_map={"shot_point": 7, "cable": 193, "channel": 131}, num_samples=201),
     SegyToMdioConfig(chunks=[1, 2, 12, 128]),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.5),
 )

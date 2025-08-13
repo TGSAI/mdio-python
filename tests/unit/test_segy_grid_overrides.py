@@ -133,7 +133,7 @@ class TestStreamerGridOverrides:
 
     def test_channel_wrap(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
         """Test the ChannelWrap command."""
-        index_names = ("shot", "cable", "channel")
+        index_names = ("shot_point", "cable", "channel")
         grid_overrides = {"ChannelWrap": True, "ChannelsPerCable": len(RECEIVERS)}
 
         new_headers, new_names, new_chunks = run_override(grid_overrides, index_names, mock_streamer_headers)
@@ -152,7 +152,7 @@ class TestStreamerGridOverrides:
         mock_streamer_headers: dict[str, npt.NDArray],
     ) -> None:
         """Test the CalculateCable command."""
-        index_names = ("shot", "cable", "channel")
+        index_names = ("shot_point", "cable", "channel")
         grid_overrides = {"CalculateCable": True, "ChannelsPerCable": len(RECEIVERS)}
 
         new_headers, new_names, new_chunks = run_override(grid_overrides, index_names, mock_streamer_headers)
@@ -177,7 +177,7 @@ class TestStreamerGridOverrides:
         mock_streamer_headers: dict[str, npt.NDArray],
     ) -> None:
         """Test the combined ChannelWrap and CalculateCable commands."""
-        index_names = ("shot", "cable", "channel")
+        index_names = ("shot_point", "cable", "channel")
         grid_overrides = {
             "CalculateCable": True,
             "ChannelWrap": True,
@@ -199,7 +199,7 @@ class TestStreamerGridOverrides:
 
     def test_missing_param(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
         """Test missing parameters for the commands."""
-        index_names = ("shot", "cable", "channel")
+        index_names = ("shot_point", "cable", "channel")
         chunksize = None
         overrider = GridOverrider()
 
@@ -214,7 +214,7 @@ class TestStreamerGridOverrides:
         mock_streamer_headers: dict[str, npt.NDArray],
     ) -> None:
         """Test commands that can't be run together."""
-        index_names = ("shot", "cable", "channel")
+        index_names = ("shot_point", "cable", "channel")
         chunksize = None
         overrider = GridOverrider()
 
@@ -231,7 +231,7 @@ class TestStreamerGridOverrides:
         mock_streamer_headers: dict[str, npt.NDArray],
     ) -> None:
         """Test exception if user provides a command that's not allowed."""
-        index_names = ("shot", "cable", "channel")
+        index_names = ("shot_point", "cable", "channel")
         chunksize = None
         overrider = GridOverrider()
         with pytest.raises(GridOverrideUnknownError):
