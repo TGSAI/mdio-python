@@ -28,7 +28,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     validate_variable(
         dataset,
         name="headers",
-        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
         coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
         dtype=headers,
     )
@@ -36,7 +36,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     validate_variable(
         dataset,
         name="trace_mask",
-        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
         coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
         dtype=ScalarType.BOOL,
     )
@@ -44,9 +44,9 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     # Verify dimension coordinate variables
     inline = validate_variable(
         dataset,
-        name="energy_source_point_num",
-        dims=[("energy_source_point_num", 256)],
-        coords=["energy_source_point_num"],
+        name="shot_point",
+        dims=[("shot_point", 256)],
+        coords=["shot_point"],
         dtype=ScalarType.INT32,
     )
     assert inline.metadata is None
@@ -82,7 +82,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     validate_variable(
         dataset,
         name="gun",
-        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
         coords=["gun"],
         dtype=ScalarType.UINT8,
     )
@@ -90,7 +90,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     source_coord_x = validate_variable(
         dataset,
         name="source_coord_x",
-        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
         coords=["source_coord_x"],
         dtype=ScalarType.FLOAT64,
     )
@@ -99,7 +99,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     source_coord_y = validate_variable(
         dataset,
         name="source_coord_y",
-        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
         coords=["source_coord_y"],
         dtype=ScalarType.FLOAT64,
     )
@@ -108,7 +108,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     group_coord_x = validate_variable(
         dataset,
         name="group_coord_x",
-        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
         coords=["group_coord_x"],
         dtype=ScalarType.FLOAT64,
     )
@@ -117,7 +117,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     group_coord_y = validate_variable(
         dataset,
         name="group_coord_y",
-        dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
         coords=["group_coord_y"],
         dtype=ScalarType.FLOAT64,
     )
@@ -133,8 +133,8 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Template attributes for prestack shot
         assert t._trace_domain == "depth"
-        assert t._coord_dim_names == ["energy_source_point_num", "cable", "channel"]
-        assert t._dim_names == ["energy_source_point_num", "cable", "channel", "depth"]
+        assert t._coord_dim_names == ["shot_point", "cable", "channel"]
+        assert t._dim_names == ["shot_point", "cable", "channel", "depth"]
         assert t._coord_names == ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]
 
@@ -147,7 +147,7 @@ class TestSeismic3DPreStackShotTemplate:
         attrs = t._load_dataset_attributes()
         assert attrs.attributes == {
             "surveyDimensionality": "3D",
-            "ensembleType": "shot",
+            "ensembleType": "shot_point",
             "processingStage": "pre-stack",
         }
         assert t.trace_variable_name == "amplitude"
@@ -158,8 +158,8 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Template attributes for prestack shot
         assert t._trace_domain == "time"
-        assert t._coord_dim_names == ["energy_source_point_num", "cable", "channel"]
-        assert t._dim_names == ["energy_source_point_num", "cable", "channel", "time"]
+        assert t._coord_dim_names == ["shot_point", "cable", "channel"]
+        assert t._dim_names == ["shot_point", "cable", "channel", "time"]
         assert t._coord_names == ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
         assert t._var_chunk_shape == [1, 1, 512, 4096]
 
@@ -172,7 +172,7 @@ class TestSeismic3DPreStackShotTemplate:
         attrs = t._load_dataset_attributes()
         assert attrs.attributes == {
             "surveyDimensionality": "3D",
-            "ensembleType": "shot",
+            "ensembleType": "shot_point",
             "processingStage": "pre-stack",
         }
 
@@ -204,7 +204,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         assert dataset.metadata.name == "Gulf of Mexico 3D Shot Depth"
         assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
-        assert dataset.metadata.attributes["ensembleType"] == "shot"
+        assert dataset.metadata.attributes["ensembleType"] == "shot_point"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
         _validate_coordinates_headers_trace_mask(dataset, structured_headers, "depth")
@@ -213,7 +213,7 @@ class TestSeismic3DPreStackShotTemplate:
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24), ("depth", 2048)],
+            dims=[("shot_point", 256), ("cable", 512), ("channel", 24), ("depth", 2048)],
             coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
             dtype=ScalarType.FLOAT32,
         )
@@ -237,7 +237,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         assert dataset.metadata.name == "North Sea 3D Shot Time"
         assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
-        assert dataset.metadata.attributes["ensembleType"] == "shot"
+        assert dataset.metadata.attributes["ensembleType"] == "shot_point"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
         _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
@@ -246,7 +246,7 @@ class TestSeismic3DPreStackShotTemplate:
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[("energy_source_point_num", 256), ("cable", 512), ("channel", 24), ("time", 2048)],
+            dims=[("shot_point", 256), ("cable", 512), ("channel", 24), ("time", 2048)],
             coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
             dtype=ScalarType.FLOAT32,
         )
