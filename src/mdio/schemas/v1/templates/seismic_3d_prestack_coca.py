@@ -64,13 +64,13 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
         # Add non-dimension coordinates
         self._builder.add_coordinate(
             "cdp_x",
-            dimensions=["inline", "crossline", "offset", "azimuth"],
+            dimensions=["inline", "crossline"],
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "cdp_y",
-            dimensions=["inline", "crossline", "offset", "azimuth"],
+            dimensions=["inline", "crossline"],
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )

@@ -92,7 +92,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     cdp_x = validate_variable(
         dataset,
         name="cdp_x",
-        dims=[("inline", 256), ("crossline", 256), ("offset", 100), ("azimuth", 6)],
+        dims=[("inline", 256), ("crossline", 256)],
         coords=["cdp_x"],
         dtype=ScalarType.FLOAT64,
     )
@@ -101,7 +101,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     cdp_y = validate_variable(
         dataset,
         name="cdp_y",
-        dims=[("inline", 256), ("crossline", 256), ("offset", 100), ("azimuth", 6)],
+        dims=[("inline", 256), ("crossline", 256)],
         coords=["cdp_y"],
         dtype=ScalarType.FLOAT64,
     )
