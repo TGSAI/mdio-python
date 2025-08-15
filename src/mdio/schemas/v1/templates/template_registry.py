@@ -67,27 +67,25 @@ class TemplateRegistry:
     def _register_default_templates(self) -> None:
         """Register default templates if needed.
 
-        This method can be overridden by subclasses to register default templates.
+        Subclasses can override this method to register default templates.
         """
+        # Post-Stack Data
         self.register(Seismic2DPostStackTemplate("time"))
         self.register(Seismic2DPostStackTemplate("depth"))
-
-        self.register(Seismic2DPreStackCDPTemplate("time"))
-        self.register(Seismic2DPreStackCDPTemplate("depth"))
-
-        self.register(Seismic2DPreStackShotTemplate("time"))
-        self.register(Seismic2DPreStackShotTemplate("depth"))
-
         self.register(Seismic3DPostStackTemplate("time"))
         self.register(Seismic3DPostStackTemplate("depth"))
 
+        # CDP/CMP Ordered Data
+        self.register(Seismic2DPreStackCDPTemplate("time"))
+        self.register(Seismic2DPreStackCDPTemplate("depth"))
         self.register(Seismic3DPreStackCDPTemplate("time"))
         self.register(Seismic3DPreStackCDPTemplate("depth"))
         self.register(Seismic3DPreStackCocaTemplate("time"))
         self.register(Seismic3DPreStackCocaTemplate("depth"))
 
+        # Field (shot) data
+        self.register(Seismic2DPreStackShotTemplate("time"))
         self.register(Seismic3DPreStackShotTemplate("time"))
-        self.register(Seismic3DPreStackShotTemplate("depth"))
 
     def get(self, template_name: str) -> AbstractDatasetTemplate:
         """Get a template from the registry by its name.
