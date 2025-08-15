@@ -13,6 +13,21 @@ from mdio.schemas.v1.templates.template_registry import is_template_registered
 from mdio.schemas.v1.templates.template_registry import list_templates
 from mdio.schemas.v1.templates.template_registry import register_template
 
+EXPECTED_DEFAULT_TEMPLATE_NAMES = [
+    "PostStack2DTime",
+    "PostStack2DDepth",
+    "PostStack3DTime",
+    "PostStack3DDepth",
+    "PreStackCdpGathers2DTime",
+    "PreStackCdpGathers2DDepth",
+    "PreStackCdpGathers3DTime",
+    "PreStackCdpGathers3DDepth",
+    "PreStackCocaGathers3DTime",
+    "PreStackCocaGathers3DDepth",
+    "PreStackShotGathers2DTime",
+    "PreStackShotGathers3DTime",
+]
+
 
 class MockDatasetTemplate(AbstractDatasetTemplate):
     """Mock template for testing."""
@@ -37,22 +52,10 @@ class MockDatasetTemplate(AbstractDatasetTemplate):
         return f"Mock dataset created by {self.template_name}"
 
 
-def _assert_default_templates(templates: list[str]) -> None:
-    assert len(templates) == 13
-    assert "PostStack2DTime" in templates
-    assert "PostStack2DDepth" in templates
-    assert "PostStack3DTime" in templates
-    assert "PostStack3DDepth" in templates
-
-    assert "PreStackCdpGathers2DTime" in templates
-    assert "PreStackCdpGathers2DDepth" in templates
-    assert "PreStackCdpGathers3DTime" in templates
-    assert "PreStackCdpGathers3DDepth" in templates
-    assert "PreStackCocaGathers3DTime" in templates
-    assert "PreStackCocaGathers3DDepth" in templates
-
-    assert "PreStackShotGathers2DTime" in templates
-    assert "PreStackShotGathers3DTime" in templates
+def _assert_default_templates(template_names: list[str]) -> None:
+    assert len(template_names) == len(EXPECTED_DEFAULT_TEMPLATE_NAMES)
+    for name in EXPECTED_DEFAULT_TEMPLATE_NAMES:
+        assert name in template_names
 
 
 class TestTemplateRegistrySingleton:
@@ -209,18 +212,8 @@ class TestTemplateRegistrySingleton:
         assert not registry.is_registered("Template1")
         assert not registry.is_registered("Template2")
         # default templates are also cleared
-        assert not registry.is_registered("PostStack2DTime")
-        assert not registry.is_registered("PostStack3DTime")
-        assert not registry.is_registered("PreStackCdpGathers2DTime")
-        assert not registry.is_registered("PreStackShotGathers2DTime")
-        assert not registry.is_registered("PreStackCdpGathers3DTime")
-        assert not registry.is_registered("PreStackShotGathers3DTime")
-        assert not registry.is_registered("PostStack2DDepth")
-        assert not registry.is_registered("PostStack3DDepth")
-        assert not registry.is_registered("PreStackCdpGathers2DDepth")
-        assert not registry.is_registered("PreStackShotGathers2DDepth")
-        assert not registry.is_registered("PreStackCdpGathers3DDepth")
-        assert not registry.is_registered("PreStackShotGathers3DDepth")
+        for template_name in EXPECTED_DEFAULT_TEMPLATE_NAMES:
+            assert not registry.is_registered(template_name)
 
     def test_reset_instance(self) -> None:
         """Test resetting the singleton instance."""
@@ -238,19 +231,9 @@ class TestTemplateRegistrySingleton:
         assert not registry2.is_registered("test")
 
         # default templates are registered
-        assert len(registry2.list_all_templates()) == 12
-        assert registry2.is_registered("PostStack2DTime")
-        assert registry2.is_registered("PostStack3DTime")
-        assert registry2.is_registered("PreStackCdpGathers2DTime")
-        assert registry2.is_registered("PreStackShotGathers2DTime")
-        assert registry2.is_registered("PreStackCdpGathers3DTime")
-        assert registry2.is_registered("PreStackShotGathers3DTime")
-        assert registry2.is_registered("PostStack2DDepth")
-        assert registry2.is_registered("PostStack3DDepth")
-        assert registry2.is_registered("PreStackCdpGathers2DDepth")
-        assert registry2.is_registered("PreStackShotGathers2DDepth")
-        assert registry2.is_registered("PreStackCdpGathers3DDepth")
-        assert registry2.is_registered("PreStackShotGathers3DDepth")
+        assert len(registry2.list_all_templates()) == len(EXPECTED_DEFAULT_TEMPLATE_NAMES)
+        for template_name in EXPECTED_DEFAULT_TEMPLATE_NAMES:
+            assert registry2.is_registered(template_name)
 
 
 class TestGlobalFunctions:
