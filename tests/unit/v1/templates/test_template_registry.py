@@ -38,20 +38,21 @@ class MockDatasetTemplate(AbstractDatasetTemplate):
 
 
 def _assert_default_templates(templates: list[str]) -> None:
-    assert len(templates) == 12
+    assert len(templates) == 13
     assert "PostStack2DTime" in templates
-    assert "PostStack3DTime" in templates
-    assert "PreStackCdpGathers2DTime" in templates
-    assert "PreStackShotGathers2DTime" in templates
-    assert "PreStackCdpGathers3DTime" in templates
-    assert "PreStackShotGathers3DTime" in templates
-
     assert "PostStack2DDepth" in templates
+    assert "PostStack3DTime" in templates
     assert "PostStack3DDepth" in templates
+
+    assert "PreStackCdpGathers2DTime" in templates
+    assert "PreStackCdpGathers2DDepth" in templates
     assert "PreStackCdpGathers3DTime" in templates
-    assert "PreStackShotGathers3DTime" in templates
     assert "PreStackCdpGathers3DDepth" in templates
-    assert "PreStackShotGathers3DDepth" in templates
+    assert "PreStackCocaGathers3DTime" in templates
+    assert "PreStackCocaGathers3DDepth" in templates
+
+    assert "PreStackShotGathers2DTime" in templates
+    assert "PreStackShotGathers3DTime" in templates
 
 
 class TestTemplateRegistrySingleton:
