@@ -10,6 +10,7 @@ from mdio.schemas.v1.templates.seismic_2d_poststack import Seismic2DPostStackTem
 from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.schemas.v1.templates.seismic_3d_prestack_cdp import Seismic3DPreStackCDPTemplate
 from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
+from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 
 
 class TestSeismicTemplates:
@@ -74,18 +75,11 @@ class TestSeismicTemplates:
 
     def test_all_templates_inherit_from_abstract(self) -> None:
         """Test that all concrete templates inherit from AbstractDatasetTemplate."""
-        templates = [
-            Seismic2DPostStackTemplate("time"),
-            Seismic3DPostStackTemplate("time"),
-            Seismic3DPreStackCDPTemplate("time"),
-            Seismic3DPreStackShotTemplate("time"),
-            Seismic2DPostStackTemplate("depth"),
-            Seismic3DPostStackTemplate("depth"),
-            Seismic3DPreStackCDPTemplate("depth"),
-            Seismic3DPreStackShotTemplate("depth"),
-        ]
+        registry = TemplateRegistry()
+        template_names = registry.list_all_templates()
 
-        for template in templates:
+        for template_name in template_names:
+            template = registry.get(template_name)
             assert isinstance(template, AbstractDatasetTemplate)
             # That each template has the required properties and methods
             assert hasattr(template, "name")
@@ -95,5 +89,4 @@ class TestSeismicTemplates:
             assert hasattr(template, "coordinate_names")
             assert hasattr(template, "build_dataset")
 
-        names = [template.name for template in templates]
-        assert len(names) == len(set(names)), f"Duplicate template names found: {names}"
+        assert len(template_names) == len(set(template_names)), f"Duplicate template names found: {template_names}"
