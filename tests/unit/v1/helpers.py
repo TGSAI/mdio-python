@@ -56,7 +56,7 @@ def validate_variable(
     name: str,
     dims: list[tuple[str, int]],
     coords: list[str],
-    dtype: ScalarType,
+    dtype: ScalarType | StructuredType,
 ) -> Variable:
     """Validate existence and the structure of the created variable."""
     if isinstance(container, MDIODatasetBuilder):

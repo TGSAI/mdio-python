@@ -10,6 +10,7 @@ from mdio.schemas.v1.templates.seismic_2d_poststack import Seismic2DPostStackTem
 from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.schemas.v1.templates.seismic_3d_prestack_cdp import Seismic3DPreStackCDPTemplate
 from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
+from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 
 
 class TestSeismicTemplates:
@@ -48,44 +49,24 @@ class TestSeismicTemplates:
 
     def test_get_name_time(self) -> None:
         """Test get_name with domain."""
-        time_template = Seismic2DPostStackTemplate("time")
-        dpth_template = Seismic2DPostStackTemplate("depth")
+        assert Seismic2DPostStackTemplate("time").name == "PostStack2DTime"
+        assert Seismic2DPostStackTemplate("depth").name == "PostStack2DDepth"
 
-        assert time_template.name == "PostStack2DTime"
-        assert dpth_template.name == "PostStack2DDepth"
+        assert Seismic3DPostStackTemplate("time").name == "PostStack3DTime"
+        assert Seismic3DPostStackTemplate("depth").name == "PostStack3DDepth"
 
-        time_template = Seismic3DPostStackTemplate("time")
-        dpth_template = Seismic3DPostStackTemplate("depth")
+        assert Seismic3DPreStackCDPTemplate("time").name == "PreStackCdpGathers3DTime"
+        assert Seismic3DPreStackCDPTemplate("depth").name == "PreStackCdpGathers3DDepth"
 
-        assert time_template.name == "PostStack3DTime"
-        assert dpth_template.name == "PostStack3DDepth"
-
-        time_template = Seismic3DPreStackCDPTemplate("time")
-        dpth_template = Seismic3DPreStackCDPTemplate("depth")
-
-        assert time_template.name == "PreStackCdpGathers3DTime"
-        assert dpth_template.name == "PreStackCdpGathers3DDepth"
-
-        time_template = Seismic3DPreStackShotTemplate("time")
-        dpth_template = Seismic3DPreStackShotTemplate("depth")
-
-        assert time_template.name == "PreStackShotGathers3DTime"
-        assert dpth_template.name == "PreStackShotGathers3DDepth"
+        assert Seismic3DPreStackShotTemplate("time").name == "PreStackShotGathers3DTime"
 
     def test_all_templates_inherit_from_abstract(self) -> None:
         """Test that all concrete templates inherit from AbstractDatasetTemplate."""
-        templates = [
-            Seismic2DPostStackTemplate("time"),
-            Seismic3DPostStackTemplate("time"),
-            Seismic3DPreStackCDPTemplate("time"),
-            Seismic3DPreStackShotTemplate("time"),
-            Seismic2DPostStackTemplate("depth"),
-            Seismic3DPostStackTemplate("depth"),
-            Seismic3DPreStackCDPTemplate("depth"),
-            Seismic3DPreStackShotTemplate("depth"),
-        ]
+        registry = TemplateRegistry()
+        template_names = registry.list_all_templates()
 
-        for template in templates:
+        for template_name in template_names:
+            template = registry.get(template_name)
             assert isinstance(template, AbstractDatasetTemplate)
             # That each template has the required properties and methods
             assert hasattr(template, "name")
@@ -95,5 +76,4 @@ class TestSeismicTemplates:
             assert hasattr(template, "coordinate_names")
             assert hasattr(template, "build_dataset")
 
-        names = [template.name for template in templates]
-        assert len(names) == len(set(names)), f"Duplicate template names found: {names}"
+        assert len(template_names) == len(set(template_names)), f"Duplicate template names found: {template_names}"
