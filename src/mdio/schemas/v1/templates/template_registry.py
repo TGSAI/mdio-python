@@ -9,6 +9,7 @@ from mdio.schemas.v1.templates.seismic_2d_prestack_cdp import Seismic2DPreStackC
 from mdio.schemas.v1.templates.seismic_2d_prestack_shot import Seismic2DPreStackShotTemplate
 from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.schemas.v1.templates.seismic_3d_prestack_cdp import Seismic3DPreStackCDPTemplate
+from mdio.schemas.v1.templates.seismic_3d_prestack_coca import Seismic3DPreStackCocaTemplate
 from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
 
 
@@ -82,6 +83,8 @@ class TemplateRegistry:
 
         self.register(Seismic3DPreStackCDPTemplate("time"))
         self.register(Seismic3DPreStackCDPTemplate("depth"))
+        self.register(Seismic3DPreStackCocaTemplate("time"))
+        self.register(Seismic3DPreStackCocaTemplate("depth"))
 
         self.register(Seismic3DPreStackShotTemplate("time"))
         self.register(Seismic3DPreStackShotTemplate("depth"))
