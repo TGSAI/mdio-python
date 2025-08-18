@@ -6,6 +6,7 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
+import zarr
 import numpy as np
 from segy import SegyFile
 from segy.config import SegySettings
@@ -166,7 +167,7 @@ def _get_coordinates(
     segy_dimensions: list[Dimension],
     segy_headers: SegyHeaderArray,
     mdio_template: AbstractDatasetTemplate,
-) -> tuple[list[Dimension], dict[str, SegyHeaderArray]]:
+) -> tuple[list[Dimension], dict[str, (SegyHeaderArray, list[str])]]:
     """Get the data dim and non-dim coordinates from the SEG-Y headers and MDIO template.
 
     Select a subset of the segy_dimensions that corresponds to the MDIO dimensions
@@ -197,13 +198,14 @@ def _get_coordinates(
             raise ValueError(err) from err
         dimensions_coords.append(segy_dimensions[dim_index])
 
-    non_dim_coords: dict[str, SegyHeaderArray] = {}
+    non_dim_coords: dict[str, (SegyHeaderArray, list[str])] = {}
     available_headers = segy_headers.dtype.names
     for coord_name in mdio_template.coordinate_names:
+        coord_dim_names =  mdio_template.coordinate_dimension_names
         if coord_name not in available_headers:
             err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
             raise ValueError(err)
-        non_dim_coords[coord_name] = segy_headers[coord_name]
+        non_dim_coords[coord_name] = (segy_headers[coord_name], coord_dim_names)
 
     return dimensions_coords, non_dim_coords
 
@@ -221,13 +223,18 @@ def populate_dim_coordinates(
 def populate_non_dim_coordinates(
     dataset: xr_Dataset,
     grid: Grid,
-    coordinates: dict[str, SegyHeaderArray],
+    coordinates: dict[str, (SegyHeaderArray, list[str])],
     drop_vars_delayed: list[str],
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate the xarray dataset with coordinate variables."""
-    not_null = grid.map[:] != UINT32_MAX
-    for c_name, c_values in coordinates.items():
-        dataset[c_name].values[not_null] = c_values
+    for c_name, (c_values, coord_dim_names) in coordinates.items():
+        slices = tuple(slice(None) if d_name in coord_dim_names else 0 for d_name in grid.dim_names[:-1])
+        map = grid.map[:][slices]
+        not_null = map != UINT32_MAX
+        # This works
+        tmp = dataset[c_name].values[not_null]
+        # The following will fail:
+        # dataset[c_name].values[not_null] = c_values
         drop_vars_delayed.append(c_name)
     return dataset, drop_vars_delayed
 
@@ -254,7 +261,7 @@ def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnit
 def _populate_coordinates(
     dataset: xr_Dataset,
     grid: Grid,
-    coords: dict[str, SegyHeaderArray],
+    coords: dict[str, (SegyHeaderArray, list[str])],
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
 

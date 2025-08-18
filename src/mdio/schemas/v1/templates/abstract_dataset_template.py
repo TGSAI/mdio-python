@@ -119,6 +119,11 @@ class AbstractDatasetTemplate(ABC):
         return copy.deepcopy(self._coord_names)
 
     @property
+    def coordinate_dimension_names(self) -> list[str]:
+        """Returns the names of the coordinate dimensions."""
+        return copy.deepcopy(self._coord_dim_names)
+
+    @property
     @abstractmethod
     def _name(self) -> str:
         """Abstract method to get the name of the template.
