@@ -18,6 +18,7 @@ from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
+from mdio.core.demultiple import demultiple_min_fast
 from mdio.core.grid import Grid
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.units import AllUnits
@@ -201,11 +202,23 @@ def _get_coordinates(
     non_dim_coords: dict[str, (SegyHeaderArray, list[str])] = {}
     available_headers = segy_headers.dtype.names
     for coord_name in mdio_template.coordinate_names:
-        coord_dim_names =  mdio_template.coordinate_dimension_names
         if coord_name not in available_headers:
             err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
             raise ValueError(err)
-        non_dim_coords[coord_name] = (segy_headers[coord_name], coord_dim_names)
+        # Currently, coordinate_dimension_names are the same for non-dimensional coordinates
+        # However, we can easily update the template code to return coordinate_dimension_names
+        # specific for every coord_name
+        coord_dim_names =  mdio_template.coordinate_dimension_names
+        # Compare only horizontal coordinates:
+        if coord_dim_names == dim_names[:-1]:
+            non_dim_coords[coord_name] = (segy_headers[coord_name], coord_dim_names)
+        else:
+            # We need this only when we have multiple values
+            coord_dims = [d for d in segy_dimensions if d.name in coord_dim_names]
+            # Select just one of multiple coordinate values for each coord_dims tuple
+            # As a simplification, we can take the minimum value, but other strategies are possible
+            coord_values = demultiple_min_fast(segy_headers, coord_dims, coord_name)
+            non_dim_coords[coord_name] = (coord_values.ravel(), coord_dim_names)
 
     return dimensions_coords, non_dim_coords
 
@@ -228,13 +241,12 @@ def populate_non_dim_coordinates(
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate the xarray dataset with coordinate variables."""
     for c_name, (c_values, coord_dim_names) in coordinates.items():
+        # Slice the grid map with slices for the dimensions with names in coord_dim_names
+        # This effectively reduces dimensionality of the grid map to to dimensions in coord_dim_names
         slices = tuple(slice(None) if d_name in coord_dim_names else 0 for d_name in grid.dim_names[:-1])
         map = grid.map[:][slices]
         not_null = map != UINT32_MAX
-        # This works
-        tmp = dataset[c_name].values[not_null]
-        # The following will fail:
-        # dataset[c_name].values[not_null] = c_values
+        dataset[c_name].values[not_null] = c_values
         drop_vars_delayed.append(c_name)
     return dataset, drop_vars_delayed
 
