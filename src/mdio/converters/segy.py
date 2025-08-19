@@ -210,7 +210,8 @@ def _get_coordinates(
         # specific for every coord_name
         coord_dim_names =  mdio_template.coordinate_dimension_names
         # Compare only horizontal coordinates:
-        if coord_dim_names == dim_names[:-1]:
+        # if coord_dim_names == dim_names[:-1]:
+        if False: # disable optimization for now to prove that the logic works in all cases
             non_dim_coords[coord_name] = (segy_headers[coord_name], coord_dim_names)
         else:
             # We need this only when we have multiple values
