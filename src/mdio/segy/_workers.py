@@ -19,10 +19,11 @@ if TYPE_CHECKING:
 
     from mdio.core.storage_location import StorageLocation
 
+from xarray import Variable
+
 from mdio.constants import UINT32_MAX
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
-from xarray import Variable
 
 
 class SegyFileArguments(TypedDict):
@@ -125,7 +126,7 @@ def trace_worker(  # noqa: PLR0913
         ds_to_write["headers"] = Variable(
             ds_to_write["headers"].dims,
             tmp_headers,
-            attrs = ds_to_write["headers"].attrs,
+            attrs=ds_to_write["headers"].attrs,
         )
 
     else:
@@ -135,7 +136,7 @@ def trace_worker(  # noqa: PLR0913
     # Get the sample dimension size from the data variable itself
     sample_dim_size = ds_to_write[data_variable_name].shape[-1]
     tmp_samples = np.zeros(not_null.shape + (sample_dim_size,), dtype=ds_to_write[data_variable_name].dtype)
-        
+
     # Assign trace samples to the correct positions
     # We need to handle the fact that traces.sample is (num_traces, num_samples)
     # and we want to put it into positions where not_null is True
@@ -144,7 +145,7 @@ def trace_worker(  # noqa: PLR0913
     ds_to_write[data_variable_name] = Variable(
         ds_to_write[data_variable_name].dims,
         tmp_samples,
-        attrs = ds_to_write[data_variable_name].attrs,
+        attrs=ds_to_write[data_variable_name].attrs,
     )
 
     out_path = output_location.uri
