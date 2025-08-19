@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 from mdio.constants import UINT32_MAX
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
+from xarray import Variable
 
 
 class SegyFileArguments(TypedDict):
@@ -117,40 +118,34 @@ def trace_worker(  # noqa: PLR0913
         ds_to_write = dataset[[data_variable_name, "headers"]]
         ds_to_write = ds_to_write.reset_coords()
 
-        try:
-            # Create temporary array for headers with the correct shape
-            tmp_headers = np.zeros(not_null.shape, dtype=ds_to_write["headers"].dtype)
-            tmp_headers[not_null] = traces.header
-            ds_to_write["headers"].data[:] = tmp_headers
-        except Exception as e:
-            print(f"Error writing headers: {e}")
-            print(f"not_null.shape: {not_null.shape}")
-            print(f"traces.header.shape: {traces.header.shape}")
-            print(f"ds_to_write['headers'].data.shape: {ds_to_write['headers'].data.shape}")
-            raise e
+        # Create temporary array for headers with the correct shape
+        tmp_headers = np.zeros(not_null.shape, dtype=ds_to_write["headers"].dtype)
+        tmp_headers[not_null] = traces.header
+        # Create a new Variable object to avoid copying the temporary array
+        ds_to_write["headers"] = Variable(
+            ds_to_write["headers"].dims,
+            tmp_headers,
+            attrs = ds_to_write["headers"].attrs,
+        )
 
     else:
         ds_to_write = dataset[[data_variable_name]]
         ds_to_write = ds_to_write.reset_coords()
 
-    try:
-        # Get the sample dimension size from the data variable itself
-        sample_dim_size = ds_to_write[data_variable_name].shape[-1]
-        tmp_samples = np.zeros(not_null.shape + (sample_dim_size,), dtype=ds_to_write[data_variable_name].dtype)
+    # Get the sample dimension size from the data variable itself
+    sample_dim_size = ds_to_write[data_variable_name].shape[-1]
+    tmp_samples = np.zeros(not_null.shape + (sample_dim_size,), dtype=ds_to_write[data_variable_name].dtype)
         
-        # Assign trace samples to the correct positions
-        # We need to handle the fact that traces.sample is (num_traces, num_samples)
-        # and we want to put it into positions where not_null is True
-        tmp_samples[not_null] = traces.sample
-        ds_to_write[data_variable_name].data[:] = tmp_samples
-    except Exception as e:
-        print(f"Error writing samples: {e}")
-        print(f"not_null.shape: {not_null.shape}")
-        print(f"traces.sample.shape: {traces.sample.shape}")
-        print(f"ds_to_write[data_variable_name].data.shape: {ds_to_write[data_variable_name].data.shape}")
-        print(f"not_null.sum(): {not_null.sum()}")
-        print(f"len(traces.sample): {len(traces.sample)}")
-        raise e
+    # Assign trace samples to the correct positions
+    # We need to handle the fact that traces.sample is (num_traces, num_samples)
+    # and we want to put it into positions where not_null is True
+    tmp_samples[not_null] = traces.sample
+    # Create a new Variable object to avoid copying the temporary array
+    ds_to_write[data_variable_name] = Variable(
+        ds_to_write[data_variable_name].dims,
+        tmp_samples,
+        attrs = ds_to_write[data_variable_name].attrs,
+    )
 
     out_path = output_location.uri
     ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
