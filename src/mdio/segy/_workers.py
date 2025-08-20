@@ -111,27 +111,28 @@ def trace_worker(  # noqa: PLR0913
     live_trace_indexes = grid_map[not_null].tolist()
     traces = segy_file.trace[live_trace_indexes]
 
+    hdr_key = "headers"
+
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
     # TODO(Dmitriy Repin): Check, should we overwrite the 'dataset' instead to save the memory
     # https://github.com/TGSAI/mdio-python/issues/584
-    if "headers" in dataset.data_vars:
-        ds_to_write = dataset[[data_variable_name, "headers"]]
-        ds_to_write = ds_to_write.reset_coords()
+    worker_variables = [data_variable_name]
+    if hdr_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
+        worker_variables.append(hdr_key)
 
+    ds_to_write = dataset[worker_variables]
+
+    if hdr_key in worker_variables:
         # Create temporary array for headers with the correct shape
-        tmp_headers = np.zeros(not_null.shape, dtype=ds_to_write["headers"].dtype)
+        tmp_headers = np.zeros(not_null.shape, dtype=ds_to_write[hdr_key].dtype)
         tmp_headers[not_null] = traces.header
         # Create a new Variable object to avoid copying the temporary array
-        ds_to_write["headers"] = Variable(
-            ds_to_write["headers"].dims,
+        ds_to_write[hdr_key] = Variable(
+            ds_to_write[hdr_key].dims,
             tmp_headers,
-            attrs=ds_to_write["headers"].attrs,
+            attrs=ds_to_write[hdr_key].attrs,
         )
-
-    else:
-        ds_to_write = dataset[[data_variable_name]]
-        ds_to_write = ds_to_write.reset_coords()
 
     # Get the sample dimension size from the data variable itself
     sample_dim_size = ds_to_write[data_variable_name].shape[-1]
