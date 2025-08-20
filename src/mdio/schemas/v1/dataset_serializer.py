@@ -196,7 +196,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         chunks = _get_zarr_chunks(v, all_named_dims=all_named_dims)
 
         # Use dask.array.zeros to create a lazy array
-        data = dask_array.zeros(shape=shape, dtype=dtype, chunks=chunks)
+        data = dask_array.full(shape=shape, dtype=dtype, chunks=chunks, fill_value=_get_fill_value(v.data_type))
         # Create a DataArray for the variable. We will set coords in the second pass
         dim_names = _get_dimension_names(v)
         data_array = xr_DataArray(data, dims=dim_names)
