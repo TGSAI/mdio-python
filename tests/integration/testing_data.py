@@ -1,5 +1,23 @@
 """Integration tests data for teapot dome SEG-Y."""
 
+from segy.schema import SegySpec
+from segy.standards import get_segy_standard
+from tests.integration.testing_helpers import customize_segy_specs
+
+
+def custom_teapot_dome_segy_spec() -> SegySpec:
+    """Return the minimum customized SEG-Y specification for the teapot dome dataset."""
+    index_bytes: tuple[int, ...] = (17, 13, 81, 85)
+    index_names: tuple[str, ...] = ("inline", "crossline", "cdp_x", "cdp_y")
+    index_types: tuple[str, ...] = ("int32", "int32", "int32", "int32")
+    segy_spec = get_segy_standard(1.0)
+    return customize_segy_specs(
+        segy_spec=segy_spec,
+        index_bytes=index_bytes,
+        index_names=index_names,
+        index_types=index_types,
+    )
+
 
 def text_header_teapot_dome() -> list[str]:
     """Return the teapot dome expected text header."""
