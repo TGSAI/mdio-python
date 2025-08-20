@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 from xarray import Variable
 
 from mdio.constants import UINT32_MAX
+from mdio.schemas.v1.dataset_serializer import _get_fill_value
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
 
@@ -125,6 +126,7 @@ def trace_worker(  # noqa: PLR0913
 
     if hdr_key in worker_variables:
         # Create temporary array for headers with the correct shape
+        # TODO(BrianMichell): Implement this better so that we can enable fill values without changing the code. #noqa: TD003
         tmp_headers = np.zeros(not_null.shape, dtype=ds_to_write[hdr_key].dtype)
         tmp_headers[not_null] = traces.header
         # Create a new Variable object to avoid copying the temporary array
@@ -136,7 +138,11 @@ def trace_worker(  # noqa: PLR0913
 
     # Get the sample dimension size from the data variable itself
     sample_dim_size = ds_to_write[data_variable_name].shape[-1]
-    tmp_samples = np.zeros(not_null.shape + (sample_dim_size,), dtype=ds_to_write[data_variable_name].dtype)
+    tmp_samples = np.full(
+        not_null.shape + (sample_dim_size,),
+        dtype=ds_to_write[data_variable_name].dtype,
+        fill_value=_get_fill_value(ds_to_write[data_variable_name].dtype),
+    )
 
     # Assign trace samples to the correct positions
     # We need to handle the fact that traces.sample is (num_traces, num_samples)

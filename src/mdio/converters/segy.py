@@ -11,6 +11,7 @@ from segy import SegyFile
 from segy.config import SegySettings
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
+from xarray import Variable
 
 from mdio.constants import UINT32_MAX
 from mdio.converters.exceptions import EnvironmentFormatError
@@ -18,6 +19,7 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.schemas.v1.dataset_serializer import _get_fill_value
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
@@ -227,7 +229,18 @@ def populate_non_dim_coordinates(
     """Populate the xarray dataset with coordinate variables."""
     not_null = grid.map[:] != UINT32_MAX
     for c_name, c_values in coordinates.items():
-        dataset[c_name].values[not_null] = c_values
+        encodings = dataset[c_name].encoding
+        tmp_coords = np.full(
+            not_null.shape, dtype=dataset[c_name].dtype, fill_value=_get_fill_value(dataset[c_name].dtype)
+        )
+        tmp_coords[not_null] = c_values
+        dataset[c_name].values = tmp_coords
+        dataset[c_name] = Variable(
+            dataset[c_name].dims,
+            tmp_coords,
+            attrs=dataset[c_name].attrs,
+            encoding=encodings,  # Ensure we preserve all of the encodings.
+        )
         drop_vars_delayed.append(c_name)
     return dataset, drop_vars_delayed
 
