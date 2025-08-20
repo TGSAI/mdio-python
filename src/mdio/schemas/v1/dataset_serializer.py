@@ -196,13 +196,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         dtype = to_numpy_dtype(v.data_type)
         chunks = _get_zarr_chunks(v, all_named_dims=all_named_dims)
 
-        if hasattr(dtype, "fields"):
-            data = zarr_zeros(shape=shape, dtype=dtype, zarr_format=2)
-        else:
-            data = dask_array.zeros(shape=shape, dtype=dtype, chunks=chunks)
-
-        # Use dask.array.zeros to create a lazy array with the specified shape and dtype
-        # This prevents eager memory allocation while maintaining support for structured dtypes
+        # Use dask.array.zeros to create a lazy array
         data = dask_array.zeros(shape=shape, dtype=dtype, chunks=chunks)
         # Create a DataArray for the variable. We will set coords in the second pass
         dim_names = _get_dimension_names(v)
