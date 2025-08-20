@@ -5,7 +5,6 @@ from dask import array as dask_array
 from numcodecs import Blosc as nc_Blosc
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
-from zarr import zeros as zarr_zeros
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
 from mdio.converters.type_converter import to_numpy_dtype
