@@ -6,7 +6,6 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
-import zarr
 import numpy as np
 from segy import SegyFile
 from segy.config import SegySettings
@@ -187,7 +186,7 @@ def _get_coordinates(
     Returns:
         A tuple containing:
             - A list of dimension coordinates (1-D arrays).
-            - A dict of non-dimension coordinates (str: N-D arrays).
+            - A dict of non-dimensional coordinate (NDC) {NDC name: (NDC headers, NDC dimension names)}.
     """
     dimensions_coords = []
     dim_names = [dim.name for dim in segy_dimensions]
@@ -210,14 +209,14 @@ def _get_coordinates(
         # specific for every coord_name
         coord_dim_names =  mdio_template.coordinate_dimension_names
         # Compare only horizontal coordinates:
-        # if coord_dim_names == dim_names[:-1]:
-        if False: # disable optimization for now to prove that the logic works in all cases
+        if coord_dim_names == dim_names[:-1]:
+            # Single coordinate value per coordinate dimensions tuple
             non_dim_coords[coord_name] = (segy_headers[coord_name], coord_dim_names)
         else:
-            # We need this only when we have multiple values
+            # Multiple coordinate values per coordinate dimensions tuple
             coord_dims = [d for d in segy_dimensions if d.name in coord_dim_names]
-            # Select just one of multiple coordinate values for each coord_dims tuple
-            # As a simplification, we can take the minimum value, but other strategies are possible
+            # Select just one of multiple coordinate values for each tuple.
+            # We select the minimum value, but other choices are possible
             coord_values = demultiple_min_fast(segy_headers, coord_dims, coord_name)
             non_dim_coords[coord_name] = (coord_values.ravel(), coord_dim_names)
 
@@ -242,7 +241,7 @@ def populate_non_dim_coordinates(
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate the xarray dataset with coordinate variables."""
     for c_name, (c_values, coord_dim_names) in coordinates.items():
-        # Slice the grid map with slices for the dimensions with names in coord_dim_names
+        # Slice the grid map with slices for the dimensions with the names in coord_dim_names
         # This effectively reduces dimensionality of the grid map to to dimensions in coord_dim_names
         slices = tuple(slice(None) if d_name in coord_dim_names else 0 for d_name in grid.dim_names[:-1])
         map = grid.map[:][slices]
