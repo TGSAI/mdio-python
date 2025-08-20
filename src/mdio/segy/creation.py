@@ -7,98 +7,85 @@ from dataclasses import dataclass
 from pathlib import Path
 from shutil import copyfileobj
 from typing import TYPE_CHECKING
-from typing import Any
 
 import numpy as np
+import xarray as xr
 from segy.factory import SegyFactory
 from segy.schema import Endianness
 from segy.schema import SegySpec
 from tqdm.auto import tqdm
+from xarray import Dataset as xr_Dataset
 
-from mdio.api.accessor import MDIOReader
-from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.compat import revision_encode
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
+    from mdio.core.storage_location import StorageLocation
+
 
 logger = logging.getLogger(__name__)
 
 
-def make_segy_factory(mdio: MDIOReader, spec: SegySpec) -> SegyFactory:
+def make_segy_factory(mdio_xr: xr_Dataset, spec: SegySpec) -> SegyFactory:
     """Generate SEG-Y factory from MDIO metadata."""
-    grid = mdio.grid
-    sample_dim = grid.select_dim("sample")
-    sample_interval = sample_dim[1] - sample_dim[0]
-    samples_per_trace = len(sample_dim)
-
+    binary_header = mdio_xr.attrs["attributes"]["binaryHeader"]
+    sample_interval = binary_header["sample_interval"]
+    samples_per_trace = binary_header["samples_per_trace"]
     return SegyFactory(
         spec=spec,
-        sample_interval=sample_interval * 1000,
+        sample_interval=sample_interval,  # Sample Interval is already in microseconds
         samples_per_trace=samples_per_trace,
     )
 
 
-def mdio_spec_to_segy(  # noqa: PLR0913
-    mdio_path_or_buffer: str,
-    output_segy_path: Path,
-    access_pattern: str,
+def mdio_spec_to_segy(
+    segy_spec: SegySpec,
+    input_location: StorageLocation,
+    output_location: StorageLocation,
     output_endian: str,
-    storage_options: dict[str, Any],
-    new_chunks: tuple[int, ...],
-    backend: str,
-) -> tuple[MDIOReader, SegyFactory]:
+) -> tuple[xr_Dataset, SegyFactory]:
     """Create SEG-Y file without any traces given MDIO specification.
 
     This function opens an MDIO file, gets some relevant information for SEG-Y files, then creates
     a SEG-Y file with the specification it read from the MDIO file.
 
-    It then returns the `MDIOReader` instance, and the parsed floating point format `sample_format`
-    for further use.
+    It then returns the Xarray Dataset instance and SegyFactory for further use.
 
-    Function will attempt to read text, and binary headers, and some grid information from the MDIO
-    file. If these don't exist, the process will fail.
+    Function will attempt to read text, and binary headers information from the MDIO file.
+    If these don't exist, the process will fail.
 
     Args:
-        mdio_path_or_buffer: Store or URL for MDIO file.
-        output_segy_path: Path to the output SEG-Y file.
-        access_pattern: Chunk access pattern, optional. Default is "012". Examples: '012', '01'.
+        segy_spec: The SEG-Y specification to use for the conversion.
+        input_location: Store or URL (and cloud options) for MDIO file.
+        output_location: Path to the output SEG-Y file.
         output_endian: Endianness of the output file.
-        storage_options: Options for the storage backend. By default, system-wide credentials
-            will be used.
-        new_chunks: Set manual chunksize. For development purposes only.
-        backend: Backend selection, optional. Default is "zarr". Must be in {'zarr', 'dask'}.
 
     Returns:
-        Initialized MDIOReader for MDIO file and return SegyFactory
+        Opened Xarray Dataset for MDIO file and SegyFactory
     """
-    mdio = MDIOReader(
-        mdio_path_or_buffer=mdio_path_or_buffer,
-        access_pattern=access_pattern,
-        storage_options=storage_options,
-        return_metadata=True,
-        new_chunks=new_chunks,
-        backend=backend,
-        disk_cache=False,  # Making sure disk caching is disabled
-    )
+    mdio_xr = xr.open_dataset(input_location.uri, engine="zarr", mask_and_scale=False)
 
-    mdio_file_version = mdio.root.attrs["api_version"]
-    spec = mdio_segy_spec(mdio_file_version)
+    mdio_file_version = mdio_xr.attrs["apiVersion"]
+    spec = segy_spec
     spec.endianness = Endianness(output_endian)
-    factory = make_segy_factory(mdio, spec=spec)
+    factory = make_segy_factory(mdio_xr, spec=spec)
 
-    text_str = "\n".join(mdio.text_header)
+    attr = mdio_xr.attrs["attributes"]
+
+    txt_header = attr["textHeader"]
+    text_str = "\n".join(txt_header)
     text_bytes = factory.create_textual_header(text_str)
 
-    binary_header = revision_encode(mdio.binary_header, mdio_file_version)
+    bin_header = attr["binaryHeader"]
+    binary_header = revision_encode(bin_header, mdio_file_version)
     bin_hdr_bytes = factory.create_binary_header(binary_header)
 
-    with output_segy_path.open(mode="wb") as fp:
+    with Path(output_location.uri).open(mode="wb") as fp:
         fp.write(text_bytes)
         fp.write(bin_hdr_bytes)
 
-    return mdio, factory
+    return mdio_xr, factory
 
 
 @dataclass(slots=True)
