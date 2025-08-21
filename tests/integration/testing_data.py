@@ -5,8 +5,22 @@ from segy.standards import get_segy_standard
 from tests.integration.testing_helpers import customize_segy_specs
 
 
-def custom_teapot_dome_segy_spec() -> SegySpec:
-    """Return the minimum customized SEG-Y specification for the teapot dome dataset."""
+def custom_teapot_dome_segy_spec(keep_unaltered: bool) -> SegySpec:
+    """Return the minimum customized SEG-Y specification for the teapot dome dataset.
+
+    In SEG-Y spec rev 1.0:
+        inline                      = (189, "int32")
+        crossline                   = (193, "int32")
+        cdp_x                       = (181, "int32")
+        cdp_y                       = (185, "int32")
+    and
+        trace_num_orig_record       = (13, "int32")
+        energy_source_point_num     = (17, "int32")
+        group_coord_x               = (81, "int32")
+        group_coord_y               = (85, "int32")
+
+    In SEGY 1.0 - 2.1, the trace header contains unassigned bytes 181-240.
+    """
     index_bytes: tuple[int, ...] = (17, 13, 81, 85)
     index_names: tuple[str, ...] = ("inline", "crossline", "cdp_x", "cdp_y")
     index_types: tuple[str, ...] = ("int32", "int32", "int32", "int32")
@@ -16,6 +30,7 @@ def custom_teapot_dome_segy_spec() -> SegySpec:
         index_bytes=index_bytes,
         index_names=index_names,
         index_types=index_types,
+        keep_unaltered = keep_unaltered
     )
 
 
