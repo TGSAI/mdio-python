@@ -2,7 +2,7 @@ import numpy as np
 
 from mdio.core.dimension import Dimension
 
-def demultiple_min_fast(structured: np.ndarray, dims: list[Dimension], field_name: str) -> np.ndarray:
+def demultiple_fast(structured: np.ndarray, dims: list[Dimension], field_name: str) -> np.ndarray:
     """
     Optimized structured array demultiplexer.
 
@@ -16,6 +16,7 @@ def demultiple_min_fast(structured: np.ndarray, dims: list[Dimension], field_nam
 
     Returns:
         np.ndarray: ND array of minimum values for each coordinate combination.
+        int: Maximum difference between the min and max values in the field.
 
     Examples:
         - structured.dtype: 
@@ -25,22 +26,23 @@ def demultiple_min_fast(structured: np.ndarray, dims: list[Dimension], field_nam
         - field_name: 
           'cdp_x'
     """
-    shape = tuple(len(dim) for dim in dims)
-    first = np.full(shape, np.iinfo(np.int32).max, dtype=np.int32)
-
     # Build value-to-index maps for each dimension (vectorized)
     dim_dicts = [np.searchsorted(dim.coords, structured[dim.name]) for dim in dims]
     # Stack indices for advanced indexing
     indices = np.stack(dim_dicts, axis=-1)
 
+    shape = tuple(len(dim) for dim in dims)
     # Use numpy's ravel_multi_index for flat indexing
     flat_indices = np.ravel_multi_index(indices.T, shape)
     # Prepare array for minimum reduction
-    min_vals = np.full(first.size, np.iinfo(np.int32).max, dtype=np.int32)
+    min_vals = np.full(np.prod(shape), np.iinfo(np.int32).max, dtype=np.int32)
     np.minimum.at(min_vals, flat_indices, structured[field_name])
+    max_vals = np.full(np.prod(shape), np.iinfo(np.int32).min, dtype=np.int32)
+    np.maximum.at(max_vals, flat_indices, structured[field_name])
     # Reshape to ND
-    first[:] = min_vals.reshape(shape)
-    return first
+    min_value = min_vals.reshape(shape)
+    max_value = max_vals.reshape(shape)
+    return min_value, np.max(np.abs(max_value - min_value)).item()
 
 def demultiple_min_slow(struct_data: np.ndarray, dims: list[Dimension], coord_name: str) -> np.ndarray:
     """

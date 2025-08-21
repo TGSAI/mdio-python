@@ -17,7 +17,7 @@ from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
-from mdio.core.demultiple import demultiple_min_fast
+from mdio.core.demultiple import demultiple_fast
 from mdio.core.grid import Grid
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.units import AllUnits
@@ -217,8 +217,12 @@ def _get_coordinates(
             coord_dims = [d for d in segy_dimensions if d.name in coord_dim_names]
             # Select just one of multiple coordinate values for each tuple.
             # We select the minimum value, but other choices are possible
-            coord_values = demultiple_min_fast(segy_headers, coord_dims, coord_name)
+            coord_values, delta = demultiple_fast(segy_headers, coord_dims, coord_name)
             non_dim_coords[coord_name] = (coord_values.ravel(), coord_dim_names)
+            # Log error if max-min value difference exceeds threshold of 0.5
+            if delta >= 0.5:
+                msg = f"Coordinate '{coord_name}' has a large max-min value difference ({delta})."
+                logger.error(msg)
 
     return dimensions_coords, non_dim_coords
 
