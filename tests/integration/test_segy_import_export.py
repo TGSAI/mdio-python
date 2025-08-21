@@ -254,8 +254,9 @@ class Test1_Import3D:  # noqa N801 - The name is intentional. It indicates test 
         zarr_tmp: Path,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
+        # TODO: Run the tests both with and without keeping unaltered fields
         segy_to_mdio(
-            segy_spec=custom_teapot_dome_segy_spec(),
+            segy_spec=custom_teapot_dome_segy_spec(keep_unaltered=True),
             mdio_template=TemplateRegistry().get("PostStack3DTime"),
             input_location=StorageLocation(str(segy_input)),
             output_location=StorageLocation(str(zarr_tmp)),
@@ -337,9 +338,10 @@ class Test2_Import3DValidation:  # noqa N801 - The name is intentional. It indic
         validate_variable(ds, "cdp_y", (345, 188), ["inline", "crossline"], np.float64, None, None)
 
         # Validate the headers
-        # We have a subset of headers since we used customize_segy_specs() providing the values only
-        # for "inline", "crossline", "cdp_x", "cdp_y"
-        data_type = np.dtype([("inline", "<i4"), ("crossline", "<i4"), ("cdp_x", "<i4"), ("cdp_y", "<i4")])
+        # We have a custom set of headers since we used customize_segy_specs()
+        segy_spec = custom_teapot_dome_segy_spec(keep_unaltered=True)
+        data_type = segy_spec.trace.header.dtype
+
         validate_variable(
             ds,
             "headers",
@@ -399,8 +401,10 @@ class Test3_Export3D:  # noqa N801 - The name is intentional. It indicates test 
 
     def test_export_3d_mdio(self, segy_input: Path, zarr_tmp: Path, segy_export_tmp: Path) -> None:
         """Test 3D export to IBM and IEEE."""
+        spec = custom_teapot_dome_segy_spec(keep_unaltered=True)
+
         mdio_to_segy(
-            segy_spec=custom_teapot_dome_segy_spec(),
+            segy_spec=spec,
             input_location=StorageLocation(str(zarr_tmp)),
             output_location=StorageLocation(str(segy_export_tmp)),
         )
@@ -408,10 +412,7 @@ class Test3_Export3D:  # noqa N801 - The name is intentional. It indicates test 
         # Check if file sizes match on IBM file.
         assert segy_input.stat().st_size == segy_export_tmp.stat().st_size
 
-    def test_rand_equal(self, segy_input: Path, segy_export_tmp: Path) -> None:
-        """IBM. Is random original traces and headers match round-trip file?"""
-        spec = mdio_segy_spec()
-
+        # IBM. Is random original traces and headers match round-trip file?
         in_segy = SegyFile(segy_input, spec=spec)
         out_segy = SegyFile(segy_export_tmp, spec=spec)
 
@@ -425,5 +426,5 @@ class Test3_Export3D:  # noqa N801 - The name is intentional. It indicates test 
         assert in_segy.binary_header == out_segy.binary_header
         # TODO (Dmitriy Repin): Reconcile custom SegySpecs used in the roundtrip SEGY -> MDIO -> SEGY tests
         # https://github.com/TGSAI/mdio-python/issues/610
-        # npt.assert_array_equal(desired=in_traces.header, actual=out_traces.header)
+        npt.assert_array_equal(desired=in_traces.header, actual=out_traces.header)
         npt.assert_array_equal(desired=in_traces.sample, actual=out_traces.sample)

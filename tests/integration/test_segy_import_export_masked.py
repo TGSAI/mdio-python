@@ -384,7 +384,7 @@ class TestNdImportExport:
 
         # TODO (Dmitriy Repin): Reconcile custom SegySpecs used in the roundtrip SEGY -> MDIO -> SEGY tests
         # https://github.com/TGSAI/mdio-python/issues/610
-        # assert_array_equal(desired=expected_traces.header, actual=actual_traces.header)
+        assert_array_equal(desired=expected_traces.header, actual=actual_traces.header)
         assert_array_equal(desired=expected_traces.sample, actual=actual_traces.sample)
 
 
@@ -411,5 +411,5 @@ class TestNdImportExport:
 
         # TODO (Dmitriy Repin): Reconcile custom SegySpecs used in the roundtrip SEGY -> MDIO -> SEGY tests
         # https://github.com/TGSAI/mdio-python/issues/610
-        # assert_array_equal(actual_sgy.trace[:].header, expected_sgy.trace[expected_trc_idx].header)
+        assert_array_equal(actual_sgy.trace[:].header, expected_sgy.trace[expected_trc_idx].header)
         assert_array_equal(actual_sgy.trace[:].sample, expected_sgy.trace[expected_trc_idx].sample)
