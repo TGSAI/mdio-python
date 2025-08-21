@@ -229,6 +229,8 @@ def populate_non_dim_coordinates(
     """Populate the xarray dataset with coordinate variables."""
     not_null = grid.map[:] != UINT32_MAX
     for c_name, c_values in coordinates.items():
+        # Since we haven't serialized the dataset yet, if we don't explicitly capture the encoding
+        # we will lose it.
         encodings = dataset[c_name].encoding
         tmp_coords = np.full(
             not_null.shape, dtype=dataset[c_name].dtype, fill_value=_get_fill_value(dataset[c_name].dtype)
@@ -239,7 +241,7 @@ def populate_non_dim_coordinates(
             dataset[c_name].dims,
             tmp_coords,
             attrs=dataset[c_name].attrs,
-            encoding=encodings,  # Ensure we preserve all of the encodings.
+            encoding=encodings,
         )
         drop_vars_delayed.append(c_name)
     return dataset, drop_vars_delayed

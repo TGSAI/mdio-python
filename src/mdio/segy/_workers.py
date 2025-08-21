@@ -134,6 +134,7 @@ def trace_worker(  # noqa: PLR0913
             ds_to_write[hdr_key].dims,
             tmp_headers,
             attrs=ds_to_write[hdr_key].attrs,
+            encoding=ds_to_write[hdr_key].encoding,  # Not strictly necessary, but safer than not doing it.
         )
 
     # Get the sample dimension size from the data variable itself
@@ -153,6 +154,7 @@ def trace_worker(  # noqa: PLR0913
         ds_to_write[data_variable_name].dims,
         tmp_samples,
         attrs=ds_to_write[data_variable_name].attrs,
+        encoding=ds_to_write[data_variable_name].encoding,  # Not strictly necessary, but safer than not doing it.
     )
 
     out_path = output_location.uri
