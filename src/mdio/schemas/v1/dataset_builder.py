@@ -25,7 +25,7 @@ from mdio.schemas.v1.variable import Coordinate
 from mdio.schemas.v1.variable import Variable
 
 AnyMetadataList: TypeAlias = list[AllUnits | UserAttributes | ChunkGridMetadata | StatisticsMetadata | DatasetInfo]
-CoordinateMetadataList: TypeAlias = list[AllUnits | UserAttributes]
+CoordinateMetadataList: TypeAlias = list[AllUnits | UserAttributes | ChunkGridMetadata]
 VariableMetadataList: TypeAlias = list[AllUnits | UserAttributes | ChunkGridMetadata | StatisticsMetadata]
 DatasetMetadataList: TypeAlias = list[DatasetInfo | UserAttributes]
 
