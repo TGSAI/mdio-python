@@ -10,6 +10,8 @@ from typing import cast
 import numpy as np
 from segy import SegyFile
 
+from mdio.schemas import ScalarType
+
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
     from segy.config import SegySettings
@@ -19,7 +21,6 @@ if TYPE_CHECKING:
 
     from mdio.core.storage_location import StorageLocation
 
-from xarray import Variable
 
 from mdio.constants import UINT32_MAX
 from mdio.schemas.v1.dataset_serializer import _get_fill_value
@@ -112,53 +113,30 @@ def trace_worker(  # noqa: PLR0913
     live_trace_indexes = grid_map[not_null].tolist()
     traces = segy_file.trace[live_trace_indexes]
 
-    hdr_key = "headers"
+    header_key = "headers"
 
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
-    # TODO(Dmitriy Repin): Check, should we overwrite the 'dataset' instead to save the memory
-    # https://github.com/TGSAI/mdio-python/issues/584
     worker_variables = [data_variable_name]
-    if hdr_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
-        worker_variables.append(hdr_key)
+    if header_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
+        worker_variables.append(header_key)
 
     ds_to_write = dataset[worker_variables]
 
-    if hdr_key in worker_variables:
+    if header_key in worker_variables:
         # Create temporary array for headers with the correct shape
         # TODO(BrianMichell): Implement this better so that we can enable fill values without changing the code. #noqa: TD003
-        tmp_headers = np.zeros(not_null.shape, dtype=ds_to_write[hdr_key].dtype)
+        tmp_headers = np.zeros_like(dataset[header_key])
         tmp_headers[not_null] = traces.header
-        # Create a new Variable object to avoid copying the temporary array
-        ds_to_write[hdr_key] = Variable(
-            ds_to_write[hdr_key].dims,
-            tmp_headers,
-            attrs=ds_to_write[hdr_key].attrs,
-            encoding=ds_to_write[hdr_key].encoding,  # Not strictly necessary, but safer than not doing it.
-        )
+        ds_to_write[header_key][:] = tmp_headers
 
-    # Get the sample dimension size from the data variable itself
-    sample_dim_size = ds_to_write[data_variable_name].shape[-1]
-    tmp_samples = np.full(
-        not_null.shape + (sample_dim_size,),
-        dtype=ds_to_write[data_variable_name].dtype,
-        fill_value=_get_fill_value(ds_to_write[data_variable_name].dtype),
-    )
-
-    # Assign trace samples to the correct positions
-    # We need to handle the fact that traces.sample is (num_traces, num_samples)
-    # and we want to put it into positions where not_null is True
+    data_variable = ds_to_write[data_variable_name]
+    fill_value = _get_fill_value(ScalarType(data_variable.dtype.name))
+    tmp_samples = np.full_like(data_variable, fill_value=fill_value)
     tmp_samples[not_null] = traces.sample
-    # Create a new Variable object to avoid copying the temporary array
-    ds_to_write[data_variable_name] = Variable(
-        ds_to_write[data_variable_name].dims,
-        tmp_samples,
-        attrs=ds_to_write[data_variable_name].attrs,
-        encoding=ds_to_write[data_variable_name].encoding,  # Not strictly necessary, but safer than not doing it.
-    )
+    ds_to_write[data_variable_name][:] = tmp_samples
 
-    out_path = output_location.uri
-    ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
+    ds_to_write.to_zarr(output_location.uri, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
 
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
     return SummaryStatistics(
@@ -166,8 +144,6 @@ def trace_worker(  # noqa: PLR0913
         min=traces.sample.min(),
         max=traces.sample.max(),
         sum=traces.sample.sum(),
-        # TODO(Altay): Look at how to do the sum squares statistic correctly
-        # https://github.com/TGSAI/mdio-python/issues/581
         sum_squares=(traces.sample**2).sum(),
         histogram=histogram,
     )
