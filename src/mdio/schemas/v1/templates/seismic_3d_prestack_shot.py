@@ -15,7 +15,7 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         self._coord_dim_names = ["shot_point", "cable", "channel"]  # Custom coordinates for shot gathers
         self._dim_names = [*self._coord_dim_names, self._trace_domain]
         self._coord_names = ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
-        self._var_chunk_shape = [1, 1, 512, 4096]
+        self._var_chunk_shape = (8, 2, 128, 1024)
 
     @property
     def _name(self) -> str:
@@ -41,21 +41,22 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
             )
 
         # Add non-dimension coordinates
+        # TODO: To chunk or not to chunk. Chunk sizes ??
         self._builder.add_coordinate(
             "gun",
-            dimensions=["shot_point", "cable", "channel"],
+            dimensions=["shot_point"],  # TODO: This is related to each unique shot?
             data_type=ScalarType.UINT8,
             metadata_info=[AllUnits(units_v1=None)],
         )
         self._builder.add_coordinate(
             "source_coord_x",
-            dimensions=["shot_point", "cable", "channel"],
+            dimensions=["shot_point"],
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "source_coord_y",
-            dimensions=["shot_point", "cable", "channel"],
+            dimensions=["shot_point"],
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )
