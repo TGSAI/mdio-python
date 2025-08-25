@@ -22,6 +22,7 @@ from tests.integration.testing_helpers import validate_variable
 from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.converters.exceptions import GridTraceSparsityError
+from mdio.core.utils_read import open_zarr_dataset
 from mdio.converters.segy import segy_to_mdio
 from mdio.core import Dimension
 from mdio.core.storage_location import StorageLocation
@@ -274,7 +275,7 @@ class TestReader:
         """Metadata reading tests."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(zarr_tmp, engine="zarr", mask_and_scale=False)
+        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
             "apiVersion": "1.0.0a1",
             "createdOn": "2025-08-06 16:21:54.747880+00:00",
@@ -307,7 +308,7 @@ class TestReader:
         """Metadata reading tests."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(zarr_tmp, engine="zarr", mask_and_scale=False)
+        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
             "count": 97354860,
             "sum": -8594.551666259766,
@@ -324,7 +325,7 @@ class TestReader:
         # Load Xarray dataset from the MDIO file
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(zarr_tmp, engine="zarr", mask_and_scale=False)
+        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
 
         # Note: in order to create the dataset we used the Time template, so the
         # sample dimension is called "time"
@@ -371,7 +372,7 @@ class TestReader:
         """Read and compare every 75 inlines' mean and std. dev."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(zarr_tmp, engine="zarr", mask_and_scale=False)
+        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
@@ -380,7 +381,7 @@ class TestReader:
         """Read and compare every 75 crosslines' mean and std. dev."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(zarr_tmp, engine="zarr", mask_and_scale=False)
+        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
@@ -390,7 +391,7 @@ class TestReader:
         """Read and compare every 225 z-slices' mean and std. dev."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(zarr_tmp, engine="zarr", mask_and_scale=False)
+        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935])

@@ -13,10 +13,11 @@ import xarray as xr
 from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
+from mdio.core.utils_read import open_zarr_dataset
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
-from mdio.segy.utilities import segy_export_rechunker
+from mdio.segy.utilities import segy_export_rechunker  
 
 try:
     import distributed
@@ -30,20 +31,6 @@ if TYPE_CHECKING:
 
 default_cpus = cpu_count(logical=True)
 NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
-
-
-def _get_dask_array(mdio_xr: xr.Dataset, var_name: str, chunks: tuple[int, ...] = None) -> da.Array:
-    """Workaround if the MDIO Xarray dataset returns numpy arrays instead of Dask arrays"""
-    xr_var = mdio_xr[var_name]
-    # xr_var.chunks:
-    # Tuple of block lengths for this dataarray’s data, in order of dimensions,
-    # or None if the underlying data is not a dask array.
-    if xr_var.chunks is not None:
-        return xr_var.data.rechunk(chunks)
-    # For some reason, a NumPy in-memory array was returned
-    # HACK: Convert NumPy array to a chunked Dask array
-    return da.from_array(xr_var.data, chunks=chunks)
-
 
 def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     segy_spec: SegySpec,
@@ -88,12 +75,12 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     """
     output_segy_path = Path(output_location.uri)
 
-    mdio_xr = xr.open_dataset(input_location.uri, engine="zarr", mask_and_scale=False)
+    mdio_xr = open_zarr_dataset(input_location)
 
     trace_variable_name = mdio_xr.attrs["attributes"]["traceVariableName"]
     amplitude = mdio_xr[trace_variable_name]
-    chunks: tuple[int, ...] = amplitude.encoding.get("chunks")
-    shape: tuple[int, ...] = amplitude.shape
+    chunks: tuple[int, ...] = amplitude.data.chunksize
+    shape: tuple[int, ...] = amplitude.data.shape
     dtype = amplitude.dtype
     new_chunks = segy_export_rechunker(chunks, shape, dtype)
 
@@ -110,9 +97,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     else:
         mdio_xr, segy_factory = mdio_spec_to_segy(*creation_args)
 
-    # Using XArray.DataArray.values should trigger compute and load the whole array into memory.
-    live_mask = mdio_xr["trace_mask"].values
-    # live_mask = mdio.live_mask.compute()
+    live_mask = mdio_xr["trace_mask"].data.compute()
 
     if selection_mask is not None:
         live_mask = live_mask & selection_mask
@@ -132,12 +117,9 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         dim_slices += (slice(start, stop),)
 
     # Lazily pull the data with limits now, and limit mask so its the same shape.
-    # Workaround: currently the MDIO Xarray dataset returns numpy arrays instead of Dask arrays
-    # TODO (Dmitriy Repin): Revisit after the eager memory allocation is fixed
-    # https://github.com/TGSAI/mdio-python/issues/608
-    live_mask = _get_dask_array(mdio_xr, "trace_mask", new_chunks[:-1])[dim_slices]
-    headers = _get_dask_array(mdio_xr, "headers", new_chunks[:-1])[dim_slices]
-    samples = _get_dask_array(mdio_xr, "amplitude", new_chunks)[dim_slices]
+    live_mask = mdio_xr["trace_mask"].data.rechunk(new_chunks[:-1])[dim_slices]
+    headers = mdio_xr["headers"].data.rechunk(new_chunks[:-1])[dim_slices]
+    samples = mdio_xr["amplitude"].data.rechunk(new_chunks)[dim_slices]
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]

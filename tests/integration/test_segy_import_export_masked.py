@@ -24,6 +24,7 @@ from segy.standards import get_segy_standard
 from tests.conftest import DEBUG_MODE
 
 from mdio import mdio_to_segy
+from mdio.core.utils_read import open_zarr_dataset
 from mdio.converters.segy import segy_to_mdio
 from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
@@ -315,9 +316,7 @@ class TestNdImportExport:
         mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
 
         # Open the MDIO file
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
-        ds = xr.open_dataset(mdio_path, engine="zarr", mask_and_scale=False)
+        ds = open_zarr_dataset(StorageLocation(str(mdio_path)))
 
         # Test dimensions and ingested dimension headers
         expected_dims = grid_conf.dims

@@ -15,6 +15,7 @@ from segy.schema import SegySpec
 from tqdm.auto import tqdm
 from xarray import Dataset as xr_Dataset
 
+from mdio.core.utils_read import open_zarr_dataset
 from mdio.segy.compat import revision_encode
 
 if TYPE_CHECKING:
@@ -33,7 +34,7 @@ def make_segy_factory(mdio_xr: xr_Dataset, spec: SegySpec) -> SegyFactory:
     samples_per_trace = binary_header["samples_per_trace"]
     return SegyFactory(
         spec=spec,
-        sample_interval=sample_interval,  # Sample Interval is already in microseconds
+        sample_interval=sample_interval,  # Sample Interval is already in milliseconds
         samples_per_trace=samples_per_trace,
     )
 
@@ -61,9 +62,7 @@ def mdio_spec_to_segy(
     Returns:
         Opened Xarray Dataset for MDIO file and SegyFactory
     """
-    mdio_xr = xr.open_dataset(input_location.uri, engine="zarr", mask_and_scale=False)
-
-    mdio_file_version = mdio_xr.attrs["apiVersion"]
+    mdio_xr = open_zarr_dataset(input_location)
     factory = make_segy_factory(mdio_xr, spec=segy_spec)
 
     attr = mdio_xr.attrs["attributes"]
@@ -73,6 +72,7 @@ def mdio_spec_to_segy(
     text_bytes = factory.create_textual_header(text_str)
 
     bin_header = attr["binaryHeader"]
+    mdio_file_version = mdio_xr.attrs["apiVersion"]
     binary_header = revision_encode(bin_header, mdio_file_version)
     bin_hdr_bytes = factory.create_binary_header(binary_header)
 
