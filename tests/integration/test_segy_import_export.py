@@ -245,28 +245,30 @@ class TestImport6D:
 
 
 @pytest.mark.dependency
-class Test1_Import3D:  # noqa N801 - The name is intentional. It indicates test ordering in the UI
-    """Test 3D PostStack SEG-Y import."""
-
-    def test_import_3d_segy(
-        self,
+def test_3d_import(
         segy_input: Path,
         zarr_tmp: Path,
-    ) -> None:
-        """Test importing a SEG-Y file to MDIO."""
-        # TODO: Run the tests both with and without keeping unaltered fields
-        segy_to_mdio(
-            segy_spec=custom_teapot_dome_segy_spec(keep_unaltered=True),
-            mdio_template=TemplateRegistry().get("PostStack3DTime"),
-            input_location=StorageLocation(str(segy_input)),
-            output_location=StorageLocation(str(zarr_tmp)),
-            overwrite=True,
-        )
+) -> None:
+    """Test importing a SEG-Y file to MDIO.
+    
+    NOTE: This test must be executed before the 'TestReader' and 'TestExport' tests.
+    """
+    segy_to_mdio(
+        segy_spec=custom_teapot_dome_segy_spec(keep_unaltered=True),
+        mdio_template=TemplateRegistry().get("PostStack3DTime"),
+        input_location=StorageLocation(str(segy_input)),
+        output_location=StorageLocation(str(zarr_tmp)),
+        overwrite=True,
+    )
 
 
 @pytest.mark.dependency("test_3d_import")
-class Test2_Import3DValidation:  # noqa N801 - The name is intentional. It indicates test ordering in the UI
-    """Test reader functionality."""
+class TestReader:
+    """Test reader functionality.
+
+    NOTE: This tests must be executed after the 'test_3d_import' successfully completes and 
+    before running 'TestExport' tests.
+    """
 
     def test_meta_dataset(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
@@ -396,10 +398,14 @@ class Test2_Import3DValidation:  # noqa N801 - The name is intentional. It indic
 
 
 @pytest.mark.dependency("test_3d_import")
-class Test3_Export3D:  # noqa N801 - The name is intentional. It indicates test ordering in the UI
-    """Test SEG-Y exporting functionaliy."""
+class TestExport:
+    """Test SEG-Y exporting functionality.
+    
+    NOTE: This test(s) must be executed after the 'test_3d_import' and 'TestReader' tests
+    successfully complete.
+    """
 
-    def test_export_3d_mdio(self, segy_input: Path, zarr_tmp: Path, segy_export_tmp: Path) -> None:
+    def test_3d_export(self, segy_input: Path, zarr_tmp: Path, segy_export_tmp: Path) -> None:
         """Test 3D export to IBM and IEEE."""
         spec = custom_teapot_dome_segy_spec(keep_unaltered=True)
 

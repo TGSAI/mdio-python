@@ -264,8 +264,12 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
 class TestNdImportExport:
     """Test import/export of n-D SEG-Ys to MDIO, with and without selection mask."""
 
-    def test_1_segy_to_mdio(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
-        """Test import of an n-D SEG-Y file to MDIO."""
+    def test_import(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+        """Test import of an n-D SEG-Y file to MDIO.
+
+        NOTE: This test must be executed before running 'test_ingested_mdio', 'test_export', and
+        'test_export_masked' tests.
+        """
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
 
         domain = "Time"
@@ -301,8 +305,12 @@ class TestNdImportExport:
             overwrite=True,
         )
 
-    def test_2_validate_mdio(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
-        """Verify if ingested data is correct."""
+    def test_ingested_mdio(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+        """Verify if ingested data is correct.
+
+        NOTE: This test must be executed after the 'test_import' successfully completes
+        and before running 'test_export' and 'test_export_masked' tests.
+        """
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
         mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
 
@@ -356,8 +364,12 @@ class TestNdImportExport:
         assert np.array_equal(actual, expected)
 
 
-    def test_3_mdio_to_segy(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
-        """Test export of an n-D MDIO file back to SEG-Y."""
+    def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+        """Test export of an n-D MDIO file back to SEG-Y.
+        
+        NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio' 
+        successfully complete.
+        """
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
 
         segy_path = export_masked_path / f"{grid_conf.name}.sgy"
@@ -388,8 +400,12 @@ class TestNdImportExport:
         assert_array_equal(desired=expected_traces.sample, actual=actual_traces.sample)
 
 
-    def test_4_mdio_to_segy_masked(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
-        """Test export of an n-D MDIO file back to SEG-Y with masked export."""
+    def test_export_masked(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+        """Test export of an n-D MDIO file back to SEG-Y with masked export.
+        
+        NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio' 
+        successfully complete.
+        """
         grid_conf, segy_factory_conf, segy_to_mdio_conf, selection_conf = test_conf
 
         segy_path = export_masked_path / f"{grid_conf.name}.sgy"
