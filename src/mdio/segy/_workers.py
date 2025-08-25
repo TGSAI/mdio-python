@@ -10,6 +10,8 @@ from typing import cast
 import numpy as np
 from segy import SegyFile
 
+from mdio.schemas import ScalarType
+
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
     from segy.config import SegySettings
@@ -19,7 +21,9 @@ if TYPE_CHECKING:
 
     from mdio.core.storage_location import StorageLocation
 
+
 from mdio.constants import UINT32_MAX
+from mdio.schemas.v1.dataset_serializer import _get_fill_value
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
 
@@ -109,24 +113,30 @@ def trace_worker(  # noqa: PLR0913
     live_trace_indexes = grid_map[not_null].tolist()
     traces = segy_file.trace[live_trace_indexes]
 
+    header_key = "headers"
+
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
-    # TODO(Dmitriy Repin): Check, should we overwrite the 'dataset' instead to save the memory
-    # https://github.com/TGSAI/mdio-python/issues/584
-    if "headers" in dataset.data_vars:
-        ds_to_write = dataset[[data_variable_name, "headers"]]
-        ds_to_write = ds_to_write.reset_coords()
+    worker_variables = [data_variable_name]
+    if header_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
+        worker_variables.append(header_key)
 
-        ds_to_write["headers"].data[not_null] = traces.header
-        ds_to_write["headers"].data[~not_null] = 0
-    else:
-        ds_to_write = dataset[[data_variable_name]]
-        ds_to_write = ds_to_write.reset_coords()
+    ds_to_write = dataset[worker_variables]
 
-    ds_to_write[data_variable_name].data[not_null] = traces.sample
+    if header_key in worker_variables:
+        # Create temporary array for headers with the correct shape
+        # TODO(BrianMichell): Implement this better so that we can enable fill values without changing the code. #noqa: TD003
+        tmp_headers = np.zeros_like(dataset[header_key])
+        tmp_headers[not_null] = traces.header
+        ds_to_write[header_key][:] = tmp_headers
 
-    out_path = output_location.uri
-    ds_to_write.to_zarr(out_path, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
+    data_variable = ds_to_write[data_variable_name]
+    fill_value = _get_fill_value(ScalarType(data_variable.dtype.name))
+    tmp_samples = np.full_like(data_variable, fill_value=fill_value)
+    tmp_samples[not_null] = traces.sample
+    ds_to_write[data_variable_name][:] = tmp_samples
+
+    ds_to_write.to_zarr(output_location.uri, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
 
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
     return SummaryStatistics(
@@ -134,8 +144,6 @@ def trace_worker(  # noqa: PLR0913
         min=traces.sample.min(),
         max=traces.sample.max(),
         sum=traces.sample.sum(),
-        # TODO(Altay): Look at how to do the sum squares statistic correctly
-        # https://github.com/TGSAI/mdio-python/issues/581
         sum_squares=(traces.sample**2).sum(),
         histogram=histogram,
     )

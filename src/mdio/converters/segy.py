@@ -163,7 +163,7 @@ def _build_and_check_grid(segy_dimensions: list[Dimension], segy_file: SegyFile,
 
 
 def _get_coordinates(
-    segy_dimensions: list[Dimension],
+    grid: Grid,
     segy_headers: SegyHeaderArray,
     mdio_template: AbstractDatasetTemplate,
 ) -> tuple[list[Dimension], dict[str, SegyHeaderArray]]:
@@ -174,7 +174,7 @@ def _get_coordinates(
     The last dimension is always the vertical domain dimension
 
     Args:
-        segy_dimensions: List of of all SEG-Y dimensions.
+        grid: Inferred MDIO grid for SEG-Y file.
         segy_headers: Headers read in from SEG-Y file.
         mdio_template: The MDIO template to use for the conversion.
 
@@ -188,19 +188,15 @@ def _get_coordinates(
             - A dict of non-dimension coordinates (str: N-D arrays).
     """
     dimensions_coords = []
-    dim_names = [dim.name for dim in segy_dimensions]
     for dim_name in mdio_template.dimension_names:
-        try:
-            dim_index = dim_names.index(dim_name)
-        except ValueError:
+        if dim_name not in grid.dim_names:
             err = f"Dimension '{dim_name}' was not found in SEG-Y dimensions."
-            raise ValueError(err) from err
-        dimensions_coords.append(segy_dimensions[dim_index])
+            raise ValueError(err)
+        dimensions_coords.append(grid.select_dim(dim_name))
 
     non_dim_coords: dict[str, SegyHeaderArray] = {}
-    available_headers = segy_headers.dtype.names
     for coord_name in mdio_template.coordinate_names:
-        if coord_name not in available_headers:
+        if coord_name not in segy_headers.dtype.names:
             err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
             raise ValueError(err)
         non_dim_coords[coord_name] = segy_headers[coord_name]
@@ -227,12 +223,14 @@ def populate_non_dim_coordinates(
     """Populate the xarray dataset with coordinate variables."""
     not_null = grid.map[:] != UINT32_MAX
     for c_name, c_values in coordinates.items():
-        dataset[c_name].values[not_null] = c_values
+        c_tmp_array = dataset[c_name].values
+        c_tmp_array[not_null] = c_values
+        dataset[c_name][:] = c_tmp_array
         drop_vars_delayed.append(c_name)
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitEnum | None:
+def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> AllUnits | None:
     """Get the coordinate unit from the SEG-Y headers."""
     name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
     unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
@@ -347,15 +345,17 @@ def segy_to_mdio(
 
     grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
 
-    dimensions, non_dim_coords = _get_coordinates(segy_dimensions, segy_headers, mdio_template)
-    shape = [len(dim.coords) for dim in dimensions]
+    dimensions, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     # TODO(Altay): Turn this dtype into packed representation
     # https://github.com/TGSAI/mdio-python/issues/601
     headers = to_structured_type(segy_spec.trace.header.dtype)
 
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
-        name=mdio_template.name, sizes=shape, horizontal_coord_unit=horizontal_unit, headers=headers
+        name=mdio_template.name,
+        sizes=grid.shape,
+        horizontal_coord_unit=horizontal_unit,
+        headers=headers,
     )
 
     _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file)
@@ -376,18 +376,12 @@ def segy_to_mdio(
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
     # blocked_io.to_zarr() -> _workers.trace_worker()
 
-    # Write the xarray dataset to Zarr with as following:
-    # Populated arrays:
-    # - 1D dimensional coordinates
-    # - ND non-dimensional coordinates
-    # - ND trace_mask
-    # Empty arrays (will be populated later in chunks):
-    # - ND+1 traces
-    # - ND headers (no _FillValue set due to the bug https://github.com/TGSAI/mdio-python/issues/582)
-    # This will create the Zarr store with the correct structure
-    # TODO(Dmitriy Repin): do chunked write for non-dimensional coordinates and trace_mask
-    # https://github.com/TGSAI/mdio-python/issues/587
-    xr_dataset.to_zarr(store=output_location.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=True)
+    # This will create the Zarr store with the correct structure but with empty arrays
+    xr_dataset.to_zarr(store=output_location.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=False)
+
+    # This will write the non-dimension coordinates and trace mask
+    meta_ds = xr_dataset[drop_vars_delayed + ["trace_mask"]]
+    meta_ds.to_zarr(store=output_location.uri, mode="r+", write_empty_chunks=False, zarr_format=2, compute=True)
 
     # Now we can drop them to simplify chunked write of the data variable
     xr_dataset = xr_dataset.drop_vars(drop_vars_delayed)
