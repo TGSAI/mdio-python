@@ -345,15 +345,17 @@ def segy_to_mdio(
 
     grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
 
-    dimensions, non_dim_coords = _get_coordinates(segy_dimensions, segy_headers, mdio_template)
-    shape = [len(dim.coords) for dim in dimensions]
+    dimensions, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     # TODO(Altay): Turn this dtype into packed representation
     # https://github.com/TGSAI/mdio-python/issues/601
     headers = to_structured_type(segy_spec.trace.header.dtype)
 
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
-        name=mdio_template.name, sizes=shape, horizontal_coord_unit=horizontal_unit, headers=headers
+        name=mdio_template.name,
+        sizes=grid.shape,
+        horizontal_coord_unit=horizontal_unit,
+        headers=headers,
     )
 
     _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file)
