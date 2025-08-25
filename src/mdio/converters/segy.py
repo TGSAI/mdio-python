@@ -230,7 +230,7 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitEnum | None:
+def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> AllUnits | None:
     """Get the coordinate unit from the SEG-Y headers."""
     name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
     unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
