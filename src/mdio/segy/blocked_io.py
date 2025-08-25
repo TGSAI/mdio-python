@@ -98,7 +98,6 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     num_workers = min(num_chunks, num_cpus)
     context = mp.get_context("spawn")
     executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
-    # return executor
 
     segy_kw = {
         "url": segy_file.fs.unstrip_protocol(segy_file.url),
