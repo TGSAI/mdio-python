@@ -11,7 +11,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 import xarray as xr
 from segy.factory import SegyFactory
-from segy.schema import Endianness
 from segy.schema import SegySpec
 from tqdm.auto import tqdm
 from xarray import Dataset as xr_Dataset
@@ -42,8 +41,7 @@ def make_segy_factory(mdio_xr: xr_Dataset, spec: SegySpec) -> SegyFactory:
 def mdio_spec_to_segy(
     segy_spec: SegySpec,
     input_location: StorageLocation,
-    output_location: StorageLocation,
-    output_endian: str,
+    output_location: StorageLocation
 ) -> tuple[xr_Dataset, SegyFactory]:
     """Create SEG-Y file without any traces given MDIO specification.
 
@@ -59,7 +57,6 @@ def mdio_spec_to_segy(
         segy_spec: The SEG-Y specification to use for the conversion.
         input_location: Store or URL (and cloud options) for MDIO file.
         output_location: Path to the output SEG-Y file.
-        output_endian: Endianness of the output file.
 
     Returns:
         Opened Xarray Dataset for MDIO file and SegyFactory
@@ -67,9 +64,7 @@ def mdio_spec_to_segy(
     mdio_xr = xr.open_dataset(input_location.uri, engine="zarr", mask_and_scale=False)
 
     mdio_file_version = mdio_xr.attrs["apiVersion"]
-    spec = segy_spec
-    spec.endianness = Endianness(output_endian)
-    factory = make_segy_factory(mdio_xr, spec=spec)
+    factory = make_segy_factory(mdio_xr, spec=segy_spec)
 
     attr = mdio_xr.attrs["attributes"]
 

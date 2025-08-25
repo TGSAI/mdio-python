@@ -49,8 +49,6 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     segy_spec: SegySpec,
     input_location: StorageLocation,
     output_location: StorageLocation,
-    endian: str = "big",
-    new_chunks: tuple[int, ...] = None,
     selection_mask: np.ndarray = None,
     client: distributed.Client = None,
 ) -> None:
@@ -68,8 +66,6 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         segy_spec: The SEG-Y specification to use for the conversion.
         input_location: Store or URL (and cloud options) for MDIO file.
         output_location: Path to the output SEG-Y file.
-        endian: Endianness of the input SEG-Y. Rev.2 allows little endian. Default is 'big'.
-        new_chunks: Set manual chunksize. For development purposes only.
         selection_mask: Array that lists the subset of traces
         client: Dask client. If `None` we will use local threaded scheduler. If `auto` is used we
             will create multiple processes (with 8 threads each).
@@ -80,8 +76,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
 
     Examples:
         To export an existing local MDIO file to SEG-Y we use the code snippet below. This will
-        export the full MDIO (without padding) to SEG-Y format using IBM floats and big-endian
-        byte order.
+        export the full MDIO (without padding) to SEG-Y format.
 
         >>> from mdio import mdio_to_segy
         >>>
@@ -90,15 +85,6 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         ...     mdio_path_or_buffer="prefix2/file.mdio",
         ...     output_segy_path="prefix/file.segy",
         ... )
-
-        If we want to export this as an IEEE big-endian, using a selection mask, we would run:
-
-        >>> mdio_to_segy(
-        ...     mdio_path_or_buffer="prefix2/file.mdio",
-        ...     output_segy_path="prefix/file.segy",
-        ...     selection_mask=boolean_mask,
-        ... )
-
     """
     output_segy_path = Path(output_location.uri)
 
@@ -109,11 +95,9 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     chunks: tuple[int, ...] = amplitude.encoding.get("chunks")
     shape: tuple[int, ...] = amplitude.shape
     dtype = amplitude.dtype
-    if new_chunks is None:
-        new_chunks = segy_export_rechunker(chunks, shape, dtype)
-    mdio_xr.close()
+    new_chunks = segy_export_rechunker(chunks, shape, dtype)
 
-    creation_args = [segy_spec, input_location, output_location, endian]
+    creation_args = [segy_spec, input_location, output_location]
 
     if client is not None:
         if distributed is not None:
