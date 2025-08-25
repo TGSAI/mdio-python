@@ -376,18 +376,12 @@ def segy_to_mdio(
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
     # blocked_io.to_zarr() -> _workers.trace_worker()
 
-    # Write the xarray dataset to Zarr with as following:
-    # Populated arrays:
-    # - 1D dimensional coordinates
-    # - ND non-dimensional coordinates
-    # - ND trace_mask
-    # Empty arrays (will be populated later in chunks):
-    # - ND+1 traces
-    # - ND headers (no _FillValue set due to the bug https://github.com/TGSAI/mdio-python/issues/582)
-    # This will create the Zarr store with the correct structure
-    # TODO(Dmitriy Repin): do chunked write for non-dimensional coordinates and trace_mask
-    # https://github.com/TGSAI/mdio-python/issues/587
-    xr_dataset.to_zarr(store=output_location.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=True)
+    # This will create the Zarr store with the correct structure but with empty arrays
+    xr_dataset.to_zarr(store=output_location.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=False)
+
+    # This will write the non-dimension coordinates and trace mask
+    meta_ds = xr_dataset[drop_vars_delayed + ["trace_mask"]]
+    meta_ds.to_zarr(store=output_location.uri, mode="r+", write_empty_chunks=False, zarr_format=2, compute=True)
 
     # Now we can drop them to simplify chunked write of the data variable
     xr_dataset = xr_dataset.drop_vars(drop_vars_delayed)
