@@ -163,7 +163,7 @@ def _build_and_check_grid(segy_dimensions: list[Dimension], segy_file: SegyFile,
 
 
 def _get_coordinates(
-    segy_dimensions: list[Dimension],
+    grid: Grid,
     segy_headers: SegyHeaderArray,
     mdio_template: AbstractDatasetTemplate,
 ) -> tuple[list[Dimension], dict[str, SegyHeaderArray]]:
@@ -174,7 +174,7 @@ def _get_coordinates(
     The last dimension is always the vertical domain dimension
 
     Args:
-        segy_dimensions: List of of all SEG-Y dimensions.
+        grid: Inferred MDIO grid for SEG-Y file.
         segy_headers: Headers read in from SEG-Y file.
         mdio_template: The MDIO template to use for the conversion.
 
@@ -188,19 +188,15 @@ def _get_coordinates(
             - A dict of non-dimension coordinates (str: N-D arrays).
     """
     dimensions_coords = []
-    dim_names = [dim.name for dim in segy_dimensions]
     for dim_name in mdio_template.dimension_names:
-        try:
-            dim_index = dim_names.index(dim_name)
-        except ValueError:
+        if dim_name not in grid.dim_names:
             err = f"Dimension '{dim_name}' was not found in SEG-Y dimensions."
-            raise ValueError(err) from err
-        dimensions_coords.append(segy_dimensions[dim_index])
+            raise ValueError(err)
+        dimensions_coords.append(grid.select_dim(dim_name))
 
     non_dim_coords: dict[str, SegyHeaderArray] = {}
-    available_headers = segy_headers.dtype.names
     for coord_name in mdio_template.coordinate_names:
-        if coord_name not in available_headers:
+        if coord_name not in segy_headers.dtype.names:
             err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
             raise ValueError(err)
         non_dim_coords[coord_name] = segy_headers[coord_name]
