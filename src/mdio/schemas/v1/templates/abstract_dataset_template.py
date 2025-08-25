@@ -85,7 +85,6 @@ class AbstractDatasetTemplate(ABC):
         self._horizontal_coord_unit = horizontal_coord_unit
 
         attr = self._load_dataset_attributes() or UserAttributes(attributes={})
-        attr.attributes["traceDomain"] = self._trace_domain
         attr.attributes["traceVariableName"] = self._trace_variable_name
         self._builder = MDIODatasetBuilder(name=name, attributes=attr)
         self._add_dimensions()
