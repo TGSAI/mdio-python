@@ -21,6 +21,8 @@ if TYPE_CHECKING:
 
     from mdio.core.storage_location import StorageLocation
 
+from xarray import Variable
+from zarr.core.config import config as zarr_config
 
 from mdio.constants import UINT32_MAX
 from mdio.schemas.v1.dataset_serializer import _get_fill_value
@@ -104,6 +106,12 @@ def trace_worker(  # noqa: PLR0913
     if not dataset.trace_mask.any():
         return None
 
+    # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS`
+    # environment variable.
+    # Since the release of the Zarr 3 engine, it will default to many threads.
+    # This can cause resource contention and unpredicted memory consumption.
+    zarr_config.set({"threading.max_workers": 1})
+
     # Open the SEG-Y file in every new process / spawned worker since the
     # open file handles cannot be shared across processes.
     segy_file = SegyFile(**segy_kw)
@@ -128,13 +136,29 @@ def trace_worker(  # noqa: PLR0913
         # TODO(BrianMichell): Implement this better so that we can enable fill values without changing the code. #noqa: TD003
         tmp_headers = np.zeros_like(dataset[header_key])
         tmp_headers[not_null] = traces.header
-        ds_to_write[header_key][:] = tmp_headers
+        # Create a new Variable object to avoid copying the temporary array
+        # The ideal solution is to use `ds_to_write[header_key][:] = tmp_headers`
+        # but Xarray appears to be copying memory instead of doing direct assignment.
+        # TODO(BrianMichell): #614 Look into this further.
+        ds_to_write[header_key] = Variable(
+            ds_to_write[header_key].dims,
+            tmp_headers,
+            attrs=ds_to_write[header_key].attrs,
+            encoding=ds_to_write[header_key].encoding,  # Not strictly necessary, but safer than not doing it.
+        )
 
     data_variable = ds_to_write[data_variable_name]
     fill_value = _get_fill_value(ScalarType(data_variable.dtype.name))
     tmp_samples = np.full_like(data_variable, fill_value=fill_value)
     tmp_samples[not_null] = traces.sample
-    ds_to_write[data_variable_name][:] = tmp_samples
+    # Create a new Variable object to avoid copying the temporary array
+    # TODO(BrianMichell): #614 Look into this further.
+    ds_to_write[data_variable_name] = Variable(
+        ds_to_write[data_variable_name].dims,
+        tmp_samples,
+        attrs=ds_to_write[data_variable_name].attrs,
+        encoding=ds_to_write[data_variable_name].encoding,  # Not strictly necessary, but safer than not doing it.
+    )
 
     ds_to_write.to_zarr(output_location.uri, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
 
