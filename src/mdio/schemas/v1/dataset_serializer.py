@@ -1,10 +1,10 @@
 """Convert MDIO v1 schema Dataset to Xarray DataSet and write it in Zarr."""
 
 import numpy as np
+from dask import array as dask_array
 from numcodecs import Blosc as nc_Blosc
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
-from zarr import zeros as zarr_zeros
 from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
 from mdio.converters.type_converter import to_numpy_dtype
@@ -177,8 +177,8 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         mdio_ds: The source MDIO dataset to construct from.
 
     Notes:
-        - We can't use Dask (e.g., dask_array.zeros) because of the problems with
-          structured type support. We will uze zarr.zeros instead
+        - Using dask.array.zeros for lazy evaluation to prevent eager memory allocation
+          while maintaining support for structured dtypes
 
     Returns:
         The constructed dataset with proper MDIO structure and metadata.
@@ -195,9 +195,8 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         dtype = to_numpy_dtype(v.data_type)
         chunks = _get_zarr_chunks(v, all_named_dims=all_named_dims)
 
-        # Use zarr.zeros to create an empty array with the specified shape and dtype
-        # NOTE: zarr_format=2 is essential, to_zarr() will fail if zarr_format=2 is used
-        data = zarr_zeros(shape=shape, dtype=dtype, zarr_format=2)
+        # Use dask.array.zeros to create a lazy array
+        data = dask_array.full(shape=shape, dtype=dtype, chunks=chunks, fill_value=_get_fill_value(v.data_type))
         # Create a DataArray for the variable. We will set coords in the second pass
         dim_names = _get_dimension_names(v)
         data_array = xr_DataArray(data, dims=dim_names)
