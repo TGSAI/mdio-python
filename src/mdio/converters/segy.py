@@ -357,7 +357,6 @@ def _populate_coordinates(
             f"along reduced dimensions."
         raise ValueError(err)
 
-    dataset = dataset.drop_vars(drop_vars_delayed)
     return dataset, drop_vars_delayed
 
 
