@@ -261,40 +261,48 @@ def _populate_non_dim_coordinates(
     # Q: Should we be using the trace_mask boolean array instead of grid map?
     grid_map_values = grid.map[:]
     for c_name, coord_headers_values in coordinate_headers.items():
-
-        # In the case of Coca and some other templates, the coordinate header values, 
-        # coord_headers_values, have a full set of dimensions (e.g. a 4-tuple of "inline", 
-        # "crossline", "offset", "azimuth"), while the non-dimensional coordinates, (e.g., 
-        # dataset["cdp_x"]) are defined over only a subset of the dimensions (e.g. 2-tuple of 
-        # "inline", "crossline"). 
-        # Thus, every coordinate 2-tuple has multiple duplicate values of the "cdp_x" coordinates
-        # stored in coord_headers_values. Those needs to be reduced to a unique value. 
-        # We assume (and check) that all the duplicate values are (near) identical.
         headers_dims = grid.dim_names[:-1]  # e.g.: "inline", "crossline", "offset", "azimuth"
         coord_dims = dataset[c_name].dims   # e.g.: "inline", "crossline"
-        # This will create a temporary array in memory with the same shape as the coordinate
-        # defined in the dataset. Since the coordinate variable has not yet been populated,
-        # the temporary array will be populated with NaN from the current coordinate values.
-        tmp_nd_coord_values = dataset[c_name].values
-        # Create slices for the all grid dimensions that are also the coordinate dimensions.
-        # For other dimension, select the first element (with index 0)
-        slices = tuple(slice(None) if name in coord_dims else 0 for name in headers_dims)
-        # Create a boolean mask for the live trace values with the dimensions of the coordinate
-        # Q: Should we be using the trace_mask boolean array instead of grid map?
-        not_null = grid_map_values[slices] != UINT32_MAX
-
-        ch_reshaped = coord_headers_values.reshape(grid_map_values.shape)
-        # Select a subset of the coordinate_headers that have unique values
-        cr_reduced = ch_reshaped[slices]
-
-        # Validate the all reduced dimensions had identical values
         axes_to_check = tuple(i for i, dim in enumerate(headers_dims) if dim not in coord_dims)
-        coord_is_good[c_name] = _check_dimensions_values_identical(ch_reshaped, axes_to_check)
+        if axes_to_check == ():
+            # In case the coordinate has the same dimensions as grid map
+            coord_is_good[c_name] = True
+            not_null = grid_map_values != UINT32_MAX
+            tmp_coord_values = dataset[c_name].values
+            tmp_coord_values[not_null] = coord_headers_values
+        else:
+            # In the case of Coca and some other templates, the coordinate header values, 
+            # coord_headers_values, have a full set of dimensions (e.g. a 4-tuple of "inline", 
+            # "crossline", "offset", "azimuth"), while the non-dimensional coordinates, (e.g., 
+            # dataset["cdp_x"]) are defined over only a subset of the dimensions (e.g. 2-tuple of 
+            # "inline", "crossline"). 
+            # Thus, every coordinate 2-tuple has multiple duplicate values of the "cdp_x" coordinates
+            # stored in coord_headers_values. Those needs to be reduced to a unique value. 
+            # We assume (and check) that all the duplicate values are (near) identical.
+            #
+            # The following will create a temporary array in memory with the same shape as the 
+            # coordinate defined in the dataset. Since the coordinate variable has not yet been 
+            # populated, the temporary array will be populated with NaN from the current coordinate 
+            # values.
+            tmp_coord_values = dataset[c_name].values
+            # Create slices for the all grid dimensions that are also the coordinate dimensions.
+            # For other dimension, select the first element (with index 0)
+            slices = tuple(slice(None) if name in coord_dims else 0 for name in headers_dims)
+            # Create a boolean mask for the live trace values with the dimensions of the coordinate
+            # Q: Should we be using the trace_mask boolean array instead of grid map?
+            not_null = grid_map_values[slices] != UINT32_MAX
 
-        # Save the unique coordinate values for live traces only
-        tmp_nd_coord_values[not_null] = cr_reduced.ravel()
-        dataset[c_name][:] = tmp_nd_coord_values
+            ch_reshaped = coord_headers_values.reshape(grid_map_values.shape)
+            # Select a subset of the coordinate_headers that have unique values
+            cr_reduced = ch_reshaped[slices]
 
+            # Validate the all reduced dimensions had identical values
+            coord_is_good[c_name] = _check_dimensions_values_identical(ch_reshaped, axes_to_check)
+
+            # Save the unique coordinate values for live traces only
+            tmp_coord_values[not_null] = cr_reduced.ravel()
+
+        dataset[c_name][:] = tmp_coord_values
         drop_vars_delayed.append(c_name)
     return coord_is_good, dataset, drop_vars_delayed
 
