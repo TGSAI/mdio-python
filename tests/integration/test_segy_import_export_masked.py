@@ -278,8 +278,8 @@ class TestNdImportExport:
                 template_name = "PreStackShotGathers2D" + domain
             case "3d_streamer":
                 template_name = "PreStackShotGathers3D" + domain
-            # case "3d_coca":
-            #     templateName = "PostStack3D" + domain
+            case "3d_coca":
+                template_name = "PreStackCocaGathers3D" + domain
             case _:
                 err = f"Unsupported test configuration: {grid_conf.name}"
                 raise ValueError(err)
