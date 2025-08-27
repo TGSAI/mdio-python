@@ -200,16 +200,30 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
 
     # Fill coordinates (e.g. {SRC-REC-CDP}-X/Y
     headers["coordinate_scalar"] = -100
-    for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
-        start = 700000
-        step = 100
-        stop = start + step * (trace_numbers.size - 0)
-        headers[field] = np.arange(start=start, stop=stop, step=step)
-    for field in ["cdp_y", "source_coord_y", "group_coord_y"]:
-        start = 4000000
-        step = 100
-        stop = start + step * (trace_numbers.size - 0)
-        headers[field] = np.arange(start=start, stop=stop, step=step)
+    if grid_conf.name == "3d_coca":
+        coords = []
+        for name in ["inline", "crossline", "offset", "azimuth"]:
+            dim = next(dim for dim in grid_conf.dims if dim.name == name)
+            coords.append(np.arange(start=dim.start, stop=dim.start + dim.size * dim.step, step=dim.step))
+        inline, crossline, _, _ = np.meshgrid(*coords, indexing='ij')
+        # Make sure that multiple cdp_x and cdp_y values are the same for each (il, xl)
+        cdp_x = 700000 + 100*inline + crossline
+        cdp_y = 4000000 + inline + 1000*crossline
+        for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
+            headers[field] = cdp_x.ravel()
+        for field in ["cdp_y", "source_coord_y", "group_coord_y"]:
+            headers[field] = cdp_y.ravel()
+    else:
+        for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
+            start = 700000
+            step = 100
+            stop = start + step * (trace_numbers.size - 0)
+            headers[field] = np.arange(start=start, stop=stop, step=step)
+        for field in ["cdp_y", "source_coord_y", "group_coord_y"]:
+            start = 4000000
+            step = 100
+            stop = start + step * (trace_numbers.size - 0)
+            headers[field] = np.arange(start=start, stop=stop, step=step)
 
     # Array filled with repeating sequence
     sequence = np.array([1, 2, 3])
@@ -337,11 +351,28 @@ class TestNdImportExport:
         assert headers.shape == live_mask.shape
         assert set(headers.dims) == {dim.name for dim in grid_conf.dims}
         # Validate header values
-        trace_index = 0
-        trace_header = headers.values.flatten()[trace_index]
-        expected_x = 700000 + trace_index * 100
-        expected_y = 4000000 + trace_index * 100
+        if grid_conf.name == "3d_coca":
+            # Select an index of the trace, which header to check:
+            il, xl, of, az = 0, 0, 0, 0
+            trace_index = np.ravel_multi_index((il, xl, of, az), dims=live_mask.shape)
+            # Get the trace header
+            trace_header = headers.values[il][xl][of][az]
+            # calculate the expected values
+            coords = {}
+            for name in ["inline", "crossline", "offset", "azimuth"]:
+                dim = next(dim for dim in grid_conf.dims if dim.name == name)
+                coords[name] = np.arange(start=dim.start, stop=dim.start + dim.size * dim.step, step=dim.step)
+            inline = coords["inline"][il]
+            crossline = coords["crossline"][xl]
+            expected_x = 700000 + 100*inline + crossline
+            expected_y = 4000000 + inline + 1000*crossline
+        else:
+            trace_index = 0
+            trace_header = headers.values.flatten()[trace_index]
+            expected_x = 700000 + trace_index * 100
+            expected_y = 4000000 + trace_index * 100
         expected_gun = 1 + (trace_index % 3)
+        # validate
         assert trace_header["coordinate_scalar"] == -100
         assert trace_header["source_coord_x"] == expected_x
         assert trace_header["source_coord_y"] == expected_y
