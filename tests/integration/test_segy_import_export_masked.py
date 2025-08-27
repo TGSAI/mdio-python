@@ -203,10 +203,10 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
         for name in ["inline", "crossline", "offset", "azimuth"]:
             dim = next(dim for dim in grid_conf.dims if dim.name == name)
             coords.append(np.arange(start=dim.start, stop=dim.start + dim.size * dim.step, step=dim.step))
-        inline, crossline, _, _ = np.meshgrid(*coords, indexing='ij')
+        inline, crossline, _, _ = np.meshgrid(*coords, indexing="ij")
         # Make sure that multiple cdp_x and cdp_y values are the same for each (il, xl)
-        cdp_x = 700000 + 100*inline + crossline    
-        cdp_y = 4000000 + inline + 1000*crossline
+        cdp_x = 700000 + 100 * inline + crossline
+        cdp_y = 4000000 + inline + 1000 * crossline
         headers["coord_scalar"] = -100
         for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
             headers[field] = cdp_x.ravel()
