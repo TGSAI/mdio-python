@@ -12,8 +12,8 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
     def __init__(self, domain: str):
         super().__init__(domain=domain)
 
-        self._coord_dim_names = ["inline", "crossline", "offset", "azimuth"]
-        self._dim_names = [*self._coord_dim_names, self._trace_domain]
+        self._coord_dim_names = ["inline", "crossline"]  # This could be a dictionary specific to every coord
+        self._dim_names = [*self._coord_dim_names, "offset", "azimuth", self._trace_domain]
         self._coord_names = ["cdp_x", "cdp_y"]
         self._var_chunk_shape = [8, 8, 32, 1, 1024]
 
@@ -64,13 +64,13 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
         # Add non-dimension coordinates
         self._builder.add_coordinate(
             "cdp_x",
-            dimensions=["inline", "crossline"],
+            dimensions=self._coord_dim_names,
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "cdp_y",
-            dimensions=["inline", "crossline"],
+            dimensions=self._coord_dim_names,
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )
