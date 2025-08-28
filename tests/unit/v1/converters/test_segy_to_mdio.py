@@ -1,6 +1,7 @@
-"""Tests for segY-to_mdio methods."""
+"""Tests for segy-to_mdio convenience functions."""
 
 import numpy as np
+import pytest
 import xarray as xr
 from segy.arrays import HeaderArray as SegyHeaderArray
 
@@ -31,9 +32,9 @@ def test__populate_non_dim_coordinates() -> None:
         ("crossline", "<i4"),
         ("offset", "<i4"),
         ("azimuth", "<i4"),
-        ("cdp_x", "<f8"),
-        ("cdp_y", "<f8"),
-        ("cdp_z", "<f8"),
+        ("cdp_diff", "<f8"),
+        ("cdp_same", "<f8"),
+        ("cdp_near", "<f8"),
     ]
     data_list = [
         (i, j, k, m, diff[i, j, k, m], same[i, j, k, m], near[i, j, k, m])
@@ -61,25 +62,29 @@ def test__populate_non_dim_coordinates() -> None:
             "offset": of.coords,
             "azimuth": az.coords,
             "time": tm.coords,
-            "cdp_x": (["inline", "crossline"], np.zeros((dim_in, dim_xl), dtype=np.float64)),
-            "cdp_y": (["inline", "crossline"], np.zeros((dim_in, dim_xl), dtype=np.float64)),
-            "cdp_z": (["inline", "crossline"], np.zeros((dim_in, dim_xl), dtype=np.float64)),
+            "cdp_diff": (["inline", "crossline"], np.zeros((dim_in, dim_xl), dtype=np.float64)),
+            "cdp_same": (["inline", "crossline"], np.zeros((dim_in, dim_xl), dtype=np.float64)),
+            "cdp_near": (["inline", "crossline"], np.zeros((dim_in, dim_xl), dtype=np.float64)),
         },
     )
 
+    # "cdp_diff" has different values for the same (il, xl)
     coordinate_headers: dict[str, SegyHeaderArray] = {
-        "cdp_x": segy_headers["cdp_x"],
-        "cdp_y": segy_headers["cdp_y"],
-        "cdp_z": segy_headers["cdp_z"],
+        "cdp_diff": segy_headers["cdp_diff"],
     }
+    with pytest.raises(ValueError) as exc_info:
+        ds_populated, _ = _populate_non_dim_coordinates(ds, grid, coordinate_headers, [])
+    err = str(exc_info.value)
+    assert "Coordinate 'cdp_diff' have non-identical values along reduced dimensions." in err
 
-    is_good, ds_populated, _ = _populate_non_dim_coordinates(ds, grid, coordinate_headers, [])
-
-    assert is_good["cdp_x"] is False
-    assert is_good["cdp_y"] is True
-    assert is_good["cdp_z"] is True
+    # "cdp_same" has identical values for the same (il, xl)
+    # "cdp_near" has near identical values for the same (il, xl)
+    coordinate_headers: dict[str, SegyHeaderArray] = {
+        "cdp_same": segy_headers["cdp_same"],
+        "cdp_near": segy_headers["cdp_near"],
+    }
+    ds_populated, _ = _populate_non_dim_coordinates(ds, grid, coordinate_headers, [])
     expected_values = np.array([[0.0, 100.0, 200.0], [1000.0, 1100.0, 1200.0]], dtype=np.float32)
-    assert np.allclose(ds_populated["cdp_x"].values, expected_values)
-    assert np.allclose(ds_populated["cdp_y"].values, expected_values)
-    assert np.allclose(ds_populated["cdp_z"].values, expected_values)
-    # NOTE: ds_populated['cdp_z'].values[1][1]: np.float64(1100.0000000008847)
+    assert np.allclose(ds_populated["cdp_same"].values, expected_values)
+    assert np.allclose(ds_populated["cdp_near"].values, expected_values)
+    # NOTE: ds_populated['cdp_near'].values[1][1]: np.float64(1100.0000000008847)

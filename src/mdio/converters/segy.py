@@ -245,7 +245,7 @@ def _check_dimensions_values_identical(arr: np.ndarray, axes_to_check: tuple[int
 
     # Compare the array with the broadcasted slice and use np.all()
     # to collapse the dimensions being checked
-    identical = np.all(np.isclose(arr, first_element_slice), axis=axes_to_check)
+    identical = np.all(np.isclose(arr, first_element_slice, rtol=1e-05, atol=1e-08), axis=axes_to_check)
     return np.all(identical).item()
 
 
@@ -256,18 +256,14 @@ def _populate_non_dim_coordinates(
     drop_vars_delayed: list[str],
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate the xarray dataset with coordinate variables."""
-    coord_is_good = {}
     # Load the grid map values into memory.
-    # Q: Should we be using the trace_mask boolean array instead of grid map?
-    grid_map_values = grid.map[:]
     for c_name, coord_headers_values in coordinate_headers.items():
         headers_dims = grid.dim_names[:-1]  # e.g.: "inline", "crossline", "offset", "azimuth"
         coord_dims = dataset[c_name].dims  # e.g.: "inline", "crossline"
         axes_to_check = tuple(i for i, dim in enumerate(headers_dims) if dim not in coord_dims)
         if axes_to_check == ():
             # In case the coordinate has the same dimensions as grid map
-            coord_is_good[c_name] = True
-            not_null = grid_map_values != UINT32_MAX
+            not_null = grid.map[:] != UINT32_MAX
             tmp_coord_values = dataset[c_name].values
             tmp_coord_values[not_null] = coord_headers_values
         else:
@@ -282,29 +278,27 @@ def _populate_non_dim_coordinates(
             #
             # The following will create a temporary array in memory with the same shape as the
             # coordinate defined in the dataset. Since the coordinate variable has not yet been
-            # populated, the temporary array will be populated with NaN from the current coordinate
-            # values.
+            # populated, the temporary array will be populated with _FillValue from the current
+            # coordinate values.
             tmp_coord_values = dataset[c_name].values
             # Create slices for the all grid dimensions that are also the coordinate dimensions.
             # For other dimension, select the first element (with index 0)
             slices = tuple(slice(None) if name in coord_dims else 0 for name in headers_dims)
             # Create a boolean mask for the live trace values with the dimensions of the coordinate
-            # Q: Should we be using the trace_mask boolean array instead of grid map?
-            not_null = grid_map_values[slices] != UINT32_MAX
-
-            ch_reshaped = coord_headers_values.reshape(grid_map_values.shape)
+            not_null = grid.map[slices] != UINT32_MAX
+            ch_reshaped = coord_headers_values.reshape(grid.map.shape)
             # Select a subset of the coordinate_headers that have unique values
-            cr_reduced = ch_reshaped[slices]
+            # and save the unique coordinate values for live traces only
+            tmp_coord_values[not_null] = ch_reshaped[slices].ravel()
 
             # Validate the all reduced dimensions had identical values
-            coord_is_good[c_name] = _check_dimensions_values_identical(ch_reshaped, axes_to_check)
-
-            # Save the unique coordinate values for live traces only
-            tmp_coord_values[not_null] = cr_reduced.ravel()
+            if not _check_dimensions_values_identical(ch_reshaped, axes_to_check):
+                err = f"Coordinate '{c_name}' has non-identical values along reduced dimensions."
+                raise ValueError(err)
 
         dataset[c_name][:] = tmp_coord_values
         drop_vars_delayed.append(c_name)
-    return coord_is_good, dataset, drop_vars_delayed
+    return dataset, drop_vars_delayed
 
 
 def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> AllUnits | None:
@@ -340,9 +334,6 @@ def _populate_coordinates(
         grid: The grid object containing the grid map.
         coords: The non-dim coordinates to populate.
 
-    Raises:
-        ValueError: If coordinate headers have non-identical values for the reduced dimensions.
-
     Returns:
         A tuple of the Xarray dataset with filled coordinates and updated variables to drop
         after writing
@@ -352,13 +343,9 @@ def _populate_coordinates(
     dataset, drop_vars_delayed = populate_dim_coordinates(dataset, grid, drop_vars_delayed=drop_vars_delayed)
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
-    is_good, dataset, drop_vars_delayed = _populate_non_dim_coordinates(
+    dataset, drop_vars_delayed = _populate_non_dim_coordinates(
         dataset, grid, coordinate_headers=coords, drop_vars_delayed=drop_vars_delayed
     )
-    if not all(is_good.values()):
-        failed_dims = [key for key, value in is_good.items() if not value]
-        err = f"Non-dim coordinate(s) {failed_dims} have non-identical values " + "along reduced dimensions."
-        raise ValueError(err)
 
     return dataset, drop_vars_delayed
 
