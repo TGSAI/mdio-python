@@ -16,6 +16,27 @@ from mdio.segy.geometry import StreamerShotGeometryType
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from segy.schema import SegySpec
+
+
+def _segy_spec_mock_4d() -> SegySpec:
+    """Create a mock SEG-Y spec for 4D data."""
+    trace_header_fields = [
+        HeaderField(name="field_rec_no", byte=9, format="int32"),
+        HeaderField(name="channel", byte=13, format="int32"),
+        HeaderField(name="shot_point", byte=17, format="int32"),
+        HeaderField(name="offset", byte=37, format="int32"),
+        HeaderField(name="samples_per_trace", byte=115, format="int32"),
+        HeaderField(name="sample_interval", byte=117, format="int32"),
+        HeaderField(name="shot_line", byte=133, format="int16"),
+        HeaderField(name="cable", byte=137, format="int16"),
+        HeaderField(name="gun", byte=171, format="int16"),
+    ]
+    rev1_spec = get_segy_standard(1.0)
+    spec = rev1_spec.customize(trace_header_fields=trace_header_fields)
+    spec.segy_standard = SegyStandard.REV1
+    return spec
+
 
 def create_segy_mock_4d(  # noqa: PLR0913
     fake_segy_tmp: Path,
@@ -61,23 +82,8 @@ def create_segy_mock_4d(  # noqa: PLR0913
     cable_headers = np.tile(cable_headers, shot_count)
     channel_headers = np.tile(channel_headers, shot_count)
 
-    trace_header_fields = [
-        HeaderField(name="field_rec_no", byte=9, format="int32"),
-        HeaderField(name="channel", byte=13, format="int32"),
-        HeaderField(name="shot_point", byte=17, format="int32"),
-        HeaderField(name="offset", byte=37, format="int32"),
-        HeaderField(name="samples_per_trace", byte=115, format="int32"),
-        HeaderField(name="sample_interval", byte=117, format="int32"),
-        HeaderField(name="shot_line", byte=133, format="int16"),
-        HeaderField(name="cable", byte=137, format="int16"),
-        HeaderField(name="gun", byte=171, format="int16"),
-    ]
-
-    rev1_spec = get_segy_standard(1.0)
-    spec = rev1_spec.customize(trace_header_fields=trace_header_fields)
-    spec.segy_standard = SegyStandard.REV1
     factory = SegyFactory(
-        spec=spec,
+        spec=_segy_spec_mock_4d(),
         sample_interval=1000,
         samples_per_trace=num_samples,
     )
