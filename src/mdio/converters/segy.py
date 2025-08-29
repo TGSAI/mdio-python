@@ -366,7 +366,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
+def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile, grid_overrides: dict) -> None:
     text_header = segy_file.text_header.splitlines()
     # Validate:
     # text_header this should be a 40-items array of strings with width of 80 characters.
@@ -390,6 +390,7 @@ def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
     # Handle case where it may not have any metadata yet
     if dataset.metadata.attributes is None:
         dataset.attrs["attributes"] = {}
+    dataset.metadata.attributes["gridOverrides"] = grid_overrides
 
     # Update the attributes with the text and binary headers.
     dataset.metadata.attributes.update(
@@ -431,6 +432,9 @@ def segy_to_mdio(
     segy_file = SegyFile(url=input_location.uri, spec=segy_spec, settings=segy_settings)
 
     # Scan the SEG-Y file for headers
+    if grid_overrides is None:
+        grid_overrides = {}
+
     segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
     grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
@@ -448,7 +452,7 @@ def segy_to_mdio(
         headers=headers,
     )
 
-    _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file)
+    _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 

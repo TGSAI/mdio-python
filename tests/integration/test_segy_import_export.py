@@ -82,6 +82,7 @@ class TestImport4DNonReg:
         ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
 
         assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
+        assert ds.attrs["attributes"]["gridOverrides"] == grid_overrides 
 
         assert np.array_equal(ds["shot_point"].values, shots)
         assert np.array_equal(ds["cable"].values, cables)
@@ -112,7 +113,7 @@ class TestImport4D:
             case "AutoChannelWrap":
                 grid_overrides = {"AutoChannelWrap": True}
             case _:
-                grid_overrides =  None
+                grid_overrides =  {}
       
         segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
@@ -137,6 +138,8 @@ class TestImport4D:
         ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
 
         assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
+        assert ds.attrs["attributes"]["gridOverrides"] == grid_overrides 
+
 
         assert np.array_equal(ds["shot_point"].values, shots)
         assert np.array_equal(ds["cable"].values, cables)
@@ -292,7 +295,7 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 6
+        assert len(attributes) == 7
         # Validate all attribute provided by the abstract template
         assert attributes["traceVariableName"] == "amplitude"
         # Validate attributes provided by the PostStack3DTime template
@@ -303,6 +306,7 @@ class TestReader:
         assert attributes["textHeader"] == text_header_teapot_dome()
         # Validate binary header
         assert attributes["binaryHeader"] == binary_header_teapot_dome()
+        assert attributes["gridOverrides"] == {}
 
     def test_meta_variable(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
