@@ -8,7 +8,7 @@ from urllib.request import urlretrieve
 
 import pytest
 
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 # Suppress Dask's chunk balancing warning
 warnings.filterwarnings(
@@ -18,13 +18,24 @@ warnings.filterwarnings(
     module="dask.array.rechunk",
 )
 
+@pytest.fixture
+def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Fixture that generates temp directory for export tests."""
+    if DEBUG_MODE:
+        return Path("TMP/export_masked")
+    return tmp_path_factory.getbasetemp() / "export_masked"
+
 
 @pytest.fixture(scope="session")
 def fake_segy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the fake SEG-Y files we are going to create."""
     if DEBUG_MODE:
-        return Path("TMP/fake_segy")
-    return tmp_path_factory.mktemp(r"fake_segy")
+        tmp_dir = Path("TMP/fake_segy")
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        tmp_dir = tmp_path_factory.mktemp(r"fake_segy")
+    return tmp_dir
+
 
 
 @pytest.fixture(scope="session")
