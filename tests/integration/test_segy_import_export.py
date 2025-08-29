@@ -184,7 +184,7 @@ class TestImport4DSparse:
         assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
 
         pass
-
+@pytest.mark.skip(reason="AutoShotWrap requires a template that is not implemented yet.")
 @pytest.mark.parametrize("grid_override", ["AutoChannelWrap_AutoShotWrap", None])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
 class TestImport6D:
@@ -210,8 +210,11 @@ class TestImport6D:
 
         # chunksize=(1, 1, 8, 1, 12, 36),
 
-        assert False, "6D template is not implemented yet."
-        template_name = "XYZ"  # Placeholder for the
+        # The "AutoShotWrap" grid overide requires a template with dimensions 
+        # 'channel', 'cable', 'gun', 'shot_line', 'shot_point'
+        # When such template is available, we shall enable this test
+        assert False, "Template for AutoShotWrap is not implemented yet."
+        template_name = "XYZ"  # Placeholder for the template
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get(template_name),
