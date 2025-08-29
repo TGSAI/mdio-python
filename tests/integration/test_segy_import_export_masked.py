@@ -162,7 +162,7 @@ def _segy_spec_mock_nd_segy(grid_conf: GridConfig, segy_factory_conf: SegyFactor
     # Add coordinates: {SRC-REC-CDP}-X/Y
     header_flds.extend(
         [
-            HeaderField(name="coord_scalar", byte=71, format="int16"),
+            HeaderField(name="coordinate_scalar", byte=71, format="int16"),
             HeaderField(name="source_coord_x", byte=73, format="int32"),
             HeaderField(name="source_coord_y", byte=77, format="int32"),
             HeaderField(name="group_coord_x", byte=81, format="int32"),
@@ -210,13 +210,13 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
         # Make sure that multiple cdp_x and cdp_y values are the same for each (il, xl)
         cdp_x = 700000 + 100 * inline + crossline
         cdp_y = 4000000 + inline + 1000 * crossline
-        headers["coord_scalar"] = -100
+        headers["coordinate_scalar"] = -100
         for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
             headers[field] = cdp_x.ravel()
         for field in ["cdp_y", "source_coord_y", "group_coord_y"]:
             headers[field] = cdp_y.ravel()
     else:
-        headers["coord_scalar"] = -100
+        headers["coordinate_scalar"] = -100
         for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
             start = 700000
             step = 100
@@ -260,15 +260,6 @@ def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: Grid
     selection_mask[rand_idx] = True
 
     return selection_mask
-
-
-@pytest.fixture
-def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Fixture that generates temp directory for export tests."""
-    if DEBUG_MODE:
-        return Path("TMP/export_masked")
-    return tmp_path_factory.getbasetemp() / "export_masked"
-
 
 # fmt: off
 @pytest.mark.parametrize(
@@ -376,7 +367,7 @@ class TestNdImportExport:
             expected_y = 4000000 + trace_index * 100
         expected_gun = 1 + (trace_index % 3)
         # validate
-        assert trace_header["coord_scalar"] == -100
+        assert trace_header["coordinate_scalar"] == -100
         assert trace_header["source_coord_x"] == expected_x
         assert trace_header["source_coord_y"] == expected_y
         assert trace_header["group_coord_x"] == expected_x
