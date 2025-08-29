@@ -144,7 +144,7 @@ class TestImport4D:
         assert np.array_equal(ds["shot_point"].values, shots)
         assert np.array_equal(ds["cable"].values, cables)
 
-        if chan_header_type == StreamerShotGeometryType.B and grid_overrides is None:
+        if chan_header_type == StreamerShotGeometryType.B and grid_overrides == {}:
             expected = [i for i in range(1, np.sum(receivers_per_cable) + 1)]
         else:
             expected = [i for i in range(1, np.amax(receivers_per_cable) + 1)]
@@ -203,7 +203,7 @@ class TestImport6D:
             case "AutoChannelWrap_AutoShotWrap":
                 grid_overrides = {"AutoChannelWrap": True, "AutoShotWrap": True}
             case _:
-                grid_overrides =  None
+                grid_overrides =  {}
 
         segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
@@ -239,7 +239,7 @@ class TestImport6D:
         assert np.array_equal(ds["shot_point"].values, shots)
         assert np.array_equal(ds["cable"].values, cables)
 
-        if chan_header_type == StreamerShotGeometryType.B and grid_overrides is None:
+        if chan_header_type == StreamerShotGeometryType.B and grid_overrides == {}:
             expected = [i for i in range(1, np.sum(receivers_per_cable) + 1)]
         else:
             expected = [i for i in range(1, np.amax(receivers_per_cable) + 1)]
