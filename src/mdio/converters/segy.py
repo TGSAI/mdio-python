@@ -311,6 +311,39 @@ def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
         }
     )
 
+def _chunk_variable(ds: Dataset, grid: Grid, variable_name: str) -> None:
+    from mdio.schemas.v1.dataset_builder import ChunkGridMetadata
+    from mdio.schemas.metadata import ChunkGridMetadata
+    from mdio.schemas.chunk_grid import RegularChunkGrid, RegularChunkShape
+    from mdio.core.utils_write import get_constrained_chunksize
+    from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
+    from mdio.schemas.v1.variable import VariableMetadata
+    
+    # Find the variable by name
+    idx = -1
+    for i in range(len(ds.variables)):
+        if ds.variables[i].name == variable_name:
+            idx = i
+            break
+    if idx == -1:
+        raise ValueError(f"Variable '{variable_name}' not found in dataset.")
+    
+    # Create the chunk grid metadata
+    t = ds.variables[idx].data_type
+    if t == "bool":
+        target_size = MAX_SIZE_LIVE_MASK
+    else:
+        target_size = 128*1024**2
+
+    chunks = ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=get_constrained_chunksize(grid.live_mask.shape, t, target_size))))
+
+    # Update the variable's metadata
+    if ds.variables[idx].metadata is None:
+        # Create new metadata with the chunk grid
+        ds.variables[idx].metadata = VariableMetadata(chunk_grid=chunks.chunk_grid)
+    else:
+        # Update existing metadata
+        ds.variables[idx].metadata.chunk_grid = chunks.chunk_grid
 
 def segy_to_mdio(
     segy_spec: SegySpec,
@@ -359,6 +392,9 @@ def segy_to_mdio(
     )
 
     _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file)
+    _chunk_variable(ds=mdio_ds, grid=grid, variable_name="trace_mask")
+    for coord in mdio_template.coordinate_names:
+        _chunk_variable(ds=mdio_ds, grid=grid, variable_name=coord)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
