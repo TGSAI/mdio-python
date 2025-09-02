@@ -14,7 +14,6 @@ from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
-from mdio.constants import UINT32_MAX
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
