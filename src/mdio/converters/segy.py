@@ -113,25 +113,28 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
 
 def _scan_for_headers(
-    segy_file: SegyFile, template: AbstractDatasetTemplate
+    segy_file: SegyFile, template: AbstractDatasetTemplate, grid_overrides: dict | None = None
 ) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
 
     This is an expensive operation.
     It scans the SEG-Y file in chunks by using ProcessPoolExecutor
     """
-    # TODO(Dmitriy): implement grid overrides
-    # https://github.com/TGSAI/mdio-python/issues/585
-    # The 'grid_chunksize' is used only for grid_overrides
-    # While we do not support grid override, we can set it to None
-    grid_chunksize = None
-    segy_dimensions, chunksize, segy_headers = get_grid_plan(
+    trace_chunk_size = template.trace_chunk_size
+    segy_dimensions, chunk_size, segy_headers = get_grid_plan(
         segy_file=segy_file,
         return_headers=True,
         template=template,
-        chunksize=grid_chunksize,
-        grid_overrides=None,
+        chunksize=trace_chunk_size,
+        grid_overrides=grid_overrides,
     )
+    if trace_chunk_size != chunk_size:
+        # TODO(Dmitriy): implement grid overrides
+        # https://github.com/TGSAI/mdio-python/issues/585
+        # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
+        # support for grid overrides is implemented
+        err = "Support for changing trace_chunk_size in grid overrides is not yet implemented"
+        raise NotImplementedError(err)
     return segy_dimensions, segy_headers
 
 
@@ -278,7 +281,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
+def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile, grid_overrides: dict) -> None:
     text_header = segy_file.text_header.splitlines()
     # Validate:
     # text_header this should be a 40-items array of strings with width of 80 characters.
@@ -302,6 +305,7 @@ def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
     # Handle case where it may not have any metadata yet
     if dataset.metadata.attributes is None:
         dataset.attrs["attributes"] = {}
+    dataset.metadata.attributes["gridOverrides"] = grid_overrides
 
     # Update the attributes with the text and binary headers.
     dataset.metadata.attributes.update(
@@ -318,6 +322,7 @@ def segy_to_mdio(
     input_location: StorageLocation,
     output_location: StorageLocation,
     overwrite: bool = False,
+    grid_overrides: dict | None = None,
 ) -> None:
     """A function that converts a SEG-Y file to an MDIO v1 file.
 
@@ -329,6 +334,7 @@ def segy_to_mdio(
         input_location: The storage location of the input SEG-Y file.
         output_location: The storage location for the output MDIO v1 file.
         overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
+        grid_overrides: Option to add grid overrides.
 
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
@@ -341,11 +347,14 @@ def segy_to_mdio(
     segy_file = SegyFile(url=input_location.uri, spec=segy_spec, settings=segy_settings)
 
     # Scan the SEG-Y file for headers
-    segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template)
+    if grid_overrides is None:
+        grid_overrides = {}
+
+    segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
     grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
 
-    dimensions, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
+    _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     # TODO(Altay): Turn this dtype into packed representation
     # https://github.com/TGSAI/mdio-python/issues/601
     headers = to_structured_type(segy_spec.trace.header.dtype)
@@ -358,7 +367,7 @@ def segy_to_mdio(
         headers=headers,
     )
 
-    _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file)
+    _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
