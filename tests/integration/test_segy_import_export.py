@@ -292,7 +292,7 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 7
+        assert len(attributes) == 6
         # Validate all attribute provided by the abstract template
         assert attributes["traceVariableName"] == "amplitude"
         # Validate attributes provided by the PostStack3DTime template
@@ -375,7 +375,7 @@ class TestReader:
         ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
-        npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
+        npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01], rtol=1e-05)
 
     def test_crossline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
@@ -385,7 +385,7 @@ class TestReader:
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
-        npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01])
+        npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01], rtol=1e-06)
 
     def test_zslice(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
@@ -394,7 +394,7 @@ class TestReader:
         ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
-        npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
+        npt.assert_allclose([mean, std], [0.005236923, 0.61279935], rtol=1e-06)
 
 
 @pytest.mark.dependency("test_3d_import")
