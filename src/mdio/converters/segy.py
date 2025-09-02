@@ -120,22 +120,30 @@ def _scan_for_headers(
     This is an expensive operation.
     It scans the SEG-Y file in chunks by using ProcessPoolExecutor
     """
-    trace_chunk_size = template.trace_chunk_size if grid_overrides is not None else None
+    chunk_size = template.trace_chunk_size
     segy_dimensions, chunk_size, segy_headers = get_grid_plan(
         segy_file=segy_file,
-        return_headers=True,
         template=template,
-        chunksize=trace_chunk_size,
+        chunksize=chunk_size,
         grid_overrides=grid_overrides,
     )
-    if trace_chunk_size != chunk_size:
-        # TODO(Dmitriy): implement grid overrides
-        # https://github.com/TGSAI/mdio-python/issues/585
-        # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
-        # support for grid overrides is implemented
-        err = "Support for changing trace_chunk_size in grid overrides is not yet implemented"
-        raise NotImplementedError(err)
-    return segy_dimensions, segy_headers
+
+    pass
+
+    # if grid_overrides and grid_overrides["NonBinned"]:
+    #     template.reset_dimensions(
+    #         new_dim_names=[d.name for d in segy_dimensions],
+    #         new_chunk_sizes=chunk_size,
+    #     )
+
+    # if trace_chunk_size != chunk_size:
+    #     # TODO(Dmitriy): implement grid overrides
+    #     # https://github.com/TGSAI/mdio-python/issues/585
+    #     # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
+    #     # support for grid overrides is implemented
+    #     err = "Support for changing trace_chunk_size in grid overrides is not yet implemented"
+    #     raise NotImplementedError(err)
+    return segy_dimensions, segy_headers, template
 
 
 def _build_and_check_grid(segy_dimensions: list[Dimension], segy_file: SegyFile, segy_headers: SegyHeaderArray) -> Grid:
@@ -435,7 +443,7 @@ def segy_to_mdio(
     if grid_overrides is None:
         grid_overrides = {}
 
-    segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
+    segy_dimensions, segy_headers, mdio_template = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
     grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
 

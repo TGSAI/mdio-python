@@ -13,6 +13,8 @@ import pytest
 import xarray as xr
 from segy import SegyFile
 from segy.schema import SegySpec
+from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
+from mdio.schemas.v1.templates.seismic_3dmf_prestack_shot import Seismic3DPreStackShotExtTemplate
 from tests.integration.conftest import get_segy_mock_4d_spec
 from tests.integration.testing_data import binary_header_teapot_dome
 from tests.integration.testing_data import custom_teapot_dome_segy_spec
@@ -53,7 +55,7 @@ class TestImport4DNonReg:
 
         match grid_override:
             case "NonBinned":
-                grid_overrides = {"NonBinned": True, "chunksize": 2}
+                grid_overrides = {"NonBinned": True, "dimensions": ["channel"]}
             case "HasDuplicates":
                 grid_overrides = {"HasDuplicates": True}
             case _:
@@ -62,8 +64,9 @@ class TestImport4DNonReg:
         segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
-        # chunksize=(8, 2, 10),
-        template_name = "PreStackShotGathers3DTime"
+        # Notice that extra parameter.
+        # If such usage of template is acceptable, we should properly register it
+        template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get(template_name),
@@ -183,7 +186,7 @@ class TestImport4DSparse:
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "10"
         assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
 
-        pass
+
 @pytest.mark.skip(reason="AutoShotWrap requires a template that is not implemented yet.")
 @pytest.mark.parametrize("grid_override", ["AutoChannelWrap_AutoShotWrap", None])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
