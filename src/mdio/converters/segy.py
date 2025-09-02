@@ -316,7 +316,7 @@ def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile, grid_overrid
     )
 
 
-def segy_to_mdio(
+def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
     input_location: StorageLocation,

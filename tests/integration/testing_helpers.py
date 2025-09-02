@@ -62,13 +62,11 @@ def validate_variable(  # noqa PLR0913
         # assert data_type == arr.dtype
 
         # Compare field names
-        expected_names = [name for name in data_type.names]
-        actual_names = [name for name in arr.dtype.names]
-        assert expected_names == actual_names
+        assert data_type.names == arr.dtype.names
 
         # Compare field types
-        expected_types = [data_type[name].newbyteorder('=') for name in data_type.names]
-        actual_types = [arr.dtype[name].newbyteorder('=') for name in arr.dtype.names]
+        expected_types = [data_type[name].newbyteorder("=") for name in data_type.names]
+        actual_types = [arr.dtype[name].newbyteorder("=") for name in arr.dtype.names]
         assert expected_types == actual_types
 
         # Compare field offsets fails.
