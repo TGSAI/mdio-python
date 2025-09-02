@@ -14,7 +14,6 @@ import xarray as xr
 from segy import SegyFile
 from segy.schema import SegySpec
 from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
-from mdio.schemas.v1.templates.seismic_3dmf_prestack_shot import Seismic3DPreStackShotExtTemplate
 from tests.integration.conftest import get_segy_mock_4d_spec
 from tests.integration.testing_data import binary_header_teapot_dome
 from tests.integration.testing_data import custom_teapot_dome_segy_spec
@@ -56,17 +55,20 @@ class TestImport4DNonReg:
         match grid_override:
             case "NonBinned":
                 grid_overrides = {"NonBinned": True, "dimensions": ["channel"]}
+                # Notice that extra parameter.
+                # If such usage of template is acceptable, we should properly register it
+                template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
             case "HasDuplicates":
                 grid_overrides = {"HasDuplicates": True}
+                # Notice that extra parameter.
+                # If such usage of template is acceptable, we should properly register it
+                template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
             case _:
                 grid_overrides =  None
 
         segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
-        # Notice that extra parameter.
-        # If such usage of template is acceptable, we should properly register it
-        template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get(template_name),

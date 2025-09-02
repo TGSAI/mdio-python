@@ -384,7 +384,7 @@ class DuplicateIndex(GridOverrideCommand):
 
     def header_names_to_use(self, index_names: Sequence[str], grid_overrides: dict[str, bool | int]) -> list[str]:
         """Get the headers to use for the transform."""
-        dimensions_to_replace = grid_overrides["dimensions"]
+        dimensions_to_replace = grid_overrides.get("dimensions", [])
         indexes_to_remove = [*dimensions_to_replace, "trace"]
         return [n for n in index_names if n not in indexes_to_remove]
 
