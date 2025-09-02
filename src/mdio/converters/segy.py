@@ -273,7 +273,7 @@ def _populate_non_dim_coordinates(
         axes_to_check = tuple(i for i, dim in enumerate(headers_dims) if dim not in coord_dims)
         if axes_to_check == ():
             # In case the coordinate has the same dimensions as grid map
-            not_null = grid.map[:] != UINT32_MAX
+            not_null = grid.map[:] != grid.map.fill_value
             tmp_coord_values = dataset[c_name].values
             tmp_coord_values[not_null] = coord_headers_values
         else:
@@ -295,7 +295,7 @@ def _populate_non_dim_coordinates(
             # For other dimension, select the first element (with index 0)
             slices = tuple(slice(None) if name in coord_dims else 0 for name in headers_dims)
             # Create a boolean mask for the live trace values with the dimensions of the coordinate
-            not_null = grid.map[slices] != UINT32_MAX
+            not_null = grid.map[slices] != grid.map.fill_value
             ch_reshaped = coord_headers_values.reshape(grid.map.shape)
             # Select a subset of the coordinate_headers that have unique values
             # and save the unique coordinate values for live traces only
