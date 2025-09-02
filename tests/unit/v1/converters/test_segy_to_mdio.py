@@ -72,10 +72,9 @@ def test__populate_non_dim_coordinates() -> None:
     coordinate_headers: dict[str, SegyHeaderArray] = {
         "cdp_diff": segy_headers["cdp_diff"],
     }
-    with pytest.raises(ValueError) as exc_info:
+    expected_err = "Coordinate 'cdp_diff' has non-identical values along reduced dimensions."
+    with pytest.raises(ValueError, match=expected_err):
         ds_populated, _ = _populate_non_dim_coordinates(ds, grid, coordinate_headers, [])
-    err = str(exc_info.value)
-    assert "Coordinate 'cdp_diff' have non-identical values along reduced dimensions." in err
 
     # "cdp_same" has identical values for the same (il, xl)
     # "cdp_near" has near identical values for the same (il, xl)
