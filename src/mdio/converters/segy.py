@@ -120,20 +120,20 @@ def _scan_for_headers(
     This is an expensive operation.
     It scans the SEG-Y file in chunks by using ProcessPoolExecutor
     """
-    trace_chunk_size = template.trace_chunk_size
+    full_chunk_size = template.full_chunk_size
     segy_dimensions, chunk_size, segy_headers = get_grid_plan(
         segy_file=segy_file,
         return_headers=True,
         template=template,
-        chunksize=trace_chunk_size,
+        chunksize=full_chunk_size,
         grid_overrides=grid_overrides,
     )
-    if trace_chunk_size != chunk_size:
+    if full_chunk_size != chunk_size:
         # TODO(Dmitriy): implement grid overrides
         # https://github.com/TGSAI/mdio-python/issues/585
         # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
         # support for grid overrides is implemented
-        err = "Support for changing trace_chunk_size in grid overrides is not yet implemented"
+        err = "Support for changing full_chunk_size in grid overrides is not yet implemented"
         raise NotImplementedError(err)
     return segy_dimensions, segy_headers
 

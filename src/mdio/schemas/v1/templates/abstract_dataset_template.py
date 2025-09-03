@@ -119,7 +119,7 @@ class AbstractDatasetTemplate(ABC):
         return copy.deepcopy(self._coord_names)
 
     @property
-    def trace_chunk_size(self) -> list[int]:
+    def full_chunk_size(self) -> list[int]:
         """Returns the chunk size for the variables."""
         return copy.deepcopy(self._var_chunk_shape)
 
