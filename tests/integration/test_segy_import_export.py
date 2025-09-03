@@ -288,7 +288,7 @@ class TestReader:
         assert attributes is not None
         assert len(attributes) == 7
         # Validate all attribute provided by the abstract template
-        assert attributes["traceVariableName"] == "amplitude"
+        assert attributes["default_variable_name"] == "amplitude"
         # Validate attributes provided by the PostStack3DTime template
         assert attributes["surveyDimensionality"] == "3D"
         assert attributes["ensembleType"] == "line"

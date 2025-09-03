@@ -387,7 +387,7 @@ def segy_to_mdio(
     xr_dataset = xr_dataset.drop_vars(drop_vars_delayed)
 
     # Write the headers and traces in chunks using grid_map to indicate dead traces
-    data_variable_name = mdio_template.trace_variable_name
+    default_variable_name = mdio_template.default_variable_name
     # This is an memory-expensive and time-consuming read-write operation
     # performed in chunks to save the memory
     blocked_io.to_zarr(
@@ -395,5 +395,5 @@ def segy_to_mdio(
         output_location=output_location,
         grid_map=grid.map,
         dataset=xr_dataset,
-        data_variable_name=data_variable_name,
+        data_variable_name=default_variable_name,
     )
