@@ -18,11 +18,13 @@ def open_dataset(storage_location: StorageLocation, chunks: T_Chunks = None) -> 
     Args:
         storage_location: StorageLocation for the dataset.
         chunks: If provided, loads data into dask arrays with new chunking.
-            - ``chunks="auto"`` will use dask ``auto`` chunking.
-            - ``chunks=None`` loads the data with dask using on disk chunk size.
+            - ``chunks="auto"`` will use dask ``auto`` chunking
+            - ``chunks=None`` skips using dask, which is generally faster for small arrays.
             - ``chunks=-1`` loads the data with dask using a single chunk for all arrays.
+            - ``chunks={}`` loads the data with dask using the engine's preferred chunk size (on disk).
+            - ``chunks={dim: chunk, ...}`` loads the data with dask using the specified chunk size for each dimension.
 
-            See Xarray's open_dataset for more details.
+            See dask chunking for more details.
 
     Returns:
         An Xarray dataset opened from the storage location.
