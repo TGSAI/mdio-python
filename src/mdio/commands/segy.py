@@ -2,8 +2,6 @@
 
 from typing import Any
 
-from click import BOOL
-from click import FLOAT
 from click import STRING
 from click import Choice
 from click import Group
@@ -62,6 +60,7 @@ cli = Group(name="segy", help=SEGY_HELP)
 @cli.command(name="import")
 @argument("segy-path", type=STRING)
 @argument("mdio-path", type=STRING)
+@argument("mdio-template-name", type=STRING)
 @option(
     "-loc",
     "--header-locations",
@@ -82,31 +81,6 @@ cli = Group(name="segy", help=SEGY_HELP)
     required=False,
     help="Names of the index attributes",
     type=StringListParamType(),
-)
-@option(
-    "-chunks",
-    "--chunk-size",
-    required=False,
-    help="Custom chunk size for bricked storage",
-    type=IntListParamType(),
-)
-@option(
-    "-lossless",
-    "--lossless",
-    required=False,
-    default=True,
-    help="Toggle lossless, and perceptually lossless compression",
-    type=BOOL,
-    show_default=True,
-)
-@option(
-    "-tolerance",
-    "--compression-tolerance",
-    required=False,
-    default=0.01,
-    help="Lossy compression tolerance in ZFP.",
-    type=FLOAT,
-    show_default=True,
 )
 @option(
     "-storage-input",
@@ -139,28 +113,26 @@ cli = Group(name="segy", help=SEGY_HELP)
 def segy_import(  # noqa: PLR0913
     segy_path: str,
     mdio_path: str,
+    mdio_template_name: str,
     header_locations: list[int],
     header_types: list[str],
     header_names: list[str],
-    chunk_size: list[int],
-    lossless: bool,
-    compression_tolerance: float,
     storage_options_input: dict[str, Any],
     storage_options_output: dict[str, Any],
     overwrite: bool,
     grid_overrides: dict[str, Any],
 ) -> None:
-    r"""Ingest SEG-Y file to MDIO.
+    r"""Ingest SEG-Y file to MDIO v1.
 
     SEG-Y format is explained in the "segy" group of the command line interface. To see additional
     information run:
 
     mdio segy --help
 
-    MDIO allows ingesting flattened seismic surveys in SEG-Y format into a multidimensional
+    MDIO v1 allows ingesting flattened seismic surveys in SEG-Y format into a multidimensional
     tensor that represents the correct geometry of the seismic dataset.
 
-    The output MDIO file can be local or on the cloud. For local files, a UNIX or Windows path is
+    The output MDIO v1 file can be local or on the cloud. For local files, a UNIX or Windows path is
     sufficient. However, for cloud stores, an appropriate protocol must be provided. Some examples:
 
     File Path Patterns:
@@ -190,20 +162,6 @@ def segy_import(  # noqa: PLR0913
     names to the index dimensions, and if needed providing the header types if they are not
     standard. By default, all header entries are assumed to be 4-byte long (int32).
 
-    The chunk size depends on the data type, however, it can be chosen to accommodate any
-    workflow's access patterns. See examples below for some common use cases.
-
-    By default, the data is ingested with LOSSLESS compression. This saves disk space in the range
-    of 20% to 40%. MDIO also allows data to be compressed using the ZFP compressor's fixed
-    accuracy lossy compression. If lossless parameter is set to False and MDIO was installed using
-    the lossy extra; then the data will be compressed to approximately 30% of its original size and
-    will be perceptually lossless. The compression amount can be adjusted using the option
-    compression_tolerance (float). Values less than 1 gives good results. The higher the value, the
-    more compression, but will introduce artifacts. The default value is 0.01 tolerance, however we
-    get good results up to 0.5; where data is almost compressed to 10% of its original size. NOTE:
-    This assumes data has amplitudes normalized to have approximately standard deviation of 1. If
-    dataset has values smaller than this tolerance, a lot of loss may occur.
-
     Usage:
 
         Below are some examples of ingesting standard SEG-Y files per the SEG-Y Revision 1 and 2.
@@ -220,14 +178,12 @@ def segy_import(  # noqa: PLR0913
         Chunks: 16 inlines x 16 crosslines x 16 offsets x 512 samples
         --header-locations 189,193,37
         --header-names inline,crossline,offset
-        --chunk-size 16,16,16,512
 
         \b
         2D Seismic Shot Data (Byte Locations Vary):
         Chunks: 16 shots x 256 channels x 512 samples
         --header-locations 9,13
         --header-names shot,chan
-        --chunk-size 16,256,512
 
         \b
         3D Seismic Shot Data (Byte Locations Vary):
@@ -237,7 +193,6 @@ def segy_import(  # noqa: PLR0913
         --header-locations 9,213,13
         --header-names shot,cable,chan
         --header-types int32,int16,int32
-        --chunk-size 8,2,256,512
 
     We can override the dataset grid by the `grid_overrides` parameter. This allows us to ingest
     files that don't conform to the true geometry of the seismic acquisition.
@@ -290,7 +245,6 @@ def segy_import(  # noqa: PLR0913
         --header-locations 21
         --header-names cdp
         --header-types int32
-        --chunk-size 4,1024
         --grid-overrides '{"NonBinned": True, "chunksize": 64}'
 
         \b
@@ -301,7 +255,6 @@ def segy_import(  # noqa: PLR0913
         --header-locations 189,193
         --header-names inline,crossline
         --header-types int32,int32
-        --chunk-size 4,4,1024
         --grid-overrides '{"NonBinned": True, "chunksize": 16}'
 
         \b
@@ -312,21 +265,18 @@ def segy_import(  # noqa: PLR0913
         --header-locations 9,213,13
         --header-names shot,cable,chan
         --header-types int32,int16,int32
-        --chunk-size 8,2,256,512
         --grid-overrides '{"HasDuplicates": True}'
     """
     # Lazy import to reduce CLI startup time
-    from mdio import segy_to_mdio  # noqa: PLC0415
+    from mdio.converters.segy import segy_to_mdio_cli  # noqa: PLC0415
 
-    segy_to_mdio(
+    segy_to_mdio_cli(
         segy_path=segy_path,
         mdio_path_or_buffer=mdio_path,
+        mdio_template_name=mdio_template_name,
         index_bytes=header_locations,
         index_types=header_types,
         index_names=header_names,
-        chunksize=chunk_size,
-        lossless=lossless,
-        compression_tolerance=compression_tolerance,
         storage_options_input=storage_options_input,
         storage_options_output=storage_options_output,
         overwrite=overwrite,

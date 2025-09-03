@@ -40,7 +40,7 @@ RUN uv venv $VIRTUAL_ENV
 # https://setuptools.pypa.io/en/latest/userguide/development_mode.html
 # This allows for live reloading of the code during development
 RUN uv pip install -e .
-# Install "extras" (development dependencies) in pyproject.toml
-RUN uv sync --group dev
+# Install optional cloud development dependencies in pyproject.toml
+RUN uv sync --extra cloud --group dev
 # Now one can run:
 #    pre-commit run --all-files

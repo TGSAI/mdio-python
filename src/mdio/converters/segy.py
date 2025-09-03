@@ -5,10 +5,13 @@ from __future__ import annotations
 import logging
 import os
 from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 from segy import SegyFile
 from segy.config import SegySettings
+from segy.schema import HeaderField
+from segy.standards import get_segy_standard
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
@@ -18,7 +21,9 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
+from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
@@ -26,12 +31,13 @@ from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from segy.arrays import HeaderArray as SegyHeaderArray
     from segy.schema import SegySpec
     from xarray import Dataset as xr_Dataset
 
     from mdio.core.dimension import Dimension
-    from mdio.core.storage_location import StorageLocation
     from mdio.schemas.v1.dataset import Dataset
     from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 
@@ -396,4 +402,62 @@ def segy_to_mdio(
         grid_map=grid.map,
         dataset=xr_dataset,
         data_variable_name=data_variable_name,
+    )
+
+
+def segy_to_mdio_cli(  # noqa PLR0913
+    segy_path: str,
+    mdio_path_or_buffer: str,
+    mdio_template_name: str,
+    index_bytes: Sequence[int],
+    index_names: Sequence[str] | None = None,
+    index_types: Sequence[str] | None = None,
+    storage_options_input: dict[str, Any] | None = None,
+    storage_options_output: dict[str, Any] | None = None,
+    overwrite: bool = False,
+    grid_overrides: dict | None = None,  # NOOP for now
+) -> None:
+    """Convert SEG-Y to MDIO format invoked from the command line.
+
+    Args:
+        segy_path: Path to the input SEG-Y file.
+        mdio_path_or_buffer: Path to the output MDIO file or a buffer.
+        mdio_template_name: Name of the MDIO template to use.
+        index_bytes: Tuple of the byte location for the index attributes
+        index_names: List of names for the index dimensions. If not provided, defaults to `dim_0`,
+            `dim_1`, ..., with the last dimension named `sample`.
+        index_types: Tuple of the data-types for the index attributes. Must be in {"int16, int32,
+            float16, float32, ibm32"}. Default is 4-byte integers for each index key.
+        storage_options_input: Additional cloud storage options for the input location.
+        storage_options_output: Additional cloud storage options for the output location.
+        overwrite: If True, overwrite the output file if it exists.
+        grid_overrides: Optional dictionary to override grid parameters.
+
+    Raises:
+        ValueError: If the index fields are not consistent.
+    """
+    mdio_template = TemplateRegistry.get_instance().get(mdio_template_name)
+
+    segy_spec = get_segy_standard(1.0)
+    if index_bytes:
+        index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
+        index_types = index_types or ["int32"] * len(index_bytes)
+        if not (len(index_names) == len(index_bytes) == len(index_types)):
+            err = "All index fields must have the same length."
+            raise ValueError(err)
+        # Index the dataset using a spec that interprets the user provided index headers.
+        index_fields = []
+        for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
+            index_fields.append(HeaderField(name=name, byte=byte, format=format_))
+        segy_spec = segy_spec.customize(trace_header_fields=index_fields)
+
+    # Remove the following when grid overrides are implemented
+    _ = grid_overrides
+    segy_to_mdio(
+        segy_spec=segy_spec,
+        mdio_template=mdio_template,
+        input_location=StorageLocation(uri=segy_path, options=storage_options_input),
+        output_location=StorageLocation(uri=mdio_path_or_buffer, options=storage_options_output),
+        overwrite=overwrite,
+        # grid_overrides=grid_overrides
     )
