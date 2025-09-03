@@ -18,10 +18,17 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
+from mdio.core.utils_write import get_constrained_chunksize
+from mdio.schemas.metadata import ChunkGridMetadata
+
+# from mdio.schemas.v1.dataset_builder import ChunkGridMetadata
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
+from mdio.schemas.v1.variable import VariableMetadata
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -312,6 +319,36 @@ def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
     )
 
 
+def _chunk_variable(ds: Dataset, variable_name: str) -> None:
+    """Determins the chunking for a Variable in the dataset."""
+    # Find the variable by name
+    idx = -1
+    for i in range(len(ds.variables)):
+        if ds.variables[i].name == variable_name:
+            idx = i
+            break
+
+    def determine_target_size(var_type: str) -> int:
+        """Determines the target size (in bytes) for a Variable based on its type."""
+        if var_type == "bool":
+            return MAX_SIZE_LIVE_MASK
+        return MAX_COORDINATES_BYTES
+
+    # Create the chunk grid metadata
+    var_type = ds.variables[idx].data_type
+    full_shape = tuple(dim.size for dim in ds.variables[idx].dimensions)
+    target_size = determine_target_size(var_type)
+
+    chunk_shape = get_constrained_chunksize(full_shape, var_type, target_size)
+    chunks = ChunkGridMetadata.model_validate({"chunkGrid": {"configuration": {"chunkShape": chunk_shape}}})
+
+    # Update the variable's metadata with the new chunk grid
+    if ds.variables[idx].metadata is None:
+        ds.variables[idx].metadata = VariableMetadata(chunk_grid=chunks.chunk_grid)
+    else:
+        ds.variables[idx].metadata.chunk_grid = chunks.chunk_grid
+
+
 def segy_to_mdio(
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
@@ -359,6 +396,9 @@ def segy_to_mdio(
     )
 
     _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file)
+    _chunk_variable(ds=mdio_ds, variable_name="trace_mask")  # trace_mask is a Variable and not a Coordinate
+    for coord in mdio_template.coordinate_names:
+        _chunk_variable(ds=mdio_ds, variable_name=coord)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
