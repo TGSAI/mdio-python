@@ -13,7 +13,7 @@ def customize_segy_specs(
     index_bytes: tuple[int, ...] | None = None,
     index_names: tuple[int, ...] | None = None,
     index_types: tuple[int, ...] | None = None,
-    keep_unaltered: bool = False
+    keep_unaltered: bool = False,
 ) -> SegySpec:
     """Customize SEG-Y specifications with user-defined index fields."""
     if not index_bytes:
@@ -40,6 +40,7 @@ def customize_segy_specs(
         fields[byte] = HeaderField(name=name, byte=byte, format=format_)
 
     return segy_spec.customize(trace_header_fields=fields.values())
+
 
 def get_values(arr: xr.DataArray) -> np.ndarray:
     """Extract actual values from an Xarray DataArray."""
@@ -69,8 +70,8 @@ def validate_variable(  # noqa PLR0913
         # assert data_type == arr.dtype
 
         # Compare field names
-        expected_names = [name for name in data_type.names]
-        actual_names = [name for name in arr.dtype.names]
+        expected_names = list(data_type.names)
+        actual_names = list(arr.dtype.names)
         assert expected_names == actual_names
 
         # Compare field types
