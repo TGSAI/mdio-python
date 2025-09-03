@@ -121,7 +121,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
 
     # Lazily pull the data with limits now.
     # All the variables, metadata, etc. is all sliced to the same range.
-    dataset = dataset[dim_slices]
+    dataset = dataset.isel(dim_slices)
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]
