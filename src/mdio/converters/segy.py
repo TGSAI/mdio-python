@@ -341,11 +341,14 @@ def _chunk_variable(ds: Dataset, variable_name: str) -> None:
     full_shape = tuple(dim.size for dim in ds.variables[idx].dimensions)
     target_size = determine_target_size(var_type)
 
-    chunks = ChunkGridMetadata(
-        chunk_grid=RegularChunkGrid(
-            configuration=RegularChunkShape(chunk_shape=get_constrained_chunksize(full_shape, var_type, target_size))
-        )
-    )
+    chunk_shape = get_constrained_chunksize(full_shape, var_type, target_size)
+    chunks = ChunkGridMetadata.model_validate({
+        "chunkGrid": {
+            "configuration": {
+                "chunkShape": chunk_shape
+            }
+        }
+    })
 
     # Update the variable's metadata with the new chunk grid
     if ds.variables[idx].metadata is None:
