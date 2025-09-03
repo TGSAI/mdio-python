@@ -2,7 +2,7 @@
 
 There are different ways to install MDIO:
 
-- Install the latest release via [`pip`](#using-pip-and-virtualenv) or [`conda`](#using-conda).
+- Install the latest release via [`pip`](#using-pip-and-virtualenv), [`uv`](#using-uv), or [`conda`](#using-conda).
 - Building package [from source](#building-from-source).
 
 ```{note}
@@ -43,6 +43,38 @@ $ pip install multidimio[lossy]
 [gcsfs]: https://gcsfs.readthedocs.io/
 [adlfs]: https://github.com/fsspec/adlfs
 [zfp]: https://computing.llnl.gov/projects/zfp
+
+## Using `uv`
+
+[uv][uv] is a fast Python package installer and resolver, written in Rust. It's an extremely fast drop-in replacement for `pip` that can significantly speed up package installation and dependency resolution.
+
+First, install `uv` following the instructions at https://docs.astral.sh/uv/getting-started/installation/.
+
+Then we can create a virtual environment and install _MDIO_:
+
+```shell
+$ uv venv --python 3.13 mdio-venv
+$ source mdio-venv/bin/activate  # On Windows: mdio-venv\Scripts\activate
+$ uv pip install multidimio
+```
+
+To check if installation was successful see [checking installation](#checking-installation).
+
+You can also install optional dependencies (extras) with `uv`:
+
+```shell
+$ uv pip install multidimio[distributed]
+$ uv pip install multidimio[cloud]
+$ uv pip install multidimio[lossy]
+```
+
+You can also install multiple extras at once:
+
+```shell
+$ uv pip install multidimio[distributed,cloud,lossy]
+```
+
+[uv]: https://docs.astral.sh/uv/
 
 ## Using `conda`
 
