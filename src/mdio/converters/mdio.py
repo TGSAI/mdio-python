@@ -78,12 +78,12 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
 
     trace_variable_name = dataset.attrs["attributes"]["traceVariableName"]
     amplitude = dataset[trace_variable_name]
-    chunks: tuple[int, ...] = amplitude.data.chunksize
-    shape: tuple[int, ...] = amplitude.data.shape
+    chunks = amplitude.encoding["preferred_chunks"]
+    sizes = amplitude.sizes
     dtype = amplitude.dtype
-    new_chunks = segy_export_rechunker(chunks, shape, dtype)
+    new_chunks = segy_export_rechunker(chunks, sizes, dtype)
 
-    creation_args = [segy_spec, input_location, output_location]
+    creation_args = [segy_spec, input_location, output_location, new_chunks]
 
     if client is not None:
         if distributed is not None:
@@ -96,33 +96,36 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     else:
         dataset, segy_factory = mdio_spec_to_segy(*creation_args)
 
-    live_mask = dataset["trace_mask"].data.compute()
+    trace_mask = dataset["trace_mask"].compute()
 
     if selection_mask is not None:
-        live_mask = live_mask & selection_mask
+        if trace_mask.shape != selection_mask.shape:
+            msg = "Selection mask and trace mask shapes do not match."
+            raise ValueError(msg)
+        selection_mask = trace_mask.copy(data=selection_mask)  # make into DataArray
+        trace_mask = trace_mask & selection_mask
 
     # This handles the case if we are skipping a whole block.
-    if live_mask.sum() == 0:
+    if trace_mask.sum() == 0:
         msg = "No traces will be written out. Live mask is empty."
         raise ValueError(msg)
 
     # Find rough dim limits, so we don't unnecessarily hit disk / cloud store.
     # Typically, gets triggered when there is a selection mask
-    dim_slices = ()
-    live_nonzeros = live_mask.nonzero()
-    for dim_nonzeros in live_nonzeros:
-        start = np.min(dim_nonzeros)
-        stop = np.max(dim_nonzeros) + 1
-        dim_slices += (slice(start, stop),)
+    dim_slices = {}
+    dim_live_indices = np.nonzero(trace_mask.values)
+    for dim_name, dim_live in zip(trace_mask.dims, dim_live_indices, strict=True):
+        start = dim_live.min().item()
+        stop = dim_live.max().item() + 1
+        dim_slices[dim_name] = slice(start, stop)
 
     # Lazily pull the data with limits now, and limit mask so its the same shape.
-    live_mask = dataset["trace_mask"].data.rechunk(new_chunks[:-1])[dim_slices]
-    headers = dataset["headers"].data.rechunk(new_chunks[:-1])[dim_slices]
-    samples = dataset["amplitude"].data.rechunk(new_chunks)[dim_slices]
+    dataset = dataset[dim_slices]
+    trace_mask = dataset["trace_mask"]
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]
-        live_mask = live_mask & selection_mask
+        trace_mask = trace_mask & selection_mask
 
     # tmp file root
     out_dir = output_segy_path.parent
@@ -131,9 +134,9 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     with tmp_dir:
         with TqdmCallback(desc="Unwrapping MDIO Blocks"):
             block_records = to_segy(
-                samples=samples,
-                headers=headers,
-                live_mask=live_mask,
+                samples=dataset[trace_variable_name].data,
+                headers=dataset["headers"].data,
+                live_mask=trace_mask.data,
                 segy_factory=segy_factory,
                 file_root=tmp_dir.name,
             )
