@@ -286,22 +286,17 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 7
+        assert len(attributes) == 6
         # Validate all attribute provided by the abstract template
         assert attributes["default_variable_name"] == "amplitude"
-        # Validate attributes provided by the PostStack3DTime template
         assert attributes["surveyDimensionality"] == "3D"
         assert attributes["ensembleType"] == "line"
         assert attributes["processingStage"] == "post-stack"
-        # Validate text header
         assert attributes["textHeader"] == text_header_teapot_dome()
-        # Validate binary header
         assert attributes["binaryHeader"] == binary_header_teapot_dome()
 
     def test_meta_variable(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
             "count": 97354860,
@@ -325,13 +320,13 @@ class TestReader:
         # sample dimension is called "time"
 
         # Validate the dimension coordinate variables
-        validate_variable(ds, "inline", (345,), ["inline"], np.int32, range(1, 346), get_values)
-        validate_variable(ds, "crossline", (188,), ["crossline"], np.int32, range(1, 189), get_values)
-        validate_variable(ds, "time", (1501,), ["time"], np.int32, range(0, 3002, 2), get_values)
+        validate_variable(ds, "inline", (345,), ("inline",), np.int32, range(1, 346), get_values)
+        validate_variable(ds, "crossline", (188,), ("crossline",), np.int32, range(1, 189), get_values)
+        validate_variable(ds, "time", (1501,), ("time",), np.int32, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables
-        validate_variable(ds, "cdp_x", (345, 188), ["inline", "crossline"], np.float64, None, None)
-        validate_variable(ds, "cdp_y", (345, 188), ["inline", "crossline"], np.float64, None, None)
+        validate_variable(ds, "cdp_x", (345, 188), ("inline", "crossline"), np.float64, None, None)
+        validate_variable(ds, "cdp_y", (345, 188), ("inline", "crossline"), np.float64, None, None)
 
         # Validate the headers
         # We have a custom set of headers since we used customize_segy_specs()
@@ -342,21 +337,21 @@ class TestReader:
             ds,
             "headers",
             (345, 188),
-            ["inline", "crossline"],
-            data_type,
+            ("inline", "crossline"),
+            data_type.newbyteorder("native"),
             range(1, 346),
             get_inline_header_values,
         )
 
         # Validate the trace mask
-        validate_variable(ds, "trace_mask", (345, 188), ["inline", "crossline"], np.bool, None, None)
+        validate_variable(ds, "trace_mask", (345, 188), ("inline", "crossline"), np.bool, None, None)
 
         # validate the amplitude data
         validate_variable(
             ds,
             "amplitude",
             (345, 188, 1501),
-            ["inline", "crossline", "time"],
+            ("inline", "crossline", "time"),
             np.float32,
             None,
             None,

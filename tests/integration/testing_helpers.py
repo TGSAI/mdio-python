@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 import numpy as np
 import xarray as xr
+from numpy.typing import DTypeLike
 from segy.schema import HeaderField
 from segy.schema import SegySpec
 
@@ -55,9 +56,9 @@ def get_inline_header_values(dataset: xr.Dataset) -> np.ndarray:
 def validate_variable(  # noqa PLR0913
     dataset: xr.Dataset,
     name: str,
-    shape: list[int],
-    dims: list[str],
-    data_type: np.dtype,
+    shape: tuple[int, ...],
+    dims: tuple[str, ...],
+    data_type: DTypeLike,
     expected_values: range | None,
     actual_value_generator: Callable[[xr.DataArray], np.ndarray] | None = None,
 ) -> None:
@@ -78,10 +79,6 @@ def validate_variable(  # noqa PLR0913
         expected_types = [data_type[name] for name in data_type.names]
         actual_types = [arr.dtype[name] for name in arr.dtype.names]
         assert expected_types == actual_types
-
-        # Compare field offsets fails.
-        # However, we believe this is acceptable and do not compare offsets
-        #   name: 'shot_point' dt_exp: (dtype('>i4'), 196) dt_act: (dtype('<i4'), 180)
     else:
         assert data_type == arr.dtype
 
