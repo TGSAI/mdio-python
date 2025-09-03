@@ -116,7 +116,7 @@ class TestSeismic3DPreStackCocaTemplate:
         t = Seismic3DPreStackCocaTemplate(domain="time")
 
         # Template attributes
-        assert t._coord_dim_names == ["inline", "crossline", "offset", "azimuth"]
+        assert t._coord_dim_names == ["inline", "crossline"]
         assert t._dim_names == ["inline", "crossline", "offset", "azimuth", "time"]
         assert t._coord_names == ["cdp_x", "cdp_y"]
         assert t._var_chunk_shape == [8, 8, 32, 1, 1024]

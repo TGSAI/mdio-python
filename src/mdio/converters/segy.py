@@ -12,7 +12,6 @@ from segy.config import SegySettings
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
-from mdio.constants import UINT32_MAX
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
@@ -214,18 +213,89 @@ def populate_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def populate_non_dim_coordinates(
+def _check_dimensions_values_identical(arr: np.ndarray, axes_to_check: tuple[int, ...]) -> bool:
+    """Check if all values along specified dimensions are identical.
+
+    Check if all values along specified dimensions are identical for each sub-array
+    defined by the other dimensions.
+
+    Args:
+        arr: an N-dimensional array. For example, an array of all 'cdp_x' segy
+            header values for coordinates "inline", "crossline", "offset", "azimuth".
+        axes_to_check: A tuple of integers representing the axes to check for
+            identical values. For example, (2, 3) would check the "offset", "azimuth"
+            dimensions.
+
+    Returns:
+        True indicates the all values in the dimensions selected by axes_to_check
+        are identical, and False otherwise.
+    """
+    # Create a slicing tuple to get the first element along the axes to check
+    full_slice = [slice(None)] * arr.ndim
+    for axis in axes_to_check:
+        full_slice[axis] = 0
+
+    # Broadcast the first element along the specified axes for comparison
+    first_element_slice = arr[tuple(full_slice)]
+
+    # Add new axes to the slice to enable broadcasting against the original array
+    for axis in axes_to_check:
+        first_element_slice = np.expand_dims(first_element_slice, axis)
+
+    # Compare the array with the broadcasted slice and use np.all()
+    # to collapse the dimensions being checked
+    identical = np.all(np.isclose(arr, first_element_slice, rtol=1e-05, atol=1e-08), axis=axes_to_check)
+    return np.all(identical).item()
+
+
+def _populate_non_dim_coordinates(
     dataset: xr_Dataset,
     grid: Grid,
-    coordinates: dict[str, SegyHeaderArray],
+    coordinate_headers: dict[str, SegyHeaderArray],
     drop_vars_delayed: list[str],
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate the xarray dataset with coordinate variables."""
-    not_null = grid.map[:] != UINT32_MAX
-    for c_name, c_values in coordinates.items():
-        c_tmp_array = dataset[c_name].values
-        c_tmp_array[not_null] = c_values
-        dataset[c_name][:] = c_tmp_array
+    # Load the grid map values into memory.
+    for c_name, coord_headers_values in coordinate_headers.items():
+        headers_dims = grid.dim_names[:-1]  # e.g.: "inline", "crossline", "offset", "azimuth"
+        coord_dims = dataset[c_name].dims  # e.g.: "inline", "crossline"
+        axes_to_check = tuple(i for i, dim in enumerate(headers_dims) if dim not in coord_dims)
+        if axes_to_check == ():
+            # In case the coordinate has the same dimensions as grid map
+            not_null = grid.map[:] != grid.map.fill_value
+            tmp_coord_values = dataset[c_name].values
+            tmp_coord_values[not_null] = coord_headers_values
+        else:
+            # In the case of Coca and some other templates, the coordinate header values,
+            # coord_headers_values, have a full set of dimensions (e.g. a 4-tuple of "inline",
+            # "crossline", "offset", "azimuth"), while the non-dimensional coordinates, (e.g.,
+            # dataset["cdp_x"]) are defined over only a subset of the dimensions (e.g. 2-tuple of
+            # "inline", "crossline").
+            # Thus, every coordinate 2-tuple has multiple duplicate values of the "cdp_x" coordinates
+            # stored in coord_headers_values. Those needs to be reduced to a unique value.
+            # We assume (and check) that all the duplicate values are (near) identical.
+            #
+            # The following will create a temporary array in memory with the same shape as the
+            # coordinate defined in the dataset. Since the coordinate variable has not yet been
+            # populated, the temporary array will be populated with _FillValue from the current
+            # coordinate values.
+            tmp_coord_values = dataset[c_name].values
+            # Create slices for the all grid dimensions that are also the coordinate dimensions.
+            # For other dimension, select the first element (with index 0)
+            slices = tuple(slice(None) if name in coord_dims else 0 for name in headers_dims)
+            # Create a boolean mask for the live trace values with the dimensions of the coordinate
+            not_null = grid.map[slices] != grid.map.fill_value
+            ch_reshaped = coord_headers_values.reshape(grid.map.shape)
+            # Select a subset of the coordinate_headers that have unique values
+            # and save the unique coordinate values for live traces only
+            tmp_coord_values[not_null] = ch_reshaped[slices].ravel()
+
+            # Validate the all reduced dimensions had identical values
+            if not _check_dimensions_values_identical(ch_reshaped, axes_to_check):
+                err = f"Coordinate '{c_name}' has non-identical values along reduced dimensions."
+                raise ValueError(err)
+
+        dataset[c_name][:] = tmp_coord_values
         drop_vars_delayed.append(c_name)
     return dataset, drop_vars_delayed
 
@@ -264,15 +334,16 @@ def _populate_coordinates(
         coords: The non-dim coordinates to populate.
 
     Returns:
-        Xarray dataset with filled coordinates and updated variables to drop after writing
+        A tuple of the Xarray dataset with filled coordinates and updated variables to drop
+        after writing
     """
     drop_vars_delayed = []
     # Populate the dimension coordinate variables (1-D arrays)
-    dataset, vars_to_drop_later = populate_dim_coordinates(dataset, grid, drop_vars_delayed=drop_vars_delayed)
+    dataset, drop_vars_delayed = populate_dim_coordinates(dataset, grid, drop_vars_delayed=drop_vars_delayed)
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
-    dataset, vars_to_drop_later = populate_non_dim_coordinates(
-        dataset, grid, coordinates=coords, drop_vars_delayed=drop_vars_delayed
+    dataset, drop_vars_delayed = _populate_non_dim_coordinates(
+        dataset, grid, coordinate_headers=coords, drop_vars_delayed=drop_vars_delayed
     )
 
     return dataset, drop_vars_delayed
