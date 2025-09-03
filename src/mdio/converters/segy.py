@@ -330,19 +330,19 @@ def _chunk_variable(ds: Dataset, variable_name: str) -> None:
             idx = i
             break
 
-    def determine_target_size(t: str) -> int:
-        if t == "bool":
+    def determine_target_size(var_type: str) -> int:
+        if var_type == "bool":
             return MAX_SIZE_LIVE_MASK
         return MAX_COORDINATES_BYTES
 
     # Create the chunk grid metadata
-    t = ds.variables[idx].data_type
+    var_type = ds.variables[idx].data_type
     full_shape = tuple(dim.size for dim in ds.variables[idx].dimensions)
-    target_size = determine_target_size(t)
+    target_size = determine_target_size(var_type)
 
     chunks = ChunkGridMetadata(
         chunk_grid=RegularChunkGrid(
-            configuration=RegularChunkShape(chunk_shape=get_constrained_chunksize(full_shape, t, target_size))
+            configuration=RegularChunkShape(chunk_shape=get_constrained_chunksize(full_shape, var_type, target_size))
         )
     )
 
