@@ -21,7 +21,7 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
     def _name(self) -> str:
         if self._last_field_name == "channel":
             return f"PreStackShotGathers3D{self._trace_domain.capitalize()}"
-        return f"PreStackShotGathers3DExt{self._last_field_name.capitalize()}"
+        return f"PreStackShotGathers3DExt{self._trace_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> UserAttributes:
         return UserAttributes(

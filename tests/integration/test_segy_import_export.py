@@ -52,18 +52,23 @@ class TestImport4DNonReg:
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
+
+        # Notice that extra parameter.
+        # If such usage of template is acceptable,
+        # we should properly register it in TemplateRegistry in constructor
+        if not TemplateRegistry().is_registered("PreStackShotGathers3DExtTime"):
+            TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
+            TemplateRegistry().register(Seismic3DPreStackShotTemplate("Depth", "trace"))
+
         match grid_override:
             case "NonBinned":
                 grid_overrides = {"NonBinned": True, "dimensions": ["channel"]}
-                # Notice that extra parameter.
-                # If such usage of template is acceptable, we should properly register it
-                template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
+                template_name = "PreStackShotGathers3DExtTime"
             case "HasDuplicates":
                 grid_overrides = {"HasDuplicates": True}
-                # Notice that extra parameter.
-                # If such usage of template is acceptable, we should properly register it
-                template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
+                template_name = "PreStackShotGathers3DExtTime"
             case _:
+                template_name = "PreStackShotGathers3DTime"
                 grid_overrides = None
 
         segy_spec: SegySpec = get_segy_mock_4d_spec()
