@@ -42,6 +42,7 @@ def mdio_spec_to_segy(
     segy_spec: SegySpec,
     input_location: StorageLocation,
     output_location: StorageLocation,
+    new_chunks: tuple[int, ...] | None = None,
 ) -> tuple[xr.Dataset, SegyFactory]:
     """Create SEG-Y file without any traces given MDIO specification.
 
@@ -57,21 +58,22 @@ def mdio_spec_to_segy(
         segy_spec: The SEG-Y specification to use for the conversion.
         input_location: Store or URL (and cloud options) for MDIO file.
         output_location: Path to the output SEG-Y file.
+        new_chunks: Set in memory chunksize for export or other reasons.
 
     Returns:
         Opened Xarray Dataset for MDIO file and SegyFactory
     """
-    mdio_xr = open_dataset(input_location)
-    factory = make_segy_factory(mdio_xr, spec=segy_spec)
+    dataset = open_dataset(input_location, chunks=new_chunks)
+    factory = make_segy_factory(dataset, spec=segy_spec)
 
-    attr = mdio_xr.attrs["attributes"]
+    attr = dataset.attrs["attributes"]
 
     txt_header = attr["textHeader"]
     text_str = "\n".join(txt_header)
     text_bytes = factory.create_textual_header(text_str)
 
     bin_header = attr["binaryHeader"]
-    mdio_file_version = mdio_xr.attrs["apiVersion"]
+    mdio_file_version = dataset.attrs["apiVersion"]
     binary_header = revision_encode(bin_header, mdio_file_version)
     bin_hdr_bytes = factory.create_binary_header(binary_header)
 
@@ -79,7 +81,7 @@ def mdio_spec_to_segy(
         fp.write(text_bytes)
         fp.write(bin_hdr_bytes)
 
-    return mdio_xr, factory
+    return dataset, factory
 
 
 @dataclass(slots=True)
