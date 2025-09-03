@@ -64,13 +64,11 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         To export an existing local MDIO file to SEG-Y we use the code snippet below. This will
         export the full MDIO (without padding) to SEG-Y format.
 
-        >>> from mdio import mdio_to_segy
+        >>> from mdio import mdio_to_segy, StorageLocation
         >>>
-        >>>
-        >>> mdio_to_segy(
-        ...     mdio_path_or_buffer="prefix2/file.mdio",
-        ...     output_segy_path="prefix/file.segy",
-        ... )
+        >>> input_location = StorageLocation("prefix2/file.mdio")
+        >>> output_location = StorageLocation("prefix/file.segy")
+        >>> mdio_to_segy(input_location, output_location)
     """
     output_segy_path = Path(output_location.uri)
 

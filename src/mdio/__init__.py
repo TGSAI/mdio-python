@@ -15,6 +15,7 @@ from mdio.core.factory import MDIOVariableConfig
 from mdio.core.factory import create_empty
 from mdio.core.factory import create_empty_like
 from mdio.core.grid import Grid
+from mdio.core.storage_location import StorageLocation
 
 __all__ = [
     "MDIOReader",
@@ -30,6 +31,7 @@ __all__ = [
     "create_empty",
     "create_empty_like",
     "Grid",
+    "StorageLocation",
 ]
 
 
