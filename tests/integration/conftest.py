@@ -103,10 +103,8 @@ def create_segy_mock_4d(  # noqa: PLR0913, PLR0915
     step_x = 100
     step_y = 100
 
-    # trace_count = shot_count * total_chan
     for trc_shot_idx in range(shot_count):
         for trc_chan_idx in range(total_chan):
-            # for trc_idx in range(trace_count):
             trc_idx = trc_shot_idx * total_chan + trc_chan_idx
 
             shot = shot_headers[trc_idx]
@@ -123,8 +121,6 @@ def create_segy_mock_4d(  # noqa: PLR0913, PLR0915
             headers["channel"][trc_idx] = channel
             headers["shot_point"][trc_idx] = shot
             headers["offset"][trc_idx] = offset
-            # headers["samples_per_trace"][trc_idx] = 1000
-            # headers["sample_interval"][trc_idx] = num_samples
             headers["shot_line"][trc_idx] = shot_line
             headers["cable"][trc_idx] = cable
             headers["gun"][trc_idx] = gun
