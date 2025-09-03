@@ -18,10 +18,19 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
+from mdio.core.utils_write import get_constrained_chunksize
+from mdio.schemas.chunk_grid import RegularChunkGrid
+from mdio.schemas.chunk_grid import RegularChunkShape
+from mdio.schemas.metadata import ChunkGridMetadata
+
+# from mdio.schemas.v1.dataset_builder import ChunkGridMetadata
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
+from mdio.schemas.v1.variable import VariableMetadata
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -313,14 +322,7 @@ def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
 
 
 def _chunk_variable(ds: Dataset, variable_name: str) -> None:
-    from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
-    from mdio.core.utils_write import get_constrained_chunksize
-    from mdio.schemas.chunk_grid import RegularChunkGrid
-    from mdio.schemas.chunk_grid import RegularChunkShape
-    from mdio.schemas.metadata import ChunkGridMetadata
-    from mdio.schemas.v1.dataset_builder import ChunkGridMetadata
-    from mdio.schemas.v1.variable import VariableMetadata
-
+    """Determins the chunking for a Variable in the dataset."""
     # Find the variable by name
     idx = -1
     for i in range(len(ds.variables)):
@@ -328,15 +330,19 @@ def _chunk_variable(ds: Dataset, variable_name: str) -> None:
             idx = i
             break
     if idx == -1:
-        raise ValueError(f"Variable '{variable_name}' not found in dataset.")
+        # raise ValueError(f"Variable '{variable_name}' not found in dataset.")
+        err = f"Variable '{variable_name}' not found in dataset."
+        raise ValueError(err)
+
+    def determine_target_size(t: str) -> int:
+        if t == "bool":
+            return MAX_SIZE_LIVE_MASK
+        return MAX_COORDINATES_BYTES
 
     # Create the chunk grid metadata
     t = ds.variables[idx].data_type
     full_shape = tuple(dim.size for dim in ds.variables[idx].dimensions)
-    if t == "bool":
-        target_size = MAX_SIZE_LIVE_MASK
-    else:
-        target_size = 128 * 1024**2
+    target_size = determine_target_size(t)
 
     chunks = ChunkGridMetadata(
         chunk_grid=RegularChunkGrid(
