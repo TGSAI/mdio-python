@@ -9,17 +9,16 @@ from shutil import copyfileobj
 from typing import TYPE_CHECKING
 
 import numpy as np
-import xarray as xr
 from segy.factory import SegyFactory
-from segy.schema import SegySpec
 from tqdm.auto import tqdm
-from xarray import Dataset as xr_Dataset
 
-from mdio.core.utils_read import open_zarr_dataset
+from mdio.api.opener import open_dataset
 from mdio.segy.compat import revision_encode
 
 if TYPE_CHECKING:
+    import xarray as xr
     from numpy.typing import NDArray
+    from segy.schema import SegySpec
 
     from mdio.core.storage_location import StorageLocation
 
@@ -27,9 +26,9 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def make_segy_factory(mdio_xr: xr_Dataset, spec: SegySpec) -> SegyFactory:
+def make_segy_factory(dataset: xr.Dataset, spec: SegySpec) -> SegyFactory:
     """Generate SEG-Y factory from MDIO metadata."""
-    binary_header = mdio_xr.attrs["attributes"]["binaryHeader"]
+    binary_header = dataset.attrs["attributes"]["binaryHeader"]
     sample_interval = binary_header["sample_interval"]
     samples_per_trace = binary_header["samples_per_trace"]
     return SegyFactory(
@@ -42,8 +41,8 @@ def make_segy_factory(mdio_xr: xr_Dataset, spec: SegySpec) -> SegyFactory:
 def mdio_spec_to_segy(
     segy_spec: SegySpec,
     input_location: StorageLocation,
-    output_location: StorageLocation
-) -> tuple[xr_Dataset, SegyFactory]:
+    output_location: StorageLocation,
+) -> tuple[xr.Dataset, SegyFactory]:
     """Create SEG-Y file without any traces given MDIO specification.
 
     This function opens an MDIO file, gets some relevant information for SEG-Y files, then creates
@@ -62,7 +61,7 @@ def mdio_spec_to_segy(
     Returns:
         Opened Xarray Dataset for MDIO file and SegyFactory
     """
-    mdio_xr = open_zarr_dataset(input_location)
+    mdio_xr = open_dataset(input_location)
     factory = make_segy_factory(mdio_xr, spec=segy_spec)
 
     attr = mdio_xr.attrs["attributes"]

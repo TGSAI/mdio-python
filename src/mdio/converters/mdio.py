@@ -7,17 +7,15 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-import dask.array as da
 import numpy as np
-import xarray as xr
 from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
-from mdio.core.utils_read import open_zarr_dataset
+from mdio.api.opener import open_dataset
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
-from mdio.segy.utilities import segy_export_rechunker  
+from mdio.segy.utilities import segy_export_rechunker
 
 try:
     import distributed
@@ -31,6 +29,7 @@ if TYPE_CHECKING:
 
 default_cpus = cpu_count(logical=True)
 NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
+
 
 def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     segy_spec: SegySpec,
@@ -75,10 +74,10 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     """
     output_segy_path = Path(output_location.uri)
 
-    mdio_xr = open_zarr_dataset(input_location)
+    dataset = open_dataset(input_location)
 
-    trace_variable_name = mdio_xr.attrs["attributes"]["traceVariableName"]
-    amplitude = mdio_xr[trace_variable_name]
+    trace_variable_name = dataset.attrs["attributes"]["traceVariableName"]
+    amplitude = dataset[trace_variable_name]
     chunks: tuple[int, ...] = amplitude.data.chunksize
     shape: tuple[int, ...] = amplitude.data.shape
     dtype = amplitude.dtype
@@ -90,14 +89,14 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         if distributed is not None:
             # This is in case we work with big data
             feature = client.submit(mdio_spec_to_segy, *creation_args)
-            mdio_xr, segy_factory = feature.result()
+            dataset, segy_factory = feature.result()
         else:
             msg = "Distributed client was provided, but `distributed` is not installed"
             raise ImportError(msg)
     else:
-        mdio_xr, segy_factory = mdio_spec_to_segy(*creation_args)
+        dataset, segy_factory = mdio_spec_to_segy(*creation_args)
 
-    live_mask = mdio_xr["trace_mask"].data.compute()
+    live_mask = dataset["trace_mask"].data.compute()
 
     if selection_mask is not None:
         live_mask = live_mask & selection_mask
@@ -117,9 +116,9 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         dim_slices += (slice(start, stop),)
 
     # Lazily pull the data with limits now, and limit mask so its the same shape.
-    live_mask = mdio_xr["trace_mask"].data.rechunk(new_chunks[:-1])[dim_slices]
-    headers = mdio_xr["headers"].data.rechunk(new_chunks[:-1])[dim_slices]
-    samples = mdio_xr["amplitude"].data.rechunk(new_chunks)[dim_slices]
+    live_mask = dataset["trace_mask"].data.rechunk(new_chunks[:-1])[dim_slices]
+    headers = dataset["headers"].data.rechunk(new_chunks[:-1])[dim_slices]
+    samples = dataset["amplitude"].data.rechunk(new_chunks)[dim_slices]
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]

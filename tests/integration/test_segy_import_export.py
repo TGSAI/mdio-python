@@ -10,7 +10,6 @@ import dask
 import numpy as np
 import numpy.testing as npt
 import pytest
-import xarray as xr
 from segy import SegyFile
 from tests.integration.testing_data import binary_header_teapot_dome
 from tests.integration.testing_data import custom_teapot_dome_segy_spec
@@ -21,13 +20,12 @@ from tests.integration.testing_helpers import validate_variable
 
 from mdio import MDIOReader
 from mdio import mdio_to_segy
+from mdio.api.opener import open_dataset
 from mdio.converters.exceptions import GridTraceSparsityError
-from mdio.core.utils_read import open_zarr_dataset
 from mdio.converters.segy import segy_to_mdio
 from mdio.core import Dimension
 from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
-from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.geometry import StreamerShotGeometryType
 
 if TYPE_CHECKING:
@@ -246,12 +244,9 @@ class TestImport6D:
 
 
 @pytest.mark.dependency
-def test_3d_import(
-        segy_input: Path,
-        zarr_tmp: Path,
-) -> None:
+def test_3d_import(segy_input: Path, zarr_tmp: Path) -> None:
     """Test importing a SEG-Y file to MDIO.
-    
+
     NOTE: This test must be executed before the 'TestReader' and 'TestExport' tests.
     """
     segy_to_mdio(
@@ -267,15 +262,14 @@ def test_3d_import(
 class TestReader:
     """Test reader functionality.
 
-    NOTE: This tests must be executed after the 'test_3d_import' successfully completes and 
-    before running 'TestExport' tests.
+    NOTE: These tests must be executed after the 'test_3d_import'  and before running 'TestExport' tests.
     """
 
     def test_meta_dataset(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
             "apiVersion": "1.0.0a1",
             "createdOn": "2025-08-06 16:21:54.747880+00:00",
@@ -308,7 +302,7 @@ class TestReader:
         """Metadata reading tests."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
             "count": 97354860,
             "sum": -8594.551666259766,
@@ -325,7 +319,7 @@ class TestReader:
         # Load Xarray dataset from the MDIO file
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
 
         # Note: in order to create the dataset we used the Time template, so the
         # sample dimension is called "time"
@@ -372,7 +366,7 @@ class TestReader:
         """Read and compare every 75 inlines' mean and std. dev."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
@@ -381,7 +375,7 @@ class TestReader:
         """Read and compare every 75 crosslines' mean and std. dev."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
@@ -391,7 +385,7 @@ class TestReader:
         """Read and compare every 225 z-slices' mean and std. dev."""
         # NOTE: If mask_and_scale is not set,
         # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
@@ -400,7 +394,7 @@ class TestReader:
 @pytest.mark.dependency("test_3d_import")
 class TestExport:
     """Test SEG-Y exporting functionality.
-    
+
     NOTE: This test(s) must be executed after the 'test_3d_import' and 'TestReader' tests
     successfully complete.
     """
