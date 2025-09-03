@@ -452,6 +452,8 @@ def segy_to_mdio_cli(  # noqa PLR0913
         segy_spec = segy_spec.customize(trace_header_fields=index_fields)
 
     # Remove the following when grid overrides are implemented
+    # TODO(Dmitriy): implement grid overrides
+    # https://github.com/TGSAI/mdio-python/issues/585
     _ = grid_overrides
     segy_to_mdio(
         segy_spec=segy_spec,
