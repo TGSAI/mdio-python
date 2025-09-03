@@ -329,10 +329,6 @@ def _chunk_variable(ds: Dataset, variable_name: str) -> None:
         if ds.variables[i].name == variable_name:
             idx = i
             break
-    if idx == -1:
-        # raise ValueError(f"Variable '{variable_name}' not found in dataset.")
-        err = f"Variable '{variable_name}' not found in dataset."
-        raise ValueError(err)
 
     def determine_target_size(t: str) -> int:
         if t == "bool":
