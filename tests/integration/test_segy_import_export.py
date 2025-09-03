@@ -262,10 +262,10 @@ def test_3d_import(segy_input: Path, zarr_tmp: Path) -> None:
 class TestReader:
     """Test reader functionality.
 
-    NOTE: These tests must be executed after the 'test_3d_import'  and before running 'TestExport' tests.
+    NOTE: These tests must be executed after the 'test_3d_import' and before running 'TestExport' tests.
     """
 
-    def test_meta_dataset(self, zarr_tmp: Path) -> None:
+    def test_dataset_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
@@ -285,7 +285,7 @@ class TestReader:
         attributes = ds.attrs["attributes"]
         assert attributes is not None
         assert len(attributes) == 6
-        # Validate all attribute provided by the abstract template
+        # Validate all attributes provided by the abstract template
         assert attributes["default_variable_name"] == "amplitude"
         assert attributes["surveyDimensionality"] == "3D"
         assert attributes["ensembleType"] == "line"
@@ -293,7 +293,7 @@ class TestReader:
         assert attributes["textHeader"] == text_header_teapot_dome()
         assert attributes["binaryHeader"] == binary_header_teapot_dome()
 
-    def test_meta_variable(self, zarr_tmp: Path) -> None:
+    def test_variable_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
@@ -349,14 +349,14 @@ class TestReader:
             None,
         )
 
-    def test_inline(self, zarr_tmp: Path) -> None:
+    def test_inline_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 inlines' mean and std. dev."""
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
 
-    def test_crossline(self, zarr_tmp: Path) -> None:
+    def test_crossline_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         xlines = ds["amplitude"][:, ::75, :]
@@ -364,7 +364,7 @@ class TestReader:
 
         npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01])
 
-    def test_zslice(self, zarr_tmp: Path) -> None:
+    def test_zslice_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         slices = ds["amplitude"][:, :, ::225]
@@ -376,8 +376,7 @@ class TestReader:
 class TestExport:
     """Test SEG-Y exporting functionality.
 
-    NOTE: This test(s) must be executed after the 'test_3d_import' and 'TestReader' tests
-    successfully complete.
+    NOTE: This test(s) must be executed after the 'test_3d_import' and 'TestReader' tests successfully complete.
     """
 
     def test_3d_export(self, segy_input: Path, zarr_tmp: Path, segy_export_tmp: Path) -> None:
