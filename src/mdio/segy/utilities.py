@@ -113,11 +113,11 @@ def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
 
 
 def segy_export_rechunker(
-    chunks: tuple[int, ...],
-    shape: tuple[int, ...],
+    chunks: dict[str, int],
+    sizes: dict[str, int],
     dtype: DTypeLike,
     limit: str = "300M",
-) -> tuple[tuple[int, ...], ...]:
+) -> dict[str, int]:
     """Determine chunk sizes for writing out SEG-Y given limit.
 
     This module finds the desired chunk sizes for given chunk size `limit` in a depth first order.
@@ -131,36 +131,37 @@ def segy_export_rechunker(
     serialized in the natural data order.
 
     Args:
-        chunks: The chunk sizes on disk.
-        shape: Shape of the whole array.
+        chunks: The chunk sizes on disk, per dimension.
+        sizes: Shape of the whole array, per dimension.
         dtype: Numpy `dtype` of the array.
         limit: Chunk size limit in, optional. Default is "300 MB"
 
     Returns:
         Adjusted chunk sizes for further processing
     """
-    ndim = len(shape) - 1  # minus the sample axis
+    dim_names = list(sizes.keys())
+    sample_dim_key = dim_names[-1]
 
-    # set sample chunks to max
-    prev_chunks = chunks[:-1] + (shape[-1],)
+    # set sample dim chunks (last one) to max
+    prev_chunks = chunks.copy()
+    prev_chunks[sample_dim_key] = sizes[sample_dim_key]
 
-    new_chunks = ()
-    for idx in range(ndim, -1, -1):
-        tmp_chunks = prev_chunks[:idx] + ("auto",) + prev_chunks[idx + 1 :]
+    new_chunks = {}
+    for dim_name in reversed(list(prev_chunks)):
+        tmp_chunks: dict[str, int | str] = prev_chunks.copy()
+        tmp_chunks[dim_name] = "auto"
 
         new_chunks = normalize_chunks(
-            chunks=tmp_chunks,
-            shape=shape,
+            chunks=tuple(tmp_chunks.values()),
+            shape=tuple(sizes.values()),
             limit=limit,
-            previous_chunks=prev_chunks,
+            previous_chunks=tuple(prev_chunks.values()),
             dtype=dtype,
         )
-
-        prev_chunks = new_chunks
+        new_chunks = dict(zip(dim_names, new_chunks, strict=True))
+        prev_chunks = new_chunks.copy()
 
     # Ensure the sample (last dim) is single chunk.
-    if len(new_chunks[-1]) != 1:
-        new_chunks = new_chunks[:-1] + (shape[-1],)
-
+    new_chunks[sample_dim_key] = sizes[sample_dim_key]
     logger.debug("Auto export rechunking to: %s", new_chunks)
     return new_chunks
