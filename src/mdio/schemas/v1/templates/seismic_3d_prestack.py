@@ -3,7 +3,6 @@
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.metadata import UserAttributes
 from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
-from mdio.schemas.v1.units import AllUnits
 
 
 class Seismic3DPreStackTemplate(AbstractDatasetTemplate):
@@ -12,7 +11,13 @@ class Seismic3DPreStackTemplate(AbstractDatasetTemplate):
     def __init__(self, domain: str = "time"):
         super().__init__(domain=domain)
 
-        self._coord_dim_names = ["shot_line", "gun", "shot_point", "cable", "channel"]  # Custom coordinates for shot gathers
+        self._coord_dim_names = [
+            "shot_line",
+            "gun",
+            "shot_point",
+            "cable",
+            "channel",
+        ]  # Custom coordinates for shot gathers
         self._dim_names = [*self._coord_dim_names, self._trace_domain]
         self._coord_names = ["source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
         self._var_chunk_shape = [1, 1, 16, 1, 32, -1]
