@@ -33,7 +33,7 @@ def make_segy_factory(dataset: xr.Dataset, spec: SegySpec) -> SegyFactory:
     samples_per_trace = binary_header["samples_per_trace"]
     return SegyFactory(
         spec=spec,
-        sample_interval=sample_interval,  # Sample Interval is already in milliseconds
+        sample_interval=sample_interval,  # Sample interval is read in from binary header so no scaling here
         samples_per_trace=samples_per_trace,
     )
 
