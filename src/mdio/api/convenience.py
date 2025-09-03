@@ -51,9 +51,6 @@ def copy_mdio(  # noqa: PLR0913
         storage_options_output: Storage options for output MDIO.
 
     """
-    storage_options_input = storage_options_input or {}
-    storage_options_output = storage_options_output or {}
-
     create_empty_like(
         source_path,
         target_path,
