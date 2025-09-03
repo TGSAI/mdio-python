@@ -267,8 +267,6 @@ class TestReader:
 
     def test_meta_dataset(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
             "apiVersion": "1.0.0a1",
@@ -311,13 +309,7 @@ class TestReader:
 
     def test_grid(self, zarr_tmp: Path) -> None:
         """Test validating MDIO variables."""
-        # Load Xarray dataset from the MDIO file
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
-
-        # Note: in order to create the dataset we used the Time template, so the
-        # sample dimension is called "time"
 
         # Validate the dimension coordinate variables
         validate_variable(ds, "inline", (345,), ("inline",), np.int32, range(1, 346), get_values)
@@ -338,7 +330,7 @@ class TestReader:
             "headers",
             (345, 188),
             ("inline", "crossline"),
-            data_type.newbyteorder("native"),
+            data_type.newbyteorder("native"),  # mdio saves with machine endian, spec could be different endian
             range(1, 346),
             get_inline_header_values,
         )
@@ -359,8 +351,6 @@ class TestReader:
 
     def test_inline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 inlines' mean and std. dev."""
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
@@ -368,8 +358,6 @@ class TestReader:
 
     def test_crossline(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
@@ -378,8 +366,6 @@ class TestReader:
 
     def test_zslice(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
