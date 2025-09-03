@@ -21,8 +21,6 @@ from mdio.core.grid import Grid
 from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.metadata import ChunkGridMetadata
 
 # from mdio.schemas.v1.dataset_builder import ChunkGridMetadata
@@ -342,13 +340,7 @@ def _chunk_variable(ds: Dataset, variable_name: str) -> None:
     target_size = determine_target_size(var_type)
 
     chunk_shape = get_constrained_chunksize(full_shape, var_type, target_size)
-    chunks = ChunkGridMetadata.model_validate({
-        "chunkGrid": {
-            "configuration": {
-                "chunkShape": chunk_shape
-            }
-        }
-    })
+    chunks = ChunkGridMetadata.model_validate({"chunkGrid": {"configuration": {"chunkShape": chunk_shape}}})
 
     # Update the variable's metadata with the new chunk grid
     if ds.variables[idx].metadata is None:
