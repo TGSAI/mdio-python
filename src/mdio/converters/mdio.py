@@ -72,6 +72,8 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     """
     output_segy_path = Path(output_location.uri)
 
+    # First we open with vanilla zarr backend and then get some info
+    # We will re-open with `new_chunks` and Dask later in mdio_spec_to_segy
     dataset = open_dataset(input_location)
 
     trace_variable_name = dataset.attrs["attributes"]["traceVariableName"]
@@ -117,13 +119,13 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         stop = dim_live.max().item() + 1
         dim_slices[dim_name] = slice(start, stop)
 
-    # Lazily pull the data with limits now, and limit mask so its the same shape.
+    # Lazily pull the data with limits now.
+    # All the variables, metadata, etc. is all sliced to the same range.
     dataset = dataset[dim_slices]
-    trace_mask = dataset["trace_mask"]
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]
-        trace_mask = trace_mask & selection_mask
+        dataset["trace_mask"] = dataset["trace_mask"] & selection_mask
 
     # tmp file root
     out_dir = output_segy_path.parent
@@ -134,7 +136,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
             block_records = to_segy(
                 samples=dataset[trace_variable_name].data,
                 headers=dataset["headers"].data,
-                live_mask=trace_mask.data,
+                live_mask=dataset["trace_mask"].data,
                 segy_factory=segy_factory,
                 file_root=tmp_dir.name,
             )

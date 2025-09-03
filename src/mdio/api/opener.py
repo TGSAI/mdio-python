@@ -27,9 +27,6 @@ def open_dataset(storage_location: StorageLocation, chunks: T_Chunks = None) -> 
     Returns:
         An Xarray dataset opened from the storage location.
     """
-    if chunks is None:
-        chunks = {}
-
     # NOTE: If mask_and_scale is not set,
     # Xarray will convert int to float and replace _FillValue with NaN
     # Fixed in Zarr v3, so we can fix this later.
