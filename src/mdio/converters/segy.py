@@ -331,6 +331,7 @@ def _chunk_variable(ds: Dataset, variable_name: str) -> None:
             break
 
     def determine_target_size(var_type: str) -> int:
+        """Determines the target size (in bytes) for a Variable based on its type."""
         if var_type == "bool":
             return MAX_SIZE_LIVE_MASK
         return MAX_COORDINATES_BYTES
@@ -346,12 +347,10 @@ def _chunk_variable(ds: Dataset, variable_name: str) -> None:
         )
     )
 
-    # Update the variable's metadata
+    # Update the variable's metadata with the new chunk grid
     if ds.variables[idx].metadata is None:
-        # Create new metadata with the chunk grid
         ds.variables[idx].metadata = VariableMetadata(chunk_grid=chunks.chunk_grid)
     else:
-        # Update existing metadata
         ds.variables[idx].metadata.chunk_grid = chunks.chunk_grid
 
 
