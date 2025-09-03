@@ -32,5 +32,5 @@ def open_dataset(storage_location: StorageLocation, chunks: T_Chunks = None) -> 
 
     # NOTE: If mask_and_scale is not set,
     # Xarray will convert int to float and replace _FillValue with NaN
-    # We are using chunks={} to force Xarray to create Dask arrays
+    # Fixed in Zarr v3, so we can fix this later.
     return xr.open_dataset(storage_location.uri, engine="zarr", chunks=chunks, mask_and_scale=False)
