@@ -115,7 +115,7 @@ class TestSeismic3DPostStackTemplate:
             "ensembleType": "line",
             "processingStage": "post-stack",
         }
-        assert t.trace_variable_name == "amplitude"
+        assert t.default_variable_name == "amplitude"
 
     def test_configuration_time(self) -> None:
         """Unit tests for Seismic3DPostStackTemplate with time domain."""

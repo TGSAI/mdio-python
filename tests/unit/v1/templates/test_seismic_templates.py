@@ -25,7 +25,7 @@ class TestSeismicTemplates:
                 super().__init__(domain=domain)
 
             @property
-            def _trace_variable_name(self) -> str:
+            def _default_variable_name(self) -> str:
                 return "velocity"
 
             @property
@@ -34,7 +34,7 @@ class TestSeismicTemplates:
 
         t = Velocity2DPostStackTemplate("depth")
         assert t.name == "Velocity2DDepth"
-        assert t.trace_variable_name == "velocity"
+        assert t.default_variable_name == "velocity"
 
         dataset = t.build_dataset("Velocity 2D Depth Line 001", sizes=[2048, 4096], horizontal_coord_unit=_UNIT_METER)
 
@@ -70,7 +70,7 @@ class TestSeismicTemplates:
             assert isinstance(template, AbstractDatasetTemplate)
             # That each template has the required properties and methods
             assert hasattr(template, "name")
-            assert hasattr(template, "trace_variable_name")
+            assert hasattr(template, "default_variable_name")
             assert hasattr(template, "trace_domain")
             assert hasattr(template, "dimension_names")
             assert hasattr(template, "coordinate_names")

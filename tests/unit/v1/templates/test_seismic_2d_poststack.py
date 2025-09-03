@@ -100,7 +100,7 @@ class TestSeismic2DPostStackTemplate:
             "processingStage": "post-stack",
         }
 
-        assert t.trace_variable_name == "amplitude"
+        assert t.default_variable_name == "amplitude"
 
     def test_configuration_time(self) -> None:
         """Test configuration of Seismic2DPostStackTemplate with time domain."""
@@ -125,7 +125,7 @@ class TestSeismic2DPostStackTemplate:
             "ensembleType": "line",
             "processingStage": "post-stack",
         }
-        assert t.trace_variable_name == "amplitude"
+        assert t.default_variable_name == "amplitude"
 
     def test_domain_case_handling(self) -> None:
         """Test that domain parameter handles different cases correctly."""

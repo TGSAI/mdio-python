@@ -84,7 +84,9 @@ class AbstractDatasetTemplate(ABC):
         self._dim_sizes = sizes
         self._horizontal_coord_unit = horizontal_coord_unit
 
-        self._builder = MDIODatasetBuilder(name=name, attributes=self._load_dataset_attributes())
+        attr = self._load_dataset_attributes() or UserAttributes(attributes={})
+        attr.attributes["default_variable_name"] = self._default_variable_name
+        self._builder = MDIODatasetBuilder(name=name, attributes=attr)
         self._add_dimensions()
         self._add_coordinates()
         self._add_variables()
@@ -99,9 +101,9 @@ class AbstractDatasetTemplate(ABC):
         return self._name
 
     @property
-    def trace_variable_name(self) -> str:
+    def default_variable_name(self) -> str:
         """Returns the name of the trace variable."""
-        return self._trace_variable_name
+        return self._default_variable_name
 
     @property
     def trace_domain(self) -> str:
@@ -130,7 +132,7 @@ class AbstractDatasetTemplate(ABC):
         """
 
     @property
-    def _trace_variable_name(self) -> str:
+    def _default_variable_name(self) -> str:
         """Get the name of the data variable.
 
         A virtual method that can be overwritten by subclasses to return a
@@ -226,7 +228,7 @@ class AbstractDatasetTemplate(ABC):
         Uses the class field 'builder' to add variables to the dataset.
         """
         self._builder.add_variable(
-            name=self._trace_variable_name,
+            name=self.default_variable_name,
             dimensions=self._dim_names,
             data_type=ScalarType.FLOAT32,
             compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
