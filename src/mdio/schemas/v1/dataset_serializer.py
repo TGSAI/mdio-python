@@ -2,7 +2,7 @@
 
 import numpy as np
 from dask import array as dask_array
-from numcodecs import Blosc as nc_Blosc
+from numcodecs.zarr3 import Blosc as nc_Blosc
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
 
@@ -127,7 +127,7 @@ def _convert_compressor(
 
     if isinstance(compressor, mdio_Blosc):
         return nc_Blosc(
-            cname=compressor.algorithm.value,
+            cname=compressor.algorithm,
             clevel=compressor.level,
             shuffle=compressor.shuffle.value,
             blocksize=compressor.blocksize if compressor.blocksize > 0 else 0,
