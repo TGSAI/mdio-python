@@ -289,7 +289,7 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 6
+        assert len(attributes) == 7
         # Validate all attributes provided by the abstract template
         assert attributes["default_variable_name"] == "amplitude"
         assert attributes["surveyDimensionality"] == "3D"
