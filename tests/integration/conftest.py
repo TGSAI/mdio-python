@@ -31,6 +31,13 @@ def _segy_spec_mock_4d() -> SegySpec:
         HeaderField(name="shot_line", byte=133, format="int16"),
         HeaderField(name="cable", byte=137, format="int16"),
         HeaderField(name="gun", byte=171, format="int16"),
+        HeaderField(name="coordinate_scalar", byte=71, format="int16"),
+        HeaderField(name="source_coord_x", byte=73, format="int32"),
+        HeaderField(name="source_coord_y", byte=77, format="int32"),
+        HeaderField(name="group_coord_x", byte=81, format="int32"),
+        HeaderField(name="group_coord_y", byte=85, format="int32"),
+        HeaderField(name="cdp_x", byte=181, format="int32"),
+        HeaderField(name="cdp_y", byte=185, format="int32"),
     ]
     rev1_spec = get_segy_standard(1.0)
     spec = rev1_spec.customize(trace_header_fields=trace_header_fields)

@@ -48,17 +48,16 @@ class TestImport4DNonReg:
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
+        try:
+            template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
+        except ValueError:  # This doesn't feel great to use. We should re-examine the registry process later on.
+            template_name = "PreStackShotGathers3DExtTrace"
+
         match grid_override:
             case "NonBinned":
                 grid_overrides = {"NonBinned": True, "dimensions": ["channel"]}
-                # Notice that extra parameter.
-                # If such usage of template is acceptable, we should properly register it
-                template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
             case "HasDuplicates":
                 grid_overrides = {"HasDuplicates": True}
-                # Notice that extra parameter.
-                # If such usage of template is acceptable, we should properly register it
-                template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
             case _:
                 grid_overrides = None
 
@@ -293,7 +292,7 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 6
+        assert len(attributes) == 7
         # Validate all attributes provided by the abstract template
         assert attributes["default_variable_name"] == "amplitude"
         assert attributes["surveyDimensionality"] == "3D"

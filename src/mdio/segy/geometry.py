@@ -623,12 +623,12 @@ class GridOverrider:
                 raise GridOverrideUnknownError(override)
 
             function = self.commands[override].transform
-            index_headers_new = function(index_headers, grid_overrides=grid_overrides)
+            index_headers = function(index_headers, grid_overrides=grid_overrides)
 
             function = self.commands[override].transform_index_names
-            index_names_new = function(index_names, grid_overrides=grid_overrides)
+            index_names = function(index_names, grid_overrides=grid_overrides)
 
             function = self.commands[override].transform_chunksize
-            chunksize_new = function(chunksize, grid_overrides=grid_overrides)
+            chunksize = function(chunksize, grid_overrides=grid_overrides)
 
-        return index_headers_new, index_names_new, chunksize_new
+        return index_headers, index_names, chunksize
