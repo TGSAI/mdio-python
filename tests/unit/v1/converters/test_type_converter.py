@@ -1,7 +1,7 @@
 """Unit tests for the type converter module."""
 
+import numpy as np
 import pytest
-from numpy import dtype as np_dtype
 
 from mdio.converters.type_converter import to_numpy_dtype
 from mdio.converters.type_converter import to_scalar_type
@@ -58,19 +58,19 @@ def test_to_numpy_dtype(supported_scalar_types_map: tuple[ScalarType, str], a_st
     # Test 1: ScalarType cases - all supported scalar types
     for scalar_type, expected_numpy_type in supported_scalar_types_map:
         result = to_numpy_dtype(scalar_type)
-        expected = np_dtype(expected_numpy_type)
+        expected = np.dtype(expected_numpy_type)
         assert result == expected
-        assert isinstance(result, np_dtype)
+        assert isinstance(result, np.dtype)
         assert result.name == expected.name
 
     # Test 2: StructuredType with multiple fields
     result_multi = to_numpy_dtype(a_structured_type)
-    expected_multi = np_dtype(
+    expected_multi = np.dtype(
         [("x", "float64"), ("y", "float64"), ("z", "float64"), ("id", "int32"), ("valid", "bool")]
     )
 
     assert result_multi == expected_multi
-    assert isinstance(result_multi, np_dtype)
+    assert isinstance(result_multi, np.dtype)
     assert len(result_multi.names) == 5
     assert set(result_multi.names) == {"x", "y", "z", "id", "valid"}
 
@@ -78,14 +78,14 @@ def test_to_numpy_dtype(supported_scalar_types_map: tuple[ScalarType, str], a_st
 def test_to_scalar_type(supported_scalar_types_map: tuple[ScalarType, str]) -> None:
     """Test for to_scalar_type function."""
     for expected_mdio_type, numpy_type in supported_scalar_types_map:
-        result = to_scalar_type(np_dtype(numpy_type))
+        result = to_scalar_type(np.dtype(numpy_type))
         assert result == expected_mdio_type
 
 
 def test_to_structured_type(a_structured_type: StructuredType) -> None:
     """Test for to_structured_type function."""
-    dtype = np_dtype([("x", "float64"), ("y", "float64"), ("z", "float64"), ("id", "int32"), ("valid", "bool")])
+    dtype = np.dtype([("x", "float64"), ("y", "float64"), ("z", "float64"), ("id", "int32"), ("valid", "bool")])
     assert a_structured_type == to_structured_type(dtype)
 
-    dtype = np_dtype([("x", "<f8"), ("y", "<f8"), ("z", "<f8"), ("id", "<i4"), ("valid", "?")])
+    dtype = np.dtype([("x", "<f8"), ("y", "<f8"), ("z", "<f8"), ("id", "<i4"), ("valid", "?")])
     assert a_structured_type == to_structured_type(dtype)
