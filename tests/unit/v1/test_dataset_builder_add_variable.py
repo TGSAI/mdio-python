@@ -5,6 +5,7 @@ import pytest
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.compressors import Blosc
+from mdio.schemas.compressors import BloscCname
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.metadata import UserAttributes
@@ -182,7 +183,7 @@ def test_add_variable_full_parameters() -> None:
         long_name="Amplitude (dimensionless)",
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
+        compressor=Blosc(cname=BloscCname.zstd),
         coordinates=["inline", "crossline", "depth", "cdp_x", "cdp_y"],
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
@@ -210,7 +211,7 @@ def test_add_variable_full_parameters() -> None:
     )
     assert v.long_name == "Amplitude (dimensionless)"
     assert isinstance(v.compressor, Blosc)
-    assert v.compressor.algorithm == "zstd"
+    assert v.compressor.cname == BloscCname.zstd
     assert len(v.coordinates) == 5
     assert v.metadata.stats_v1.count == 100
     assert isinstance(v.metadata, VariableMetadata)

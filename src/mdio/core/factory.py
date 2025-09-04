@@ -25,10 +25,10 @@ from importlib import metadata
 from typing import Any
 
 import zarr
-from numcodecs.zarr3 import Blosc
 from numpy.typing import DTypeLike
 from zarr import Group
 from zarr import open_group
+from zarr.codecs import BloscCodec
 from zarr.core.array import CompressorsLike
 
 from mdio.api.accessor import MDIOWriter
@@ -160,7 +160,7 @@ def create_empty(
             name=f"{variable.name}_trace_headers",
             shape=config.grid.shape[:-1],  # Same spatial shape as data
             chunks=variable.chunks[:-1],  # Same spatial chunks as data
-            compressors=Blosc(cname="zstd"),
+            compressors=BloscCodec(cname="zstd"),
             dtype=header_dtype,
         )
 

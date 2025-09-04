@@ -57,7 +57,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     grid_map: zarr_Array,
     dataset: xr_Dataset,
     data_variable_name: str,
-) -> None:
+) -> SummaryStatistics:
     """Blocked I/O from SEG-Y to chunked `xarray.Dataset`.
 
     Args:

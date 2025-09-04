@@ -7,51 +7,25 @@ Important Objects:
 
 from __future__ import annotations
 
-from enum import IntEnum
 from enum import StrEnum
 
 from pydantic import Field
 from pydantic import model_validator
+from zarr.codecs import BloscCname
+from zarr.codecs import BloscShuffle
 
 from mdio.schemas.core import CamelCaseStrictModel
-
-
-class BloscAlgorithm(StrEnum):
-    """Enum for Blosc algorithm options."""
-
-    BLOSCLZ = "blosclz"
-    LZ4 = "lz4"
-    LZ4HC = "lz4hc"
-    ZLIB = "zlib"
-    ZSTD = "zstd"
-
-
-class BloscShuffle(IntEnum):
-    """Enum for Blosc shuffle options."""
-
-    NOSHUFFLE = 0
-    SHUFFLE = 1
-    BITSHUFFLE = 2
-    AUTOSHUFFLE = -1
 
 
 class Blosc(CamelCaseStrictModel):
     """Data Model for Blosc options."""
 
     name: str = Field(default="blosc", description="Name of the compressor.")
-    algorithm: BloscAlgorithm = Field(
-        default=BloscAlgorithm.LZ4,
-        description="The Blosc compression algorithm to be used.",
-    )
-    level: int = Field(default=5, ge=0, le=9, description="The compression level.")
-    shuffle: BloscShuffle = Field(
-        default=BloscShuffle.SHUFFLE,
-        description="The shuffle strategy to be applied before compression.",
-    )
-    blocksize: int = Field(
-        default=0,
-        description="The size of the block to be used for compression.",
-    )
+    cname: BloscCname = Field(default=BloscCname.zstd, description="Compression algorithm name.")
+    clevel: int = Field(default=5, ge=0, le=9, description="Compression level (integer 0–9)")
+    shuffle: BloscShuffle | None = Field(default=None, description="Shuffling mode before compression.")
+    typesize: int | None = Field(default=None, description="The size in bytes that the shuffle is performed over.")
+    blocksize: int = Field(default=0, description="The size (in bytes) of blocks to divide data before compression.")
 
 
 zfp_mode_map = {

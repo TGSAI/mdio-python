@@ -3,6 +3,7 @@
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.compressors import Blosc
+from mdio.schemas.compressors import BloscCname
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
@@ -200,7 +201,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         name="image",
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
+        compressor=Blosc(cname=BloscCname.zstd),  # also default in zarr3
         coordinates=["cdp_x", "cdp_y"],
         metadata_info=[
             ChunkGridMetadata(
@@ -238,7 +239,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         long_name="inline optimized version of 3d_stack",
         dimensions=["inline", "crossline", "depth"],
         data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
+        compressor=Blosc(cname=BloscCname.zstd),  # also default in zarr3
         coordinates=["cdp_x", "cdp_y"],
         metadata_info=[
             ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[4, 512, 512])))
