@@ -154,7 +154,8 @@ def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
         return fill_value_map.get(data_type)
     if isinstance(data_type, StructuredType):
         numpy_dtype = to_numpy_dtype(data_type)
-        return np.void((), dtype=numpy_dtype)
+        fill_value = (0,) * len(numpy_dtype.fields)
+        return np.void(fill_value, dtype=numpy_dtype)
     if isinstance(data_type, str):
         return ""
     # If we do not have a fill value for this type, use None
