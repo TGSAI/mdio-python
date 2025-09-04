@@ -1,5 +1,6 @@
 """Tests the schema v1 dataset_builder.build() public API."""
 
+from mdio.schemas.compressors import BloscCname
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
@@ -99,7 +100,7 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
         dtype=ScalarType.FLOAT32,
     )
     assert image.metadata.units_v1 is None  # No units defined for image
-    assert image.compressor.algorithm == "zstd"
+    assert image.compressor.cname == BloscCname.zstd
     assert image.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
     assert image.metadata.stats_v1.count == 100
 
@@ -122,7 +123,7 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
         dtype=ScalarType.FLOAT32,
     )
     assert image_inline.long_name == "inline optimized version of 3d_stack"
-    assert image_inline.compressor.algorithm == "zstd"
+    assert image_inline.compressor.cname == BloscCname.zstd
     assert image_inline.metadata.chunk_grid.configuration.chunk_shape == [4, 512, 512]
 
     # Verify image_headers variable

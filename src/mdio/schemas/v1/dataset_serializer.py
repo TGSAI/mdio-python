@@ -2,9 +2,9 @@
 
 import numpy as np
 from dask import array as dask_array
-from numcodecs.zarr3 import Blosc as nc_Blosc
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
+from zarr.codecs import BloscCodec
 
 from mdio.converters.type_converter import to_numpy_dtype
 
@@ -120,18 +120,13 @@ def _get_zarr_chunks(var: Variable, all_named_dims: dict[str, NamedDimension]) -
 
 def _convert_compressor(
     compressor: mdio_Blosc | mdio_ZFP | None,
-) -> nc_Blosc | zfpy_ZFPY | None:
+) -> BloscCodec | zfpy_ZFPY | None:
     """Convert a compressor to a numcodecs compatible format."""
     if compressor is None:
         return None
 
     if isinstance(compressor, mdio_Blosc):
-        return nc_Blosc(
-            cname=compressor.algorithm,
-            clevel=compressor.level,
-            shuffle=compressor.shuffle.value,
-            blocksize=compressor.blocksize if compressor.blocksize > 0 else 0,
-        )
+        return BloscCodec(**compressor.model_dump(exclude={"name"}))
 
     if isinstance(compressor, mdio_ZFP):
         if zfpy_ZFPY is None:

@@ -1,6 +1,7 @@
 """Tests the schema v1 dataset_builder.add_coordinate() public API."""
 
 import pytest
+from zarr.codecs import BloscCname
 
 from mdio.schemas.compressors import Blosc
 from mdio.schemas.dtype import ScalarType
@@ -96,7 +97,7 @@ def test_coordinate_with_full_parameters() -> None:
         long_name="Common Depth Point",
         dimensions=["inline", "crossline"],
         data_type=ScalarType.FLOAT16,
-        compressor=Blosc(algorithm="zstd"),
+        compressor=Blosc(cname=BloscCname.zstd),
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
             UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"}),
@@ -106,7 +107,7 @@ def test_coordinate_with_full_parameters() -> None:
     c = validate_coordinate(builder, name="cdp", dims=[("inline", 100), ("crossline", 200)], dtype=ScalarType.FLOAT16)
     assert c.long_name == "Common Depth Point"
     assert isinstance(c.compressor, Blosc)
-    assert c.compressor.algorithm == "zstd"
+    assert c.compressor.cname == BloscCname.zstd
     assert c.metadata.attributes["MGA"] == 51
     assert c.metadata.attributes["UnitSystem"] == "Imperial"
     assert c.metadata.units_v1.length == LengthUnitEnum.FOOT
@@ -118,7 +119,7 @@ def test_coordinate_with_full_parameters() -> None:
         dtype=ScalarType.FLOAT16,
     )
     assert isinstance(v.compressor, Blosc)
-    assert v.compressor.algorithm == "zstd"
+    assert v.compressor.cname == BloscCname.zstd
     assert isinstance(v.metadata, VariableMetadata)
     assert v.metadata.units_v1.length == LengthUnitEnum.FOOT
     assert v.metadata.attributes["MGA"] == 51

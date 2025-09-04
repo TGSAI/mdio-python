@@ -4,6 +4,7 @@ from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
+from mdio.schemas.compressors import BloscCname
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.v1.dataset import Dataset
@@ -218,7 +219,7 @@ class TestSeismic3DPreStackShotTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
-        assert seismic.compressor.algorithm == "zstd"
+        assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None
@@ -251,7 +252,7 @@ class TestSeismic3DPreStackShotTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
-        assert seismic.compressor.algorithm == "zstd"
+        assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
         assert seismic.metadata.stats_v1 is None

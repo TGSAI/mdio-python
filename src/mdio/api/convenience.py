@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 import zarr
-from numcodecs.zarr3 import Blosc
 from tqdm.auto import tqdm
+from zarr.codecs import BloscCodec
 
 from mdio import MDIOReader
 from mdio import MDIOWriter
@@ -134,8 +134,8 @@ def create_rechunk_plan(
     metadata_arrs = []
     data_arrs = []
 
-    header_compressor = Blosc(cname="zstd")
-    trace_compressor = Blosc(cname="zstd") if compressors is None else compressors
+    header_compressor = BloscCodec(cname="zstd")
+    trace_compressor = BloscCodec(cname="zstd") if compressors is None else compressors
 
     for chunks, suffix in zip(chunks_list, suffix_list, strict=True):
         norm_chunks = tuple(min(chunk, size) for chunk, size in zip(chunks, source.shape, strict=True))

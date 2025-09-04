@@ -199,7 +199,7 @@ class AbstractDatasetTemplate(ABC):
             name="trace_mask",
             dimensions=self._dim_names[:-1],  # All dimensions except vertical (the last one)
             data_type=ScalarType.BOOL,
-            compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
+            compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self._coord_names,
             metadata_info=None,
         )
@@ -212,7 +212,7 @@ class AbstractDatasetTemplate(ABC):
             name="headers",
             dimensions=self._dim_names[:-1],  # All dimensions except vertical (the last one)
             data_type=headers,
-            compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
+            compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self._coord_names,
             metadata_info=[
                 ChunkGridMetadata(
@@ -231,7 +231,7 @@ class AbstractDatasetTemplate(ABC):
             name=self.default_variable_name,
             dimensions=self._dim_names,
             data_type=ScalarType.FLOAT32,
-            compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
+            compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self._coord_names,
             metadata_info=[
                 ChunkGridMetadata(

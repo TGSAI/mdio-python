@@ -6,6 +6,7 @@ import numpy as np
 import pytest
 from xarray import DataArray as xr_DataArray
 from zarr import zeros as zarr_zeros
+from zarr.codecs import BloscCodec
 
 from mdio.constants import fill_value_map
 from mdio.schemas.chunk_grid import RegularChunkGrid
@@ -41,12 +42,11 @@ except ImportError:
     ZFPY = None
     HAS_ZFPY = False
 
-from numcodecs.zarr3 import Blosc as nc_Blosc
 
 from mdio.schemas.compressors import ZFP as MDIO_ZFP
 from mdio.schemas.compressors import Blosc as mdio_Blosc
-from mdio.schemas.compressors import BloscAlgorithm as mdio_BloscAlgorithm
-from mdio.schemas.compressors import BloscShuffle as mdio_BloscShuffle
+from mdio.schemas.compressors import BloscCname
+from mdio.schemas.compressors import BloscShuffle
 from mdio.schemas.compressors import ZFPMode as mdio_ZFPMode
 
 
@@ -245,19 +245,14 @@ def test_convert_compressor() -> None:
     assert result_none is None
 
     # Test 2: mdio_Blosc compressor - should return nc_Blosc
-    result_blosc = _convert_compressor(
-        mdio_Blosc(
-            algorithm=mdio_BloscAlgorithm.LZ4,
-            level=5,
-            shuffle=mdio_BloscShuffle.AUTOSHUFFLE,
-            blocksize=1024,
-        )
-    )
-    assert isinstance(result_blosc, nc_Blosc)
-    assert result_blosc.codec_config["cname"] == "lz4"  # BloscAlgorithm.LZ4.value
-    assert result_blosc.codec_config["clevel"] == 5
-    assert result_blosc.codec_config["shuffle"] == -1  # BloscShuffle.UTOSHUFFLE = -1
-    assert result_blosc.codec_config["blocksize"] == 1024
+    mdio_compressor = mdio_Blosc(cname=BloscCname.lz4, clevel=5, shuffle=BloscShuffle.bitshuffle, blocksize=1024)
+    result_blosc = _convert_compressor(mdio_compressor)
+
+    assert isinstance(result_blosc, BloscCodec)
+    assert result_blosc.cname == BloscCname.lz4
+    assert result_blosc.clevel == 5
+    assert result_blosc.shuffle == BloscShuffle.bitshuffle
+    assert result_blosc.blocksize == 1024
 
     # Test 3: mdio_ZFP compressor - should return zfpy_ZFPY if available
     zfp_compressor = MDIO_ZFP(mode=mdio_ZFPMode.FIXED_RATE, tolerance=0.01, rate=8.0, precision=16)
