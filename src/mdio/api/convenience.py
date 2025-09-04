@@ -124,8 +124,6 @@ def create_rechunk_plan(
     Raises:
         NameError: if trying to write to original data.
     """
-    zarr.config.set({"write_empty_chunks": False})
-
     data_group = source._data_group
     metadata_group = source._metadata_group
 
@@ -154,8 +152,6 @@ def create_rechunk_plan(
                 chunks=norm_chunks[:-1],
                 compressor=header_compressor,
                 overwrite=overwrite,
-                zarr_format=2,
-                dimension_separator="/",
             )
         )
 
@@ -167,8 +163,6 @@ def create_rechunk_plan(
                 chunks=norm_chunks,
                 compressor=trace_compressor,
                 overwrite=overwrite,
-                zarr_format=2,
-                dimension_separator="/",
             )
         )
 

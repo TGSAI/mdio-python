@@ -377,11 +377,11 @@ def segy_to_mdio(
     # blocked_io.to_zarr() -> _workers.trace_worker()
 
     # This will create the Zarr store with the correct structure but with empty arrays
-    xr_dataset.to_zarr(store=output_location.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=False)
+    xr_dataset.to_zarr(store=output_location.uri, mode="w", compute=False)
 
     # This will write the non-dimension coordinates and trace mask
     meta_ds = xr_dataset[drop_vars_delayed + ["trace_mask"]]
-    meta_ds.to_zarr(store=output_location.uri, mode="r+", write_empty_chunks=False, zarr_format=2, compute=True)
+    meta_ds.to_zarr(store=output_location.uri, mode="r+", compute=True)
 
     # Now we can drop them to simplify chunked write of the data variable
     xr_dataset = xr_dataset.drop_vars(drop_vars_delayed)

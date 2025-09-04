@@ -5,7 +5,6 @@ from dask import array as dask_array
 from numcodecs import Blosc as nc_Blosc
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
-from zarr.core.chunk_key_encodings import V2ChunkKeyEncoding
 
 from mdio.converters.type_converter import to_numpy_dtype
 
@@ -213,20 +212,13 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         if v.long_name:
             data_array.attrs["long_name"] = v.long_name
 
-        # Create a custom chunk key encoding with "/" as separator
-        chunk_key_encoding = V2ChunkKeyEncoding(separator="/").to_dict()
         encoding = {
             "chunks": chunks,
-            "chunk_key_encoding": chunk_key_encoding,
             "compressor": _convert_compressor(v.compressor),
         }
         # NumPy structured data types have fields attribute, while scalar types do not.
         if not hasattr(v.data_type, "fields"):
-            # TODO(Dmitriy Repin): work around of the bug
-            # https://github.com/TGSAI/mdio-python/issues/582
-            # For structured data types we will not use the _FillValue
-            # NOTE: See Zarr documentation on use of fill_value and _FillValue in Zarr v2 vs v3
-            encoding["_FillValue"] = _get_fill_value(v.data_type)
+            encoding["fill_value"] = _get_fill_value(v.data_type)
 
         data_array.encoding = encoding
 

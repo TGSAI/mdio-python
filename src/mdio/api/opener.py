@@ -29,7 +29,4 @@ def open_dataset(storage_location: StorageLocation, chunks: T_Chunks = None) -> 
     Returns:
         An Xarray dataset opened from the storage location.
     """
-    # NOTE: If mask_and_scale is not set,
-    # Xarray will convert int to float and replace _FillValue with NaN
-    # Fixed in Zarr v3, so we can fix this later.
-    return xr.open_dataset(storage_location.uri, engine="zarr", chunks=chunks, mask_and_scale=False)
+    return xr.open_dataset(storage_location.uri, engine="zarr", chunks=chunks)
