@@ -30,6 +30,9 @@ class StorageLocation:
         if uri.startswith(("s3://", "gs://")):
             return
 
+        if uri.startswith(("http://", "https://")):
+            return
+
         if uri.startswith("file://"):
             self._uri = self._uri.removeprefix("file://")
         # For local paths, ensure they are absolute and resolved
