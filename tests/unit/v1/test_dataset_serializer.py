@@ -4,7 +4,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from dask import array as dask_array
 from xarray import DataArray as xr_DataArray
 from zarr import zeros as zarr_zeros
 
@@ -321,29 +320,6 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     xr_ds.to_zarr(store=file_path, mode="w", compute=False)
-
-
-@pytest.mark.skip(reason="Bug reproducer for the issue 582")
-def test_buf_reproducer_dask_to_zarr(tmp_path: Path) -> None:
-    """Bug reproducer for the issue https://github.com/TGSAI/mdio-python/issues/582."""
-    # TODO(Dmitriy Repin): Remove this test after the bug is fixed
-    # https://github.com/TGSAI/mdio-python/issues/582
-
-    # Create a data type and the fill value
-    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
-    dtype_fill_value = np.zeros((), dtype=dtype)
-
-    my_attr_encoding = {"fill_value": dtype_fill_value}
-
-    # Create a dask array using the data type
-    # Do not specify encoding as the array attribute
-    data = dask_array.zeros((36,), dtype=dtype, chunks=(36,))
-    aa = xr_DataArray(name="myattr", data=data)
-
-    # Specify encoding per array
-    encoding = {"myattr": my_attr_encoding}
-    file_path = output_path(tmp_path, "to_zarr/zarr_dask", debugging=False)
-    aa.to_zarr(file_path, mode="w", encoding=encoding, compute=False)
 
 
 def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:
