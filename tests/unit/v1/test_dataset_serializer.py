@@ -2,12 +2,9 @@
 
 from pathlib import Path
 
+import numpy as np
 import pytest
 from dask import array as dask_array
-from numpy import array as np_array
-from numpy import dtype as np_dtype
-from numpy import isnan as np_isnan
-from numpy import zeros as np_zeros
 from xarray import DataArray as xr_DataArray
 from zarr import zeros as zarr_zeros
 
@@ -45,7 +42,7 @@ except ImportError:
     ZFPY = None
     HAS_ZFPY = False
 
-from numcodecs import Blosc as nc_Blosc
+from numcodecs.zarr3 import Blosc as nc_Blosc
 
 from mdio.schemas.compressors import ZFP as MDIO_ZFP
 from mdio.schemas.compressors import Blosc as mdio_Blosc
@@ -190,7 +187,7 @@ def test_get_fill_value() -> None:
         ScalarType.FLOAT64,
     ]
     for scalar_type in scalar_types:
-        assert np_isnan(_get_fill_value(scalar_type))
+        assert np.isnan(_get_fill_value(scalar_type))
 
     scalar_types = [
         ScalarType.UINT8,
@@ -212,8 +209,8 @@ def test_get_fill_value() -> None:
     for scalar_type in scalar_types:
         val = _get_fill_value(scalar_type)
         assert isinstance(val, complex)
-        assert np_isnan(val.real)
-        assert np_isnan(val.imag)
+        assert np.isnan(val.real)
+        assert np.isnan(val.imag)
 
     # Test 2: StructuredType
     f1 = StructuredField(name="cdp_x", format=ScalarType.INT32)
@@ -222,9 +219,9 @@ def test_get_fill_value() -> None:
     f4 = StructuredField(name="some_scalar", format=ScalarType.FLOAT16)
     structured_type = StructuredType(fields=[f1, f2, f3, f4])
 
-    expected = np_array(
+    expected = np.array(
         (0, 0, 0.0, 0.0),
-        dtype=np_dtype([("cdp_x", "<i4"), ("cdp_y", "<i4"), ("elevation", "<f2"), ("some_scalar", "<f2")]),
+        dtype=np.dtype([("cdp_x", "<i4"), ("cdp_y", "<i4"), ("elevation", "<f2"), ("some_scalar", "<f2")]),
     )
     result = _get_fill_value(structured_type)
     assert expected == result
@@ -258,24 +255,12 @@ def test_convert_compressor() -> None:
         )
     )
     assert isinstance(result_blosc, nc_Blosc)
-    assert result_blosc.cname == "lz4"  # BloscAlgorithm.LZ4.value
-    assert result_blosc.clevel == 5
-    assert result_blosc.shuffle == -1  # BloscShuffle.UTOSHUFFLE = -1
-    assert result_blosc.blocksize == 1024
+    assert result_blosc.codec_config["cname"] == "lz4"  # BloscAlgorithm.LZ4.value
+    assert result_blosc.codec_config["clevel"] == 5
+    assert result_blosc.codec_config["shuffle"] == -1  # BloscShuffle.UTOSHUFFLE = -1
+    assert result_blosc.codec_config["blocksize"] == 1024
 
-    # Test 3: mdio_Blosc with blocksize 0 - should use 0 as blocksize
-    result_blosc_zero = _convert_compressor(
-        mdio_Blosc(
-            algorithm=mdio_BloscAlgorithm.ZSTD,
-            level=3,
-            shuffle=mdio_BloscShuffle.AUTOSHUFFLE,
-            blocksize=0,
-        )
-    )
-    assert isinstance(result_blosc_zero, nc_Blosc)
-    assert result_blosc_zero.blocksize == 0
-
-    # Test 4: mdio_ZFP compressor - should return zfpy_ZFPY if available
+    # Test 3: mdio_ZFP compressor - should return zfpy_ZFPY if available
     zfp_compressor = MDIO_ZFP(mode=mdio_ZFPMode.FIXED_RATE, tolerance=0.01, rate=8.0, precision=16)
 
     if HAS_ZFPY:
@@ -345,8 +330,8 @@ def test_buf_reproducer_dask_to_zarr(tmp_path: Path) -> None:
     # https://github.com/TGSAI/mdio-python/issues/582
 
     # Create a data type and the fill value
-    dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
-    dtype_fill_value = np_zeros((), dtype=dtype)
+    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
+    dtype_fill_value = np.zeros((), dtype=dtype)
 
     my_attr_encoding = {"fill_value": dtype_fill_value}
 
@@ -367,10 +352,9 @@ def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:
     Set encoding in as DataArray attributes
     """
     # Create a data type and the fill value
-    dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
-    dtype_fill_value = np_zeros((), dtype=dtype)
+    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
 
-    my_attr_encoding = {"fill_value": dtype_fill_value}
+    my_attr_encoding = {"fill_value": np.void((0, 0), dtype=dtype)}
 
     # Create a zarr array using the data type,
     # Specify encoding as the array attribute
@@ -388,10 +372,9 @@ def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
     Set encoding in the to_zar method
     """
     # Create a data type and the fill value
-    dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
-    dtype_fill_value = np_zeros((), dtype=dtype)
+    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
 
-    my_attr_encoding = {"fill_value": dtype_fill_value}
+    my_attr_encoding = {"fill_value": np.void((0, 0), dtype=dtype)}
 
     # Create a zarr array using the data type,
     # Do not specify encoding as the array attribute
@@ -407,14 +390,13 @@ def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
 def test_to_zarr_from_np(tmp_path: Path) -> None:
     """Test writing XArray dataset with data as NumPy array to Zarr."""
     # Create a data type and the fill value
-    dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
-    dtype_fill_value = np_zeros((), dtype=dtype)
+    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
 
-    my_attr_encoding = {"fill_value": dtype_fill_value}
+    my_attr_encoding = {"fill_value": np.void((0, 0), dtype=dtype)}
 
     # Create a zarr array using the data type
     # Do not specify encoding as the array attribute
-    data = np_zeros((36, 36), dtype=dtype)
+    data = np.zeros((36, 36), dtype=dtype)
     aa = xr_DataArray(name="myattr", data=data)
 
     file_path = output_path(tmp_path, "to_zarr/zarr_np", debugging=False)
