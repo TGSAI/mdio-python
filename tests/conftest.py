@@ -50,6 +50,12 @@ def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="module")
+def mdio_copy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Make a temp file for the copy of the MDIO. dataset."""
+    return tmp_path_factory.mktemp(r"mdio_copy")
+
+
+@pytest.fixture(scope="module")
 def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
     return tmp_path_factory.mktemp(r"mdio2")

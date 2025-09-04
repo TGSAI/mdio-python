@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from typing import TYPE_CHECKING
+from pathlib import Path
 
 import dask
 import numpy as np
@@ -23,15 +23,13 @@ from tests.integration.testing_helpers import validate_variable
 from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.converters.exceptions import GridTraceSparsityError
+from mdio.converters.mdio import copy_mdio
 from mdio.converters.segy import segy_to_mdio
 from mdio.core import Dimension
 from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.geometry import StreamerShotGeometryType
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 dask.config.set(scheduler="synchronous")
 
@@ -401,6 +399,25 @@ class TestReader:
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
+
+
+@pytest.mark.dependency("test_3d_import")
+@pytest.mark.parametrize("with_headers", [True, False], ids=["with_headers", "no_headers"])
+@pytest.mark.parametrize("with_traces", [True, False], ids=["with_traces", "no_traces"])
+class TestCopy:
+    """Test MDIO copy functionality."""
+
+    def test_mdio_copy(self, zarr_tmp: Path, mdio_copy_tmp: Path, with_headers: str, with_traces: str) -> None:
+        """Test mdio copy."""
+        copy_mdio(  # noqa: PLR0913
+            source=StorageLocation(str(zarr_tmp)),
+            destination=StorageLocation(str(mdio_copy_tmp)),
+            with_headers=with_headers,
+            with_traces=with_traces,
+            overwrite=True,
+        )
+        assert with_traces == Path(f"{mdio_copy_tmp}/amplitude/0.0.0").exists()
+        assert with_headers == Path(f"{mdio_copy_tmp}/headers/0.0").exists()
 
 
 @pytest.mark.dependency("test_3d_import")

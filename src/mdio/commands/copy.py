@@ -64,9 +64,9 @@ def copy(  # noqa: PLR0913
     compatibility with various filesystems via FSSpec.
     """
     # Lazy import to reduce CLI startup time
-    from mdio.api.convenience import copy_mdio  # noqa: PLC0415
+    from mdio.converters.mdio import copy_mdio_cli  # noqa: PLC0415
 
-    copy_mdio(
+    copy_mdio_cli(
         source_mdio_path,
         target_mdio_path,
         overwrite,

@@ -6,11 +6,14 @@ import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+import dask.array as da
 import numpy as np
+import xarray as xr
 from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
 from mdio import MDIOReader
+from mdio.core.storage_location import StorageLocation
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
@@ -171,3 +174,100 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913
             _ = client.submit(concat_files, paths=ordered_files).result()
         else:
             concat_files(paths=ordered_files, progress=True)
+
+
+def _zero_fill_variable(src_ds: xr.Dataset, trace_variable_name: str) -> None:
+    var_to_zero_fill = src_ds[trace_variable_name]
+    if not hasattr(var_to_zero_fill.data, "chunks"):
+        err = "The source dataset is not dask-backed."
+        raise RuntimeError(err)
+
+    fill_value = var_to_zero_fill.attrs.get("_FillValue", 0)
+    # Create a Dask array with the same shape, dtype, and chunks,
+    # but filled with a constant value.
+    # This operation is lazy and doesn't compute any data yet.
+    empty_array = da.full(
+        var_to_zero_fill.shape, fill_value=fill_value, dtype=var_to_zero_fill.dtype, chunks=var_to_zero_fill.chunks
+    )
+
+    # Replace the 'traceVariableName' DataArray in the dataset with the new dummy array.
+    # This happens in memory (for the Dask graph, not the data itself).
+    src_ds[trace_variable_name] = (var_to_zero_fill.dims, empty_array, var_to_zero_fill.attrs)
+
+
+def copy_mdio(  # noqa: PLR0913
+    source: StorageLocation,
+    destination: StorageLocation,
+    with_traces: bool = True,
+    with_headers: bool = True,
+    overwrite: bool = False,
+) -> None:
+    """Copy an MDIO dataset to another location.
+
+    Copies an MDIO dataset to another location, optionally setting headers and / or
+    traces to the fill values (fill values are not storage-persisted).
+
+    Args:
+        source: The source MDIO dataset location.
+        destination: The destination MDIO dataset location.
+        with_traces: Whether to include traces data in the copy.
+        with_headers: Whether to include headers data in the copy.
+        overwrite: Whether to overwrite the destination if it exists.
+
+    Raises:
+        FileExistsError: If the destination exists and overwrite is False.
+    """
+    # Open source dataset with dask-backed arrays
+    # NOTE: Xarray will convert int to float and replace _FillValue with NaN
+    # NOTE: 'chunks={}' instructs xarray to load the dataset into dask arrays using the engine's
+    # preferred chunk sizes if they are exposed by the backend. 'chunks="auto"' instructs xarray
+    # to use dask's automatic chunking algorithm. This algorithm attempts to determine optimal
+    # chunk sizes based on factors like array size and available memory, while also taking
+    # into account any engine-preferred chunks if they exist.
+    src_ds = xr.open_dataset(source.uri, engine="zarr", chunks="auto", mask_and_scale=False)
+
+    if not overwrite and destination.exists():
+        err = f"Output location '{destination.uri}' exists. Set `overwrite=True` if intended."
+        raise FileExistsError(err)
+
+    if not with_headers:
+        _zero_fill_variable(src_ds, "headers")
+
+    if not with_traces:
+        # The "traceVariableName" must be in attributes for the later versions
+        # HACK: Using a "amplitude" as the default is a temporary workaround since it
+        # might not be defined in early versions
+        trace_variable_name = src_ds.attrs["attributes"].get("traceVariableName", "amplitude")
+        _zero_fill_variable(src_ds, trace_variable_name)
+
+    # Save to destination Zarr store, writing chunk by chunk
+    src_ds.to_zarr(destination.uri, mode="w", compute=True, zarr_format=2)
+
+
+def copy_mdio_cli(  # noqa PLR0913
+    source_mdio_path: str,
+    target_mdio_path: str,
+    overwrite: bool,
+    with_traces: bool,
+    with_headers: bool,
+    storage_options_input: dict | None,
+    storage_options_output: dict | None,
+) -> None:
+    """CLI wrapper for copy_mdio function.
+
+    Args:
+        source_mdio_path: Path to the source MDIO dataset location.
+        target_mdio_path: Path to the destination MDIO dataset location.
+        overwrite: Whether to overwrite the destination if it exists.
+        with_traces: Whether to include traces in the copy.
+        with_headers: Whether to include headers in the copy.
+        storage_options_input: Cloud storage options for the source MDIO dataset.
+        storage_options_output: Cloud storage options for the destination MDIO dataset.
+    """
+    copy_mdio(
+        source=StorageLocation(source_mdio_path, storage_options_input),
+        destination=StorageLocation(target_mdio_path, storage_options_output),
+        with_traces=with_traces,
+        with_headers=with_headers,
+        overwrite=overwrite,
+    )

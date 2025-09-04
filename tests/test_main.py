@@ -75,11 +75,18 @@ Attributes:
 
 @pytest.mark.dependency(depends=["test_main_succeeds"])
 def test_main_copy(runner: CliRunner, zarr_tmp: Path, zarr_tmp2: Path) -> None:
-    """It exits with a status code of zero."""
-    cli_args = ["copy", str(zarr_tmp), str(zarr_tmp2), "-headers", "-traces"]
+    """It exits with a status code of zero.
+
+    This tests depends on the test_main_succeeds to generate the input file
+    """
+    # We do not specify "-headers", "-traces" flags here,
+    # Thus, the dataset should be copied with FillValues in the traces and header.
+    cli_args = ["copy", str(zarr_tmp), str(zarr_tmp2), "--overwrite"]
 
     result = runner.invoke(__main__.main, args=cli_args)
     assert result.exit_code == 0
+    assert not Path(f"{zarr_tmp2}/amplitude/0.0.0").exists()
+    assert not Path(f"{zarr_tmp2}/headers/0.0").exists()
 
 
 def test_cli_version(runner: CliRunner) -> None:
