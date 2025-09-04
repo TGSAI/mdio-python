@@ -150,7 +150,7 @@ class TestSeismic3DPreStackShotTemplate:
             "ensembleType": "shot_point",
             "processingStage": "pre-stack",
         }
-        assert t.trace_variable_name == "amplitude"
+        assert t.default_variable_name == "amplitude"
 
     def test_configuration_time(self) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate in time domain."""

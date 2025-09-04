@@ -10,11 +10,7 @@ import dask
 import numpy as np
 import numpy.testing as npt
 import pytest
-import xarray as xr
 from segy import SegyFile
-from segy.schema import SegySpec
-from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
-from tests.integration.conftest import get_segy_mock_4d_spec
 from tests.integration.testing_data import binary_header_teapot_dome
 from tests.integration.testing_data import custom_teapot_dome_segy_spec
 from tests.integration.testing_data import text_header_teapot_dome
@@ -24,13 +20,13 @@ from tests.integration.testing_helpers import validate_variable
 
 from mdio import MDIOReader
 from mdio import mdio_to_segy
+from mdio.api.opener import open_dataset
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.core.utils_read import open_zarr_dataset
 from mdio.converters.segy import segy_to_mdio
 from mdio.core import Dimension
 from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
-from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.geometry import StreamerShotGeometryType
 
 if TYPE_CHECKING:
@@ -257,12 +253,9 @@ class TestImport6D:
         assert  np.array_equal(ds["time"].values, expected)
 
 @pytest.mark.dependency
-def test_3d_import(
-        segy_input: Path,
-        zarr_tmp: Path,
-) -> None:
+def test_3d_import(segy_input: Path, zarr_tmp: Path) -> None:
     """Test importing a SEG-Y file to MDIO.
-    
+
     NOTE: This test must be executed before the 'TestReader' and 'TestExport' tests.
     """
     segy_to_mdio(
@@ -278,15 +271,12 @@ def test_3d_import(
 class TestReader:
     """Test reader functionality.
 
-    NOTE: This tests must be executed after the 'test_3d_import' successfully completes and 
-    before running 'TestExport' tests.
+    NOTE: These tests must be executed after the 'test_3d_import' and before running 'TestExport' tests.
     """
 
-    def test_meta_dataset(self, zarr_tmp: Path) -> None:
+    def test_dataset_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
             "apiVersion": "1.0.0a1",
             "createdOn": "2025-08-06 16:21:54.747880+00:00",
@@ -303,24 +293,19 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 7
-        # Validate all attribute provided by the abstract template
-        assert attributes["traceVariableName"] == "amplitude"
-        # Validate attributes provided by the PostStack3DTime template
+        assert len(attributes) == 6
+        # Validate all attributes provided by the abstract template
+        assert attributes["default_variable_name"] == "amplitude"
         assert attributes["surveyDimensionality"] == "3D"
         assert attributes["ensembleType"] == "line"
         assert attributes["processingStage"] == "post-stack"
-        # Validate text header
         assert attributes["textHeader"] == text_header_teapot_dome()
-        # Validate binary header
         assert attributes["binaryHeader"] == binary_header_teapot_dome()
         assert attributes["gridOverrides"] == {}
 
-    def test_meta_variable(self, zarr_tmp: Path) -> None:
+    def test_variable_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         expected_attrs = {
             "count": 97354860,
             "sum": -8594.551666259766,
@@ -334,22 +319,16 @@ class TestReader:
 
     def test_grid(self, zarr_tmp: Path) -> None:
         """Test validating MDIO variables."""
-        # Load Xarray dataset from the MDIO file
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
-
-        # Note: in order to create the dataset we used the Time template, so the
-        # sample dimension is called "time"
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
 
         # Validate the dimension coordinate variables
-        validate_variable(ds, "inline", (345,), ["inline"], np.int32, range(1, 346), get_values)
-        validate_variable(ds, "crossline", (188,), ["crossline"], np.int32, range(1, 189), get_values)
-        validate_variable(ds, "time", (1501,), ["time"], np.int32, range(0, 3002, 2), get_values)
+        validate_variable(ds, "inline", (345,), ("inline",), np.int32, range(1, 346), get_values)
+        validate_variable(ds, "crossline", (188,), ("crossline",), np.int32, range(1, 189), get_values)
+        validate_variable(ds, "time", (1501,), ("time",), np.int32, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables
-        validate_variable(ds, "cdp_x", (345, 188), ["inline", "crossline"], np.float64, None, None)
-        validate_variable(ds, "cdp_y", (345, 188), ["inline", "crossline"], np.float64, None, None)
+        validate_variable(ds, "cdp_x", (345, 188), ("inline", "crossline"), np.float64, None, None)
+        validate_variable(ds, "cdp_y", (345, 188), ("inline", "crossline"), np.float64, None, None)
 
         # Validate the headers
         # We have a custom set of headers since we used customize_segy_specs()
@@ -360,48 +339,44 @@ class TestReader:
             ds,
             "headers",
             (345, 188),
-            ["inline", "crossline"],
-            data_type,
+            ("inline", "crossline"),
+            data_type.newbyteorder("native"),  # mdio saves with machine endian, spec could be different endian
             range(1, 346),
             get_inline_header_values,
         )
 
         # Validate the trace mask
-        validate_variable(ds, "trace_mask", (345, 188), ["inline", "crossline"], np.bool, None, None)
+        validate_variable(ds, "trace_mask", (345, 188), ("inline", "crossline"), np.bool, None, None)
 
         # validate the amplitude data
         validate_variable(
             ds,
             "amplitude",
             (345, 188, 1501),
-            ["inline", "crossline", "time"],
+            ("inline", "crossline", "time"),
             np.float32,
             None,
             None,
         )
 
-    def test_inline(self, zarr_tmp: Path) -> None:
+    def test_inline_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 inlines' mean and std. dev."""
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01], rtol=1e-05)
 
-    def test_crossline(self, zarr_tmp: Path) -> None:
+    def test_crossline_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
         npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01], rtol=1e-06)
 
-    def test_zslice(self, zarr_tmp: Path) -> None:
+    def test_zslice_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
-        # NOTE: If mask_and_scale is not set,
-        # Xarray will convert int to float and replace _FillValue with NaN
-        ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_dataset(StorageLocation(str(zarr_tmp)))
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935], rtol=1e-06)
@@ -410,9 +385,8 @@ class TestReader:
 @pytest.mark.dependency("test_3d_import")
 class TestExport:
     """Test SEG-Y exporting functionality.
-    
-    NOTE: This test(s) must be executed after the 'test_3d_import' and 'TestReader' tests
-    successfully complete.
+
+    NOTE: This test(s) must be executed after the 'test_3d_import' and 'TestReader' tests successfully complete.
     """
 
     def test_3d_export(self, segy_input: Path, zarr_tmp: Path, segy_export_tmp: Path) -> None:

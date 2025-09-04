@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING
 import fsspec
 import numpy as np
 import pytest
-import xarray as xr
 from numpy.testing import assert_array_equal
 from segy import SegyFile
 from segy.factory import SegyFactory
@@ -24,7 +23,7 @@ from segy.standards import get_segy_standard
 from tests.conftest import DEBUG_MODE
 
 from mdio import mdio_to_segy
-from mdio.core.utils_read import open_zarr_dataset
+from mdio.api.opener import open_dataset
 from mdio.converters.segy import segy_to_mdio
 from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
@@ -261,6 +260,15 @@ def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: Grid
 
     return selection_mask
 
+
+@pytest.fixture
+def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Fixture that generates temp directory for export tests."""
+    if DEBUG_MODE:
+        return Path("TMP/export_masked")
+    return tmp_path_factory.getbasetemp() / "export_masked"
+
+
 # fmt: off
 @pytest.mark.parametrize(
     "test_conf",
@@ -322,7 +330,7 @@ class TestNdImportExport:
         mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
 
         # Open the MDIO file
-        ds = open_zarr_dataset(StorageLocation(str(mdio_path)))
+        ds = open_dataset(StorageLocation(str(mdio_path)))
 
         # Test dimensions and ingested dimension headers
         expected_dims = grid_conf.dims
@@ -388,8 +396,8 @@ class TestNdImportExport:
 
     def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test export of an n-D MDIO file back to SEG-Y.
-        
-        NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio' 
+
+        NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio'
         successfully complete.
         """
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
@@ -424,8 +432,8 @@ class TestNdImportExport:
 
     def test_export_masked(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test export of an n-D MDIO file back to SEG-Y with masked export.
-        
-        NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio' 
+
+        NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio'
         successfully complete.
         """
         grid_conf, segy_factory_conf, segy_to_mdio_conf, selection_conf = test_conf

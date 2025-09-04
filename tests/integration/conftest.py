@@ -19,9 +19,8 @@ if TYPE_CHECKING:
     from segy.schema import SegySpec
 
 
-def get_segy_mock_4d_spec() -> SegySpec:
-    """Create a mock 4D SEG-Y specification."""
-
+def _segy_spec_mock_4d() -> SegySpec:
+    """Create a mock SEG-Y spec for 4D data."""
     trace_header_fields = [
         HeaderField(name="field_rec_no", byte=9, format="int32"),
         HeaderField(name="channel", byte=13, format="int32"),
@@ -32,14 +31,6 @@ def get_segy_mock_4d_spec() -> SegySpec:
         HeaderField(name="shot_line", byte=133, format="int16"),
         HeaderField(name="cable", byte=137, format="int16"),
         HeaderField(name="gun", byte=171, format="int16"),
-
-        HeaderField(name="coordinate_scalar", byte=71, format="int16"),
-        HeaderField(name="source_coord_x", byte=73, format="int32"),
-        HeaderField(name="source_coord_y", byte=77, format="int32"),
-        HeaderField(name="group_coord_x", byte=81, format="int32"),
-        HeaderField(name="group_coord_y", byte=85, format="int32"),
-        HeaderField(name="cdp_x", byte=181, format="int32"),
-        HeaderField(name="cdp_y", byte=185, format="int32"),
     ]
     rev1_spec = get_segy_standard(1.0)
     spec = rev1_spec.customize(trace_header_fields=trace_header_fields)
@@ -92,7 +83,7 @@ def create_segy_mock_4d(  # noqa: PLR0913
     channel_headers = np.tile(channel_headers, shot_count)
 
     factory = SegyFactory(
-        spec=get_segy_mock_4d_spec(),
+        spec=_segy_spec_mock_4d(),
         sample_interval=1000,
         samples_per_trace=num_samples,
     )

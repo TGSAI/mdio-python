@@ -133,7 +133,7 @@ class TestSeismic3DPreStackCocaTemplate:
             "ensembleType": "cdp_coca",
             "processingStage": "pre-stack",
         }
-        assert t.trace_variable_name == "amplitude"
+        assert t.default_variable_name == "amplitude"
 
     def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in time domain."""

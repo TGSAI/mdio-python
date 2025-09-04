@@ -13,7 +13,7 @@ import xarray as xr
 from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
-from mdio.core.utils_read import open_zarr_dataset
+from mdio.api.opener import open_dataset
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
@@ -65,65 +65,68 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         To export an existing local MDIO file to SEG-Y we use the code snippet below. This will
         export the full MDIO (without padding) to SEG-Y format.
 
-        >>> from mdio import mdio_to_segy
+        >>> from mdio import mdio_to_segy, StorageLocation
         >>>
-        >>>
-        >>> mdio_to_segy(
-        ...     mdio_path_or_buffer="prefix2/file.mdio",
-        ...     output_segy_path="prefix/file.segy",
-        ... )
+        >>> input_location = StorageLocation("prefix2/file.mdio")
+        >>> output_location = StorageLocation("prefix/file.segy")
+        >>> mdio_to_segy(input_location, output_location)
     """
     output_segy_path = Path(output_location.uri)
 
-    mdio_xr = open_zarr_dataset(input_location)
+    # First we open with vanilla zarr backend and then get some info
+    # We will re-open with `new_chunks` and Dask later in mdio_spec_to_segy
+    dataset = open_dataset(input_location)
 
-    trace_variable_name = mdio_xr.attrs["attributes"]["traceVariableName"]
-    amplitude = mdio_xr[trace_variable_name]
-    chunks: tuple[int, ...] = amplitude.data.chunksize
-    shape: tuple[int, ...] = amplitude.data.shape
+    default_variable_name = dataset.attrs["attributes"]["default_variable_name"]
+    amplitude = dataset[default_variable_name]
+    chunks = amplitude.encoding["preferred_chunks"]
+    sizes = amplitude.sizes
     dtype = amplitude.dtype
-    new_chunks = segy_export_rechunker(chunks, shape, dtype)
+    new_chunks = segy_export_rechunker(chunks, sizes, dtype)
 
-    creation_args = [segy_spec, input_location, output_location]
+    creation_args = [segy_spec, input_location, output_location, new_chunks]
 
     if client is not None:
         if distributed is not None:
             # This is in case we work with big data
             feature = client.submit(mdio_spec_to_segy, *creation_args)
-            mdio_xr, segy_factory = feature.result()
+            dataset, segy_factory = feature.result()
         else:
             msg = "Distributed client was provided, but `distributed` is not installed"
             raise ImportError(msg)
     else:
-        mdio_xr, segy_factory = mdio_spec_to_segy(*creation_args)
+        dataset, segy_factory = mdio_spec_to_segy(*creation_args)
 
-    live_mask = mdio_xr["trace_mask"].data.compute()
+    trace_mask = dataset["trace_mask"].compute()
 
     if selection_mask is not None:
-        live_mask = live_mask & selection_mask
+        if trace_mask.shape != selection_mask.shape:
+            msg = "Selection mask and trace mask shapes do not match."
+            raise ValueError(msg)
+        selection_mask = trace_mask.copy(data=selection_mask)  # make into DataArray
+        trace_mask = trace_mask & selection_mask
 
     # This handles the case if we are skipping a whole block.
-    if live_mask.sum() == 0:
+    if trace_mask.sum() == 0:
         msg = "No traces will be written out. Live mask is empty."
         raise ValueError(msg)
 
     # Find rough dim limits, so we don't unnecessarily hit disk / cloud store.
     # Typically, gets triggered when there is a selection mask
-    dim_slices = ()
-    live_nonzeros = live_mask.nonzero()
-    for dim_nonzeros in live_nonzeros:
-        start = np.min(dim_nonzeros)
-        stop = np.max(dim_nonzeros) + 1
-        dim_slices += (slice(start, stop),)
+    dim_slices = {}
+    dim_live_indices = np.nonzero(trace_mask.values)
+    for dim_name, dim_live in zip(trace_mask.dims, dim_live_indices, strict=True):
+        start = dim_live.min().item()
+        stop = dim_live.max().item() + 1
+        dim_slices[dim_name] = slice(start, stop)
 
-    # Lazily pull the data with limits now, and limit mask so its the same shape.
-    live_mask = mdio_xr["trace_mask"].data.rechunk(new_chunks[:-1])[dim_slices]
-    headers = mdio_xr["headers"].data.rechunk(new_chunks[:-1])[dim_slices]
-    samples = mdio_xr["amplitude"].data.rechunk(new_chunks)[dim_slices]
+    # Lazily pull the data with limits now.
+    # All the variables, metadata, etc. is all sliced to the same range.
+    dataset = dataset.isel(dim_slices)
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]
-        live_mask = live_mask & selection_mask
+        dataset["trace_mask"] = dataset["trace_mask"] & selection_mask
 
     # tmp file root
     out_dir = output_segy_path.parent
@@ -132,9 +135,9 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     with tmp_dir:
         with TqdmCallback(desc="Unwrapping MDIO Blocks"):
             block_records = to_segy(
-                samples=samples,
-                headers=headers,
-                live_mask=live_mask,
+                samples=dataset[default_variable_name].data,
+                headers=dataset["headers"].data,
+                live_mask=dataset["trace_mask"].data,
                 segy_factory=segy_factory,
                 file_root=tmp_dir.name,
             )

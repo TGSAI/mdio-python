@@ -121,8 +121,6 @@ def create_empty(
     """
     zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
 
-    storage_options = storage_options or {}
-
     url = process_url(url=config.path, disk_cache=False)
     root_group = open_group(url, mode="w", storage_options=storage_options)
     root_group = create_zarr_hierarchy(root_group, overwrite)
@@ -206,9 +204,6 @@ def create_empty_like(
         storage_options_input: Options for storage backend of the source dataset.
         storage_options_output: Options for storage backend of the destination dataset.
     """
-    storage_options_input = storage_options_input or {}
-    storage_options_output = storage_options_output or {}
-
     source_root = zarr.open_consolidated(
         source_path,
         mode="r",

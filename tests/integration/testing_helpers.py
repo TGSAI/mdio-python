@@ -4,6 +4,7 @@ from collections.abc import Callable
 
 import numpy as np
 import xarray as xr
+from numpy.typing import DTypeLike
 from segy.schema import HeaderField
 from segy.schema import SegySpec
 
@@ -13,7 +14,7 @@ def customize_segy_specs(
     index_bytes: tuple[int, ...] | None = None,
     index_names: tuple[int, ...] | None = None,
     index_types: tuple[int, ...] | None = None,
-    keep_unaltered: bool = False
+    keep_unaltered: bool = False,
 ) -> SegySpec:
     """Customize SEG-Y specifications with user-defined index fields."""
     if not index_bytes:
@@ -41,6 +42,7 @@ def customize_segy_specs(
 
     return segy_spec.customize(trace_header_fields=fields.values())
 
+
 def get_values(arr: xr.DataArray) -> np.ndarray:
     """Extract actual values from an Xarray DataArray."""
     return arr.values
@@ -54,9 +56,9 @@ def get_inline_header_values(dataset: xr.Dataset) -> np.ndarray:
 def validate_variable(  # noqa PLR0913
     dataset: xr.Dataset,
     name: str,
-    shape: list[int],
-    dims: list[str],
-    data_type: np.dtype,
+    shape: tuple[int, ...],
+    dims: tuple[str, ...],
+    data_type: DTypeLike,
     expected_values: range | None,
     actual_value_generator: Callable[[xr.DataArray], np.ndarray] | None = None,
 ) -> None:
@@ -69,18 +71,14 @@ def validate_variable(  # noqa PLR0913
         # assert data_type == arr.dtype
 
         # Compare field names
-        expected_names = [name for name in data_type.names]
-        actual_names = [name for name in arr.dtype.names]
+        expected_names = list(data_type.names)
+        actual_names = list(arr.dtype.names)
         assert expected_names == actual_names
 
         # Compare field types
-        expected_types = [data_type[name].newbyteorder('=') for name in data_type.names]
-        actual_types = [arr.dtype[name].newbyteorder('=') for name in arr.dtype.names]
+        expected_types = [data_type[name] for name in data_type.names]
+        actual_types = [arr.dtype[name] for name in arr.dtype.names]
         assert expected_types == actual_types
-
-        # Compare field offsets fails.
-        # However, we believe this is acceptable and do not compare offsets
-        #   name: 'shot_point' dt_exp: (dtype('>i4'), 196) dt_act: (dtype('<i4'), 180)
     else:
         assert data_type == arr.dtype
 

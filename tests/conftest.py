@@ -30,12 +30,8 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def fake_segy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the fake SEG-Y files we are going to create."""
     if DEBUG_MODE:
-        tmp_dir = Path("TMP/fake_segy")
-        tmp_dir.mkdir(parents=True, exist_ok=True)
-    else:
-        tmp_dir = tmp_path_factory.mktemp(r"fake_segy")
-    return tmp_dir
-
+        return Path("TMP/fake_segy")
+    return tmp_path_factory.mktemp(r"fake_segy")
 
 
 @pytest.fixture(scope="session")

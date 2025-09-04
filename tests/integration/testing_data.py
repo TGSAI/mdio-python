@@ -30,7 +30,7 @@ def custom_teapot_dome_segy_spec(keep_unaltered: bool) -> SegySpec:
         index_bytes=index_bytes,
         index_names=index_names,
         index_types=index_types,
-        keep_unaltered = keep_unaltered
+        keep_unaltered=keep_unaltered,
     )
 
 
