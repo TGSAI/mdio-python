@@ -161,7 +161,7 @@ def _segy_spec_mock_nd_segy(grid_conf: GridConfig, segy_factory_conf: SegyFactor
     # Add coordinates: {SRC-REC-CDP}-X/Y
     header_flds.extend(
         [
-            HeaderField(name="coord_scalar", byte=71, format="int16"),
+            HeaderField(name="coordinate_scalar", byte=71, format="int16"),
             HeaderField(name="source_coord_x", byte=73, format="int32"),
             HeaderField(name="source_coord_y", byte=77, format="int32"),
             HeaderField(name="group_coord_x", byte=81, format="int32"),
@@ -200,7 +200,7 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
         headers[dim.name] = dim_grid[dim_idx].ravel()
 
     # Fill coordinates (e.g. {SRC-REC-CDP}-X/Y
-    headers["coord_scalar"] = -100
+    headers["coordinate_scalar"] = -100
     for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
         start = 700000
         step = 100
@@ -343,7 +343,7 @@ class TestNdImportExport:
         expected_x = 700000 + trace_index * 100
         expected_y = 4000000 + trace_index * 100
         expected_gun = 1 + (trace_index % 3)
-        assert trace_header["coord_scalar"] == -100
+        assert trace_header["coordinate_scalar"] == -100
         assert trace_header["source_coord_x"] == expected_x
         assert trace_header["source_coord_y"] == expected_y
         assert trace_header["group_coord_x"] == expected_x

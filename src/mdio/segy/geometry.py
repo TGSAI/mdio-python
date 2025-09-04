@@ -306,7 +306,7 @@ class GridOverrideCommand(ABC):
     ) -> NDArray:
         """Perform the grid transform."""
 
-    def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
+    def transform_index_names(self, index_names: Sequence[str], grid_overrides: dict[str, bool | int]) -> Sequence[str]:
         """Perform the transform of index names.
 
         Optional method: Subclasses may override this method to provide custom behavior. If not
@@ -314,10 +314,12 @@ class GridOverrideCommand(ABC):
 
         Args:
             index_names: List of index names to be modified.
+            grid_overrides: Full grid override parameterization.
 
         Returns:
             New tuple of index names after the transform.
         """
+        _ = grid_overrides  # Unused, required for ABC compatibility
         return index_names
 
     def transform_chunksize(
@@ -381,6 +383,12 @@ class DuplicateIndex(GridOverrideCommand):
             self.check_required_keys(index_headers)
         self.check_required_params(grid_overrides)
 
+    def header_names_to_use(self, index_names: Sequence[str], grid_overrides: dict[str, bool | int]) -> list[str]:
+        """Get the headers to use for the transform."""
+        dimensions_to_replace = grid_overrides.get("dimensions", [])
+        indexes_to_remove = [*dimensions_to_replace, "trace"]
+        return [n for n in index_names if n not in indexes_to_remove]
+
     def transform(
         self,
         index_headers: HeaderArray,
@@ -389,13 +397,19 @@ class DuplicateIndex(GridOverrideCommand):
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
-        return analyze_non_indexed_headers(index_headers)
+        # Get the dimension index names
+        index_names_to_use = self.header_names_to_use(index_headers.dtype.names, grid_overrides)
+        index_headers_to_use = index_headers[index_names_to_use]
+        trace = analyze_non_indexed_headers(index_headers_to_use)["trace"]
 
-    def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
+        return rfn.append_fields(index_headers_to_use, "trace", trace, trace.dtype, usemask=False)
+
+    def transform_index_names(self, index_names: Sequence[str], grid_overrides: dict[str, bool | int]) -> Sequence[str]:
         """Insert dimension "trace" to the sample-1 dimension."""
-        new_names = list(index_names)
-        new_names.append("trace")
-        return tuple(new_names)
+        # Get the dimension index names
+        index_names_to_use = self.header_names_to_use(index_names, grid_overrides)
+        index_names_to_use.append("trace")
+        return tuple(index_names_to_use)
 
     def transform_chunksize(
         self,
@@ -413,7 +427,7 @@ class NonBinned(DuplicateIndex):
     """Automatically index traces in a single specified axis - trace."""
 
     required_keys = None
-    required_parameters = {"chunksize"}
+    required_parameters = {"dimensions"}
 
     def transform_chunksize(
         self,
@@ -421,9 +435,9 @@ class NonBinned(DuplicateIndex):
         grid_overrides: dict[str, bool | int],
     ) -> Sequence[int]:
         """Perform the transform of chunksize."""
-        new_chunks = list(chunksize)
-        new_chunks.insert(-1, grid_overrides["chunksize"])
-        return tuple(new_chunks)
+        # We do not modify the chunksize for NonBinned
+        _ = grid_overrides  # Unused, required for ABC compatibility
+        return chunksize
 
 
 class AutoChannelWrap(GridOverrideCommand):
@@ -601,6 +615,7 @@ class GridOverrider:
         chunksize: Sequence[int] | None = None,
     ) -> tuple[HeaderArray, tuple[str], tuple[int]]:
         """Run grid overrides and return result."""
+        index_headers_new, index_names_new, chunksize_new = index_headers, index_names, chunksize
         for override in grid_overrides:
             if override in self.parameters:
                 continue
@@ -609,12 +624,12 @@ class GridOverrider:
                 raise GridOverrideUnknownError(override)
 
             function = self.commands[override].transform
-            index_headers = function(index_headers, grid_overrides=grid_overrides)
+            index_headers_new = function(index_headers, grid_overrides=grid_overrides)
 
             function = self.commands[override].transform_index_names
-            index_names = function(index_names)
+            index_names_new = function(index_names, grid_overrides=grid_overrides)
 
             function = self.commands[override].transform_chunksize
-            chunksize = function(chunksize, grid_overrides=grid_overrides)
+            chunksize_new = function(chunksize, grid_overrides=grid_overrides)
 
-        return index_headers, index_names, chunksize
+        return index_headers_new, index_names_new, chunksize_new
