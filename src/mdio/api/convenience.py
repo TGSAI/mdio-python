@@ -150,7 +150,7 @@ def create_rechunk_plan(
                 shape=metadata_array.shape,
                 dtype=metadata_array.dtype,
                 chunks=norm_chunks[:-1],
-                compressor=header_compressor,
+                compressors=header_compressor,
                 overwrite=overwrite,
             )
         )
@@ -161,7 +161,7 @@ def create_rechunk_plan(
                 shape=data_array.shape,
                 dtype=data_array.dtype,
                 chunks=norm_chunks,
-                compressor=trace_compressor,
+                compressors=trace_compressor,
                 overwrite=overwrite,
             )
         )
