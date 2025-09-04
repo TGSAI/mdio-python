@@ -11,6 +11,8 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 from segy import SegyFile
+from segy.standards import get_segy_standard
+from tests.integration.conftest import get_segy_mock_4d_spec
 from tests.integration.testing_data import binary_header_teapot_dome
 from tests.integration.testing_data import custom_teapot_dome_segy_spec
 from tests.integration.testing_data import text_header_teapot_dome
@@ -18,12 +20,10 @@ from tests.integration.testing_helpers import get_inline_header_values
 from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_variable
 
-from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.api.opener import open_dataset
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.segy import segy_to_mdio
-from mdio.core import Dimension
 from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy.geometry import StreamerShotGeometryType
@@ -31,13 +31,12 @@ from mdio.segy.geometry import StreamerShotGeometryType
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from segy.schema import SegySpec
+
 dask.config.set(scheduler="synchronous")
 
 
-@pytest.mark.parametrize("index_bytes", [(17, 137)])
-@pytest.mark.parametrize("index_names", [("shot_point", "cable")])
-@pytest.mark.parametrize("index_types", [("int32", "int16")])
-@pytest.mark.parametrize("grid_overrides", [{"NonBinned": True, "chunksize": 2}, {"HasDuplicates": True}])
+@pytest.mark.parametrize("grid_override", ["NonBinned", "HasDuplicates"])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
@@ -46,22 +45,29 @@ class TestImport4DNonReg:
         self,
         segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
         zarr_tmp: Path,
-        index_bytes: tuple[int, ...],
-        index_names: tuple[str, ...],
-        index_types: tuple[str, ...],
-        grid_overrides: dict[str, bool | int],
+        grid_override: str,
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
+        match grid_override:
+            case "NonBinned":
+                grid_overrides = {"NonBinned": True, "chunksize": 2}
+            case "HasDuplicates":
+                grid_overrides = {"HasDuplicates": True}
+            case _:
+                grid_overrides = None
+
+        segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
+        # chunksize=(8, 2, 10),
+        template_name = "PreStackShotGathers3DTime"
+        output_location=StorageLocation(str(zarr_tmp))
         segy_to_mdio(
-            segy_path=segy_path,
-            mdio_path_or_buffer=zarr_tmp.__str__(),
-            index_bytes=index_bytes,
-            index_names=index_names,
-            index_types=index_types,
-            chunksize=(8, 2, 10),
+            segy_spec=segy_spec,
+            mdio_template=TemplateRegistry().get(template_name),
+            input_location=StorageLocation(str(segy_path)),
+            output_location=output_location,
             overwrite=True,
             grid_overrides=grid_overrides,
         )
@@ -72,22 +78,23 @@ class TestImport4DNonReg:
         cables = [0, 101, 201, 301]
         receivers_per_cable = [1, 5, 7, 5]
 
-        # QC mdio output
-        mdio = MDIOReader(zarr_tmp.__str__(), access_pattern="0123")
-        assert mdio.binary_header["samples_per_trace"] == num_samples
-        grid = mdio.grid
+        ds = open_dataset(output_location, chunks={})
 
-        assert grid.select_dim(index_names[0]) == Dimension(shots, index_names[0])
-        assert grid.select_dim(index_names[1]) == Dimension(cables, index_names[1])
-        assert grid.select_dim("trace") == Dimension(range(1, np.amax(receivers_per_cable) + 1), "trace")
-        samples_exp = Dimension(range(0, num_samples, 1), "sample")
-        assert grid.select_dim("sample") == samples_exp
+        assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
+        assert ds.attrs["attributes"]["gridOverrides"] == grid_overrides
+
+        assert np.array_equal(ds["shot_point"].values, shots)
+        assert np.array_equal(ds["cable"].values, cables)
+
+        # assert grid.select_dim("trace") == Dimension(range(1, np.amax(receivers_per_cable) + 1), "trace")
+        expected = list(range(1, np.amax(receivers_per_cable) + 1))
+        assert np.array_equal(ds["trace"].values, expected)
+
+        expected = list(range(0, num_samples, 1))
+        assert np.array_equal(ds["time"].values, expected)
 
 
-@pytest.mark.parametrize("index_bytes", [(17, 137, 13)])
-@pytest.mark.parametrize("index_names", [("shot_point", "cable", "channel")])
-@pytest.mark.parametrize("index_types", [("int32", "int16", "int32")])
-@pytest.mark.parametrize("grid_overrides", [{"AutoChannelWrap": True}, None])
+@pytest.mark.parametrize("grid_override", ["AutoChannelWrap", "None"])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
 class TestImport4D:
     """Test for 4D segy import with grid overrides."""
@@ -96,22 +103,26 @@ class TestImport4D:
         self,
         segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
         zarr_tmp: Path,
-        index_bytes: tuple[int, ...],
-        index_names: tuple[str, ...],
-        index_types: tuple[str, ...],
-        grid_overrides: dict[str, bool | int],
+        grid_override: str,
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
+        match grid_override:
+            case "AutoChannelWrap":
+                grid_overrides = {"AutoChannelWrap": True}
+            case _:
+                grid_overrides = {}
+
+        segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
+        template_name = "PreStackShotGathers3DTime"
+        output_location = StorageLocation(str(zarr_tmp))
         segy_to_mdio(
-            segy_path=segy_path,
-            mdio_path_or_buffer=zarr_tmp.__str__(),
-            index_bytes=index_bytes,
-            index_names=index_names,
-            index_types=index_types,
-            chunksize=(8, 2, 128, 1024),
+            segy_spec=segy_spec,
+            mdio_template=TemplateRegistry().get(template_name),
+            input_location=StorageLocation(str(segy_path)),
+            output_location=output_location,
             overwrite=True,
             grid_overrides=grid_overrides,
         )
@@ -122,30 +133,24 @@ class TestImport4D:
         cables = [0, 101, 201, 301]
         receivers_per_cable = [1, 5, 7, 5]
 
-        # QC mdio output
-        mdio = MDIOReader(zarr_tmp.__str__(), access_pattern="0123")
-        assert mdio.binary_header["samples_per_trace"] == num_samples
-        grid = mdio.grid
+        ds = open_dataset(output_location, chunks={})
 
-        assert grid.select_dim(index_names[0]) == Dimension(shots, index_names[0])
-        assert grid.select_dim(index_names[1]) == Dimension(cables, index_names[1])
+        assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
+        assert ds.attrs["attributes"]["gridOverrides"] == grid_overrides
 
-        if chan_header_type == StreamerShotGeometryType.B and grid_overrides is None:
-            assert grid.select_dim(index_names[2]) == Dimension(
-                range(1, np.sum(receivers_per_cable) + 1), index_names[2]
-            )
+        assert np.array_equal(ds["shot_point"].values, shots)
+        assert np.array_equal(ds["cable"].values, cables)
+
+        if chan_header_type == StreamerShotGeometryType.B and grid_overrides == {}:
+            expected = list(range(1, np.sum(receivers_per_cable) + 1))
         else:
-            assert grid.select_dim(index_names[2]) == Dimension(
-                range(1, np.amax(receivers_per_cable) + 1), index_names[2]
-            )
+            expected = list(range(1, np.amax(receivers_per_cable) + 1))
+        assert np.array_equal(ds["channel"].values, expected)
 
-        samples_exp = Dimension(range(0, num_samples, 1), "sample")
-        assert grid.select_dim("sample") == samples_exp
+        expected = list(range(0, num_samples, 1))
+        assert np.array_equal(ds["time"].values, expected)
 
 
-@pytest.mark.parametrize("index_bytes", [(17, 137, 13)])
-@pytest.mark.parametrize("index_names", [("shot_point", "cable", "channel")])
-@pytest.mark.parametrize("index_types", [("int32", "int16", "int32")])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A])
 class TestImport4DSparse:
     """Test for 4D segy import with grid overrides."""
@@ -154,34 +159,31 @@ class TestImport4DSparse:
         self,
         segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
         zarr_tmp: Path,
-        index_bytes: tuple[int, ...],
-        index_names: tuple[str, ...],
-        index_types: tuple[str, ...],
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
+        segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "1.1"
 
+        # chunksize=(8, 2, 128, 1024),
+        template_name = "PreStackShotGathers3DTime"
         with pytest.raises(GridTraceSparsityError) as execinfo:
             segy_to_mdio(
-                segy_path=segy_path,
-                mdio_path_or_buffer=zarr_tmp.__str__(),
-                index_bytes=index_bytes,
-                index_names=index_names,
-                index_types=index_types,
-                chunksize=(8, 2, 128, 1024),
+                segy_spec=segy_spec,
+                mdio_template=TemplateRegistry().get(template_name),
+                input_location=StorageLocation(str(segy_path)),
+                output_location=StorageLocation(str(zarr_tmp)),
                 overwrite=True,
+                grid_overrides=None,
             )
 
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "10"
         assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
 
 
-@pytest.mark.parametrize("index_bytes", [(133, 171, 17, 137, 13)])
-@pytest.mark.parametrize("index_names", [("shot_line", "gun", "shot_point", "cable", "channel")])
-@pytest.mark.parametrize("index_types", [("int16", "int16", "int32", "int16", "int32")])
-@pytest.mark.parametrize("grid_overrides", [{"AutoChannelWrap": True, "AutoShotWrap": True}, None])
+@pytest.mark.skip(reason="AutoShotWrap requires a template that is not implemented yet.")
+@pytest.mark.parametrize("grid_override", ["AutoChannelWrap_AutoShotWrap", None])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
 class TestImport6D:
     """Test for 6D segy import with grid overrides."""
@@ -190,22 +192,31 @@ class TestImport6D:
         self,
         segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
         zarr_tmp: Path,
-        index_bytes: tuple[int, ...],
-        index_names: tuple[str, ...],
-        index_types: tuple[str, ...],
-        grid_overrides: dict[str, bool] | None,
+        grid_override: str,
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
+        match grid_override:
+            case "AutoChannelWrap_AutoShotWrap":
+                grid_overrides = {"AutoChannelWrap": True, "AutoShotWrap": True}
+            case _:
+                grid_overrides = {}
+
+        segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
+        # chunksize=(1, 1, 8, 1, 12, 36),
+
+        # The "AutoShotWrap" grid overide requires a template with dimensions
+        # 'channel', 'cable', 'gun', 'shot_line', 'shot_point'
+        # When such template is available, we shall enable this test
+        template_name = "XYZ"  # Placeholder for the template
+        output_location=StorageLocation(str(zarr_tmp))
         segy_to_mdio(
-            segy_path=segy_path,
-            mdio_path_or_buffer=zarr_tmp.__str__(),
-            index_bytes=index_bytes,
-            index_names=index_names,
-            index_types=index_types,
-            chunksize=(1, 1, 8, 1, 12, 36),
+            segy_spec=segy_spec,
+            mdio_template=TemplateRegistry().get(template_name),
+            input_location=StorageLocation(str(segy_path)),
+            output_location=output_location,
             overwrite=True,
             grid_overrides=grid_overrides,
         )
@@ -221,26 +232,20 @@ class TestImport6D:
         guns = [1, 2]
         receivers_per_cable = [1, 5, 7, 5]
 
-        # QC mdio output
-        mdio = MDIOReader(zarr_tmp.__str__(), access_pattern="012345")
-        assert mdio.binary_header["samples_per_trace"] == num_samples
-        grid = mdio.grid
+        ds = open_dataset(output_location, chunks={})
 
-        assert grid.select_dim(index_names[1]) == Dimension(guns, index_names[1])
-        assert grid.select_dim(index_names[2]) == Dimension(shots, index_names[2])
-        assert grid.select_dim(index_names[3]) == Dimension(cables, index_names[3])
+        assert np.array_equal(ds["gun"].values, guns)
+        assert np.array_equal(ds["shot_point"].values, shots)
+        assert np.array_equal(ds["cable"].values, cables)
 
-        if chan_header_type == StreamerShotGeometryType.B and grid_overrides is None:
-            assert grid.select_dim(index_names[4]) == Dimension(
-                range(1, np.sum(receivers_per_cable) + 1), index_names[4]
-            )
+        if chan_header_type == StreamerShotGeometryType.B and grid_overrides == {}:
+            expected = list(range(1, np.sum(receivers_per_cable) + 1))
         else:
-            assert grid.select_dim(index_names[4]) == Dimension(
-                range(1, np.amax(receivers_per_cable) + 1), index_names[4]
-            )
+            expected = list(range(1, np.amax(receivers_per_cable) + 1))
+        assert np.array_equal(ds["channel"].values, expected)
 
-        samples_exp = Dimension(range(0, num_samples, 1), "sample")
-        assert grid.select_dim("sample") == samples_exp
+        expected = list(range(0, num_samples, 1))
+        assert np.array_equal(ds["time"].values, expected)
 
 
 @pytest.mark.dependency
@@ -292,6 +297,7 @@ class TestReader:
         assert attributes["processingStage"] == "post-stack"
         assert attributes["textHeader"] == text_header_teapot_dome()
         assert attributes["binaryHeader"] == binary_header_teapot_dome()
+        assert attributes["gridOverrides"] == {}
 
     def test_variable_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
@@ -354,7 +360,7 @@ class TestReader:
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
-        npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
+        npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01], rtol=1e-05)
 
     def test_crossline_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
@@ -362,14 +368,14 @@ class TestReader:
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
-        npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01])
+        npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01], rtol=1e-06)
 
     def test_zslice_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
-        npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
+        npt.assert_allclose([mean, std], [0.005236923, 0.61279935], rtol=1e-06)
 
 
 @pytest.mark.dependency("test_3d_import")

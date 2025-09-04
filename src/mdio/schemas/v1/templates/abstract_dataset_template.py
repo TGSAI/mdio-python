@@ -121,6 +121,11 @@ class AbstractDatasetTemplate(ABC):
         return copy.deepcopy(self._coord_names)
 
     @property
+    def full_chunk_size(self) -> list[int]:
+        """Returns the chunk size for the variables."""
+        return copy.deepcopy(self._var_chunk_shape)
+
+    @property
     @abstractmethod
     def _name(self) -> str:
         """Abstract method to get the name of the template.
