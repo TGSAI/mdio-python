@@ -325,7 +325,7 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
     xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
-    xr_ds.to_zarr(store=file_path, mode="w", zarr_format=2, compute=False)
+    xr_ds.to_zarr(store=file_path, mode="w", compute=False)
 
 
 def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> None:
@@ -335,7 +335,7 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
     xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
-    xr_ds.to_zarr(store=file_path, mode="w", zarr_format=2, compute=False)
+    xr_ds.to_zarr(store=file_path, mode="w", compute=False)
 
 
 @pytest.mark.skip(reason="Bug reproducer for the issue 582")
@@ -348,12 +348,7 @@ def test_buf_reproducer_dask_to_zarr(tmp_path: Path) -> None:
     dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
 
-    # Use '_FillValue' instead of 'fill_value'
-    # 'fill_value' is not a valid encoding key in Zarr v2
-    my_attr_encoding = {
-        "_FillValue": dtype_fill_value,
-        "chunk_key_encoding": {"name": "v2", "separator": "/"},
-    }
+    my_attr_encoding = {"fill_value": dtype_fill_value}
 
     # Create a dask array using the data type
     # Do not specify encoding as the array attribute
@@ -363,7 +358,7 @@ def test_buf_reproducer_dask_to_zarr(tmp_path: Path) -> None:
     # Specify encoding per array
     encoding = {"myattr": my_attr_encoding}
     file_path = output_path(tmp_path, "to_zarr/zarr_dask", debugging=False)
-    aa.to_zarr(file_path, mode="w", zarr_format=2, encoding=encoding, compute=False)
+    aa.to_zarr(file_path, mode="w", encoding=encoding, compute=False)
 
 
 def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:
@@ -375,21 +370,16 @@ def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:
     dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
 
-    # Use '_FillValue' instead of 'fill_value'
-    # 'fill_value' is not a valid encoding key in Zarr v2
-    my_attr_encoding = {
-        "_FillValue": dtype_fill_value,
-        "chunk_key_encoding": {"name": "v2", "separator": "/"},
-    }
+    my_attr_encoding = {"fill_value": dtype_fill_value}
 
     # Create a zarr array using the data type,
     # Specify encoding as the array attribute
-    data = zarr_zeros((36, 36), dtype=dtype, zarr_format=2)
+    data = zarr_zeros((36, 36), dtype=dtype)
     aa = xr_DataArray(name="myattr", data=data)
     aa.encoding = my_attr_encoding
 
     file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_1", debugging=False)
-    aa.to_zarr(file_path, mode="w", zarr_format=2, compute=False)
+    aa.to_zarr(file_path, mode="w", compute=False)
 
 
 def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
@@ -401,22 +391,17 @@ def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
     dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
 
-    # Use '_FillValue' instead of 'fill_value'
-    # 'fill_value' is not a valid encoding key in Zarr v2
-    my_attr_encoding = {
-        "_FillValue": dtype_fill_value,
-        "chunk_key_encoding": {"name": "v2", "separator": "/"},
-    }
+    my_attr_encoding = {"fill_value": dtype_fill_value}
 
     # Create a zarr array using the data type,
     # Do not specify encoding as the array attribute
-    data = zarr_zeros((36, 36), dtype=dtype, zarr_format=2)
+    data = zarr_zeros((36, 36), dtype=dtype)
     aa = xr_DataArray(name="myattr", data=data)
 
     file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_2", debugging=False)
     # Specify encoding per array
     encoding = {"myattr": my_attr_encoding}
-    aa.to_zarr(file_path, mode="w", zarr_format=2, encoding=encoding, compute=False)
+    aa.to_zarr(file_path, mode="w", encoding=encoding, compute=False)
 
 
 def test_to_zarr_from_np(tmp_path: Path) -> None:
@@ -425,12 +410,7 @@ def test_to_zarr_from_np(tmp_path: Path) -> None:
     dtype = np_dtype([("inline", "int32"), ("cdp_x", "float64")])
     dtype_fill_value = np_zeros((), dtype=dtype)
 
-    # Use '_FillValue' instead of 'fill_value'
-    # 'fill_value' is not a valid encoding key in Zarr v2
-    my_attr_encoding = {
-        "_FillValue": dtype_fill_value,
-        "chunk_key_encoding": {"name": "v2", "separator": "/"},
-    }
+    my_attr_encoding = {"fill_value": dtype_fill_value}
 
     # Create a zarr array using the data type
     # Do not specify encoding as the array attribute
@@ -440,4 +420,4 @@ def test_to_zarr_from_np(tmp_path: Path) -> None:
     file_path = output_path(tmp_path, "to_zarr/zarr_np", debugging=False)
     # Specify encoding per array
     encoding = {"myattr": my_attr_encoding}
-    aa.to_zarr(file_path, mode="w", zarr_format=2, encoding=encoding, compute=False)
+    aa.to_zarr(file_path, mode="w", encoding=encoding, compute=False)

@@ -160,7 +160,7 @@ def trace_worker(  # noqa: PLR0913
         encoding=ds_to_write[data_variable_name].encoding,  # Not strictly necessary, but safer than not doing it.
     )
 
-    ds_to_write.to_zarr(output_location.uri, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
+    ds_to_write.to_zarr(output_location.uri, region=region, mode="r+")
 
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
     return SummaryStatistics(

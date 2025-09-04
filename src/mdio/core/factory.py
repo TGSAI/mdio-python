@@ -119,8 +119,6 @@ def create_empty(
     Returns:
         Group: The root Zarr group representing the newly created MDIO dataset.
     """
-    zarr.config.set({"default_zarr_format": 2, "write_empty_chunks": False})
-
     url = process_url(url=config.path, disk_cache=False)
     root_group = open_group(url, mode="w", storage_options=storage_options)
     root_group = create_zarr_hierarchy(root_group, overwrite)
@@ -146,7 +144,6 @@ def create_empty(
         shape=live_shape,
         chunks=live_chunks,
         dtype="bool",
-        chunk_key_encoding={"name": "v2", "separator": "/"},
     )
 
     for variable in config.variables:
@@ -156,7 +153,6 @@ def create_empty(
             dtype=variable.dtype,
             compressors=variable.compressors,
             chunks=variable.chunks,
-            chunk_key_encoding={"name": "v2", "separator": "/"},
         )
 
         header_dtype = variable.header_dtype or DEFAULT_TRACE_HEADER_DTYPE
@@ -166,7 +162,6 @@ def create_empty(
             chunks=variable.chunks[:-1],  # Same spatial chunks as data
             compressors=Blosc("zstd"),
             dtype=header_dtype,
-            chunk_key_encoding={"name": "v2", "separator": "/"},
         )
 
     stats = {"mean": 0, "std": 0, "rms": 0, "min": 0, "max": 0}
