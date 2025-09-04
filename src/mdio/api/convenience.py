@@ -145,7 +145,7 @@ def create_rechunk_plan(
             raise NameError(msg)
 
         metadata_arrs.append(
-            metadata_group.zeros(
+            metadata_group.create(
                 name=f"chunked_{suffix}_trace_headers",
                 shape=metadata_array.shape,
                 dtype=metadata_array.dtype,
@@ -156,7 +156,7 @@ def create_rechunk_plan(
         )
 
         data_arrs.append(
-            data_group.zeros(
+            data_group.create(
                 name=f"chunked_{suffix}",
                 shape=data_array.shape,
                 dtype=data_array.dtype,
