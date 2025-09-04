@@ -149,17 +149,12 @@ def _convert_compressor(
 
 
 def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
-    """Get the fill value for a given data type.
-
-    The Zarr fill_value is a scalar value providing the default value to use for
-    uninitialized portions of the array, or null if no fill_value is to be used
-    https://zarr-specs.readthedocs.io/en/latest/v2/v2.0.html
-    """
+    """Get the fill value for a given data type."""
     if isinstance(data_type, ScalarType):
         return fill_value_map.get(data_type)
     if isinstance(data_type, StructuredType):
-        d_type = to_numpy_dtype(data_type)
-        return np.zeros((), dtype=d_type)
+        numpy_dtype = to_numpy_dtype(data_type)
+        return np.void((), dtype=numpy_dtype)
     if isinstance(data_type, str):
         return ""
     # If we do not have a fill value for this type, use None
@@ -182,9 +177,6 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
     Returns:
         The constructed dataset with proper MDIO structure and metadata.
     """
-    # See the xarray tutorial for more details on how to create datasets:
-    # https://tutorial.xarray.dev/fundamentals/01.1_creating_data_structures.html
-
     all_named_dims = _get_all_named_dimensions(mdio_ds)
 
     # First pass: Build all variables
@@ -215,10 +207,8 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         encoding = {
             "chunks": chunks,
             "compressor": _convert_compressor(v.compressor),
+            "fill_value": _get_fill_value(v.data_type),
         }
-        # NumPy structured data types have fields attribute, while scalar types do not.
-        if not hasattr(v.data_type, "fields"):
-            encoding["fill_value"] = _get_fill_value(v.data_type)
 
         data_array.encoding = encoding
 
