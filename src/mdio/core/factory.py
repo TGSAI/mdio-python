@@ -25,7 +25,7 @@ from importlib import metadata
 from typing import Any
 
 import zarr
-from numcodecs import Blosc
+from numcodecs.zarr3 import Blosc
 from numpy.typing import DTypeLike
 from zarr import Group
 from zarr import open_group
@@ -160,7 +160,7 @@ def create_empty(
             name=f"{variable.name}_trace_headers",
             shape=config.grid.shape[:-1],  # Same spatial shape as data
             chunks=variable.chunks[:-1],  # Same spatial chunks as data
-            compressors=Blosc("zstd"),
+            compressors=Blosc(cname="zstd"),
             dtype=header_dtype,
         )
 
