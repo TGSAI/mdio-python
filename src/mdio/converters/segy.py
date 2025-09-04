@@ -128,8 +128,6 @@ def _scan_for_headers(
         grid_overrides=grid_overrides,
     )
 
-    pass
-
     # if grid_overrides and grid_overrides["NonBinned"]:
     #     template.reset_dimensions(
     #         new_dim_names=[d.name for d in segy_dimensions],
@@ -137,7 +135,7 @@ def _scan_for_headers(
     #     )
 
     # if trace_chunk_size != chunk_size:
-    #     # TODO(Dmitriy): implement grid overrides
+    #     # TODO(Dmitriy): #585 implement grid overrides
     #     # https://github.com/TGSAI/mdio-python/issues/585
     #     # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
     #     # support for grid overrides is implemented
@@ -409,7 +407,7 @@ def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile, grid_overrid
     )
 
 
-def segy_to_mdio(
+def segy_to_mdio(  # noqa: PLR0915 PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
     input_location: StorageLocation,

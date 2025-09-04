@@ -7,9 +7,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
-import dask.array as da
 import numpy as np
-import xarray as xr
 from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
@@ -17,7 +15,7 @@ from mdio.api.opener import open_dataset
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
-from mdio.segy.utilities import segy_export_rechunker  
+from mdio.segy.utilities import segy_export_rechunker
 
 try:
     import distributed
@@ -31,6 +29,7 @@ if TYPE_CHECKING:
 
 default_cpus = cpu_count(logical=True)
 NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
+
 
 def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     segy_spec: SegySpec,

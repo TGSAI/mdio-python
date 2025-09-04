@@ -11,6 +11,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 from segy import SegyFile
+from tests.integration.conftest import _segy_spec_mock_4d
 from tests.integration.testing_data import binary_header_teapot_dome
 from tests.integration.testing_data import custom_teapot_dome_segy_spec
 from tests.integration.testing_data import text_header_teapot_dome
@@ -18,14 +19,13 @@ from tests.integration.testing_helpers import get_inline_header_values
 from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_variable
 
-from mdio import MDIOReader
 from mdio import mdio_to_segy
 from mdio.api.opener import open_dataset
 from mdio.converters.exceptions import GridTraceSparsityError
-from mdio.core.utils_read import open_zarr_dataset
 from mdio.converters.segy import segy_to_mdio
-from mdio.core import Dimension
 from mdio.core.storage_location import StorageLocation
+from mdio.core.utils_read import open_zarr_dataset
+from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy.geometry import StreamerShotGeometryType
 
@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 dask.config.set(scheduler="synchronous")
+
 
 @pytest.mark.parametrize("grid_override", ["NonBinned", "HasDuplicates"])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
@@ -47,7 +48,6 @@ class TestImport4DNonReg:
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
-
         match grid_override:
             case "NonBinned":
                 grid_overrides = {"NonBinned": True, "dimensions": ["channel"]}
@@ -60,9 +60,9 @@ class TestImport4DNonReg:
                 # If such usage of template is acceptable, we should properly register it
                 template_name = TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
             case _:
-                grid_overrides =  None
+                grid_overrides = None
 
-        segy_spec: SegySpec = get_segy_mock_4d_spec()
+        segy_spec = _segy_spec_mock_4d()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         segy_to_mdio(
@@ -83,17 +83,17 @@ class TestImport4DNonReg:
         ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
 
         assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
-        assert ds.attrs["attributes"]["gridOverrides"] == grid_overrides 
+        assert ds.attrs["attributes"]["gridOverrides"] == grid_overrides
 
         assert np.array_equal(ds["shot_point"].values, shots)
         assert np.array_equal(ds["cable"].values, cables)
 
         # assert grid.select_dim("trace") == Dimension(range(1, np.amax(receivers_per_cable) + 1), "trace")
-        expected = [i for i in range(1, np.amax(receivers_per_cable) + 1)]
+        expected = list(range(1, np.amax(receivers_per_cable) + 1))
         assert np.array_equal(ds["trace"].values, expected)
 
-        expected = [i for i in range(0, num_samples, 1)]
-        assert  np.array_equal(ds["time"].values, expected)
+        expected = list(range(0, num_samples, 1))
+        assert np.array_equal(ds["time"].values, expected)
 
 
 @pytest.mark.parametrize("grid_override", ["AutoChannelWrap", "None"])
@@ -109,14 +109,13 @@ class TestImport4D:
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
-      
         match grid_override:
             case "AutoChannelWrap":
                 grid_overrides = {"AutoChannelWrap": True}
             case _:
-                grid_overrides =  {}
-      
-        segy_spec: SegySpec = get_segy_mock_4d_spec()
+                grid_overrides = {}
+
+        segy_spec = _segy_spec_mock_4d()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         template_name = "PreStackShotGathers3DTime"
@@ -139,20 +138,20 @@ class TestImport4D:
         ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
 
         assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
-        assert ds.attrs["attributes"]["gridOverrides"] == grid_overrides 
-
+        assert ds.attrs["attributes"]["gridOverrides"] == grid_overrides
 
         assert np.array_equal(ds["shot_point"].values, shots)
         assert np.array_equal(ds["cable"].values, cables)
 
         if chan_header_type == StreamerShotGeometryType.B and grid_overrides == {}:
-            expected = [i for i in range(1, np.sum(receivers_per_cable) + 1)]
+            expected = list(range(1, np.sum(receivers_per_cable) + 1))
         else:
-            expected = [i for i in range(1, np.amax(receivers_per_cable) + 1)]
+            expected = list(range(1, np.amax(receivers_per_cable) + 1))
         assert np.array_equal(ds["channel"].values, expected)
 
-        expected = [i for i in range(0, num_samples, 1)]
-        assert  np.array_equal(ds["time"].values, expected)
+        expected = list(range(0, num_samples, 1))
+        assert np.array_equal(ds["time"].values, expected)
+
 
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A])
 class TestImport4DSparse:
@@ -165,7 +164,7 @@ class TestImport4DSparse:
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
-        segy_spec: SegySpec = get_segy_mock_4d_spec()
+        segy_spec = _segy_spec_mock_4d()
         segy_path = segy_mock_4d_shots[chan_header_type]
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "1.1"
 
@@ -178,8 +177,8 @@ class TestImport4DSparse:
                 input_location=StorageLocation(str(segy_path)),
                 output_location=StorageLocation(str(zarr_tmp)),
                 overwrite=True,
-                grid_overrides=None,            
-                )
+                grid_overrides=None,
+            )
 
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "10"
         assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
@@ -199,22 +198,21 @@ class TestImport6D:
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
-
         match grid_override:
             case "AutoChannelWrap_AutoShotWrap":
                 grid_overrides = {"AutoChannelWrap": True, "AutoShotWrap": True}
             case _:
-                grid_overrides =  {}
+                grid_overrides = {}
 
-        segy_spec: SegySpec = get_segy_mock_4d_spec()
+        segy_spec = _segy_spec_mock_4d()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         # chunksize=(1, 1, 8, 1, 12, 36),
 
-        # The "AutoShotWrap" grid overide requires a template with dimensions 
+        # The "AutoShotWrap" grid overide requires a template with dimensions
         # 'channel', 'cable', 'gun', 'shot_line', 'shot_point'
         # When such template is available, we shall enable this test
-        assert False, "Template for AutoShotWrap is not implemented yet."
+        pytest.fail("Template for AutoShotWrap is not implemented yet.")
         template_name = "XYZ"  # Placeholder for the template
         segy_to_mdio(
             segy_spec=segy_spec,
@@ -238,19 +236,21 @@ class TestImport6D:
 
         ds = open_zarr_dataset(StorageLocation(str(zarr_tmp)))
 
-        g = ds["gun"]
+        # TODO(Anybody): #000 Cleanup
+        g = ds["gun"]  # noqa: F841
         assert np.array_equal(ds["gun"].values, guns)
         assert np.array_equal(ds["shot_point"].values, shots)
         assert np.array_equal(ds["cable"].values, cables)
 
         if chan_header_type == StreamerShotGeometryType.B and grid_overrides == {}:
-            expected = [i for i in range(1, np.sum(receivers_per_cable) + 1)]
+            expected = list(range(1, np.sum(receivers_per_cable) + 1))
         else:
-            expected = [i for i in range(1, np.amax(receivers_per_cable) + 1)]
+            expected = list(range(1, np.amax(receivers_per_cable) + 1))
         assert np.array_equal(ds["channel"].values, expected)
 
-        expected = [i for i in range(0, num_samples, 1)]
-        assert  np.array_equal(ds["time"].values, expected)
+        expected = list(range(0, num_samples, 1))
+        assert np.array_equal(ds["time"].values, expected)
+
 
 @pytest.mark.dependency
 def test_3d_import(segy_input: Path, zarr_tmp: Path) -> None:

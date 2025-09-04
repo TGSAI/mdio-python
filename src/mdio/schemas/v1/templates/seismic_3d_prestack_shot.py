@@ -9,7 +9,7 @@ from mdio.schemas.v1.units import AllUnits
 class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
     """Seismic Shot pre-stack 3D time or depth Dataset template."""
 
-    def __init__(self, domain: str, last_field_name = "channel"):
+    def __init__(self, domain: str, last_field_name: str = "channel"):
         super().__init__(domain=domain)
         self._last_field_name = last_field_name
         self._coord_dim_names = ["shot_point", "cable", self._last_field_name]  # Custom coordinates for shot gathers
@@ -21,8 +21,7 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
     def _name(self) -> str:
         if self._last_field_name == "channel":
             return f"PreStackShotGathers3D{self._trace_domain.capitalize()}"
-        else:
-            return f"PreStackShotGathers3DExt{self._last_field_name.capitalize()}"
+        return f"PreStackShotGathers3DExt{self._last_field_name.capitalize()}"
 
     def _load_dataset_attributes(self) -> UserAttributes:
         return UserAttributes(

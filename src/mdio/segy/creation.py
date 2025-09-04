@@ -13,7 +13,6 @@ import xarray as xr
 from segy.factory import SegyFactory
 from segy.schema import SegySpec
 from tqdm.auto import tqdm
-from xarray import Dataset as xr_Dataset
 
 from mdio.api.opener import open_dataset
 from mdio.segy.compat import revision_encode
@@ -22,8 +21,6 @@ if TYPE_CHECKING:
     import xarray as xr
     from numpy.typing import NDArray
     from segy.schema import SegySpec
-
-    from mdio.core.storage_location import StorageLocation
 
     from mdio.core.storage_location import StorageLocation
 

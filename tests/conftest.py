@@ -18,6 +18,7 @@ warnings.filterwarnings(
     module="dask.array.rechunk",
 )
 
+
 @pytest.fixture
 def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Fixture that generates temp directory for export tests."""

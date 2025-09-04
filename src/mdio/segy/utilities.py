@@ -44,7 +44,6 @@ def get_grid_plan(  # noqa:  C901
         segy_file: SegyFile instance.
         chunksize:  Chunk sizes to be used in grid plan.
         template: MDIO template where coordinate names and domain will be taken.
-        return_headers: Option to return parsed headers with `Dimension` objects. Default is False.
         grid_overrides: Option to add grid overrides. See main documentation.
 
     Returns:
@@ -55,12 +54,11 @@ def get_grid_plan(  # noqa:  C901
 
     # Keep only dimension and non-dimension coordinates excluding the vertical axis
     horizontal_dimensions = template.dimension_names[:-1]
-    #TODO: make it more intelligently
+    # TODO(Anybody): #000 make it more intelligently
     if "trace" in horizontal_dimensions:
         horizontal_dimensions.remove("trace")
     if grid_overrides.get("NonBinned") is not None:
         horizontal_dimensions.extend(grid_overrides["dimensions"])
-    #
     dimension_headers = parse_headers(segy_file=segy_file, subset=horizontal_dimensions)
 
     # Handle grid overrides.

@@ -38,7 +38,7 @@ def _segy_spec_mock_4d() -> SegySpec:
     return spec
 
 
-def create_segy_mock_4d(  # noqa: PLR0913
+def create_segy_mock_4d(  # noqa: PLR0913 PLR0915
     fake_segy_tmp: Path,
     num_samples: int,
     shots: list[int],
@@ -97,8 +97,8 @@ def create_segy_mock_4d(  # noqa: PLR0913
     step_y = 100
 
     # trace_count = shot_count * total_chan
-    for trc_shot_idx  in range(shot_count):
-        for trc_chan_idx  in range(total_chan):
+    for trc_shot_idx in range(shot_count):
+        for trc_chan_idx in range(total_chan):
             # for trc_idx in range(trace_count):
             trc_idx = trc_shot_idx * total_chan + trc_chan_idx
 
@@ -122,8 +122,8 @@ def create_segy_mock_4d(  # noqa: PLR0913
             headers["cable"][trc_idx] = cable
             headers["gun"][trc_idx] = gun
 
-            x = start_x + step_x * trc_shot_idx 
-            y = start_y + step_y * trc_chan_idx 
+            x = start_x + step_x * trc_shot_idx
+            y = start_y + step_y * trc_chan_idx
             headers["coordinate_scalar"][trc_idx] = -100
             headers["source_coord_x"][trc_idx] = x
             headers["source_coord_y"][trc_idx] = y
