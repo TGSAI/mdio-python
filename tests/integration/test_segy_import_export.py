@@ -11,7 +11,6 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 from segy import SegyFile
-from segy.standards import get_segy_standard
 from tests.integration.conftest import get_segy_mock_4d_spec
 from tests.integration.testing_data import binary_header_teapot_dome
 from tests.integration.testing_data import custom_teapot_dome_segy_spec
@@ -62,7 +61,7 @@ class TestImport4DNonReg:
 
         # chunksize=(8, 2, 10),
         template_name = "PreStackShotGathers3DTime"
-        output_location=StorageLocation(str(zarr_tmp))
+        output_location = StorageLocation(str(zarr_tmp))
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get(template_name),
@@ -211,7 +210,7 @@ class TestImport6D:
         # 'channel', 'cable', 'gun', 'shot_line', 'shot_point'
         # When such template is available, we shall enable this test
         template_name = "XYZ"  # Placeholder for the template
-        output_location=StorageLocation(str(zarr_tmp))
+        output_location = StorageLocation(str(zarr_tmp))
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get(template_name),
