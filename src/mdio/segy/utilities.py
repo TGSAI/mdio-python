@@ -83,11 +83,11 @@ def get_grid_plan(  # noqa:  C901
     vertical_dim = Dimension(coords=sample_labels, name=template.trace_domain)
     dimensions.append(vertical_dim)
 
-    dims_coords_headers = rfn.append_fields(horiz_dims_coords_headers, 
-                                            "trace", 
-                                            dimension_headers["trace"], 
-                                            usemask=False)
-    return dimensions, chunksize, dims_coords_headers
+    if grid_overrides.get("NonBinned") or grid_overrides.get("HasDuplicates"):
+        horiz_dims_coords_headers = rfn.append_fields(
+            horiz_dims_coords_headers, "trace", dimension_headers["trace"], usemask=False
+        )
+    return dimensions, chunksize, horiz_dims_coords_headers
 
 
 def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
