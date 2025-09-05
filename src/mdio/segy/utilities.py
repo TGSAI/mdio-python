@@ -58,12 +58,13 @@ def get_grid_plan(  # noqa:  C901
         horizontal_dimensions.remove("trace")
     if grid_overrides.get("NonBinned") is not None:
         horizontal_dimensions.extend(grid_overrides["dimensions"])
-    dimension_headers = parse_headers(segy_file=segy_file, subset=horizontal_dimensions)
+    horiz_dims_coors = horizontal_dimensions + template.coordinate_names
+    horiz_dims_coords_headers = parse_headers(segy_file=segy_file, subset=horiz_dims_coors)
 
     # Handle grid overrides.
     override_handler = GridOverrider()
     dimension_headers, horizontal_dimensions, chunksize = override_handler.run(
-        dimension_headers,
+        horiz_dims_coords_headers[horizontal_dimensions],
         horizontal_dimensions,
         chunksize=chunksize,
         grid_overrides=grid_overrides,
@@ -82,12 +83,11 @@ def get_grid_plan(  # noqa:  C901
     vertical_dim = Dimension(coords=sample_labels, name=template.trace_domain)
     dimensions.append(vertical_dim)
 
-    # We need to return both dimension and coordinate headers
-    horizontal_coordinates = template.coordinate_names
-    coordinate_headers = parse_headers(segy_file=segy_file, subset=horizontal_coordinates)
-    headers_subset = rfn.merge_arrays((dimension_headers, coordinate_headers), asrecarray=True, flatten=True)
-
-    return dimensions, chunksize, headers_subset
+    dims_coords_headers = rfn.append_fields(horiz_dims_coords_headers, 
+                                            "trace", 
+                                            dimension_headers["trace"], 
+                                            usemask=False)
+    return dimensions, chunksize, dims_coords_headers
 
 
 def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
