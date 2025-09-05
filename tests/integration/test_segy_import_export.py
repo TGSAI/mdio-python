@@ -57,12 +57,6 @@ class TestImport4DNonReg:
         if not TemplateRegistry().is_registered("PreStackShotGathers3DExtTime"):
             TemplateRegistry().register(Seismic3DPreStackShotTemplate("Time", "trace"))
 
-        match grid_override:
-            case {"NonBinned": True}:
-                template_name = "PreStackShotGathers3DExtTime"
-            case {"HasDuplicates": True}:
-                template_name = "PreStackShotGathers3DExtTime"
-
         segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
@@ -70,7 +64,7 @@ class TestImport4DNonReg:
         output_location = StorageLocation(str(zarr_tmp))
         segy_to_mdio(
             segy_spec=segy_spec,
-            mdio_template=TemplateRegistry().get(template_name),
+            mdio_template=TemplateRegistry().get("PreStackShotGathers3DExtTime"),
             input_location=input_location,
             output_location=output_location,
             overwrite=True,
