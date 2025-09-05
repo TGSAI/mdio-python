@@ -18,15 +18,16 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.schemas.chunk_grid import RegularChunkGrid
+from mdio.schemas.chunk_grid import RegularChunkShape
+from mdio.schemas.compressors import Blosc
+from mdio.schemas.compressors import BloscCname
+from mdio.schemas.dtype import ScalarType
+from mdio.schemas.metadata import ChunkGridMetadata
 from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
 from mdio.schemas.v1.units import AllUnits
 from mdio.schemas.v1.units import LengthUnitEnum
 from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.v1.variable import Variable
-from mdio.schemas.compressors import Blosc, BloscCname
-from mdio.schemas.metadata import ChunkGridMetadata
-from mdio.schemas.chunk_grid import RegularChunkGrid, RegularChunkShape
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -319,7 +320,7 @@ def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile) -> None:
 
 def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> None:
     """Add raw headers capability to the MDIO template by monkey-patching its _add_variables method.
-    
+
     This function modifies the template's _add_variables method to also add a raw headers variable
     with the following characteristics:
     - Same rank as the Headers variable (all dimensions except vertical)
@@ -329,27 +330,25 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> None
     - zstd compressor
     - No additional metadata
     - Chunked the same as the Headers variable
-    
+
     Args:
         mdio_template: The MDIO template to mutate
     """
     # Store the original _add_variables method
     original_add_variables = mdio_template._add_variables
-    
-    def enhanced_add_variables():
+
+    def enhanced_add_variables() -> None:
         # Call the original method first
         original_add_variables()
-        
+
         # Now add the raw headers variable
         chunk_shape = mdio_template._var_chunk_shape[:-1]
-        
+
         # Create chunk grid metadata
         chunk_metadata = ChunkGridMetadata(
-            chunk_grid=RegularChunkGrid(
-                configuration=RegularChunkShape(chunk_shape=chunk_shape)
-            )
+            chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
         )
-        
+
         # Add the raw headers variable using the builder's add_variable method
         mdio_template._builder.add_variable(
             name="raw_headers",
@@ -360,7 +359,7 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> None
             coordinates=None,  # No coordinates as specified
             metadata_info=[chunk_metadata],
         )
-    
+
     # Replace the template's _add_variables method
     mdio_template._add_variables = enhanced_add_variables
 
