@@ -405,6 +405,7 @@ def segy_to_mdio(
     headers = to_structured_type(segy_spec.trace.header.dtype)
 
     if os.getenv("MDIO__DO_RAW_HEADERS") == "1":
+        logger.warning("MDIO__DO_RAW_HEADERS is experimental and expected to change or be removed.")
         mdio_template = _add_raw_headers_to_template(mdio_template)
 
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
