@@ -308,16 +308,18 @@ def _add_segy_ingest_attributes(dataset: Dataset, segy_file: SegyFile, grid_over
 
     # Handle case where it may not have any metadata yet
     if dataset.metadata.attributes is None:
-        dataset.attrs["attributes"] = {}
-    dataset.metadata.attributes["gridOverrides"] = grid_overrides
+        dataset.metadata.attributes = {}
+
+    segy_attributes = {
+        "textHeader": text_header,
+        "binaryHeader": segy_file.binary_header.to_dict(),
+    }
+
+    if grid_overrides is not None:
+        segy_attributes["gridOverrides"] = grid_overrides
 
     # Update the attributes with the text and binary headers.
-    dataset.metadata.attributes.update(
-        {
-            "textHeader": text_header,
-            "binaryHeader": segy_file.binary_header.to_dict(),
-        }
-    )
+    dataset.metadata.attributes.update(segy_attributes)
 
 
 def segy_to_mdio(  # noqa PLR0913
@@ -349,10 +351,6 @@ def segy_to_mdio(  # noqa PLR0913
 
     segy_settings = SegySettings(storage_options=input_location.options)
     segy_file = SegyFile(url=input_location.uri, spec=segy_spec, settings=segy_settings)
-
-    # Scan the SEG-Y file for headers
-    if grid_overrides is None:
-        grid_overrides = {}
 
     segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
