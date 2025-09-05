@@ -49,7 +49,7 @@ class TestStorageLocation:
         """Test string and developer representations of StorageLocation."""
         # Test string representation of StorageLocation.
         location = StorageLocation("/test/path")
-        assert str(location) == "/test/path"
+        assert str(location) == str(Path("/test/path"))
 
         # Test developer representation of StorageLocation.
 
