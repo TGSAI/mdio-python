@@ -26,6 +26,8 @@ from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from segy.arrays import HeaderArray as SegyHeaderArray
     from segy.schema import SegySpec
     from xarray import Dataset as xr_Dataset
@@ -113,7 +115,9 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
 
 def _scan_for_headers(
-    segy_file: SegyFile, template: AbstractDatasetTemplate, grid_overrides: dict | None = None
+    segy_file: SegyFile,
+    template: AbstractDatasetTemplate,
+    grid_overrides: dict[str, Any] | None = None,
 ) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
 
@@ -281,7 +285,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile, grid_overrides: dict) -> None:
+def _add_segy_ingest_attributes(dataset: Dataset, segy_file: SegyFile, grid_overrides: dict[str, Any] | None) -> None:
     text_header = segy_file.text_header.splitlines()
     # Validate:
     # text_header this should be a 40-items array of strings with width of 80 characters.
@@ -322,7 +326,7 @@ def segy_to_mdio(  # noqa PLR0913
     input_location: StorageLocation,
     output_location: StorageLocation,
     overwrite: bool = False,
-    grid_overrides: dict | None = None,
+    grid_overrides: dict[str, Any] | None = None,
 ) -> None:
     """A function that converts a SEG-Y file to an MDIO v1 file.
 
@@ -367,7 +371,7 @@ def segy_to_mdio(  # noqa PLR0913
         headers=headers,
     )
 
-    _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)
+    _add_segy_ingest_attributes(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
