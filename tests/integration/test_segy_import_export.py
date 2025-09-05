@@ -358,7 +358,7 @@ class TestReader:
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
-        npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01], rtol=1e-05)
+        npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
 
     def test_crossline_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
@@ -366,14 +366,14 @@ class TestReader:
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
-        npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01], rtol=1e-06)
+        npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01])
 
     def test_zslice_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
         ds = open_dataset(StorageLocation(str(zarr_tmp)))
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
-        npt.assert_allclose([mean, std], [0.005236923, 0.61279935], rtol=1e-06)
+        npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
 
 
 @pytest.mark.dependency("test_3d_import")
