@@ -288,7 +288,7 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 7
+        assert len(attributes) == 6
         # Validate all attributes provided by the abstract template
         assert attributes["default_variable_name"] == "amplitude"
         assert attributes["surveyDimensionality"] == "3D"
@@ -296,7 +296,6 @@ class TestReader:
         assert attributes["processingStage"] == "post-stack"
         assert attributes["textHeader"] == text_header_teapot_dome()
         assert attributes["binaryHeader"] == binary_header_teapot_dome()
-        assert attributes["gridOverrides"] == {}
 
     def test_variable_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
