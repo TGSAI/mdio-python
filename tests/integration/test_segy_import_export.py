@@ -38,7 +38,7 @@ if TYPE_CHECKING:
 dask.config.set(scheduler="synchronous")
 
 
-@pytest.mark.parametrize("grid_override", [{"NonBinned": True}, {"HasDuplicates": True}])
+@pytest.mark.parametrize("grid_override", [{"NonBinned": True, "dimensions": ["channel"]}, {"HasDuplicates": True}])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
