@@ -122,12 +122,15 @@ def trace_worker(  # noqa: PLR0913
     traces = segy_file.trace[live_trace_indexes]
 
     header_key = "headers"
+    raw_header_key = "raw_headers"
 
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
     worker_variables = [data_variable_name]
     if header_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
         worker_variables.append(header_key)
+    if raw_header_key in dataset.data_vars:
+        worker_variables.append(raw_header_key)
 
     ds_to_write = dataset[worker_variables]
 
@@ -145,6 +148,15 @@ def trace_worker(  # noqa: PLR0913
             tmp_headers,
             attrs=ds_to_write[header_key].attrs,
             encoding=ds_to_write[header_key].encoding,  # Not strictly necessary, but safer than not doing it.
+        )
+    if raw_header_key in worker_variables:
+        tmp_raw_headers = np.zeros_like(dataset[raw_header_key])
+        tmp_raw_headers[not_null] = traces.header.view("|V240")
+        ds_to_write[raw_header_key] = Variable(
+            ds_to_write[raw_header_key].dims,
+            tmp_raw_headers,
+            attrs=ds_to_write[raw_header_key].attrs,
+            encoding=ds_to_write[raw_header_key].encoding,  # Not strictly necessary, but safer than not doing it.
         )
 
     data_variable = ds_to_write[data_variable_name]
