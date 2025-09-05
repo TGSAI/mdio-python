@@ -26,6 +26,8 @@ from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
+    from typing import Any
+
     from segy.arrays import HeaderArray as SegyHeaderArray
     from segy.schema import SegySpec
     from xarray import Dataset as xr_Dataset
@@ -113,7 +115,9 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
 
 def _scan_for_headers(
-    segy_file: SegyFile, template: AbstractDatasetTemplate, grid_overrides: dict | None = None
+    segy_file: SegyFile,
+    template: AbstractDatasetTemplate,
+    grid_overrides: dict[str, Any] | None = None,
 ) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
 
@@ -273,7 +277,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile, grid_overrides: dict) -> None:
+def _add_segy_ingest_attributes(dataset: Dataset, segy_file: SegyFile, grid_overrides: dict[str, Any] | None) -> None:
     text_header = segy_file.text_header.splitlines()
     # Validate:
     # text_header this should be a 40-items array of strings with width of 80 characters.
@@ -296,16 +300,18 @@ def _add_text_binary_headers(dataset: Dataset, segy_file: SegyFile, grid_overrid
 
     # Handle case where it may not have any metadata yet
     if dataset.metadata.attributes is None:
-        dataset.attrs["attributes"] = {}
-    dataset.metadata.attributes["gridOverrides"] = grid_overrides
+        dataset.metadata.attributes = {}
+
+    segy_attributes = {
+        "textHeader": text_header,
+        "binaryHeader": segy_file.binary_header.to_dict(),
+    }
+
+    if grid_overrides is not None:
+        segy_attributes["gridOverrides"] = grid_overrides
 
     # Update the attributes with the text and binary headers.
-    dataset.metadata.attributes.update(
-        {
-            "textHeader": text_header,
-            "binaryHeader": segy_file.binary_header.to_dict(),
-        }
-    )
+    dataset.metadata.attributes.update(segy_attributes)
 
 
 def segy_to_mdio(  # noqa PLR0913
@@ -314,7 +320,7 @@ def segy_to_mdio(  # noqa PLR0913
     input_location: StorageLocation,
     output_location: StorageLocation,
     overwrite: bool = False,
-    grid_overrides: dict | None = None,
+    grid_overrides: dict[str, Any] | None = None,
 ) -> None:
     """A function that converts a SEG-Y file to an MDIO v1 file.
 
@@ -338,10 +344,6 @@ def segy_to_mdio(  # noqa PLR0913
     segy_settings = SegySettings(storage_options=input_location.options)
     segy_file = SegyFile(url=input_location.uri, spec=segy_spec, settings=segy_settings)
 
-    # Scan the SEG-Y file for headers
-    if grid_overrides is None:
-        grid_overrides = {}
-
     segy_dimensions, segy_headers, mdio_template = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
     grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
@@ -359,7 +361,7 @@ def segy_to_mdio(  # noqa PLR0913
         headers=headers,
     )
 
-    _add_text_binary_headers(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)
+    _add_segy_ingest_attributes(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 

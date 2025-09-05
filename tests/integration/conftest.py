@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from segy.schema import SegySpec
 
 
-def _segy_spec_mock_4d() -> SegySpec:
+def get_segy_mock_4d_spec() -> SegySpec:
     """Create a mock 4D SEG-Y specification."""
     trace_header_fields = [
         HeaderField(name="field_rec_no", byte=9, format="int32"),
@@ -45,7 +45,7 @@ def _segy_spec_mock_4d() -> SegySpec:
     return spec
 
 
-def create_segy_mock_4d(  # noqa: PLR0913, PLR0915
+def create_segy_mock_4d(  # noqa: PLR0913
     fake_segy_tmp: Path,
     num_samples: int,
     shots: list[int],
@@ -90,7 +90,7 @@ def create_segy_mock_4d(  # noqa: PLR0913, PLR0915
     channel_headers = np.tile(channel_headers, shot_count)
 
     factory = SegyFactory(
-        spec=_segy_spec_mock_4d(),
+        spec=get_segy_mock_4d_spec(),
         sample_interval=1000,
         samples_per_trace=num_samples,
     )
@@ -117,23 +117,16 @@ def create_segy_mock_4d(  # noqa: PLR0913, PLR0915
             if index_receivers is False:
                 channel, gun, shot_line = 0, 0, 0
 
-            headers["field_rec_no"][trc_idx] = shot
-            headers["channel"][trc_idx] = channel
-            headers["shot_point"][trc_idx] = shot
-            headers["offset"][trc_idx] = offset
-            headers["shot_line"][trc_idx] = shot_line
-            headers["cable"][trc_idx] = cable
-            headers["gun"][trc_idx] = gun
+            # Assign dimension coordinate fields with calculated mock data
+            header_fields = ["field_rec_no", "channel", "shot_point", "offset", "shot_line", "cable", "gun"]
+            headers[header_fields][trc_idx] = (shot, channel, shot, offset, shot_line, cable, gun)
 
+            # Assign coordinate fields with mock data
             x = start_x + step_x * trc_shot_idx
             y = start_y + step_y * trc_chan_idx
             headers["coordinate_scalar"][trc_idx] = -100
-            headers["source_coord_x"][trc_idx] = x
-            headers["source_coord_y"][trc_idx] = y
-            headers["group_coord_x"][trc_idx] = x
-            headers["group_coord_y"][trc_idx] = y
-            headers["cdp_x"][trc_idx] = x
-            headers["cdp_y"][trc_idx] = y
+            coord_fields = ["source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y", "cdp_x", "cdp_y"]
+            headers[coord_fields][trc_idx] = (x, y) * 3
 
             samples[trc_idx] = np.linspace(start=shot, stop=shot + 1, num=num_samples)
 
