@@ -19,8 +19,8 @@ if TYPE_CHECKING:
     from segy.schema import SegySpec
 
 
-def _segy_spec_mock_4d() -> SegySpec:
-    """Create a mock SEG-Y spec for 4D data."""
+def get_segy_mock_4d_spec() -> SegySpec:
+    """Create a mock 4D SEG-Y specification."""
     trace_header_fields = [
         HeaderField(name="field_rec_no", byte=9, format="int32"),
         HeaderField(name="channel", byte=13, format="int32"),
@@ -31,6 +31,13 @@ def _segy_spec_mock_4d() -> SegySpec:
         HeaderField(name="shot_line", byte=133, format="int16"),
         HeaderField(name="cable", byte=137, format="int16"),
         HeaderField(name="gun", byte=171, format="int16"),
+        HeaderField(name="coordinate_scalar", byte=71, format="int16"),
+        HeaderField(name="source_coord_x", byte=73, format="int32"),
+        HeaderField(name="source_coord_y", byte=77, format="int32"),
+        HeaderField(name="group_coord_x", byte=81, format="int32"),
+        HeaderField(name="group_coord_y", byte=85, format="int32"),
+        HeaderField(name="cdp_x", byte=181, format="int32"),
+        HeaderField(name="cdp_y", byte=185, format="int32"),
     ]
     rev1_spec = get_segy_standard(1.0)
     spec = rev1_spec.customize(trace_header_fields=trace_header_fields)
@@ -83,7 +90,7 @@ def create_segy_mock_4d(  # noqa: PLR0913
     channel_headers = np.tile(channel_headers, shot_count)
 
     factory = SegyFactory(
-        spec=_segy_spec_mock_4d(),
+        spec=get_segy_mock_4d_spec(),
         sample_interval=1000,
         samples_per_trace=num_samples,
     )
@@ -91,25 +98,37 @@ def create_segy_mock_4d(  # noqa: PLR0913
     headers = factory.create_trace_header_template(trace_count)
     samples = factory.create_trace_sample_template(trace_count)
 
-    for trc_idx in range(trace_count):
-        shot = shot_headers[trc_idx]
-        gun = gun_headers[trc_idx]
-        cable = cable_headers[trc_idx]
-        channel = channel_headers[trc_idx]
-        shot_line = 1
-        offset = 0
+    start_x = 700000
+    start_y = 4000000
+    step_x = 100
+    step_y = 100
 
-        if index_receivers is False:
-            channel, gun, shot_line = 0, 0, 0
+    for trc_shot_idx in range(shot_count):
+        for trc_chan_idx in range(total_chan):
+            trc_idx = trc_shot_idx * total_chan + trc_chan_idx
 
-        header_data = (shot, channel, shot, offset, shot_line, cable, gun)
+            shot = shot_headers[trc_idx]
+            gun = gun_headers[trc_idx]
+            cable = cable_headers[trc_idx]
+            channel = channel_headers[trc_idx]
+            shot_line = 1
+            offset = 0
 
-        fields = list(headers.dtype.names)
-        fields.remove("samples_per_trace")
-        fields.remove("sample_interval")
+            if index_receivers is False:
+                channel, gun, shot_line = 0, 0, 0
 
-        headers[fields][trc_idx] = header_data
-        samples[trc_idx] = np.linspace(start=shot, stop=shot + 1, num=num_samples)
+            # Assign dimension coordinate fields with calculated mock data
+            header_fields = ["field_rec_no", "channel", "shot_point", "offset", "shot_line", "cable", "gun"]
+            headers[header_fields][trc_idx] = (shot, channel, shot, offset, shot_line, cable, gun)
+
+            # Assign coordinate fields with mock data
+            x = start_x + step_x * trc_shot_idx
+            y = start_y + step_y * trc_chan_idx
+            headers["coordinate_scalar"][trc_idx] = -100
+            coord_fields = ["source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y", "cdp_x", "cdp_y"]
+            headers[coord_fields][trc_idx] = (x, y) * 3
+
+            samples[trc_idx] = np.linspace(start=shot, stop=shot + 1, num=num_samples)
 
     with segy_path.open(mode="wb") as fp:
         fp.write(factory.create_textual_header())
