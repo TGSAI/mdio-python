@@ -117,9 +117,11 @@ def create_segy_mock_4d(  # noqa: PLR0913
             if index_receivers is False:
                 channel, gun, shot_line = 0, 0, 0
 
+            # Assign dimension coordinate fields with calculated mock data
             header_fields = ["field_rec_no", "channel", "shot_point", "offset", "shot_line", "cable", "gun"]
             headers[header_fields][trc_idx] = (shot, channel, shot, offset, shot_line, cable, gun)
 
+            # Assign coordinate fields with mock data
             x = start_x + step_x * trc_shot_idx
             y = start_y + step_y * trc_chan_idx
             headers["coordinate_scalar"][trc_idx] = -100
