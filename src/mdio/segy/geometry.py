@@ -383,7 +383,7 @@ class DuplicateIndex(GridOverrideCommand):
             self.check_required_keys(index_headers)
         self.check_required_params(grid_overrides)
 
-    def header_names_to_use(self, index_names: Sequence[str], grid_overrides: dict[str, bool | int]) -> list[str]:
+    def _header_names_to_use(self, index_names: Sequence[str], grid_overrides: dict[str, bool | int]) -> list[str]:
         """Get the headers to use for the transform."""
         dimensions_to_replace = grid_overrides.get("dimensions", [])
         indexes_to_remove = [*dimensions_to_replace, "trace"]
@@ -398,7 +398,7 @@ class DuplicateIndex(GridOverrideCommand):
         self.validate(index_headers, grid_overrides)
 
         # Get the dimension index names
-        index_names_to_use = self.header_names_to_use(index_headers.dtype.names, grid_overrides)
+        index_names_to_use = self._header_names_to_use(index_headers.dtype.names, grid_overrides)
         index_headers_to_use = index_headers[index_names_to_use]
         trace = analyze_non_indexed_headers(index_headers_to_use)["trace"]
 
@@ -407,7 +407,7 @@ class DuplicateIndex(GridOverrideCommand):
     def transform_index_names(self, index_names: Sequence[str], grid_overrides: dict[str, bool | int]) -> Sequence[str]:
         """Insert dimension "trace" to the sample-1 dimension."""
         # Get the dimension index names
-        index_names_to_use = self.header_names_to_use(index_names, grid_overrides)
+        index_names_to_use = self._header_names_to_use(index_names, grid_overrides)
         index_names_to_use.append("trace")
         return tuple(index_names_to_use)
 

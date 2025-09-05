@@ -12,9 +12,7 @@ import numpy.testing as npt
 import pytest
 from segy import SegyFile
 from segy.schema import SegySpec
-from segy.standards import get_segy_standard
-from tests.conftest import zarr_tmp
-from tests.integration.conftest import get_segy_mock_4d_spec
+from tests.integration.conftest import _segy_spec_mock_4d
 from tests.integration.testing_data import binary_header_teapot_dome
 from tests.integration.testing_data import custom_teapot_dome_segy_spec
 from tests.integration.testing_data import text_header_teapot_dome
@@ -52,7 +50,6 @@ class TestImport4DNonReg:
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
-
         # Notice that extra parameter.
         # If such usage of template is acceptable,
         # we should properly register it in TemplateRegistry in constructor
@@ -71,7 +68,7 @@ class TestImport4DNonReg:
                 template_name = "PreStackShotGathers3DTime"
                 grid_overrides = None
 
-        segy_spec: SegySpec = get_segy_mock_4d_spec()
+        segy_spec: SegySpec = _segy_spec_mock_4d()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         output_location = StorageLocation(str(zarr_tmp))
@@ -125,7 +122,7 @@ class TestImport4D:
             case _:
                 grid_overrides = {}
 
-        segy_spec: SegySpec = get_segy_mock_4d_spec()
+        segy_spec: SegySpec = _segy_spec_mock_4d()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         template_name = "PreStackShotGathers3DTime"
@@ -174,7 +171,7 @@ class TestImport4DSparse:
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
-        segy_spec: SegySpec = get_segy_mock_4d_spec()
+        segy_spec: SegySpec = _segy_spec_mock_4d()
         segy_path = segy_mock_4d_shots[chan_header_type]
         os.environ["MDIO__GRID__SPARSITY_RATIO_LIMIT"] = "1.1"
 
@@ -194,6 +191,8 @@ class TestImport4DSparse:
         assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
 
 
+# TODO(Mark Roberts): Pending PR "Add Seismic3DPreStackTemplate schema".
+# https://github.com/TGSAI/mdio-python/pull/625
 @pytest.mark.skip(reason="AutoShotWrap requires a template that is not implemented yet.")
 @pytest.mark.parametrize("grid_override", ["AutoChannelWrap_AutoShotWrap", None])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
@@ -214,7 +213,7 @@ class TestImport6D:
             case _:
                 grid_overrides = {}
 
-        segy_spec: SegySpec = get_segy_mock_4d_spec()
+        segy_spec: SegySpec = _segy_spec_mock_4d()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
         output_location = StorageLocation(str(zarr_tmp))
@@ -299,7 +298,7 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 6
+        assert len(attributes) == 7
         # Validate all attributes provided by the abstract template
         assert attributes["default_variable_name"] == "amplitude"
         assert attributes["surveyDimensionality"] == "3D"

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from segy.schema import SegySpec
 
 
-def get_segy_mock_4d_spec() -> SegySpec:
+def _segy_spec_mock_4d() -> SegySpec:
     """Create a mock 4D SEG-Y specification."""
     trace_header_fields = [
         HeaderField(name="field_rec_no", byte=9, format="int32"),
@@ -90,7 +90,7 @@ def create_segy_mock_4d(  # noqa: PLR0913, PLR0915
     channel_headers = np.tile(channel_headers, shot_count)
 
     factory = SegyFactory(
-        spec=get_segy_mock_4d_spec(),
+        spec=_segy_spec_mock_4d(),
         sample_interval=1000,
         samples_per_trace=num_samples,
     )
@@ -103,10 +103,8 @@ def create_segy_mock_4d(  # noqa: PLR0913, PLR0915
     step_x = 100
     step_y = 100
 
-    # trace_count = shot_count * total_chan
     for trc_shot_idx in range(shot_count):
         for trc_chan_idx in range(total_chan):
-            # for trc_idx in range(trace_count):
             trc_idx = trc_shot_idx * total_chan + trc_chan_idx
 
             shot = shot_headers[trc_idx]
@@ -123,8 +121,6 @@ def create_segy_mock_4d(  # noqa: PLR0913, PLR0915
             headers["channel"][trc_idx] = channel
             headers["shot_point"][trc_idx] = shot
             headers["offset"][trc_idx] = offset
-            # headers["samples_per_trace"][trc_idx] = 1000
-            # headers["sample_interval"][trc_idx] = num_samples
             headers["shot_line"][trc_idx] = shot_line
             headers["cable"][trc_idx] = cable
             headers["gun"][trc_idx] = gun
