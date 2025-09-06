@@ -73,21 +73,10 @@ def to_zarr(  # noqa: PLR0913, PLR0915
 
     final_stats = _create_stats()
 
-    # Must use data.encoding.get instead of data.chunks
-    chunks_t_of_t = (data.encoding.get("chunks"),)
-    # Unroll tuple of tuples into a flat list
-    chunks = [c for sub_tuple in chunks_t_of_t for c in sub_tuple]
-    # We will not chunk traces (old option chunk_samples=False)
-    chunks[-1] = data.shape[-1]
-    dim_names = list(data.dims)
-    # Initialize chunk iterator
-    # Since the dimensions are provided, it will return a dict of slices
-    chunk_iter = ChunkIterator(shape=data.shape, chunks=chunks, dim_names=dim_names)
+    data_variable_chunks = data.encoding.get("chunks")
+    worker_chunks = data_variable_chunks[:-1] + (data.shape[-1],)  # un-chunk sample axis
+    chunk_iter = ChunkIterator(shape=data.shape, chunks=worker_chunks, dim_names=data.dims)
     num_chunks = chunk_iter.num_chunks
-
-    # The following could be extracted in a function to allow executor injection
-    # (e.g. for unit testing or for debugging with non-parallelized processing)
-    # def _create_executor(num_chunks: int)-> ProcessPoolExecutor:
 
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
@@ -105,12 +94,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
         futures = []
         common_args = (segy_kw, output_path, data_variable_name)
         for region in chunk_iter:
-            index_slices = tuple(region[key] for key in data.dims[:-1])
-            subset_args = (
-                region,
-                grid_map[index_slices],
-                dataset.isel(region),
-            )
+            subset_args = (region, grid_map, dataset.isel(region))
             future = executor.submit(trace_worker, *common_args, *subset_args)
             futures.append(future)
 

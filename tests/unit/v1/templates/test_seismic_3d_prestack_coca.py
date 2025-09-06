@@ -117,14 +117,14 @@ class TestSeismic3DPreStackCocaTemplate:
         t = Seismic3DPreStackCocaTemplate(domain="time")
 
         # Template attributes
-        assert t._coord_dim_names == ["inline", "crossline", "offset", "azimuth"]
-        assert t._dim_names == ["inline", "crossline", "offset", "azimuth", "time"]
-        assert t._coord_names == ["cdp_x", "cdp_y"]
-        assert t._var_chunk_shape == [8, 8, 32, 1, 1024]
+        assert t._coord_dim_names == ("inline", "crossline", "offset", "azimuth")
+        assert t._dim_names == ("inline", "crossline", "offset", "azimuth", "time")
+        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._var_chunk_shape == (8, 8, 32, 1, 1024)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
-        assert t._dim_sizes == []
+        assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
         # Verify dataset attributes
@@ -142,7 +142,7 @@ class TestSeismic3DPreStackCocaTemplate:
 
         dataset = t.build_dataset(
             "Permian Basin 3D CDP Coca Gathers",
-            sizes=[256, 256, 100, 6, 2048],
+            sizes=(256, 256, 100, 6, 2048),
             horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
@@ -165,5 +165,5 @@ class TestSeismic3DPreStackCocaTemplate:
         assert isinstance(seismic.compressor, Blosc)
         assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == [8, 8, 32, 1, 1024]
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (8, 8, 32, 1, 1024)
         assert seismic.metadata.stats_v1 is None

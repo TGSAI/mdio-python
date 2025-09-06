@@ -66,7 +66,8 @@ def header_scan_worker(
         trace_header = segy_file.header[slice_]
 
     if subset is not None:
-        trace_header = trace_header[subset]
+        # struct field selection needs a list, not a tuple; a subset is a tuple from the template.
+        trace_header = trace_header[list(subset)]
 
     # Get non-void fields from dtype and copy to new array for memory efficiency
     fields = trace_header.dtype.fields
@@ -103,22 +104,21 @@ def trace_worker(  # noqa: PLR0913
     Returns:
         SummaryStatistics object containing statistics about the written traces.
     """
-    if not dataset.trace_mask.any():
+    region_slices = tuple(region.values())
+    local_grid_map = grid_map[region_slices[:-1]]  # minus last (vertical) axis
+
+    not_null = local_grid_map != UINT32_MAX
+    if not not_null.any():
         return None
 
-    # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS`
-    # environment variable.
-    # Since the release of the Zarr 3 engine, it will default to many threads.
-    # This can cause resource contention and unpredicted memory consumption.
-    zarr_config.set({"threading.max_workers": 1})
-
-    # Open the SEG-Y file in every new process / spawned worker since the
-    # open file handles cannot be shared across processes.
+    # Open the SEG-Y file in this process since the open file handles cannot be shared across processes.
     segy_file = SegyFile(**segy_kw)
 
-    not_null = grid_map != UINT32_MAX
+    # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
+    # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
+    zarr_config.set({"threading.max_workers": 1})
 
-    live_trace_indexes = grid_map[not_null].tolist()
+    live_trace_indexes = local_grid_map[not_null].tolist()
     traces = segy_file.trace[live_trace_indexes]
 
     header_key = "headers"

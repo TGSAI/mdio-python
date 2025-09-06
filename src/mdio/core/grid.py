@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import zarr
+from zarr.codecs import BloscCodec
 
 from mdio.constants import UINT32_MAX
 from mdio.core.utils_write import get_constrained_chunksize
@@ -107,8 +108,10 @@ class Grid:
             dtype=map_dtype,
             max_bytes=self._INTERNAL_CHUNK_SIZE_TARGET,
         )
-        self.map = zarr.full(live_shape, fill_value, dtype=map_dtype, chunks=chunks)
-        self.live_mask = zarr.zeros(live_shape, dtype=bool, chunks=chunks)
+        grid_compressor = BloscCodec(cname="zstd")
+        common_kwargs = {"shape": live_shape, "chunks": chunks, "compressors": grid_compressor, "store": None}
+        self.map = zarr.create_array(fill_value=fill_value, dtype=map_dtype, **common_kwargs)
+        self.live_mask = zarr.create_array(fill_value=0, dtype=bool, **common_kwargs)
 
         # Calculate batch size
         memory_per_trace_index = index_headers.itemsize

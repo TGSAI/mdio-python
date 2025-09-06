@@ -8,6 +8,7 @@ from xarray import DataArray as xr_DataArray
 from zarr import zeros as zarr_zeros
 from zarr.codecs import BloscCodec
 
+from mdio import to_mdio
 from mdio.constants import fill_value_map
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
@@ -287,15 +288,15 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
         .add_dimension("inline", 100)
         .add_dimension("crossline", 200)
         .add_dimension("depth", 300)
-        .add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.FLOAT64)
-        .add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.FLOAT64)
-        .add_coordinate("x_coord", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
-        .add_coordinate("y_coord", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+        .add_coordinate("inline", dimensions=("inline",), data_type=ScalarType.FLOAT64)
+        .add_coordinate("crossline", dimensions=("crossline",), data_type=ScalarType.FLOAT64)
+        .add_coordinate("x_coord", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32)
+        .add_coordinate("y_coord", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32)
         .add_variable(
             "data",
             long_name="Test Data",
-            dimensions=["inline", "crossline", "depth"],
-            coordinates=["inline", "crossline", "x_coord", "y_coord"],
+            dimensions=("inline", "crossline", "depth"),
+            coordinates=("inline", "crossline", "x_coord", "y_coord"),
             data_type=ScalarType.FLOAT32,
         )
         .build()
@@ -314,7 +315,7 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
     xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
-    xr_ds.to_zarr(store=file_path, mode="w", compute=False)
+    to_mdio(xr_ds, output_path=file_path, mode="w-", compute=False)
 
 
 def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:

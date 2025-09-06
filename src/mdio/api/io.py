@@ -6,24 +6,29 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
+from upath import UPath
 from xarray import Dataset as xr_Dataset
 from xarray import open_zarr as xr_open_zarr
 from xarray.backends.api import to_zarr as xr_to_zarr
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
+    from pathlib import Path
 
-    from upath import UPath
     from xarray import Dataset
     from xarray.core.types import T_Chunks
     from xarray.core.types import ZarrWriteModes
+
+
+def _normalize_path(path: UPath | Path | str) -> UPath:
+    return UPath(path)
 
 
 def _normalize_storage_options(path: UPath) -> dict[str, Any] | None:
     return None if len(path.storage_options) == 0 else path.storage_options
 
 
-def open_mdio(input_path: UPath, chunks: T_Chunks = None) -> xr_Dataset:
+def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dataset:
     """Open a Zarr dataset from the specified universal file path.
 
     Args:
@@ -40,13 +45,14 @@ def open_mdio(input_path: UPath, chunks: T_Chunks = None) -> xr_Dataset:
     Returns:
         An Xarray dataset opened from the input path.
     """
+    input_path = _normalize_path(input_path)
     storage_options = _normalize_storage_options(input_path)
     return xr_open_zarr(input_path.path, chunks=chunks, storage_options=storage_options)
 
 
 def to_mdio(  # noqa: PLR0913
     dataset: Dataset,
-    output_path: UPath,
+    output_path: UPath | Path | str,
     mode: ZarrWriteModes | None = None,
     *,
     compute: bool = True,
@@ -70,6 +76,7 @@ def to_mdio(  # noqa: PLR0913
             the region of existing MDIO array(s) in which to write this dataset's data.
         zarr_format: The desired zarr format to target. The default is 3.
     """
+    output_path = _normalize_path(output_path)
     storage_options = _normalize_storage_options(output_path)
     xr_to_zarr(
         dataset,

@@ -10,6 +10,7 @@ import numpy as np
 from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
+from mdio.api.io import _normalize_path
 from mdio.api.io import open_mdio
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
@@ -22,6 +23,8 @@ except ImportError:
     distributed = None
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from segy.schema import SegySpec
     from upath import UPath
 
@@ -32,8 +35,8 @@ NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 
 def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     segy_spec: SegySpec,
-    input_path: UPath,
-    output_path: UPath,
+    input_path: UPath | Path | str,
+    output_path: UPath | Path | str,
     selection_mask: np.ndarray = None,
     client: distributed.Client = None,
 ) -> None:
@@ -70,6 +73,9 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         >>> output_path = UPath("prefix/file.segy")
         >>> mdio_to_segy(input_path, output_path)
     """
+    input_path = _normalize_path(input_path)
+    output_path = _normalize_path(output_path)
+
     # First we open with vanilla zarr backend and then get some info
     # We will re-open with `new_chunks` and Dask later in mdio_spec_to_segy
     dataset = open_mdio(input_path)

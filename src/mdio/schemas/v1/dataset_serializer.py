@@ -2,6 +2,7 @@
 
 import numpy as np
 from dask import array as dask_array
+from dask.array.core import normalize_chunks
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
 from zarr.codecs import BloscCodec
@@ -113,7 +114,7 @@ def _get_zarr_shape(var: Variable, all_named_dims: dict[str, NamedDimension]) ->
 def _get_zarr_chunks(var: Variable, all_named_dims: dict[str, NamedDimension]) -> tuple[int, ...]:
     """Get the chunk shape for a variable, defaulting to its shape if no chunk grid is defined."""
     if var.metadata is not None and var.metadata.chunk_grid is not None:
-        return tuple(var.metadata.chunk_grid.configuration.chunk_shape)
+        return var.metadata.chunk_grid.configuration.chunk_shape
     # Default to full shape if no chunk grid is defined
     return _get_zarr_shape(var, all_named_dims=all_named_dims)
 
@@ -178,12 +179,26 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
     # First pass: Build all variables
     data_arrays: dict[str, xr_DataArray] = {}
     for v in mdio_ds.variables:
+        # Retrieve the array shape, data type, and original chunk sizes
         shape = _get_zarr_shape(v, all_named_dims=all_named_dims)
         dtype = to_numpy_dtype(v.data_type)
-        chunks = _get_zarr_chunks(v, all_named_dims=all_named_dims)
+        original_chunks = _get_zarr_chunks(v, all_named_dims=all_named_dims)
 
-        # Use dask.array.zeros to create a lazy array
-        data = dask_array.full(shape=shape, dtype=dtype, chunks=chunks, fill_value=_get_fill_value(v.data_type))
+        # For efficient lazy array creation with Dask use larger chunks to minimize the task graph size
+        # Initialize with original chunks for lazy array creation
+        lazy_chunks = original_chunks
+        if shape != original_chunks:
+            # Compute automatic chunk sizes based on heuristics, respecting original chunks where possible
+            auto_chunks = normalize_chunks("auto", shape=shape, dtype=dtype, previous_chunks=original_chunks)
+
+            # Extract the primary (uniform) chunk size for each dimension, ignoring any variable remainder chunks
+            uniform_auto = tuple(dim_chunks[0] for dim_chunks in auto_chunks)
+
+            # Ensure creation chunks are at least as large as the original chunks to avoid splitting chunks
+            lazy_chunks = tuple(max(auto, orig) for auto, orig in zip(uniform_auto, original_chunks, strict=True))
+
+        data = dask_array.full(shape=shape, dtype=dtype, chunks=lazy_chunks, fill_value=_get_fill_value(v.data_type))
+
         # Create a DataArray for the variable. We will set coords in the second pass
         dim_names = _get_dimension_names(v)
         data_array = xr_DataArray(data, dims=dim_names)
@@ -201,7 +216,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
             data_array.attrs["long_name"] = v.long_name
 
         encoding = {
-            "chunks": chunks,
+            "chunks": original_chunks,
             "compressor": _convert_compressor(v.compressor),
             "fill_value": _get_fill_value(v.data_type),
         }

@@ -12,10 +12,10 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
     def __init__(self, domain: str):
         super().__init__(domain=domain)
 
-        self._coord_dim_names = ["inline", "crossline", "offset", "azimuth"]
-        self._dim_names = [*self._coord_dim_names, self._trace_domain]
-        self._coord_names = ["cdp_x", "cdp_y"]
-        self._var_chunk_shape = [8, 8, 32, 1, 1024]
+        self._coord_dim_names = ("inline", "crossline", "offset", "azimuth")
+        self._dim_names = (*self._coord_dim_names, self._trace_domain)
+        self._coord_names = ("cdp_x", "cdp_y")
+        self._var_chunk_shape = (8, 8, 32, 1, 1024)
 
     @property
     def _name(self) -> str:
@@ -34,43 +34,43 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
         # Add dimension coordinates
         self._builder.add_coordinate(
             "inline",
-            dimensions=["inline"],
+            dimensions=("inline",),
             data_type=ScalarType.INT32,
         )
         self._builder.add_coordinate(
             "crossline",
-            dimensions=["crossline"],
+            dimensions=("crossline",),
             data_type=ScalarType.INT32,
         )
         self._builder.add_coordinate(
             "offset",
-            dimensions=["offset"],
+            dimensions=("offset",),
             data_type=ScalarType.INT32,
             metadata_info=[self._horizontal_coord_unit],
         )
         angle_unit = AllUnits(units_v1={"angle": "deg"})
         self._builder.add_coordinate(
             "azimuth",
-            dimensions=["azimuth"],
+            dimensions=("azimuth",),
             data_type=ScalarType.FLOAT32,
             metadata_info=[angle_unit],
         )
         self._builder.add_coordinate(
             self.trace_domain,
-            dimensions=[self.trace_domain],
+            dimensions=(self.trace_domain,),
             data_type=ScalarType.INT32,
         )
 
         # Add non-dimension coordinates
         self._builder.add_coordinate(
             "cdp_x",
-            dimensions=["inline", "crossline"],
+            dimensions=("inline", "crossline"),
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )
         self._builder.add_coordinate(
             "cdp_y",
-            dimensions=["inline", "crossline"],
+            dimensions=("inline", "crossline"),
             data_type=ScalarType.FLOAT64,
             metadata_info=[self._horizontal_coord_unit],
         )

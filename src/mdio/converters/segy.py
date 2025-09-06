@@ -12,6 +12,7 @@ from segy.config import SegySettings
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
+from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
 from mdio.constants import UINT32_MAX
 from mdio.converters.exceptions import EnvironmentFormatError
@@ -27,6 +28,7 @@ from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from typing import Any
 
     from segy.arrays import HeaderArray as SegyHeaderArray
@@ -326,8 +328,8 @@ def _add_segy_ingest_attributes(dataset: Dataset, segy_file: SegyFile, grid_over
 def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
-    input_path: UPath,
-    output_path: UPath,
+    input_path: UPath | Path | str,
+    output_path: UPath | Path | str,
     overwrite: bool = False,
     grid_overrides: dict[str, Any] | None = None,
 ) -> None:
@@ -346,6 +348,9 @@ def segy_to_mdio(  # noqa PLR0913
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
     """
+    input_path = _normalize_path(input_path)
+    output_path = _normalize_path(output_path)
+
     if not overwrite and output_path.exists():
         err = f"Output location '{output_path.path}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)

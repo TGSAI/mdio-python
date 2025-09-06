@@ -31,7 +31,7 @@ def test_add_variable_no_coords() -> None:
     # Validate: Must add at least one dimension before adding variables
     msg = "Must add at least one dimension before adding variables"
     with pytest.raises(ValueError, match=msg):
-        builder.add_variable("amplitude", dimensions=["speed"], data_type=ScalarType.FLOAT32)
+        builder.add_variable("amplitude", dimensions=("speed",), data_type=ScalarType.FLOAT32)
 
     # Add dimension before we can add a data variable
     builder.add_dimension("inline", 100)
@@ -41,21 +41,21 @@ def test_add_variable_no_coords() -> None:
     # Validate: required parameters must be preset
     bad_name = None
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
-        builder.add_variable(bad_name, dimensions=["speed"], data_type=ScalarType.FLOAT32)
+        builder.add_variable(bad_name, dimensions=("speed",), data_type=ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
-        builder.add_variable("", dimensions=["speed"], data_type=ScalarType.FLOAT32)
+        builder.add_variable("", dimensions=("speed",), data_type=ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
         builder.add_variable("bad_amplitude", dimensions=None, data_type=ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_variable("bad_amplitude", dimensions=[], data_type=ScalarType.FLOAT32)
+        builder.add_variable("bad_amplitude", dimensions=(), data_type=ScalarType.FLOAT32)
 
     # Validate: Add a variable using non-existent dimensions is not allowed
     msg = "Pre-existing dimension named 'il' is not found"
     with pytest.raises(ValueError, match=msg):
-        builder.add_variable("bad_amplitude", dimensions=["il", "xl", "depth"], data_type=ScalarType.FLOAT32)
+        builder.add_variable("bad_amplitude", dimensions=("il", "xl", "depth"), data_type=ScalarType.FLOAT32)
 
     # Add a variable without coordinates
-    builder.add_variable("amplitude", dimensions=["inline", "crossline", "depth"], data_type=ScalarType.FLOAT32)
+    builder.add_variable("amplitude", dimensions=("inline", "crossline", "depth"), data_type=ScalarType.FLOAT32)
     validate_builder(builder, _BuilderState.HAS_VARIABLES, n_dims=3, n_coords=0, n_var=1)
     validate_variable(
         builder,
@@ -68,7 +68,7 @@ def test_add_variable_no_coords() -> None:
     # Validate: adding a variable with the same name twice is not allowed
     msg = "Adding variable with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
-        builder.add_variable("amplitude", dimensions=["inline", "crossline", "depth"], data_type=ScalarType.FLOAT32)
+        builder.add_variable("amplitude", dimensions=("inline", "crossline", "depth"), data_type=ScalarType.FLOAT32)
 
 
 def test_add_variable_with_coords() -> None:
@@ -79,24 +79,24 @@ def test_add_variable_with_coords() -> None:
     builder.add_dimension("depth", 300)
 
     # Add dimension coordinates before we can add a data variable
-    builder.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
-    builder.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
+    builder.add_coordinate("inline", dimensions=("inline",), data_type=ScalarType.UINT32)
+    builder.add_coordinate("crossline", dimensions=("crossline",), data_type=ScalarType.UINT32)
 
     # Validate: adding a variable with a coordinate that has not been pre-created is not allowed
     msg = "Pre-existing coordinate named 'depth' is not found"
     with pytest.raises(ValueError, match=msg):
         builder.add_variable(
             "ampl",
-            dimensions=["inline", "crossline", "depth"],
-            coordinates=["inline", "crossline", "depth"],
+            dimensions=("inline", "crossline", "depth"),
+            coordinates=("inline", "crossline", "depth"),
             data_type=ScalarType.FLOAT32,
         )
 
     # Add a variable with pre-defined dimension coordinates
     builder.add_variable(
         "ampl",
-        dimensions=["inline", "crossline", "depth"],
-        coordinates=["inline", "crossline"],
+        dimensions=("inline", "crossline", "depth"),
+        coordinates=("inline", "crossline"),
         data_type=ScalarType.FLOAT32,
     )
     validate_builder(builder, _BuilderState.HAS_VARIABLES, n_dims=3, n_coords=2, n_var=3)
@@ -109,14 +109,14 @@ def test_add_variable_with_coords() -> None:
     )
 
     # Add non-dim coordinates (e.g., 2D coordinates)
-    builder.add_coordinate("cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
-    builder.add_coordinate("cdp_y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+    builder.add_coordinate("cdp_x", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32)
+    builder.add_coordinate("cdp_y", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32)
 
     # Add a variable with pre-defined dimension and non-dimension coordinates
     builder.add_variable(
         "ampl2",
-        dimensions=["inline", "crossline", "depth"],
-        coordinates=["inline", "crossline", "cdp_x", "cdp_y"],
+        dimensions=("inline", "crossline", "depth"),
+        coordinates=("inline", "crossline", "cdp_x", "cdp_y"),
         data_type=ScalarType.FLOAT32,
     )
     validate_builder(builder, _BuilderState.HAS_VARIABLES, n_dims=3, n_coords=4, n_var=6)
@@ -137,17 +137,17 @@ def test_add_variable_with_defaults() -> None:
     builder.add_dimension("crossline", 200)
     builder.add_dimension("depth", 300)
     # Add dimension coordinates
-    builder.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
-    builder.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
+    builder.add_coordinate("inline", dimensions=("inline",), data_type=ScalarType.UINT32)
+    builder.add_coordinate("crossline", dimensions=("crossline",), data_type=ScalarType.UINT32)
     builder.add_coordinate(
         "depth",
-        dimensions=["depth"],
+        dimensions=("depth",),
         data_type=ScalarType.UINT32,
         metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
     )
 
     # Add data variable using defaults
-    builder.add_variable("ampl", dimensions=["inline", "crossline", "depth"], data_type=ScalarType.FLOAT32)
+    builder.add_variable("ampl", dimensions=("inline", "crossline", "depth"), data_type=ScalarType.FLOAT32)
     validate_builder(builder, _BuilderState.HAS_VARIABLES, n_dims=3, n_coords=3, n_var=4)
     v = validate_variable(
         builder,
@@ -170,21 +170,21 @@ def test_add_variable_full_parameters() -> None:
     builder.add_dimension("crossline", 200)
     builder.add_dimension("depth", 300)
     # Add dimension coordinates
-    builder.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
-    builder.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
-    builder.add_coordinate("depth", dimensions=["depth"], data_type=ScalarType.UINT32)
+    builder.add_coordinate("inline", dimensions=("inline",), data_type=ScalarType.UINT32)
+    builder.add_coordinate("crossline", dimensions=("crossline",), data_type=ScalarType.UINT32)
+    builder.add_coordinate("depth", dimensions=("depth",), data_type=ScalarType.UINT32)
     # Add coordinates before we can add a data variable
-    builder.add_coordinate("cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)
-    builder.add_coordinate("cdp_y", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT64)
+    builder.add_coordinate("cdp_x", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT64)
+    builder.add_coordinate("cdp_y", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT64)
 
     # Add data variable with full parameters
     builder.add_variable(
         "ampl",
         long_name="Amplitude (dimensionless)",
-        dimensions=["inline", "crossline", "depth"],
+        dimensions=("inline", "crossline", "depth"),
         data_type=ScalarType.FLOAT32,
         compressor=Blosc(cname=BloscCname.zstd),
-        coordinates=["inline", "crossline", "depth", "cdp_x", "cdp_y"],
+        coordinates=("inline", "crossline", "depth", "cdp_x", "cdp_y"),
         metadata_info=[
             AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
             UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"}),
@@ -219,7 +219,7 @@ def test_add_variable_full_parameters() -> None:
     assert v.metadata.attributes["MGA"] == 51
     assert v.metadata.attributes["UnitSystem"] == "Imperial"
     assert v.metadata.chunk_grid.name == "regular"
-    assert v.metadata.chunk_grid.configuration.chunk_shape == [20]
+    assert v.metadata.chunk_grid.configuration.chunk_shape == (20,)
     assert v.metadata.stats_v1.count == 100
     assert v.metadata.stats_v1.sum == 1215.1
     assert v.metadata.stats_v1.sum_squares == 125.12
