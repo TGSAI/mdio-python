@@ -47,7 +47,7 @@ def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dat
     """
     input_path = _normalize_path(input_path)
     storage_options = _normalize_storage_options(input_path)
-    return xr_open_zarr(input_path.path, chunks=chunks, storage_options=storage_options)
+    return xr_open_zarr(input_path.as_uri(), chunks=chunks, storage_options=storage_options)
 
 
 def to_mdio(  # noqa: PLR0913
@@ -80,7 +80,7 @@ def to_mdio(  # noqa: PLR0913
     storage_options = _normalize_storage_options(output_path)
     xr_to_zarr(
         dataset,
-        store=output_path.path,
+        store=output_path.as_uri(),
         mode=mode,
         compute=compute,
         consolidated=False,

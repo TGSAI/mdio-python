@@ -114,7 +114,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     # HACK: We will update the array attribute using zarr's API directly.
     # Use the data_variable_name to get the array in the Zarr group and write "statistics" metadata there
     storage_options = _normalize_storage_options(output_path)
-    zarr_group = zarr_open_group(output_path.path, mode="a", storage_options=storage_options)
+    zarr_group = zarr_open_group(output_path.as_uri(), mode="a", storage_options=storage_options)
     attr_json = final_stats.model_dump_json()
     zarr_group[data_variable_name].attrs.update({"statsV1": attr_json})
 

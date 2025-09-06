@@ -352,7 +352,7 @@ def segy_to_mdio(  # noqa PLR0913
     output_path = _normalize_path(output_path)
 
     if not overwrite and output_path.exists():
-        err = f"Output location '{output_path.path}' exists. Set `overwrite=True` if intended."
+        err = f"Output location '{output_path.as_uri()}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)
 
     # Use `as_uri()` here since SegyFile doesn't support UPath yet.
