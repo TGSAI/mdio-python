@@ -355,8 +355,9 @@ def segy_to_mdio(  # noqa PLR0913
         err = f"Output location '{output_path.path}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)
 
+    # Use `as_uri()` here since SegyFile doesn't support UPath yet.
     segy_settings = SegySettings(storage_options=input_path.storage_options)
-    segy_file = SegyFile(url=input_path.path, spec=segy_spec, settings=segy_settings)
+    segy_file = SegyFile(url=input_path.as_uri(), spec=segy_spec, settings=segy_settings)
 
     segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
