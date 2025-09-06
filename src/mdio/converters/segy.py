@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import logging
 import os
-import warnings
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -12,7 +11,6 @@ from segy import SegyFile
 from segy.config import SegySettings
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
-from zarr.errors import UnstableSpecificationWarning
 
 from mdio.api.io import to_mdio
 from mdio.constants import UINT32_MAX
@@ -41,11 +39,6 @@ if TYPE_CHECKING:
     from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 
 logger = logging.getLogger(__name__)
-
-# warnings.filterwarnings("ignore", message="*data type*Structured*", category=UnstableSpecificationWarning)
-# warnings.filterwarnings("ignore", message="Consolidated metadata", category=ZarrUserWarning)
-
-warnings.filterwarnings("ignore", message="Structured", category=UnstableSpecificationWarning)
 
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
