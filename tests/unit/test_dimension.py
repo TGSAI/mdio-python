@@ -38,22 +38,6 @@ class TestDimension:
         assert my_dimension == other_dim1
         assert my_dimension != other_dim2
 
-    @pytest.mark.parametrize(
-        ("stream_format", "stream"),
-        [
-            ("json", '{"name": "dim_0", "length": 4, "coords": [10, 12, 14, 16]}'),
-            ("yaml", "name: dim_0\nlength: 4\ncoords:\n- 10\n- 12\n- 14\n- 16\n"),
-        ],
-    )
-    def test_serialization(self, my_dimension: Dimension, stream_format: str, stream: str) -> None:
-        """Test serialization and deserialization."""
-        observed_stream = my_dimension.serialize(stream_format)
-        assert observed_stream == stream
-
-        # Deserialize
-        observed_dimension = Dimension.deserialize(stream, stream_format)
-        assert observed_dimension == my_dimension
-
 
 class TestExceptions:
     """Test custom exceptions and if they're raised properly."""

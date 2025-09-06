@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
@@ -11,7 +10,7 @@ import numpy as np
 from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
-from mdio.api.opener import open_dataset
+from mdio.api.io import open_mdio
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
@@ -24,8 +23,8 @@ except ImportError:
 
 if TYPE_CHECKING:
     from segy.schema import SegySpec
+    from upath import UPath
 
-    from mdio.core.storage_location import StorageLocation
 
 default_cpus = cpu_count(logical=True)
 NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
@@ -33,8 +32,8 @@ NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 
 def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     segy_spec: SegySpec,
-    input_location: StorageLocation,
-    output_location: StorageLocation,
+    input_path: UPath,
+    output_path: UPath,
     selection_mask: np.ndarray = None,
     client: distributed.Client = None,
 ) -> None:
@@ -50,8 +49,8 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
 
     Args:
         segy_spec: The SEG-Y specification to use for the conversion.
-        input_location: Store or URL (and cloud options) for MDIO file.
-        output_location: Path to the output SEG-Y file.
+        input_path: Store or URL (and cloud options) for MDIO file.
+        output_path: Path to the output SEG-Y file.
         selection_mask: Array that lists the subset of traces
         client: Dask client. If `None` we will use local threaded scheduler. If `auto` is used we
             will create multiple processes (with 8 threads each).
@@ -64,17 +63,16 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         To export an existing local MDIO file to SEG-Y we use the code snippet below. This will
         export the full MDIO (without padding) to SEG-Y format.
 
-        >>> from mdio import mdio_to_segy, StorageLocation
+        >>> from upath import UPath
+        >>> from mdio import mdio_to_segy
         >>>
-        >>> input_location = StorageLocation("prefix2/file.mdio")
-        >>> output_location = StorageLocation("prefix/file.segy")
-        >>> mdio_to_segy(input_location, output_location)
+        >>> input_path = UPath("prefix2/file.mdio")
+        >>> output_path = UPath("prefix/file.segy")
+        >>> mdio_to_segy(input_path, output_path)
     """
-    output_segy_path = Path(output_location.uri)
-
     # First we open with vanilla zarr backend and then get some info
     # We will re-open with `new_chunks` and Dask later in mdio_spec_to_segy
-    dataset = open_dataset(input_location)
+    dataset = open_mdio(input_path)
 
     default_variable_name = dataset.attrs["attributes"]["default_variable_name"]
     amplitude = dataset[default_variable_name]
@@ -83,7 +81,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     dtype = amplitude.dtype
     new_chunks = segy_export_rechunker(chunks, sizes, dtype)
 
-    creation_args = [segy_spec, input_location, output_location, new_chunks]
+    creation_args = [segy_spec, input_path, output_path, new_chunks]
 
     if client is not None:
         if distributed is not None:
@@ -128,7 +126,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         dataset["trace_mask"] = dataset["trace_mask"] & selection_mask
 
     # tmp file root
-    out_dir = output_segy_path.parent
+    out_dir = output_path.parent
     tmp_dir = TemporaryDirectory(dir=out_dir)
 
     with tmp_dir:
@@ -147,7 +145,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
                 block_records = block_records.compute(num_workers=NUM_CPUS)
 
         ordered_files = [rec.path for rec in block_records.ravel() if rec != 0]
-        ordered_files = [output_segy_path] + ordered_files
+        ordered_files = [output_path] + ordered_files
 
         if client is not None:
             _ = client.submit(concat_files, paths=ordered_files).result()

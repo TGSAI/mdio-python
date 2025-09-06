@@ -12,15 +12,14 @@ import numpy as np
 from segy.factory import SegyFactory
 from tqdm.auto import tqdm
 
-from mdio.api.opener import open_dataset
+from mdio.api.io import open_mdio
 from mdio.segy.compat import revision_encode
 
 if TYPE_CHECKING:
     import xarray as xr
     from numpy.typing import NDArray
     from segy.schema import SegySpec
-
-    from mdio.core.storage_location import StorageLocation
+    from upath import UPath
 
 
 logger = logging.getLogger(__name__)
@@ -40,8 +39,8 @@ def make_segy_factory(dataset: xr.Dataset, spec: SegySpec) -> SegyFactory:
 
 def mdio_spec_to_segy(
     segy_spec: SegySpec,
-    input_location: StorageLocation,
-    output_location: StorageLocation,
+    input_path: UPath,
+    output_path: UPath,
     new_chunks: tuple[int, ...] | None = None,
 ) -> tuple[xr.Dataset, SegyFactory]:
     """Create SEG-Y file without any traces given MDIO specification.
@@ -56,14 +55,14 @@ def mdio_spec_to_segy(
 
     Args:
         segy_spec: The SEG-Y specification to use for the conversion.
-        input_location: Store or URL (and cloud options) for MDIO file.
-        output_location: Path to the output SEG-Y file.
+        input_path: Store or URL (and cloud options) for MDIO file.
+        output_path: Path to the output SEG-Y file.
         new_chunks: Set in memory chunksize for export or other reasons.
 
     Returns:
         Opened Xarray Dataset for MDIO file and SegyFactory
     """
-    dataset = open_dataset(input_location, chunks=new_chunks)
+    dataset = open_mdio(input_path, chunks=new_chunks)
     factory = make_segy_factory(dataset, spec=segy_spec)
 
     attr = dataset.attrs["attributes"]
@@ -77,7 +76,7 @@ def mdio_spec_to_segy(
     binary_header = revision_encode(bin_header, mdio_file_version)
     bin_hdr_bytes = factory.create_binary_header(binary_header)
 
-    with Path(output_location.uri).open(mode="wb") as fp:
+    with output_path.open(mode="wb") as fp:
         fp.write(text_bytes)
         fp.write(bin_hdr_bytes)
 

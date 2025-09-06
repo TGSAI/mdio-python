@@ -10,16 +10,16 @@ from typing import cast
 import numpy as np
 from segy import SegyFile
 
+from mdio.api.io import to_mdio
 from mdio.schemas import ScalarType
 
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
     from segy.config import SegySettings
     from segy.schema import SegySpec
+    from upath import UPath
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
-
-    from mdio.core.storage_location import StorageLocation
 
 from xarray import Variable
 from zarr.core.config import config as zarr_config
@@ -82,7 +82,7 @@ def header_scan_worker(
 
 def trace_worker(  # noqa: PLR0913
     segy_kw: SegyFileArguments,
-    output_location: StorageLocation,
+    output_path: UPath,
     data_variable_name: str,
     region: dict[str, slice],
     grid_map: zarr_Array,
@@ -92,7 +92,7 @@ def trace_worker(  # noqa: PLR0913
 
     Args:
         segy_kw: Arguments to open SegyFile instance.
-        output_location: StorageLocation for the output Zarr dataset
+        output_path: Universal Path for the output Zarr dataset
             (e.g. local file path or cloud storage URI) the location
             also includes storage options for cloud storage.
         data_variable_name: Name of the data variable to write.
@@ -160,7 +160,7 @@ def trace_worker(  # noqa: PLR0913
         encoding=ds_to_write[data_variable_name].encoding,  # Not strictly necessary, but safer than not doing it.
     )
 
-    ds_to_write.to_zarr(output_location.uri, region=region, mode="r+")
+    to_mdio(ds_to_write, output_path=output_path, region=region, mode="r+")
 
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
     return SummaryStatistics(

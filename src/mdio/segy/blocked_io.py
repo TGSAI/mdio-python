@@ -14,9 +14,9 @@ from dask.array import Array
 from dask.array import map_blocks
 from psutil import cpu_count
 from tqdm.auto import tqdm
-from zarr import consolidate_metadata as zarr_consolidate_metadata
 from zarr import open_group as zarr_open_group
 
+from mdio.api.io import _normalize_storage_options
 from mdio.core.indexing import ChunkIterator
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
@@ -30,10 +30,9 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
     from segy import SegyFile
+    from upath import UPath
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
-
-    from mdio.core.storage_location import StorageLocation
 
 default_cpus = cpu_count(logical=True)
 
@@ -53,7 +52,7 @@ def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatisti
 
 def to_zarr(  # noqa: PLR0913, PLR0915
     segy_file: SegyFile,
-    output_location: StorageLocation,
+    output_path: UPath,
     grid_map: zarr_Array,
     dataset: xr_Dataset,
     data_variable_name: str,
@@ -62,9 +61,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
 
     Args:
         segy_file: SEG-Y file instance.
-        output_location: StorageLocation for the output Zarr dataset
-            (e.g. local file path or cloud storage URI) the location
-            also includes storage options for cloud storage.
+        output_path: Output universal path for the output MDIO dataset.
         grid_map: Zarr array with grid map for the traces.
         dataset: Handle for xarray.Dataset we are writing trace data
         data_variable_name: Name of the data variable in the dataset.
@@ -106,7 +103,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     }
     with executor:
         futures = []
-        common_args = (segy_kw, output_location, data_variable_name)
+        common_args = (segy_kw, output_path, data_variable_name)
         for region in chunk_iter:
             index_slices = tuple(region[key] for key in data.dims[:-1])
             subset_args = (
@@ -129,17 +126,13 @@ def to_zarr(  # noqa: PLR0913, PLR0915
             if result is not None:
                 _update_stats(final_stats, result)
 
-    # Xarray doesn't directly support incremental attribute updates when appending to an
-    # existing Zarr store.
+    # Xarray doesn't directly support incremental attribute updates when appending to an existing Zarr store.
     # HACK: We will update the array attribute using zarr's API directly.
-    # Open the Zarr store using zarr directly
-    zarr_group = zarr_open_group(output_location.uri, mode="a")
+    # Use the data_variable_name to get the array in the Zarr group and write "statistics" metadata there
+    storage_options = _normalize_storage_options(output_path)
+    zarr_group = zarr_open_group(output_path.path, mode="a", storage_options=storage_options)
     attr_json = final_stats.model_dump_json()
-    # Use the data_variable_name to get the array in the Zarr group
-    # and write "statistics" metadata there
     zarr_group[data_variable_name].attrs.update({"statsV1": attr_json})
-    # Consolidate metadata (important for Xarray to recognize changes)
-    zarr_consolidate_metadata(output_location.uri)
 
     return final_stats
 

@@ -21,11 +21,11 @@ from segy.schema import HeaderField
 from segy.schema import SegySpec
 from segy.standards import get_segy_standard
 from tests.conftest import DEBUG_MODE
+from upath import UPath
 
 from mdio import mdio_to_segy
-from mdio.api.opener import open_dataset
+from mdio.api.io import open_mdio
 from mdio.converters.segy import segy_to_mdio
-from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 
 if TYPE_CHECKING:
@@ -300,8 +300,8 @@ class TestNdImportExport:
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get(template_name),
-            input_location=StorageLocation(str(segy_path)),
-            output_location=StorageLocation(str(mdio_path)),
+            input_path=UPath(segy_path),
+            output_path=UPath(mdio_path),
             overwrite=True,
         )
 
@@ -315,7 +315,7 @@ class TestNdImportExport:
         mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
 
         # Open the MDIO file
-        ds = open_dataset(StorageLocation(str(mdio_path)))
+        ds = open_mdio(UPath(mdio_path))
 
         # Test dimensions and ingested dimension headers
         expected_dims = grid_conf.dims
@@ -376,8 +376,8 @@ class TestNdImportExport:
 
         mdio_to_segy(
             segy_spec=_segy_spec_mock_nd_segy(grid_conf, segy_factory_conf),
-            input_location=StorageLocation(str(mdio_path)),
-            output_location=StorageLocation(str(segy_rt_path))
+            input_path=UPath(mdio_path),
+            output_path=UPath(segy_rt_path)
         )
 
         expected_sgy = SegyFile(segy_path)
@@ -414,8 +414,8 @@ class TestNdImportExport:
 
         mdio_to_segy(
             segy_spec=_segy_spec_mock_nd_segy(grid_conf, segy_factory_conf),
-            input_location=StorageLocation(str(mdio_path)),
-            output_location=StorageLocation(str(segy_rt_path)),
+            input_path=UPath(mdio_path),
+            output_path=UPath(str(segy_rt_path)),
             selection_mask=selection_mask
         )
 
