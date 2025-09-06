@@ -21,10 +21,9 @@ from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_variable
 
 from mdio import mdio_to_segy
-from mdio.api.opener import open_dataset
+from mdio.api.io import open_mdio
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.segy import segy_to_mdio
-from mdio.core.storage_location import StorageLocation
 from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy.geometry import StreamerShotGeometryType
 
@@ -53,13 +52,11 @@ class TestImport4DNonReg:
         segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
-        input_location = StorageLocation(str(segy_path))
-        output_location = StorageLocation(str(zarr_tmp))
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
-            input_location=input_location,
-            output_location=output_location,
+            input_path=segy_path,
+            output_path=zarr_tmp,
             overwrite=True,
             grid_overrides=grid_override,
         )
@@ -70,7 +67,7 @@ class TestImport4DNonReg:
         cables = [0, 101, 201, 301]
         receivers_per_cable = [1, 5, 7, 5]
 
-        ds = open_dataset(output_location)
+        ds = open_mdio(zarr_tmp)
 
         assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
         assert ds.attrs["attributes"]["gridOverrides"] == grid_override
@@ -102,12 +99,11 @@ class TestImport4D:
         segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
-        output_location = StorageLocation(str(zarr_tmp))
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
-            input_location=StorageLocation(str(segy_path)),
-            output_location=output_location,
+            input_path=segy_path,
+            output_path=zarr_tmp,
             overwrite=True,
             grid_overrides=grid_override,
         )
@@ -118,7 +114,7 @@ class TestImport4D:
         cables = [0, 101, 201, 301]
         receivers_per_cable = [1, 5, 7, 5]
 
-        ds = open_dataset(output_location)
+        ds = open_mdio(zarr_tmp)
 
         assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
         assert ds.attrs["attributes"].get("gridOverrides", None) == grid_override  # may not exist, so default=None
@@ -156,8 +152,8 @@ class TestImport4DSparse:
             segy_to_mdio(
                 segy_spec=segy_spec,
                 mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
-                input_location=StorageLocation(str(segy_path)),
-                output_location=StorageLocation(str(zarr_tmp)),
+                input_path=segy_path,
+                output_path=zarr_tmp,
                 overwrite=True,
             )
 
@@ -182,12 +178,11 @@ class TestImport6D:
         segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
-        output_location = StorageLocation(str(zarr_tmp))
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get("XYZ"),  # Placeholder for the template
-            input_location=StorageLocation(str(segy_path)),
-            output_location=output_location,
+            input_path=segy_path,
+            output_path=zarr_tmp,
             overwrite=True,
             grid_overrides=grid_override,
         )
@@ -203,7 +198,7 @@ class TestImport6D:
         guns = [1, 2]
         receivers_per_cable = [1, 5, 7, 5]
 
-        ds = open_dataset(output_location)
+        ds = open_mdio(zarr_tmp)
 
         xrt.assert_duckarray_equal(ds["gun"], guns)
         xrt.assert_duckarray_equal(ds["shot_point"], shots)
@@ -228,8 +223,8 @@ def test_3d_import(segy_input: Path, zarr_tmp: Path) -> None:
     segy_to_mdio(
         segy_spec=custom_teapot_dome_segy_spec(keep_unaltered=True),
         mdio_template=TemplateRegistry().get("PostStack3DTime"),
-        input_location=StorageLocation(str(segy_input)),
-        output_location=StorageLocation(str(zarr_tmp)),
+        input_path=segy_input,
+        output_path=zarr_tmp,
         overwrite=True,
     )
 
@@ -243,7 +238,7 @@ class TestReader:
 
     def test_dataset_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        ds = open_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_mdio(zarr_tmp)
         expected_attrs = {
             "apiVersion": "1.0.0a1",
             "createdOn": "2025-08-06 16:21:54.747880+00:00",
@@ -271,7 +266,7 @@ class TestReader:
 
     def test_variable_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
-        ds = open_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_mdio(zarr_tmp)
         expected_attrs = {
             "count": 97354860,
             "sum": -8594.551666259766,
@@ -285,7 +280,7 @@ class TestReader:
 
     def test_grid(self, zarr_tmp: Path) -> None:
         """Test validating MDIO variables."""
-        ds = open_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_mdio(zarr_tmp)
 
         # Validate the dimension coordinate variables
         validate_variable(ds, "inline", (345,), ("inline",), np.int32, range(1, 346), get_values)
@@ -327,14 +322,14 @@ class TestReader:
 
     def test_inline_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 inlines' mean and std. dev."""
-        ds = open_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_mdio(zarr_tmp)
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(), inlines.std()
         npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
 
     def test_crossline_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
-        ds = open_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_mdio(zarr_tmp)
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(), xlines.std()
 
@@ -342,7 +337,7 @@ class TestReader:
 
     def test_zslice_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
-        ds = open_dataset(StorageLocation(str(zarr_tmp)))
+        ds = open_mdio(zarr_tmp)
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(), slices.std()
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
@@ -359,11 +354,7 @@ class TestExport:
         """Test 3D export to IBM and IEEE."""
         spec = custom_teapot_dome_segy_spec(keep_unaltered=True)
 
-        mdio_to_segy(
-            segy_spec=spec,
-            input_location=StorageLocation(str(zarr_tmp)),
-            output_location=StorageLocation(str(segy_export_tmp)),
-        )
+        mdio_to_segy(segy_spec=spec, input_path=zarr_tmp, output_path=segy_export_tmp)
 
         # Check if file sizes match on IBM file.
         assert segy_input.stat().st_size == segy_export_tmp.stat().st_size

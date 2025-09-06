@@ -13,7 +13,7 @@ TEST_SCHEMA = {
             "name": "actual_variable",
             "data_type": "float32",
             "dimensions": ["dim0", "dim1"],
-            "compressor": {"name": "blosc", "level": 3},
+            "compressor": {"name": "blosc", "clevel": 3},
             "coordinates": ["coord"],
             "metadata": {
                 "chunk_grid": {

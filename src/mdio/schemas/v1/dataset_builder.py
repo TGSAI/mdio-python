@@ -136,7 +136,7 @@ class MDIODatasetBuilder:
         name: str,
         *,
         long_name: str = None,
-        dimensions: list[str],
+        dimensions: tuple[str, ...],
         data_type: ScalarType,
         compressor: Blosc | ZFP | None = None,
         metadata_info: CoordinateMetadataList | None = None,
@@ -218,10 +218,10 @@ class MDIODatasetBuilder:
         name: str,
         *,
         long_name: str = None,
-        dimensions: list[str],
+        dimensions: tuple[str, ...],
         data_type: ScalarType | StructuredType,
         compressor: Blosc | ZFP | None = None,
-        coordinates: list[str] | None = None,
+        coordinates: tuple[str, ...] | None = None,
         metadata_info: VariableMetadataList | None = None,
     ) -> "MDIODatasetBuilder":
         """Add a variable after adding at least one dimension and, optionally, coordinate.

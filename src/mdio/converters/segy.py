@@ -12,6 +12,8 @@ from segy.config import SegySettings
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
+from mdio.api.io import _normalize_path
+from mdio.api.io import to_mdio
 from mdio.constants import UINT32_MAX
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
@@ -26,14 +28,15 @@ from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
+    from pathlib import Path
     from typing import Any
 
     from segy.arrays import HeaderArray as SegyHeaderArray
     from segy.schema import SegySpec
+    from upath import UPath
     from xarray import Dataset as xr_Dataset
 
     from mdio.core.dimension import Dimension
-    from mdio.core.storage_location import StorageLocation
     from mdio.schemas.v1.dataset import Dataset
     from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 
@@ -325,8 +328,8 @@ def _add_segy_ingest_attributes(dataset: Dataset, segy_file: SegyFile, grid_over
 def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
-    input_location: StorageLocation,
-    output_location: StorageLocation,
+    input_path: UPath | Path | str,
+    output_path: UPath | Path | str,
     overwrite: bool = False,
     grid_overrides: dict[str, Any] | None = None,
 ) -> None:
@@ -337,20 +340,23 @@ def segy_to_mdio(  # noqa PLR0913
     Args:
         segy_spec: The SEG-Y specification to use for the conversion.
         mdio_template: The MDIO template to use for the conversion.
-        input_location: The storage location of the input SEG-Y file.
-        output_location: The storage location for the output MDIO v1 file.
+        input_path: The universal path of the input SEG-Y file.
+        output_path: The universal path for the output MDIO v1 file.
         overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
         grid_overrides: Option to add grid overrides.
 
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
     """
-    if not overwrite and output_location.exists():
-        err = f"Output location '{output_location.uri}' exists. Set `overwrite=True` if intended."
+    input_path = _normalize_path(input_path)
+    output_path = _normalize_path(output_path)
+
+    if not overwrite and output_path.exists():
+        err = f"Output location '{output_path.path}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)
 
-    segy_settings = SegySettings(storage_options=input_location.options)
-    segy_file = SegyFile(url=input_location.uri, spec=segy_spec, settings=segy_settings)
+    segy_settings = SegySettings(storage_options=input_path.storage_options)
+    segy_file = SegyFile(url=input_path.path, spec=segy_spec, settings=segy_settings)
 
     segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
@@ -381,18 +387,15 @@ def segy_to_mdio(  # noqa PLR0913
 
     xr_dataset.trace_mask.data[:] = grid.live_mask
 
-    # TODO(Dmitriy Repin): Write out text and binary headers.
-    # https://github.com/TGSAI/mdio-python/issues/595
-
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
     # blocked_io.to_zarr() -> _workers.trace_worker()
 
     # This will create the Zarr store with the correct structure but with empty arrays
-    xr_dataset.to_zarr(store=output_location.uri, mode="w", write_empty_chunks=False, zarr_format=2, compute=False)
+    to_mdio(xr_dataset, output_path=output_path, mode="w", compute=False)
 
     # This will write the non-dimension coordinates and trace mask
     meta_ds = xr_dataset[drop_vars_delayed + ["trace_mask"]]
-    meta_ds.to_zarr(store=output_location.uri, mode="r+", write_empty_chunks=False, zarr_format=2, compute=True)
+    to_mdio(meta_ds, output_path=output_path, mode="r+", compute=True)
 
     # Now we can drop them to simplify chunked write of the data variable
     xr_dataset = xr_dataset.drop_vars(drop_vars_delayed)
@@ -403,7 +406,7 @@ def segy_to_mdio(  # noqa PLR0913
     # performed in chunks to save the memory
     blocked_io.to_zarr(
         segy_file=segy_file,
-        output_location=output_location,
+        output_path=output_path,
         grid_map=grid.map,
         dataset=xr_dataset,
         data_variable_name=default_variable_name,

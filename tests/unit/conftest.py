@@ -8,18 +8,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
-from mdio import MDIOReader
-from mdio import MDIOWriter
 from mdio.core import Dimension
 from mdio.core import Grid
-from mdio.core.factory import MDIOCreateConfig
-from mdio.core.factory import MDIOVariableConfig
-from mdio.core.factory import create_empty
-from mdio.core.utils_write import write_attribute
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from numpy.typing import NDArray
 
 API_VERSION = metadata.version("multidimio")
@@ -65,62 +57,3 @@ def mock_data(mock_grid: Grid, mock_ilxl_values: tuple[NDArray, ...]) -> NDArray
     sample_axis = mock_grid.select_dim("sample").coords
     data = il_grid / xl_grid
     return data[..., None] + sample_axis[None, None, :]
-
-
-@pytest.fixture
-def mock_mdio(
-    mock_mdio_dir: Path,
-    mock_grid: Grid,
-    mock_ilxl_values: tuple[NDArray, NDArray],
-    mock_data: NDArray,
-    mock_bin: dict[str, int],
-) -> Path:
-    """This mocks most of mdio.converters.segy in memory."""
-    il_grid, xl_grid = mock_ilxl_values
-    mock_header_dtype = np.dtype([("inline", "i4"), ("crossline", "i4")])
-    mock_grid.live_mask = np.ones(mock_grid.shape[:-1], dtype=bool)
-
-    var = MDIOVariableConfig(
-        name="chunked_012",
-        dtype="float64",
-        chunks=mock_grid.shape,
-        header_dtype=mock_header_dtype,
-    )
-
-    conf = MDIOCreateConfig(path=mock_mdio_dir, grid=mock_grid, variables=[var])
-    zarr_root = create_empty(conf, overwrite=True)
-    trace_count = np.count_nonzero(mock_grid.live_mask)
-    write_attribute(name="trace_count", zarr_group=zarr_root, attribute=trace_count)
-
-    writer = MDIOWriter(mock_mdio_dir)
-    writer.binary_header = mock_bin
-
-    writer._headers["inline"] = il_grid
-    writer._headers["crossline"] = xl_grid
-    writer[:] = mock_data
-
-    stats = {
-        "mean": mock_data.mean(),
-        "std": mock_data.std(),
-        "rms": np.sqrt((mock_data**2).sum() / mock_data.size),
-        "min": mock_data.min(),
-        "max": mock_data.max(),
-    }
-    writer.stats = stats
-    return mock_mdio_dir
-
-
-@pytest.fixture
-def mock_reader(mock_mdio: Path) -> MDIOReader:
-    """Reader that points to the mocked data to be used later."""
-    return MDIOReader(str(mock_mdio))
-
-
-@pytest.fixture
-def mock_reader_cached(mock_mdio: Path) -> MDIOReader:
-    """Reader that points to the mocked data to be used later. (with local caching)."""
-    return MDIOReader(
-        str(mock_mdio),
-        disk_cache=True,
-        storage_options={"simplecache": {"cache_storage": "./mdio_test_cache"}},
-    )

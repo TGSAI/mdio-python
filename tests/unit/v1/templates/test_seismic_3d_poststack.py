@@ -4,6 +4,7 @@ from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
+from mdio.schemas.compressors import BloscCname
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.v1.dataset import Dataset
@@ -98,14 +99,14 @@ class TestSeismic3DPostStackTemplate:
 
         # Template attributes to be overridden by subclasses
         assert t._trace_domain == "depth"  # Domain should be lowercased
-        assert t._coord_dim_names == ["inline", "crossline"]
-        assert t._dim_names == ["inline", "crossline", "depth"]
-        assert t._coord_names == ["cdp_x", "cdp_y"]
-        assert t._var_chunk_shape == [128, 128, 128]
+        assert t._coord_dim_names == ("inline", "crossline")
+        assert t._dim_names == ("inline", "crossline", "depth")
+        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._var_chunk_shape == (128, 128, 128)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
-        assert t._dim_sizes == []
+        assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
         # Verify dataset attributes
@@ -123,14 +124,14 @@ class TestSeismic3DPostStackTemplate:
 
         # Template attributes to be overridden by subclasses
         assert t._trace_domain == "time"  # Domain should be lowercased
-        assert t._coord_dim_names == ["inline", "crossline"]
-        assert t._dim_names == ["inline", "crossline", "time"]
-        assert t._coord_names == ["cdp_x", "cdp_y"]
-        assert t._var_chunk_shape == [128, 128, 128]
+        assert t._coord_dim_names == ("inline", "crossline")
+        assert t._dim_names == ("inline", "crossline", "time")
+        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._var_chunk_shape == (128, 128, 128)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
-        assert t._dim_sizes == []
+        assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
         assert t._load_dataset_attributes().attributes == {
@@ -160,7 +161,7 @@ class TestSeismic3DPostStackTemplate:
         assert t.name == "PostStack3DDepth"
         dataset = t.build_dataset(
             "Seismic 3D",
-            sizes=[256, 512, 1024],
+            sizes=(256, 512, 1024),
             horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
@@ -181,9 +182,9 @@ class TestSeismic3DPostStackTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
-        assert seismic.compressor.algorithm == "zstd"
+        assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (128, 128, 128)
         assert seismic.metadata.stats_v1 is None
 
     def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
@@ -193,7 +194,7 @@ class TestSeismic3DPostStackTemplate:
         assert t.name == "PostStack3DTime"
         dataset = t.build_dataset(
             "Seismic 3D",
-            sizes=[256, 512, 1024],
+            sizes=(256, 512, 1024),
             horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
@@ -214,7 +215,7 @@ class TestSeismic3DPostStackTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
-        assert seismic.compressor.algorithm == "zstd"
+        assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == [128, 128, 128]
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (128, 128, 128)
         assert seismic.metadata.stats_v1 is None

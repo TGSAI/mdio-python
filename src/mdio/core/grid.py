@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-import inspect
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
 import zarr
+from zarr.codecs import BloscCodec
 
 from mdio.constants import UINT32_MAX
-from mdio.core import Dimension
-from mdio.core.serialization import Serializer
 from mdio.core.utils_write import get_constrained_chunksize
 
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
     from zarr import Array as ZarrArray
+
+    from mdio.core import Dimension
 
 
 @dataclass
@@ -90,24 +90,6 @@ class Grid:
         """Get maximum value of a dimension by name."""
         return self.select_dim(name).max().item()
 
-    def serialize(self, stream_format: str) -> str:
-        """Serialize the grid to a string buffer."""
-        serializer = GridSerializer(stream_format)
-        return serializer.serialize(self)
-
-    @classmethod
-    def deserialize(cls, stream: str, stream_format: str) -> Grid:
-        """Deserialize a string buffer into a Grid instance."""
-        serializer = GridSerializer(stream_format)
-        return serializer.deserialize(stream)
-
-    @classmethod
-    def from_zarr(cls, zarr_root: zarr.Group) -> Grid:
-        """Create a Grid instance from Zarr group attributes."""
-        dims_list = zarr_root.attrs["dimension"]
-        dims_list = [Dimension.from_dict(dim) for dim in dims_list]
-        return cls(dims_list)
-
     def build_map(self, index_headers: HeaderArray) -> None:
         """Build trace mapping and live mask from header indices.
 
@@ -126,8 +108,10 @@ class Grid:
             dtype=map_dtype,
             max_bytes=self._INTERNAL_CHUNK_SIZE_TARGET,
         )
-        self.map = zarr.full(live_shape, fill_value, dtype=map_dtype, chunks=chunks)
-        self.live_mask = zarr.zeros(live_shape, dtype=bool, chunks=chunks)
+        grid_compressor = BloscCodec(cname="zstd")
+        common_kwargs = {"shape": live_shape, "chunks": chunks, "compressors": grid_compressor, "store": None}
+        self.map = zarr.create_array(fill_value=fill_value, dtype=map_dtype, **common_kwargs)
+        self.live_mask = zarr.create_array(fill_value=0, dtype=bool, **common_kwargs)
 
         # Calculate batch size
         memory_per_trace_index = index_headers.itemsize
@@ -151,22 +135,3 @@ class Grid:
 
             self.map.vindex[live_dim_indices] = trace_indices
             self.live_mask.vindex[live_dim_indices] = True
-
-
-class GridSerializer(Serializer):
-    """Serializer implementation for Grid."""
-
-    def serialize(self, grid: Grid) -> str:
-        """Serialize Grid into buffer."""
-        payload = [dim.to_dict() for dim in grid.dims]
-        return self.serialize_func(payload)
-
-    def deserialize(self, stream: str) -> Grid:
-        """Deserialize buffer into Grid."""
-        signature = inspect.signature(Grid)
-
-        payload = self.deserialize_func(stream)
-        payload = [Dimension.from_dict(dim) for dim in payload]
-        payload = self.validate_payload({"dims": payload}, signature)
-
-        return Grid(**payload)

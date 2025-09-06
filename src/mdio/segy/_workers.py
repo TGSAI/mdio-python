@@ -10,16 +10,16 @@ from typing import cast
 import numpy as np
 from segy import SegyFile
 
+from mdio.api.io import to_mdio
 from mdio.schemas import ScalarType
 
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
     from segy.config import SegySettings
     from segy.schema import SegySpec
+    from upath import UPath
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
-
-    from mdio.core.storage_location import StorageLocation
 
 from xarray import Variable
 from zarr.core.config import config as zarr_config
@@ -66,7 +66,8 @@ def header_scan_worker(
         trace_header = segy_file.header[slice_]
 
     if subset is not None:
-        trace_header = trace_header[subset]
+        # struct field selection needs a list, not a tuple; a subset is a tuple from the template.
+        trace_header = trace_header[list(subset)]
 
     # Get non-void fields from dtype and copy to new array for memory efficiency
     fields = trace_header.dtype.fields
@@ -82,7 +83,7 @@ def header_scan_worker(
 
 def trace_worker(  # noqa: PLR0913
     segy_kw: SegyFileArguments,
-    output_location: StorageLocation,
+    output_path: UPath,
     data_variable_name: str,
     region: dict[str, slice],
     grid_map: zarr_Array,
@@ -92,7 +93,7 @@ def trace_worker(  # noqa: PLR0913
 
     Args:
         segy_kw: Arguments to open SegyFile instance.
-        output_location: StorageLocation for the output Zarr dataset
+        output_path: Universal Path for the output Zarr dataset
             (e.g. local file path or cloud storage URI) the location
             also includes storage options for cloud storage.
         data_variable_name: Name of the data variable to write.
@@ -103,22 +104,21 @@ def trace_worker(  # noqa: PLR0913
     Returns:
         SummaryStatistics object containing statistics about the written traces.
     """
-    if not dataset.trace_mask.any():
+    region_slices = tuple(region.values())
+    local_grid_map = grid_map[region_slices[:-1]]  # minus last (vertical) axis
+
+    not_null = local_grid_map != UINT32_MAX
+    if not not_null.any():
         return None
 
-    # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS`
-    # environment variable.
-    # Since the release of the Zarr 3 engine, it will default to many threads.
-    # This can cause resource contention and unpredicted memory consumption.
-    zarr_config.set({"threading.max_workers": 1})
-
-    # Open the SEG-Y file in every new process / spawned worker since the
-    # open file handles cannot be shared across processes.
+    # Open the SEG-Y file in this process since the open file handles cannot be shared across processes.
     segy_file = SegyFile(**segy_kw)
 
-    not_null = grid_map != UINT32_MAX
+    # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
+    # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
+    zarr_config.set({"threading.max_workers": 1})
 
-    live_trace_indexes = grid_map[not_null].tolist()
+    live_trace_indexes = local_grid_map[not_null].tolist()
     traces = segy_file.trace[live_trace_indexes]
 
     header_key = "headers"
@@ -160,7 +160,7 @@ def trace_worker(  # noqa: PLR0913
         encoding=ds_to_write[data_variable_name].encoding,  # Not strictly necessary, but safer than not doing it.
     )
 
-    ds_to_write.to_zarr(output_location.uri, region=region, mode="r+", write_empty_chunks=False, zarr_format=2)
+    to_mdio(ds_to_write, output_path=output_path, region=region, mode="r+")
 
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
     return SummaryStatistics(

@@ -82,14 +82,14 @@ class TestSeismic2DPostStackTemplate:
 
         # Template attributes
         assert t._trace_domain == "depth"
-        assert t._coord_dim_names == ["cdp"]
-        assert t._dim_names == ["cdp", "depth"]
-        assert t._coord_names == ["cdp_x", "cdp_y"]
-        assert t._var_chunk_shape == [1024, 1024]
+        assert t._coord_dim_names == ("cdp",)
+        assert t._dim_names == ("cdp", "depth")
+        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._var_chunk_shape == (1024, 1024)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
-        assert t._dim_sizes == []
+        assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
         # Verify dataset attributes
@@ -108,14 +108,14 @@ class TestSeismic2DPostStackTemplate:
 
         # Template attributes
         assert t._trace_domain == "time"
-        assert t._coord_dim_names == ["cdp"]
-        assert t._dim_names == ["cdp", "time"]
-        assert t._coord_names == ["cdp_x", "cdp_y"]
-        assert t._var_chunk_shape == [1024, 1024]
+        assert t._coord_dim_names == ("cdp",)
+        assert t._dim_names == ("cdp", "time")
+        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._var_chunk_shape == (1024, 1024)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
-        assert t._dim_sizes == []
+        assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
         # Verify dataset attributes
@@ -145,7 +145,7 @@ class TestSeismic2DPostStackTemplate:
 
         dataset = t.build_dataset(
             "Seismic 2D Depth Line 001",
-            sizes=[2048, 4096],
+            sizes=(2048, 4096),
             horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
@@ -167,7 +167,7 @@ class TestSeismic2DPostStackTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1024, 1024]
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1024, 1024)
         assert seismic.metadata.stats_v1 is None
 
     def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
@@ -198,7 +198,7 @@ class TestSeismic2DPostStackTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(v.metadata.chunk_grid, RegularChunkGrid)
-        assert v.metadata.chunk_grid.configuration.chunk_shape == [1024, 1024]
+        assert v.metadata.chunk_grid.configuration.chunk_shape == (1024, 1024)
         assert v.metadata.stats_v1 is None
 
     def test_time_vs_depth_comparison(self) -> None:

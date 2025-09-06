@@ -19,54 +19,25 @@ from mdio.schemas.v1.units import AllUnits
 class AbstractDatasetTemplate(ABC):
     """Abstract base class that defines the template method for Dataset building factory.
 
-    The template method defines the skeleton of the data processing algorithm,
-    while allowing subclasses to override specific steps.
+    The template method defines the skeleton of the data processing algorithm, while allowing subclasses
+    to override specific steps.
     """
 
     def __init__(self, domain: str = "") -> None:
-        # Template attributes to be overridden by subclasses
-        # Domain of the seismic data, e.g. "time" or "depth"
         self._trace_domain = domain.lower()
-        # Names of all coordinate dimensions in the dataset
-        # e.g. ["cdp"] for 2D post-stack depth
-        # e.g. ["inline", "crossline"] for 3D post-stack
-        # e.g. ["inline", "crossline"] for 3D pre-stack CDP gathers
-        # Note: For pre-stack Shot gathers, the coordinates are defined differently
-        #       and are not directly tied to _coord_dim_names.
-        self._coord_dim_names = []
-        # *ORDERED* list of names of all dimensions in the dataset
-        # e.g. ["cdp", "depth"] for 2D post-stack depth
-        # e.g. ["inline", "crossline", "depth"] for 3D post-stack depth
-        # e.g. ["inline", "crossline", "offset", "depth"] for 3D pre-stack depth CPD gathers
-        # e.g. ["shot_point", "cable", "channel", "time"] for 3D pre-stack
-        #      time Shot gathers
-        self._dim_names = []
-        # Names of all coordinates in the dataset
-        # e.g. ["cdp_x", "cdp_y"] for 2D post-stack depth
-        # e.g. ["cdp_x", "cdp_y"] for 3D post-stack depth
-        # e.g. ["cdp_x", "cdp_y"] for 3D pre-stack CPD depth
-        # e.g. ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
-        #      for 3D pre-stack time Shot gathers
-        self._coord_names = []
-        # Chunk shape for the variable in the dataset
-        # e.g. [1024, 1024] for 2D post-stack depth
-        # e.g. [128, 128, 128] for 3D post-stack depth
-        # e.g. [1, 1, 512, 4096] for 3D pre-stack CPD depth
-        # e.g. [1, 1, 512, 4096] for 3D pre-stack time Shot gathers
-        self._var_chunk_shape = []
+        self._coord_dim_names = ()
+        self._dim_names = ()
+        self._coord_names = ()
+        self._var_chunk_shape = ()
 
-        # Variables instantiated when build_dataset() is called
-        self._builder: MDIODatasetBuilder = None
-        # Sizes of the dimensions in the dataset, to be set when build_dataset() is called
-        self._dim_sizes = []
-        # Horizontal units for the coordinates (e.g, "m", "ft"), to be set when
-        # build_dataset() is called
+        self._builder: MDIODatasetBuilder | None = None
+        self._dim_sizes = ()
         self._horizontal_coord_unit = None
 
     def build_dataset(
         self,
         name: str,
-        sizes: list[int],
+        sizes: tuple[int, ...],
         horizontal_coord_unit: AllUnits,
         headers: StructuredType = None,
     ) -> Dataset:
@@ -111,17 +82,17 @@ class AbstractDatasetTemplate(ABC):
         return self._trace_domain
 
     @property
-    def dimension_names(self) -> list[str]:
+    def dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions."""
         return copy.deepcopy(self._dim_names)
 
     @property
-    def coordinate_names(self) -> list[str]:
+    def coordinate_names(self) -> tuple[str, ...]:
         """Returns the names of the coordinates."""
         return copy.deepcopy(self._coord_names)
 
     @property
-    def full_chunk_size(self) -> list[int]:
+    def full_chunk_size(self) -> tuple[int, ...]:
         """Returns the chunk size for the variables."""
         return copy.deepcopy(self._var_chunk_shape)
 
@@ -133,7 +104,7 @@ class AbstractDatasetTemplate(ABC):
         Must be implemented by subclasses.
 
         Returns:
-            str: The name of the template
+            The name of the template
         """
 
     @property
@@ -144,7 +115,7 @@ class AbstractDatasetTemplate(ABC):
         custom data variable name.
 
         Returns:
-            str: The name of the data variable
+            The name of the data variable
         """
         return "amplitude"
 
@@ -177,7 +148,7 @@ class AbstractDatasetTemplate(ABC):
         for name in self._dim_names:
             self._builder.add_coordinate(
                 name,
-                dimensions=[name],
+                dimensions=(name,),
                 data_type=ScalarType.INT32,
                 metadata_info=None,
             )
@@ -204,7 +175,7 @@ class AbstractDatasetTemplate(ABC):
             name="trace_mask",
             dimensions=self._dim_names[:-1],  # All dimensions except vertical (the last one)
             data_type=ScalarType.BOOL,
-            compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
+            compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self._coord_names,
             metadata_info=None,
         )
@@ -217,7 +188,7 @@ class AbstractDatasetTemplate(ABC):
             name="headers",
             dimensions=self._dim_names[:-1],  # All dimensions except vertical (the last one)
             data_type=headers,
-            compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
+            compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self._coord_names,
             metadata_info=[
                 ChunkGridMetadata(
@@ -236,11 +207,11 @@ class AbstractDatasetTemplate(ABC):
             name=self.default_variable_name,
             dimensions=self._dim_names,
             data_type=ScalarType.FLOAT32,
-            compressor=compressors.Blosc(algorithm=compressors.BloscAlgorithm.ZSTD),
+            compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self._coord_names,
             metadata_info=[
                 ChunkGridMetadata(
                     chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape))
-                )
+                ),
             ],
         )

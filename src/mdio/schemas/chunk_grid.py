@@ -10,13 +10,13 @@ from mdio.schemas.core import CamelCaseStrictModel
 class RegularChunkShape(CamelCaseStrictModel):
     """Represents regular chunk sizes along each dimension."""
 
-    chunk_shape: list[int] = Field(..., description="Lengths of the chunk along each dimension of the array.")
+    chunk_shape: tuple[int, ...] = Field(..., description="Lengths of the chunk along each dimension of the array.")
 
 
 class RectilinearChunkShape(CamelCaseStrictModel):
     """Represents irregular chunk sizes along each dimension."""
 
-    chunk_shape: list[list[int]] = Field(
+    chunk_shape: tuple[tuple[int, ...], ...] = Field(
         ...,
         description="Lengths of the chunk along each dimension of the array.",
     )

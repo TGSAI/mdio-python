@@ -10,10 +10,10 @@ class Seismic3DPostStackTemplate(AbstractDatasetTemplate):
     def __init__(self, domain: str):
         super().__init__(domain=domain)
         # Template attributes to be overridden by subclasses
-        self._coord_dim_names = ["inline", "crossline"]
-        self._dim_names = [*self._coord_dim_names, self._trace_domain]
-        self._coord_names = ["cdp_x", "cdp_y"]
-        self._var_chunk_shape = [128, 128, 128]
+        self._coord_dim_names = ("inline", "crossline")
+        self._dim_names = (*self._coord_dim_names, self._trace_domain)
+        self._coord_names = ("cdp_x", "cdp_y")
+        self._var_chunk_shape = (128, 128, 128)
 
     @property
     def _name(self) -> str:

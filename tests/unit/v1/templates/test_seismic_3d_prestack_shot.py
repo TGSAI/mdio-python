@@ -4,6 +4,7 @@ from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
+from mdio.schemas.compressors import BloscCname
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.v1.dataset import Dataset
@@ -133,14 +134,14 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Template attributes for prestack shot
         assert t._trace_domain == "depth"
-        assert t._coord_dim_names == ["shot_point", "cable", "channel"]
-        assert t._dim_names == ["shot_point", "cable", "channel", "depth"]
-        assert t._coord_names == ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
-        assert t._var_chunk_shape == [1, 1, 512, 4096]
+        assert t._coord_dim_names == ("shot_point", "cable", "channel")
+        assert t._dim_names == ("shot_point", "cable", "channel", "depth")
+        assert t._coord_names == ("gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
+        assert t._var_chunk_shape == (1, 1, 512, 4096)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
-        assert t._dim_sizes == []
+        assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
         # Verify prestack shot attributes
@@ -158,14 +159,14 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Template attributes for prestack shot
         assert t._trace_domain == "time"
-        assert t._coord_dim_names == ["shot_point", "cable", "channel"]
-        assert t._dim_names == ["shot_point", "cable", "channel", "time"]
-        assert t._coord_names == ["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
-        assert t._var_chunk_shape == [1, 1, 512, 4096]
+        assert t._coord_dim_names == ("shot_point", "cable", "channel")
+        assert t._dim_names == ("shot_point", "cable", "channel", "time")
+        assert t._coord_names == ("gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
+        assert t._var_chunk_shape == (1, 1, 512, 4096)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
-        assert t._dim_sizes == []
+        assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
         # Verify prestack shot attributes
@@ -197,7 +198,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert t.name == "PreStackShotGathers3DDepth"
         dataset = t.build_dataset(
             "Gulf of Mexico 3D Shot Depth",
-            sizes=[256, 512, 24, 2048],
+            sizes=(256, 512, 24, 2048),
             horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
@@ -218,9 +219,9 @@ class TestSeismic3DPreStackShotTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
-        assert seismic.compressor.algorithm == "zstd"
+        assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1, 1, 512, 4096)
         assert seismic.metadata.stats_v1 is None
 
     def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
@@ -230,7 +231,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert t.name == "PreStackShotGathers3DTime"
         dataset = t.build_dataset(
             "North Sea 3D Shot Time",
-            sizes=[256, 512, 24, 2048],
+            sizes=(256, 512, 24, 2048),
             horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
@@ -251,7 +252,7 @@ class TestSeismic3DPreStackShotTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
-        assert seismic.compressor.algorithm == "zstd"
+        assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1, 1, 512, 4096)
         assert seismic.metadata.stats_v1 is None

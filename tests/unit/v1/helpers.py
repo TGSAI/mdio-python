@@ -1,8 +1,11 @@
 """Helper methods used in unit tests."""
 
+from pathlib import Path
+
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.chunk_grid import RegularChunkShape
 from mdio.schemas.compressors import Blosc
+from mdio.schemas.compressors import BloscCname
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredField
 from mdio.schemas.dtype import StructuredType
@@ -137,7 +140,7 @@ def _get_all_coordinates(dataset: Dataset) -> list[Coordinate]:
     return list(all_coords.values())
 
 
-def output_path(file_dir: str, file_name: str, debugging: bool = False) -> str:
+def output_path(file_dir: Path, file_name: str, debugging: bool = False) -> Path:
     """Generate the output path for the test file-system output.
 
     Note:
@@ -145,12 +148,9 @@ def output_path(file_dir: str, file_name: str, debugging: bool = False) -> str:
         purposes. Otherwise, the files will be created in-memory and not saved to disk.
     """
     if debugging:
-        # Use the following for debugging:
-        file_path = f"{file_dir}/mdio-tests/{file_name}.zarr"
-    else:
-        # Use the following for normal runs:
-        file_path = f"memory://path_to_zarr/mdio-tests/{file_name}.zarr"
-    return file_path
+        return file_dir / f"mdio-tests/{file_name}.zarr"
+
+    return file_dir / f"{file_name}.zarr"
 
 
 def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
@@ -173,24 +173,24 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
     ds.add_dimension("inline", 256)
     ds.add_dimension("crossline", 512)
     ds.add_dimension("depth", 384)
-    ds.add_coordinate("inline", dimensions=["inline"], data_type=ScalarType.UINT32)
-    ds.add_coordinate("crossline", dimensions=["crossline"], data_type=ScalarType.UINT32)
+    ds.add_coordinate("inline", dimensions=("inline",), data_type=ScalarType.UINT32)
+    ds.add_coordinate("crossline", dimensions=("crossline",), data_type=ScalarType.UINT32)
     ds.add_coordinate(
         "depth",
-        dimensions=["depth"],
+        dimensions=("depth",),
         data_type=ScalarType.UINT32,
         metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
     )
     # Add coordinates
     ds.add_coordinate(
         "cdp_x",
-        dimensions=["inline", "crossline"],
+        dimensions=("inline", "crossline"),
         data_type=ScalarType.FLOAT32,
         metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
     )
     ds.add_coordinate(
         "cdp_y",
-        dimensions=["inline", "crossline"],
+        dimensions=("inline", "crossline"),
         data_type=ScalarType.FLOAT32,
         metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
     )
@@ -198,22 +198,22 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
     # Add image variable
     ds.add_variable(
         name="image",
-        dimensions=["inline", "crossline", "depth"],
+        dimensions=("inline", "crossline", "depth"),
         data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
-        coordinates=["cdp_x", "cdp_y"],
+        compressor=Blosc(cname=BloscCname.zstd),  # also default in zarr3
+        coordinates=("cdp_x", "cdp_y"),
         metadata_info=[
             ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[128, 128, 128]))
+                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(128, 128, 128)))
             ),
             StatisticsMetadata(
                 stats_v1=SummaryStatistics(
                     count=100,
                     sum=1215.1,
-                    sumSquares=125.12,
+                    sum_squares=125.12,
                     min=5.61,
                     max=10.84,
-                    histogram=CenteredBinHistogram(binCenters=[1, 2], counts=[10, 15]),
+                    histogram=CenteredBinHistogram(bin_centers=[1, 2], counts=[10, 15]),
                 )
             ),
             UserAttributes(attributes={"fizz": "buzz"}),
@@ -222,12 +222,12 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
     # Add velocity variable
     ds.add_variable(
         name="velocity",
-        dimensions=["inline", "crossline", "depth"],
+        dimensions=("inline", "crossline", "depth"),
         data_type=ScalarType.FLOAT16,
-        coordinates=["cdp_x", "cdp_y"],
+        coordinates=("cdp_x", "cdp_y"),
         metadata_info=[
             ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[128, 128, 128]))
+                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(128, 128, 128)))
             ),
             AllUnits(units_v1=SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)),
         ],
@@ -236,19 +236,19 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
     ds.add_variable(
         name="image_inline",
         long_name="inline optimized version of 3d_stack",
-        dimensions=["inline", "crossline", "depth"],
+        dimensions=("inline", "crossline", "depth"),
         data_type=ScalarType.FLOAT32,
-        compressor=Blosc(algorithm="zstd"),
-        coordinates=["cdp_x", "cdp_y"],
+        compressor=Blosc(cname=BloscCname.zstd),  # also default in zarr3
+        coordinates=("cdp_x", "cdp_y"),
         metadata_info=[
-            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[4, 512, 512])))
+            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(4, 512, 512))))
         ],
     )
     # Add headers variable with structured dtype
     ds.add_variable(
         name="image_headers",
-        dimensions=["inline", "crossline"],
-        coordinates=["cdp_x", "cdp_y"],
+        dimensions=("inline", "crossline"),
+        coordinates=("cdp_x", "cdp_y"),
         data_type=StructuredType(
             fields=[
                 StructuredField(name="cdp_x", format=ScalarType.INT32),
@@ -258,7 +258,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
             ]
         ),
         metadata_info=[
-            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[128, 128])))
+            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(128, 128))))
         ],
     )
     return ds.build()

@@ -4,6 +4,7 @@ from tests.unit.v1.helpers import validate_variable
 
 from mdio.schemas.chunk_grid import RegularChunkGrid
 from mdio.schemas.compressors import Blosc
+from mdio.schemas.compressors import BloscCname
 from mdio.schemas.dtype import ScalarType
 from mdio.schemas.dtype import StructuredType
 from mdio.schemas.v1.dataset import Dataset
@@ -107,14 +108,14 @@ class TestSeismic3DPreStackCDPTemplate:
 
         # Template attributes for prestack CDP
         assert t._trace_domain == "depth"
-        assert t._coord_dim_names == ["inline", "crossline", "offset"]
-        assert t._dim_names == ["inline", "crossline", "offset", "depth"]
-        assert t._coord_names == ["cdp_x", "cdp_y"]
-        assert t._var_chunk_shape == [1, 1, 512, 4096]
+        assert t._coord_dim_names == ("inline", "crossline", "offset")
+        assert t._dim_names == ("inline", "crossline", "offset", "depth")
+        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._var_chunk_shape == (1, 1, 512, 4096)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
-        assert t._dim_sizes == []
+        assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
         # Verify prestack CDP attributes
@@ -132,14 +133,14 @@ class TestSeismic3DPreStackCDPTemplate:
 
         # Template attributes for prestack CDP
         assert t._trace_domain == "time"
-        assert t._coord_dim_names == ["inline", "crossline", "offset"]
-        assert t._dim_names == ["inline", "crossline", "offset", "time"]
-        assert t._coord_names == ["cdp_x", "cdp_y"]
-        assert t._var_chunk_shape == [1, 1, 512, 4096]
+        assert t._coord_dim_names == ("inline", "crossline", "offset")
+        assert t._dim_names == ("inline", "crossline", "offset", "time")
+        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._var_chunk_shape == (1, 1, 512, 4096)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
-        assert t._dim_sizes == []
+        assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
         # Verify prestack CDP attributes
@@ -171,7 +172,7 @@ class TestSeismic3DPreStackCDPTemplate:
         assert t.name == "PreStackCdpGathers3DDepth"
         dataset = t.build_dataset(
             "North Sea 3D Prestack Depth",
-            sizes=[512, 768, 36, 1536],
+            sizes=(512, 768, 36, 1536),
             horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
@@ -192,9 +193,9 @@ class TestSeismic3DPreStackCDPTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
-        assert seismic.compressor.algorithm == "zstd"
+        assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1, 1, 512, 4096)
         assert seismic.metadata.stats_v1 is None
 
     def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
@@ -204,7 +205,7 @@ class TestSeismic3DPreStackCDPTemplate:
         assert t.name == "PreStackCdpGathers3DTime"
         dataset = t.build_dataset(
             "Santos Basin 3D Prestack",
-            sizes=[512, 768, 36, 1536],
+            sizes=(512, 768, 36, 1536),
             horizontal_coord_unit=_UNIT_METER,
             headers=structured_headers,
         )
@@ -225,7 +226,7 @@ class TestSeismic3DPreStackCDPTemplate:
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
-        assert seismic.compressor.algorithm == "zstd"
+        assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == [1, 1, 512, 4096]
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1, 1, 512, 4096)
         assert seismic.metadata.stats_v1 is None
