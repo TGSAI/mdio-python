@@ -56,7 +56,7 @@ class AbstractDatasetTemplate(ABC):
         self._horizontal_coord_unit = horizontal_coord_unit
 
         attr = self._load_dataset_attributes() or UserAttributes(attributes={})
-        attr.attributes["default_variable_name"] = self._default_variable_name
+        attr.attributes["defaultVariableName"] = self._default_variable_name
         self._builder = MDIODatasetBuilder(name=name, attributes=attr)
         self._add_dimensions()
         self._add_coordinates()

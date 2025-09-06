@@ -257,7 +257,7 @@ class TestReader:
         assert attributes is not None
         assert len(attributes) == 6
         # Validate all attributes provided by the abstract template
-        assert attributes["default_variable_name"] == "amplitude"
+        assert attributes["defaultVariableName"] == "amplitude"
         assert attributes["surveyDimensionality"] == "3D"
         assert attributes["ensembleType"] == "line"
         assert attributes["processingStage"] == "post-stack"
