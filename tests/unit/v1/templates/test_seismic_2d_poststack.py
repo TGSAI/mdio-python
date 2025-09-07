@@ -96,10 +96,7 @@ class TestSeismic2DPostStackTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {
-            "surveyType": "2D",
-            "gatherType": "stacked",
-        }
+        assert attrs == {"surveyType": "2D", "gatherType": "stacked"}
 
         assert t.default_variable_name == "amplitude"
 

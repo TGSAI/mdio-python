@@ -113,10 +113,7 @@ class TestSeismic3DPostStackTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {
-            "surveyType": "3D",
-            "gatherType": "stacked",
-        }
+        assert attrs == {"surveyType": "3D", "gatherType": "stacked"}
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:

@@ -131,10 +131,7 @@ class TestSeismic3DPreStackCocaTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {
-            "surveyType": "3D",
-            "gatherType": "cdp_coca",
-        }
+        assert attrs == {"surveyType": "3D", "gatherType": "common_offset_common_azimuth"}
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
@@ -150,7 +147,7 @@ class TestSeismic3DPreStackCocaTemplate:
 
         assert dataset.metadata.name == "Permian Basin 3D CDP Coca Gathers"
         assert dataset.metadata.attributes["surveyType"] == "3D"
-        assert dataset.metadata.attributes["gatherType"] == "cdp_coca"
+        assert dataset.metadata.attributes["gatherType"] == "common_offset_common_azimuth"
 
         _validate_coordinates_headers_trace_mask(dataset, structured_headers, data_domain)
 

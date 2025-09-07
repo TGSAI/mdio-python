@@ -119,10 +119,7 @@ class TestSeismic3DPreStackCDPTemplate:
 
         # Verify prestack CDP attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {
-            "surveyType": "3D",
-            "gatherType": "cdp",
-        }
+        assert attrs == {"surveyType": "3D", "gatherType": "cdp"}
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(

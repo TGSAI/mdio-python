@@ -143,10 +143,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Verify prestack shot attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {
-            "surveyType": "3D",
-            "gatherType": "common_shot",
-        }
+        assert attrs == {"surveyType": "3D", "gatherType": "common_shot"}
 
         assert t.name == "PreStackShotGathers3DTime"
 
