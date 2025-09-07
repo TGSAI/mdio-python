@@ -14,17 +14,17 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
     def __init__(self, data_domain: SeismicDataDomain):
         super().__init__(data_domain=data_domain)
 
-        self._coord_dim_names = ("shot_point", "cable", "channel")  # Custom coordinates for shot gathers
+        self._coord_dim_names = ("shot_point", "cable", "channel")
         self._dim_names = (*self._coord_dim_names, self._data_domain)
         self._coord_names = ("gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
-        self._var_chunk_shape = (1, 1, 512, 4096)
+        self._var_chunk_shape = (8, 2, 128, 1024)
 
     @property
     def _name(self) -> str:
         return f"PreStackShotGathers3D{self._data_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {"surveyType": "3D", "gatherType": "shot_point"}
+        return {"surveyType": "3D", "gatherType": "common_shot"}
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
@@ -34,18 +34,18 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         # Add non-dimension coordinates
         self._builder.add_coordinate(
             "gun",
-            dimensions=("shot_point", "cable", "channel"),
+            dimensions=("shot_point",),
             data_type=ScalarType.UINT8,
         )
         self._builder.add_coordinate(
             "source_coord_x",
-            dimensions=("shot_point", "cable", "channel"),
+            dimensions=("shot_point",),
             data_type=ScalarType.FLOAT64,
             metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
         )
         self._builder.add_coordinate(
             "source_coord_y",
-            dimensions=("shot_point", "cable", "channel"),
+            dimensions=("shot_point",),
             data_type=ScalarType.FLOAT64,
             metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
         )
