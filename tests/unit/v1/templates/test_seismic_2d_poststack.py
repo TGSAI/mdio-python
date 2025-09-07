@@ -36,14 +36,14 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     )
 
     # Verify dimension coordinate variables
-    inline = validate_variable(
+    cdp = validate_variable(
         dataset,
         name="cdp",
         dims=[("cdp", 2048)],
         coords=["cdp"],
         dtype=ScalarType.INT32,
     )
-    assert inline.metadata is None
+    assert cdp.metadata is None
 
     domain = validate_variable(
         dataset,

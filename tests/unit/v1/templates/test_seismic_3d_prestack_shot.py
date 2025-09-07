@@ -40,14 +40,14 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     )
 
     # Verify dimension coordinate variables
-    inline = validate_variable(
+    shot_point = validate_variable(
         dataset,
         name="shot_point",
         dims=[("shot_point", 256)],
         coords=["shot_point"],
         dtype=ScalarType.INT32,
     )
-    assert inline.metadata is None
+    assert shot_point.metadata is None
 
     cable = validate_variable(
         dataset,

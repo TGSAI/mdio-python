@@ -70,6 +70,15 @@ def validate_coordinates_headers_trace_mask(
 
     domain = validate_variable(
         dataset,
+        name=gather_domain,
+        dims=[(gather_domain, 36)],
+        coords=[gather_domain],
+        dtype=ScalarType.INT32,
+    )
+    assert domain.metadata is None
+
+    domain = validate_variable(
+        dataset,
         name=data_domain,
         dims=[(data_domain, 1536)],
         coords=[data_domain],
