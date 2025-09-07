@@ -273,7 +273,7 @@ class TestReader:
             "sumSquares": 40571291.6875,
             "min": -8.375323295593262,
             "max": 0.0,
-            "histogram": {"counts": [], "bin_centers": []},
+            "histogram": {"counts": [], "binCenters": []},
         }
         actual_attrs_json = json.loads(ds["amplitude"].attrs["statsV1"])
         assert actual_attrs_json == expected_attrs
