@@ -1164,11 +1164,11 @@ wheels = [
 
 [[package]]
 name = "identify"
-version = "2.6.13"
+version = "2.6.14"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/82/ca/ffbabe3635bb839aa36b3a893c91a9b0d368cb4d8073e03a12896970af82/identify-2.6.13.tar.gz", hash = "sha256:da8d6c828e773620e13bfa86ea601c5a5310ba4bcd65edf378198b56a1f9fb32", size = 99243, upload-time = "2025-08-09T19:35:00.6Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/52/c4/62963f25a678f6a050fb0505a65e9e726996171e6dbe1547f79619eefb15/identify-2.6.14.tar.gz", hash = "sha256:663494103b4f717cb26921c52f8751363dc89db64364cd836a9bf1535f53cd6a", size = 99283, upload-time = "2025-09-06T19:30:52.938Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e7/ce/461b60a3ee109518c055953729bf9ed089a04db895d47e95444071dcdef2/identify-2.6.13-py2.py3-none-any.whl", hash = "sha256:60381139b3ae39447482ecc406944190f690d4a2997f2584062089848361b33b", size = 99153, upload-time = "2025-08-09T19:34:59.1Z" },
+    { url = "https://files.pythonhosted.org/packages/e5/ae/2ad30f4652712c82f1c23423d79136fbce338932ad166d70c1efb86a5998/identify-2.6.14-py2.py3-none-any.whl", hash = "sha256:11a073da82212c6646b1f39bb20d4483bfb9543bd5566fec60053c4bb309bf2e", size = 99172, upload-time = "2025-09-06T19:30:51.759Z" },
 ]
 
 [[package]]
@@ -1680,7 +1680,6 @@ dependencies = [
     { name = "pint" },
     { name = "psutil" },
     { name = "pydantic" },
-    { name = "pydantic-settings" },
     { name = "rich" },
     { name = "segy" },
     { name = "tqdm" },
@@ -1729,24 +1728,23 @@ docs = [
 
 [package.metadata]
 requires-dist = [
-    { name = "adlfs", marker = "extra == 'cloud'", specifier = ">=2024.12.0" },
-    { name = "bokeh", marker = "extra == 'distributed'", specifier = ">=3.7.3,<4.0.0" },
+    { name = "adlfs", marker = "extra == 'cloud'", specifier = ">=2025.8.0" },
+    { name = "bokeh", marker = "extra == 'distributed'", specifier = ">=3.8.0,<4.0.0" },
     { name = "click", specifier = ">=8.2.1,<9.0.0" },
     { name = "click-params", specifier = ">=0.5.0,<0.6.0" },
     { name = "dask", specifier = ">=2025.7.0" },
     { name = "distributed", marker = "extra == 'distributed'", specifier = ">=2025.7.0" },
-    { name = "fsspec", specifier = ">=2025.7.0" },
-    { name = "gcsfs", marker = "extra == 'cloud'", specifier = ">=2025.7.0" },
-    { name = "pint", specifier = ">=0.24.4,<0.25" },
+    { name = "fsspec", specifier = ">=2025.9.0" },
+    { name = "gcsfs", marker = "extra == 'cloud'", specifier = ">=2025.9.0" },
+    { name = "pint", specifier = ">=0.25.0,<1.0.0" },
     { name = "psutil", specifier = ">=7.0.0,<8.0.0" },
     { name = "pydantic", specifier = ">=2.11.7,<3.0.0" },
-    { name = "pydantic-settings", specifier = ">=2.10.1,<3.0.0" },
     { name = "rich", specifier = ">=14.1.0,<15.0.0" },
-    { name = "s3fs", marker = "extra == 'cloud'", specifier = ">=2025.7.0" },
+    { name = "s3fs", marker = "extra == 'cloud'", specifier = ">=2025.9.0" },
     { name = "segy", specifier = ">=0.4.2,<0.5.0" },
     { name = "tqdm", specifier = ">=4.67.1,<5.0.0" },
     { name = "universal-pathlib", specifier = ">=0.2.6" },
-    { name = "xarray", specifier = ">=2025.7.1" },
+    { name = "xarray", specifier = ">=2025.9.0" },
     { name = "zarr", specifier = ">=3.1.2,<4.0.0" },
     { name = "zfpy", marker = "extra == 'lossy'", specifier = ">=1.0.1,<2.0.0" },
 ]
@@ -1754,23 +1752,23 @@ provides-extras = ["cloud", "distributed", "lossy"]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "coverage", extras = ["toml"], specifier = ">=7.9.1,<8" },
-    { name = "mypy", specifier = ">=1.16.1,<2" },
-    { name = "pre-commit", specifier = ">=4.2.0,<5" },
-    { name = "pre-commit-hooks", specifier = ">=5.0.0,<6" },
+    { name = "coverage", extras = ["toml"], specifier = ">=7.10.6,<8" },
+    { name = "mypy", specifier = ">=1.17.1,<2" },
+    { name = "pre-commit", specifier = ">=4.3.0,<5" },
+    { name = "pre-commit-hooks", specifier = ">=6.0.0,<7" },
     { name = "pygments", specifier = ">=2.19.2,<3" },
-    { name = "pytest", specifier = ">=8.4.1,<9" },
+    { name = "pytest", specifier = ">=8.4.2,<9" },
     { name = "pytest-dependency", specifier = ">=0.6.0,<0.7" },
-    { name = "ruff", specifier = ">=0.12.1" },
+    { name = "ruff", specifier = ">=0.12.2" },
     { name = "typeguard", specifier = ">=4.4.4,<5" },
     { name = "xdoctest", extras = ["colors"], specifier = ">=1.2.0,<2" },
 ]
 docs = [
-    { name = "furo", specifier = ">=2024.8.6" },
+    { name = "furo", specifier = ">=2025.7.19" },
     { name = "linkify-it-py", specifier = ">=2.0.3" },
-    { name = "myst-nb", specifier = ">=1.2.0" },
+    { name = "myst-nb", specifier = ">=1.3.0" },
     { name = "sphinx", specifier = ">=8.2.3,<9" },
-    { name = "sphinx-autobuild", specifier = ">=2024.10.3" },
+    { name = "sphinx-autobuild", specifier = ">=2025.8.25" },
     { name = "sphinx-click", specifier = ">=6.0.0,<7" },
     { name = "sphinx-copybutton", specifier = ">=0.5.2,<0.6" },
     { name = "sphinx-design", specifier = ">=0.6.1,<0.7" },
@@ -2185,7 +2183,7 @@ wheels = [
 
 [[package]]
 name = "pint"
-version = "0.24.4"
+version = "0.25"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "flexcache" },
@@ -2193,9 +2191,9 @@ dependencies = [
     { name = "platformdirs" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/20/bb/52b15ddf7b7706ed591134a895dbf6e41c8348171fb635e655e0a4bbb0ea/pint-0.24.4.tar.gz", hash = "sha256:35275439b574837a6cd3020a5a4a73645eb125ce4152a73a2f126bf164b91b80", size = 342225, upload-time = "2024-11-07T16:29:46.061Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5a/cb/e6ffaf3d019e8501b1264dac529bf829ac2f1fe1d488cfcf67f1fccadacf/pint-0.25.tar.gz", hash = "sha256:22911a30d682ee0540d656571c19a7b1806ce00b2be88a16f67218108b7b8cc2", size = 253010, upload-time = "2025-08-15T19:49:12.72Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b7/16/bd2f5904557265882108dc2e04f18abc05ab0c2b7082ae9430091daf1d5c/Pint-0.24.4-py3-none-any.whl", hash = "sha256:aa54926c8772159fcf65f82cc0d34de6768c151b32ad1deb0331291c38fe7659", size = 302029, upload-time = "2024-11-07T16:29:43.976Z" },
+    { url = "https://files.pythonhosted.org/packages/76/cc/c528311d798e22ec884b816e8aa2989e0f1f28cdc8e5969e2be5f10bce85/pint-0.25-py3-none-any.whl", hash = "sha256:cc20ae3dff010b9bbea41fb80c2de008f683cc83512cea73633d55aead80aa1e", size = 305462, upload-time = "2025-08-15T19:49:11.083Z" },
 ]
 
 [[package]]
@@ -2234,14 +2232,14 @@ wheels = [
 
 [[package]]
 name = "pre-commit-hooks"
-version = "5.0.0"
+version = "6.0.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ruamel-yaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ac/7d/3299241a753c738d114600c360d754550b28c285281dc6a5132c4ccfae65/pre_commit_hooks-5.0.0.tar.gz", hash = "sha256:10626959a9eaf602fbfc22bc61b6e75801436f82326bfcee82bb1f2fc4bc646e", size = 29747, upload-time = "2024-10-05T18:43:11.225Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/36/4d/93e63e48f8fd16d6c1e4cef5dabadcade4d1325c7fd6f29f075a4d2284f3/pre_commit_hooks-6.0.0.tar.gz", hash = "sha256:76d8370c006f5026cdd638a397a678d26dda735a3c88137e05885a020f824034", size = 28293, upload-time = "2025-08-09T19:25:04.6Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1e/29/db1d855a661c02dbde5cab3057969133fcc62e7a0c6393e48fe9d0e81679/pre_commit_hooks-5.0.0-py2.py3-none-any.whl", hash = "sha256:8d71cfb582c5c314a5498d94e0104b6567a8b93fb35903ea845c491f4e290a7a", size = 41245, upload-time = "2024-10-05T18:43:09.901Z" },
+    { url = "https://files.pythonhosted.org/packages/12/46/eba9be9daa403fa94854ce16a458c29df9a01c6c047931c3d8be6016cd9a/pre_commit_hooks-6.0.0-py2.py3-none-any.whl", hash = "sha256:76161b76d321d2f8ee2a8e0b84c30ee8443e01376121fd1c90851e33e3bd7ee2", size = 41338, upload-time = "2025-08-09T19:25:03.513Z" },
 ]
 
 [[package]]
