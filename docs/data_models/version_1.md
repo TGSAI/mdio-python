@@ -72,8 +72,6 @@
 :::{dropdown} Stats
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.builder.schemas.v1.stats.StatisticsMetadata
-
 .. autopydantic_model:: mdio.builder.schemas.v1.stats.SummaryStatistics
 
 .. autopydantic_model:: mdio.builder.schemas.v1.stats.EdgeDefinedHistogram
