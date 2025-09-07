@@ -26,7 +26,7 @@ and
 ```{eval-rst}
 .. automodule:: mdio.converters.segy
    :members:
-   :exclude-members: grid_density_qc, parse_index_types, get_compressor
+   :exclude-members: grid_density_qc, parse_index_types, get_compressor, populate_dim_coordinates, populate_non_dim_coordinates
 
 .. automodule:: mdio.converters.mdio
    :members:
