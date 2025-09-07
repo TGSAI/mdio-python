@@ -2,21 +2,17 @@
 
 from tests.unit.v1.helpers import validate_variable
 
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.compressors import Blosc
-from mdio.schemas.compressors import BloscCname
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.dtype import StructuredType
-from mdio.schemas.v1.dataset import Dataset
-from mdio.schemas.v1.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
-from mdio.schemas.v1.units import AllUnits
-from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.v1.units import TimeUnitEnum
-from mdio.schemas.v1.units import TimeUnitModel
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.v1.dataset import Dataset
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
 
-_UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
-_UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
+UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 
 
 def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
@@ -146,7 +142,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Verify prestack shot attributes
         attrs = t._load_dataset_attributes()
-        assert attrs.attributes == {
+        assert attrs == {
             "surveyDimensionality": "3D",
             "ensembleType": "shot_point",
             "processingStage": "pre-stack",
@@ -171,7 +167,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Verify prestack shot attributes
         attrs = t._load_dataset_attributes()
-        assert attrs.attributes == {
+        assert attrs == {
             "surveyDimensionality": "3D",
             "ensembleType": "shot_point",
             "processingStage": "pre-stack",
@@ -199,7 +195,7 @@ class TestSeismic3DPreStackShotTemplate:
         dataset = t.build_dataset(
             "Gulf of Mexico 3D Shot Depth",
             sizes=(256, 512, 24, 2048),
-            horizontal_coord_unit=_UNIT_METER,
+            horizontal_coord_unit=UNITS_METER,
             headers=structured_headers,
         )
 
@@ -232,7 +228,7 @@ class TestSeismic3DPreStackShotTemplate:
         dataset = t.build_dataset(
             "North Sea 3D Shot Time",
             sizes=(256, 512, 24, 2048),
-            horizontal_coord_unit=_UNIT_METER,
+            horizontal_coord_unit=UNITS_METER,
             headers=structured_headers,
         )
 

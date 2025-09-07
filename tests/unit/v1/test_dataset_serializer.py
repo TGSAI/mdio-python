@@ -9,28 +9,27 @@ from zarr import zeros as zarr_zeros
 from zarr.codecs import BloscCodec
 
 from mdio import to_mdio
+from mdio.builder.dataset_builder import MDIODatasetBuilder
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
+from mdio.builder.schemas.dimension import NamedDimension
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.dtype import StructuredField
+from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.v1.dataset import Dataset
+from mdio.builder.schemas.v1.dataset import DatasetMetadata
+from mdio.builder.schemas.v1.variable import Coordinate
+from mdio.builder.schemas.v1.variable import Variable
+from mdio.builder.schemas.v1.variable import VariableMetadata
+from mdio.builder.xarray_builder import _convert_compressor
+from mdio.builder.xarray_builder import _get_all_named_dimensions
+from mdio.builder.xarray_builder import _get_coord_names
+from mdio.builder.xarray_builder import _get_dimension_names
+from mdio.builder.xarray_builder import _get_fill_value
+from mdio.builder.xarray_builder import _get_zarr_chunks
+from mdio.builder.xarray_builder import _get_zarr_shape
+from mdio.builder.xarray_builder import to_xarray_dataset
 from mdio.constants import fill_value_map
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.chunk_grid import RegularChunkShape
-from mdio.schemas.dimension import NamedDimension
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.dtype import StructuredField
-from mdio.schemas.dtype import StructuredType
-from mdio.schemas.metadata import ChunkGridMetadata
-from mdio.schemas.v1.dataset import Dataset
-from mdio.schemas.v1.dataset import DatasetInfo
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.dataset_builder import _to_dictionary
-from mdio.schemas.v1.dataset_serializer import _convert_compressor
-from mdio.schemas.v1.dataset_serializer import _get_all_named_dimensions
-from mdio.schemas.v1.dataset_serializer import _get_coord_names
-from mdio.schemas.v1.dataset_serializer import _get_dimension_names
-from mdio.schemas.v1.dataset_serializer import _get_fill_value
-from mdio.schemas.v1.dataset_serializer import _get_zarr_chunks
-from mdio.schemas.v1.dataset_serializer import _get_zarr_shape
-from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
-from mdio.schemas.v1.variable import Coordinate
-from mdio.schemas.v1.variable import Variable
 
 from .helpers import make_seismic_poststack_3d_acceptance_dataset
 from .helpers import output_path
@@ -44,11 +43,11 @@ except ImportError:
     HAS_ZFPY = False
 
 
-from mdio.schemas.compressors import ZFP as MDIO_ZFP
-from mdio.schemas.compressors import Blosc as mdio_Blosc
-from mdio.schemas.compressors import BloscCname
-from mdio.schemas.compressors import BloscShuffle
-from mdio.schemas.compressors import ZFPMode as mdio_ZFPMode
+from mdio.builder.schemas.compressors import ZFP as MDIO_ZFP
+from mdio.builder.schemas.compressors import Blosc as mdio_Blosc
+from mdio.builder.schemas.compressors import BloscCname
+from mdio.builder.schemas.compressors import BloscShuffle
+from mdio.builder.schemas.compressors import ZFPMode as mdio_ZFPMode
 
 
 def test_get_all_named_dimensions() -> None:
@@ -65,9 +64,7 @@ def test_get_all_named_dimensions() -> None:
     v3 = Variable(name="unresolved_dims", data_type=ScalarType.FLOAT32, dimensions=["x", "y", "z"])
     ds = Dataset(
         variables=[v1, v2, v3],
-        metadata=_to_dictionary(
-            [DatasetInfo(name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z")]
-        ),
+        metadata=DatasetMetadata(name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z"),
     )
 
     all_dims = _get_all_named_dimensions(ds)
@@ -141,9 +138,7 @@ def test_get_zarr_shape() -> None:
     v2 = Variable(name="str var", data_type=ScalarType.FLOAT32, dimensions=["inline", "crossline", "depth"])
     Dataset(
         variables=[v1, v2],
-        metadata=_to_dictionary(
-            [DatasetInfo(name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z")]
-        ),
+        metadata=DatasetMetadata(name="test_dataset", api_version="1.0.0", created_on="2023-10-01T00:00:00Z"),
     )
 
     assert _get_zarr_shape(v1, all_named_dims) == (100, 200, 300)
@@ -154,17 +149,12 @@ def test_get_zarr_chunks() -> None:
     """Test for _get_zarr_chunks function."""
     d1 = NamedDimension(name="inline", size=100)
     d2 = NamedDimension(name="crossline", size=200)
-    d3 = NamedDimension(name="depth", size=300)
+    d3 = NamedDimension(name="crossline", size=300)
 
     # Test 1: Variable with chunk defined in metadata
-    v = Variable(
-        name="seismic 3d var",
-        data_type=ScalarType.FLOAT32,
-        dimensions=[d1, d2, d3],
-        metadata=_to_dictionary(
-            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[10, 20, 30])))
-        ),
-    )
+    chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(10, 20, 30)))
+    metadata = VariableMetadata(chunk_grid=chunk_grid)
+    v = Variable(name="seismic 3d var", data_type=ScalarType.FLOAT32, dimensions=[d1, d2], metadata=metadata)
     assert _get_zarr_chunks(v, all_named_dims=[d1, d2, d3]) == (10, 20, 30)
 
     # Test 2: Variable with no chunks defined

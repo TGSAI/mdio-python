@@ -2,9 +2,9 @@
 
 from numpy import dtype as np_dtype
 
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.dtype import StructuredField
-from mdio.schemas.dtype import StructuredType
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.dtype import StructuredField
+from mdio.builder.schemas.dtype import StructuredType
 
 
 def to_scalar_type(data_type: np_dtype) -> ScalarType:

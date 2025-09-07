@@ -1,13 +1,13 @@
 """Tests the schema v1 dataset_builder.build() public API."""
 
-from mdio.schemas.compressors import BloscCname
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.dtype import StructuredField
-from mdio.schemas.dtype import StructuredType
-from mdio.schemas.v1.dataset import Dataset
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import SpeedUnitEnum
+from mdio.builder.dataset_builder import MDIODatasetBuilder
+from mdio.builder.schemas.compressors import BloscCname
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.dtype import StructuredField
+from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.v1.dataset import Dataset
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import SpeedUnitEnum
 
 from .helpers import make_seismic_poststack_3d_acceptance_dataset
 from .helpers import validate_variable

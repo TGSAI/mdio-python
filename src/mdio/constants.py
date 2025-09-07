@@ -4,7 +4,7 @@ from enum import IntEnum
 
 import numpy as np
 
-from mdio.schemas.dtype import ScalarType
+from mdio.builder.schemas.dtype import ScalarType
 
 
 class ZarrFormat(IntEnum):

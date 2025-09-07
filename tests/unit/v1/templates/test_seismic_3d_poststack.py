@@ -2,21 +2,20 @@
 
 from tests.unit.v1.helpers import validate_variable
 
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.compressors import Blosc
-from mdio.schemas.compressors import BloscCname
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.dtype import StructuredType
-from mdio.schemas.v1.dataset import Dataset
-from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
-from mdio.schemas.v1.units import AllUnits
-from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.v1.units import TimeUnitEnum
-from mdio.schemas.v1.units import TimeUnitModel
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.v1.dataset import Dataset
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.units import TimeUnitEnum
+from mdio.builder.schemas.v1.units import TimeUnitModel
+from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 
-_UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
-_UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
+UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
+UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
 
 
 def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
@@ -111,7 +110,7 @@ class TestSeismic3DPostStackTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs.attributes == {
+        assert attrs == {
             "surveyDimensionality": "3D",
             "ensembleType": "line",
             "processingStage": "post-stack",
@@ -134,7 +133,7 @@ class TestSeismic3DPostStackTemplate:
         assert t._dim_sizes == ()
         assert t._horizontal_coord_unit is None
 
-        assert t._load_dataset_attributes().attributes == {
+        assert t._load_dataset_attributes() == {
             "surveyDimensionality": "3D",
             "ensembleType": "line",
             "processingStage": "post-stack",
@@ -162,7 +161,7 @@ class TestSeismic3DPostStackTemplate:
         dataset = t.build_dataset(
             "Seismic 3D",
             sizes=(256, 512, 1024),
-            horizontal_coord_unit=_UNIT_METER,
+            horizontal_coord_unit=UNITS_METER,
             headers=structured_headers,
         )
 
@@ -195,7 +194,7 @@ class TestSeismic3DPostStackTemplate:
         dataset = t.build_dataset(
             "Seismic 3D",
             sizes=(256, 512, 1024),
-            horizontal_coord_unit=_UNIT_METER,
+            horizontal_coord_unit=UNITS_METER,
             headers=structured_headers,
         )
 

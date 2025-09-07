@@ -11,7 +11,7 @@ import numpy as np
 from segy import SegyFile
 
 from mdio.api.io import to_mdio
-from mdio.schemas import ScalarType
+from mdio.builder.schemas.dtype import ScalarType
 
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
@@ -24,10 +24,10 @@ if TYPE_CHECKING:
 from xarray import Variable
 from zarr.core.config import config as zarr_config
 
+from mdio.builder.schemas.v1.stats import CenteredBinHistogram
+from mdio.builder.schemas.v1.stats import SummaryStatistics
+from mdio.builder.xarray_builder import _get_fill_value
 from mdio.constants import UINT32_MAX
-from mdio.schemas.v1.dataset_serializer import _get_fill_value
-from mdio.schemas.v1.stats import CenteredBinHistogram
-from mdio.schemas.v1.stats import SummaryStatistics
 
 
 class SegyFileArguments(TypedDict):

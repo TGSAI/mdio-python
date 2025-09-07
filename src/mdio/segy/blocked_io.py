@@ -18,10 +18,10 @@ from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
 
 from mdio.api.io import _normalize_storage_options
+from mdio.builder.schemas.v1.stats import CenteredBinHistogram
+from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.constants import ZarrFormat
 from mdio.core.indexing import ChunkIterator
-from mdio.schemas.v1.stats import CenteredBinHistogram
-from mdio.schemas.v1.stats import SummaryStatistics
 from mdio.segy._workers import trace_worker
 from mdio.segy.creation import SegyPartRecord
 from mdio.segy.creation import concat_files

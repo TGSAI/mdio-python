@@ -24,8 +24,8 @@ from tests.conftest import DEBUG_MODE
 
 from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
+from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.segy import segy_to_mdio
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 
 if TYPE_CHECKING:
     from collections.abc import Iterable

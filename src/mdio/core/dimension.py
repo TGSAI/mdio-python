@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import Any
 
 import numpy as np
 
@@ -44,15 +43,6 @@ class Dimension:
     def size(self) -> int:
         """Size of the dimension."""
         return len(self.coords)
-
-    def to_dict(self) -> dict[str, Any]:
-        """Convert dimension to dictionary."""
-        return {"name": self.name, "coords": self.coords.tolist()}
-
-    @classmethod
-    def from_dict(cls, other: dict[str, Any]) -> Dimension:
-        """Make dimension from dictionary."""
-        return Dimension(**other)
 
     def __len__(self) -> int:
         """Length magic."""

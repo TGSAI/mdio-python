@@ -22,9 +22,9 @@ from tests.integration.testing_helpers import validate_variable
 
 from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
+from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.segy import segy_to_mdio
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy.geometry import StreamerShotGeometryType
 
 if TYPE_CHECKING:

@@ -27,7 +27,7 @@ The `TemplateRegistry` implements the singleton pattern to ensure there's only o
 ### Basic Usage
 
 ```python
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
+from mdio.builder.template_registry import TemplateRegistry
 
 # Get the singleton instance
 registry = TemplateRegistry()
@@ -37,7 +37,7 @@ registry = TemplateRegistry.get_instance()
 
 # Register a template
 template = MyDatasetTemplate()
-template_name=registry.register(template)
+template_name = registry.register(template)
 print(f"Registered template named {template_name}")
 
 # Retrieve a template using a well-known name
@@ -58,7 +58,7 @@ template_names = registry.list_all_templates()
 For convenience, you can use global functions that operate on the singleton instance:
 
 ```python
-from mdio.schemas.v1.templates.template_registry import (
+from mdio.builder.template_registry import (
     register_template,
     get_template,
     is_template_registered,
@@ -201,10 +201,11 @@ for thread in threads:
 ## Example: Complete Template Management
 
 ```python
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
-from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
-from mdio.schemas.v1.templates.seismic_3d_prestack_time import Seismic3DPostStackTimeTemplate
-from mdio.schemas.v1.templates.seismic_3d_prestack import Seismic3DPreStackTemplate
+from mdio.builder.template_registry import TemplateRegistry
+from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
+from mdio.builder.schemas.v1 import Seismic3DPostStackTimeTemplate
+from mdio.builder.schemas.v1 import Seismic3DPreStackTemplate
+
 
 def setup_templates():
     """Register MDIO templates runtime.
@@ -221,17 +222,18 @@ def setup_templates():
 
     print(f"Registered templates: {list_templates()}")
 
+
 # Application startup
 setup_standard_templates()
 
 # Later in the application
 template = TemplateRegistry().get_template("PostStack3DDepth")
 dataset = template.create_dataset(name="Seismic 3d m/m/ft",
-                                  sizes = [256, 512, 384]
-                                  coord_units = [
-                                    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),
-                                    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),
-                                    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))]
+                                  sizes=[256, 512, 384]
+coord_units = [
+    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),
+    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),
+    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))]
 ```
 
 ## Error Handling
