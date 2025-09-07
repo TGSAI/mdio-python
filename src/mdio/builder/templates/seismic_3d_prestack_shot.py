@@ -24,7 +24,7 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         return f"PreStackShotGathers3D{self._data_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {"surveyType": "3D", "gatherType": "common_shot"}
+        return {"surveyType": "3D", "ensembleType": "common_source"}
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates

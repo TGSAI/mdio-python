@@ -143,7 +143,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         # Verify prestack shot attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {"surveyType": "3D", "gatherType": "common_shot"}
+        assert attrs == {"surveyType": "3D", "ensembleType": "common_source"}
 
         assert t.name == "PreStackShotGathers3DTime"
 
@@ -161,7 +161,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         assert dataset.metadata.name == "North Sea 3D Shot Time"
         assert dataset.metadata.attributes["surveyType"] == "3D"
-        assert dataset.metadata.attributes["gatherType"] == "common_shot"
+        assert dataset.metadata.attributes["ensembleType"] == "common_source"
 
         _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
 

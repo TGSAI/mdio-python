@@ -24,7 +24,7 @@ class Seismic2DPreStackShotTemplate(AbstractDatasetTemplate):
         return f"PreStackShotGathers2D{self._data_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {"surveyType": "2D", "gatherType": "common_shot"}
+        return {"surveyType": "2D", "ensembleType": "common_source"}
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
