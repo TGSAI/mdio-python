@@ -94,81 +94,10 @@ assert registry1 is registry2 is registry3
 
 ## API Reference
 
-### Core Methods
-
-#### `register(instance: AbstractDatasetTemplate) -> str`
-
-Registers a template instance and returns its normalized name.
-
-- **Parameters:**
-  - `instance`: Template instance implementing `AbstractDatasetTemplate`
-- **Returns:** The template name
-- **Raises:** `ValueError` if template name is already registered
-
-#### `get(template_name: str) -> AbstractDatasetTemplate`
-
-Retrieves a registered template by name.
-
-- **Parameters:**
-  - `template_name`: Name of the template (case-insensitive)
-- **Returns:** The registered template instance
-- **Raises:** `KeyError` if template is not registered
-
-#### `unregister(template_name: str) -> None`
-
-Removes a template from the registry.
-
-- **Parameters:**
-  - `template_name`: Name of the template to remove
-- **Raises:** `KeyError` if template is not registered
-
-#### `is_registered(template_name: str) -> bool`
-
-Checks if a template is registered.
-
-- **Parameters:**
-  - `template_name`: Name of the template to check
-- **Returns:** `True` if template is registered, `False` otherwise
-
-#### `list_all_templates() -> List[str]`
-
-Returns a list of all registered template names.
-
-- **Returns:** List of template names
-
-#### `clear() -> None`
-
-Removes all registered templates. Useful for testing.
-
-### Class Methods
-
-#### `get_instance() -> TemplateRegistry`
-
-Alternative way to get the singleton instance.
-
-- **Returns:** The singleton registry instance
-
-### Global Functions
-
-#### `get_template_registry() -> TemplateRegistry`
-
-Returns the global singleton registry instance.
-
-#### `register_template(template: AbstractDatasetTemplate) -> str`
-
-Registers a template in the global registry.
-
-#### `get_template(name: str) -> AbstractDatasetTemplate`
-
-Gets a template from the global registry.
-
-#### `is_template_registered(name: str) -> bool`
-
-Checks if a template is registered in the global registry.
-
-#### `list_templates() -> List[str]`
-
-Lists all templates in the global registry.
+```{eval-rst}
+.. automodule:: mdio.builder.template_registry
+   :members:
+```
 
 ## Thread Safety
 
