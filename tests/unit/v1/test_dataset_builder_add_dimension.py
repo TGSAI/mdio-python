@@ -2,9 +2,9 @@
 
 import pytest
 
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.dataset_builder import _BuilderState
-from mdio.schemas.v1.dataset_builder import _get_named_dimension
+from mdio.builder.dataset_builder import MDIODatasetBuilder
+from mdio.builder.dataset_builder import _BuilderState
+from mdio.builder.dataset_builder import _get_named_dimension
 
 from .helpers import validate_builder
 

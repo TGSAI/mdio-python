@@ -5,13 +5,13 @@ import time
 
 import pytest
 
-from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
-from mdio.schemas.v1.templates.template_registry import get_template
-from mdio.schemas.v1.templates.template_registry import get_template_registry
-from mdio.schemas.v1.templates.template_registry import is_template_registered
-from mdio.schemas.v1.templates.template_registry import list_templates
-from mdio.schemas.v1.templates.template_registry import register_template
+from mdio.builder.template_registry import TemplateRegistry
+from mdio.builder.template_registry import get_template
+from mdio.builder.template_registry import get_template_registry
+from mdio.builder.template_registry import is_template_registered
+from mdio.builder.template_registry import list_templates
+from mdio.builder.template_registry import register_template
+from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
 
 EXPECTED_DEFAULT_TEMPLATE_NAMES = [
     "PostStack2DTime",

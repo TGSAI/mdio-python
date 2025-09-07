@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from segy import SegyFile
     from segy.arrays import HeaderArray
 
-    from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
 
 
 logger = logging.getLogger(__name__)

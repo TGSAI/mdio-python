@@ -14,16 +14,15 @@ from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.xarray_builder import to_xarray_dataset
 from mdio.constants import UINT32_MAX
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
-from mdio.schemas.v1.dataset_serializer import to_xarray_dataset
-from mdio.schemas.v1.units import AllUnits
-from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import LengthUnitModel
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -36,9 +35,9 @@ if TYPE_CHECKING:
     from upath import UPath
     from xarray import Dataset as xr_Dataset
 
+    from mdio.builder.schemas import Dataset
+    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
     from mdio.core.dimension import Dimension
-    from mdio.schemas.v1.dataset import Dataset
-    from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -240,23 +239,19 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> AllUnits | None:
+def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
     name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
     unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
     if unit_hdr is None or len(unit_hdr.coords) == 0:
-        # If the coordinate unit header is not found or empty, return None
-        # This is a common case for SEG-Y files, where the coordinate unit is not specified
         return None
 
     if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.METERS:
-        # If the coordinate unit is in meters, return "m"
-        return AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
+        unit = LengthUnitEnum.METER
     if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.FEET:
-        # If the coordinate unit is in feet, return "ft"
-        return AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))
-    err = f"Unsupported coordinate unit value: {unit_hdr.value[0]} in SEG-Y file."
-    raise ValueError(err)
+        unit = LengthUnitEnum.FOOT
+
+    return LengthUnitModel(length=unit)
 
 
 def _populate_coordinates(

@@ -22,9 +22,9 @@ from tests.integration.testing_helpers import validate_variable
 
 from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
+from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.segy import segy_to_mdio
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 from mdio.segy.geometry import StreamerShotGeometryType
 
 if TYPE_CHECKING:
@@ -270,10 +270,10 @@ class TestReader:
         expected_attrs = {
             "count": 97354860,
             "sum": -8594.551666259766,
-            "sum_squares": 40571291.6875,
+            "sumSquares": 40571291.6875,
             "min": -8.375323295593262,
             "max": 0.0,
-            "histogram": {"counts": [], "bin_centers": []},
+            "histogram": {"counts": [], "binCenters": []},
         }
         actual_attrs_json = json.loads(ds["amplitude"].attrs["statsV1"])
         assert actual_attrs_json == expected_attrs
@@ -352,6 +352,8 @@ class TestExport:
 
     def test_3d_export(self, segy_input: Path, zarr_tmp: Path, segy_export_tmp: Path) -> None:
         """Test 3D export to IBM and IEEE."""
+        rng = np.random.default_rng(seed=1234)
+
         spec = custom_teapot_dome_segy_spec(keep_unaltered=True)
 
         mdio_to_segy(segy_spec=spec, input_path=zarr_tmp, output_path=segy_export_tmp)
@@ -364,7 +366,7 @@ class TestExport:
         out_segy = SegyFile(segy_export_tmp, spec=spec)
 
         num_traces = in_segy.num_traces
-        random_indices = np.random.choice(num_traces, 100, replace=False)
+        random_indices = rng.choice(num_traces, 100, replace=False)
         in_traces = in_segy.trace[random_indices]
         out_traces = out_segy.trace[random_indices]
 

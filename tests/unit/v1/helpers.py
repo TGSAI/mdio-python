@@ -2,29 +2,27 @@
 
 from pathlib import Path
 
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.chunk_grid import RegularChunkShape
-from mdio.schemas.compressors import Blosc
-from mdio.schemas.compressors import BloscCname
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.dtype import StructuredField
-from mdio.schemas.dtype import StructuredType
-from mdio.schemas.metadata import ChunkGridMetadata
-from mdio.schemas.metadata import UserAttributes
-from mdio.schemas.v1.dataset import Dataset
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.dataset_builder import _BuilderState
-from mdio.schemas.v1.dataset_builder import _get_named_dimension
-from mdio.schemas.v1.stats import CenteredBinHistogram
-from mdio.schemas.v1.stats import StatisticsMetadata
-from mdio.schemas.v1.stats import SummaryStatistics
-from mdio.schemas.v1.units import AllUnits
-from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.v1.units import SpeedUnitEnum
-from mdio.schemas.v1.units import SpeedUnitModel
-from mdio.schemas.v1.variable import Coordinate
-from mdio.schemas.v1.variable import Variable
+from mdio.builder.dataset_builder import MDIODatasetBuilder
+from mdio.builder.dataset_builder import _BuilderState
+from mdio.builder.dataset_builder import _get_named_dimension
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.dtype import StructuredField
+from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.v1.dataset import Dataset
+from mdio.builder.schemas.v1.stats import CenteredBinHistogram
+from mdio.builder.schemas.v1.stats import SummaryStatistics
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.units import SpeedUnitEnum
+from mdio.builder.schemas.v1.units import SpeedUnitModel
+from mdio.builder.schemas.v1.variable import Coordinate
+from mdio.builder.schemas.v1.variable import CoordinateMetadata
+from mdio.builder.schemas.v1.variable import Variable
+from mdio.builder.schemas.v1.variable import VariableMetadata
 
 
 def validate_builder(builder: MDIODatasetBuilder, state: _BuilderState, n_dims: int, n_coords: int, n_var: int) -> None:
@@ -157,82 +155,57 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
     """Create in-memory Seismic PostStack 3D Acceptance dataset."""
     ds = MDIODatasetBuilder(
         dataset_name,
-        attributes=UserAttributes(
-            attributes={
-                "textHeader": [
-                    "C01 .......................... ",
-                    "C02 .......................... ",
-                    "C03 .......................... ",
-                ],
-                "foo": "bar",
-            }
-        ),
+        attributes={
+            "textHeader": [
+                "C01 .......................... ",
+                "C02 .......................... ",
+                "C03 .......................... ",
+            ],
+            "foo": "bar",
+        },
     )
 
-    # Add dimensions
+    # Add dimensions and dimension coordinates
+    units_meter = CoordinateMetadata(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
+
     ds.add_dimension("inline", 256)
     ds.add_dimension("crossline", 512)
     ds.add_dimension("depth", 384)
     ds.add_coordinate("inline", dimensions=("inline",), data_type=ScalarType.UINT32)
     ds.add_coordinate("crossline", dimensions=("crossline",), data_type=ScalarType.UINT32)
-    ds.add_coordinate(
-        "depth",
-        dimensions=("depth",),
-        data_type=ScalarType.UINT32,
-        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
-    )
-    # Add coordinates
-    ds.add_coordinate(
-        "cdp_x",
-        dimensions=("inline", "crossline"),
-        data_type=ScalarType.FLOAT32,
-        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
-    )
-    ds.add_coordinate(
-        "cdp_y",
-        dimensions=("inline", "crossline"),
-        data_type=ScalarType.FLOAT32,
-        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
-    )
+    ds.add_coordinate("depth", dimensions=("depth",), data_type=ScalarType.UINT32, metadata=units_meter)
+    # Add regular coordinates
+    ds.add_coordinate("cdp_x", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32, metadata=units_meter)
+    ds.add_coordinate("cdp_y", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32, metadata=units_meter)
+
+    chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(128, 128, 128)))
+    common_metadata = VariableMetadata(chunk_grid=chunk_grid)
 
     # Add image variable
+    histogram = CenteredBinHistogram(bin_centers=[1, 2], counts=[10, 15])
+    stats = SummaryStatistics(count=100, sum=1215.1, sum_squares=125.12, min=5.61, max=10.84, histogram=histogram)
+    image_metadata = common_metadata.model_copy(update={"stats_v1": stats, "attributes": {"fizz": "buzz"}})
     ds.add_variable(
         name="image",
         dimensions=("inline", "crossline", "depth"),
         data_type=ScalarType.FLOAT32,
         compressor=Blosc(cname=BloscCname.zstd),  # also default in zarr3
         coordinates=("cdp_x", "cdp_y"),
-        metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(128, 128, 128)))
-            ),
-            StatisticsMetadata(
-                stats_v1=SummaryStatistics(
-                    count=100,
-                    sum=1215.1,
-                    sum_squares=125.12,
-                    min=5.61,
-                    max=10.84,
-                    histogram=CenteredBinHistogram(bin_centers=[1, 2], counts=[10, 15]),
-                )
-            ),
-            UserAttributes(attributes={"fizz": "buzz"}),
-        ],
+        metadata=image_metadata,
     )
     # Add velocity variable
+    speed_unit = SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)
+    velocity_metadata = common_metadata.model_copy(update={"units_v1": speed_unit})
     ds.add_variable(
         name="velocity",
         dimensions=("inline", "crossline", "depth"),
         data_type=ScalarType.FLOAT16,
         coordinates=("cdp_x", "cdp_y"),
-        metadata_info=[
-            ChunkGridMetadata(
-                chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(128, 128, 128)))
-            ),
-            AllUnits(units_v1=SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)),
-        ],
+        metadata=velocity_metadata,
     )
     # Add inline-optimized image variable
+    fast_il_chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(4, 512, 512)))
+    fast_inline_metadata = common_metadata.model_copy(update={"chunk_grid": fast_il_chunk_grid})
     ds.add_variable(
         name="image_inline",
         long_name="inline optimized version of 3d_stack",
@@ -240,11 +213,11 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         data_type=ScalarType.FLOAT32,
         compressor=Blosc(cname=BloscCname.zstd),  # also default in zarr3
         coordinates=("cdp_x", "cdp_y"),
-        metadata_info=[
-            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(4, 512, 512))))
-        ],
+        metadata=fast_inline_metadata,
     )
     # Add headers variable with structured dtype
+    header_chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(128, 128)))
+    header_metadata = VariableMetadata(chunk_grid=header_chunk_grid)
     ds.add_variable(
         name="image_headers",
         dimensions=("inline", "crossline"),
@@ -257,8 +230,6 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
                 StructuredField(name="some_scalar", format=ScalarType.FLOAT16),
             ]
         ),
-        metadata_info=[
-            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(128, 128))))
-        ],
+        metadata=header_metadata,
     )
     return ds.build()

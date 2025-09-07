@@ -24,8 +24,8 @@ from tests.conftest import DEBUG_MODE
 
 from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
+from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.segy import segy_to_mdio
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -230,6 +230,8 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
 
 def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: GridConfig) -> NDArray:
     """Generate a boolean selection mask for a masked export test."""
+    rng = np.random.default_rng(seed=1234)
+
     spatial_shape = [dim.size for dim in grid_conf.dims]
     mask_dims = selection_conf.mask_num_dims
     mask_dim_shape = [dim.size for dim in grid_conf.dims[:mask_dims]]
@@ -238,7 +240,7 @@ def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: Grid
     cut_axes = np.zeros(shape=mask_dim_shape, dtype="bool")
 
     cut_size = int((1 - selection_conf.remove_frac) * cut_axes.size)
-    rand_idx = np.random.choice(cut_axes.size, size=cut_size, replace=False)
+    rand_idx = rng.choice(cut_axes.size, size=cut_size, replace=False)
     rand_idx = np.unravel_index(rand_idx, mask_dim_shape)
     selection_mask[rand_idx] = True
 
@@ -367,6 +369,8 @@ class TestNdImportExport:
         NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio'
         successfully complete.
         """
+        rng = np.random.default_rng(seed=1234)
+
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
 
         segy_path = export_masked_path / f"{grid_conf.name}.sgy"
@@ -383,7 +387,7 @@ class TestNdImportExport:
         actual_sgy = SegyFile(segy_rt_path)
 
         num_traces = expected_sgy.num_traces
-        random_indices = np.random.choice(num_traces, 10, replace=False)
+        random_indices = rng.choice(num_traces, 10, replace=False)
         expected_traces = expected_sgy.trace[random_indices]
         actual_traces = actual_sgy.trace[random_indices]
 

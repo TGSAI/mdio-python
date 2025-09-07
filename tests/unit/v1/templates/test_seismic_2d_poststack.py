@@ -2,19 +2,18 @@
 
 from tests.unit.v1.helpers import validate_variable
 
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.dtype import StructuredType
-from mdio.schemas.v1.dataset import Dataset
-from mdio.schemas.v1.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
-from mdio.schemas.v1.units import AllUnits
-from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.v1.units import TimeUnitEnum
-from mdio.schemas.v1.units import TimeUnitModel
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.v1.dataset import Dataset
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.units import TimeUnitEnum
+from mdio.builder.schemas.v1.units import TimeUnitModel
+from mdio.builder.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
 
-_UNIT_METER = AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
-_UNIT_SECOND = AllUnits(units_v1=TimeUnitModel(time=TimeUnitEnum.SECOND))
+UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
+UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
 
 
 def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
@@ -61,7 +60,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=["cdp_x"],
         dtype=ScalarType.FLOAT64,
     )
-    assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
+    assert cdp_x.metadata.units_v1 == UNITS_METER
 
     cdp_y = validate_variable(
         dataset,
@@ -70,7 +69,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=["cdp_y"],
         dtype=ScalarType.FLOAT64,
     )
-    assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
+    assert cdp_y.metadata.units_v1 == UNITS_METER
 
 
 class TestSeismic2DPostStackTemplate:
@@ -94,7 +93,7 @@ class TestSeismic2DPostStackTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs.attributes == {
+        assert attrs == {
             "surveyDimensionality": "2D",
             "ensembleType": "line",
             "processingStage": "post-stack",
@@ -120,7 +119,7 @@ class TestSeismic2DPostStackTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs.attributes == {
+        assert attrs == {
             "surveyDimensionality": "2D",
             "ensembleType": "line",
             "processingStage": "post-stack",
@@ -146,7 +145,7 @@ class TestSeismic2DPostStackTemplate:
         dataset = t.build_dataset(
             "Seismic 2D Depth Line 001",
             sizes=(2048, 4096),
-            horizontal_coord_unit=_UNIT_METER,
+            horizontal_coord_unit=UNITS_METER,
             headers=structured_headers,
         )
 
@@ -176,8 +175,8 @@ class TestSeismic2DPostStackTemplate:
 
         dataset = t.build_dataset(
             "Seismic 2D Time Line 001",
-            sizes=[2048, 4096],
-            horizontal_coord_unit=_UNIT_METER,
+            sizes=(2048, 4096),
+            horizontal_coord_unit=UNITS_METER,
             headers=structured_headers,
         )
 

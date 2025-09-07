@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 
 from zarr.errors import ContainsGroupError
 
-from mdio.core.exceptions import MDIOAlreadyExistsError
+from mdio.exceptions import MDIOAlreadyExistsError
 
 if TYPE_CHECKING:
     from zarr import Group

@@ -2,7 +2,7 @@
 :tocdepth: 3
 ```
 
-```{currentModule} mdio.schemas.compressors
+```{currentModule} mdio.builder.schemas.compressors
 
 ```
 
@@ -65,20 +65,6 @@ For more details about compression modes, see [ZFP Documentation].
 
 ```{eval-rst}
 .. autopydantic_model:: Blosc
-
-----------
-
-.. autoclass:: BloscAlgorithm()
-    :members:
-    :undoc-members:
-    :member-order: bysource
-
-----------
-
-.. autoclass:: BloscShuffle()
-    :members:
-    :undoc-members:
-    :member-order: bysource
 ```
 
 :::

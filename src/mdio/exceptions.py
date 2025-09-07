@@ -51,3 +51,11 @@ class WrongTypeError(MDIOError):
 
 class InvalidMDIOError(MDIOError):
     """Raised when an invalid MDIO file is encountered."""
+
+
+class MDIOAlreadyExistsError(MDIOError):
+    """Raised when MDIO file already exists."""
+
+
+class MDIONotFoundError(MDIOError):
+    """Raised when MDIO file doesn't exist."""

@@ -3,15 +3,14 @@
 import pytest
 from zarr.codecs import BloscCname
 
-from mdio.schemas.compressors import Blosc
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.metadata import UserAttributes
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.dataset_builder import _BuilderState
-from mdio.schemas.v1.units import AllUnits
-from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.v1.variable import VariableMetadata
+from mdio.builder.dataset_builder import MDIODatasetBuilder
+from mdio.builder.dataset_builder import _BuilderState
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.variable import CoordinateMetadata
+from mdio.builder.schemas.v1.variable import VariableMetadata
 
 from .helpers import validate_builder
 from .helpers import validate_coordinate
@@ -25,7 +24,7 @@ def test_add_coordinate() -> None:
 
     msg = "Must add at least one dimension before adding coordinates"
     with pytest.raises(ValueError, match=msg):
-        builder.add_coordinate("cdp", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate("cdp", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32)
 
     builder.add_dimension("inline", 100)
     builder.add_dimension("crossline", 200)
@@ -33,21 +32,21 @@ def test_add_coordinate() -> None:
     # Validate required parameters
     bad_name = None
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
-        builder.add_coordinate(bad_name, dimensions=["speed"], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate(bad_name, dimensions=("speed",), data_type=ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'name' must be a non-empty string"):
-        builder.add_coordinate("", dimensions=["speed"], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate("", dimensions=("speed",), data_type=ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
         builder.add_coordinate("cdp_x", dimensions=None, data_type=ScalarType.FLOAT32)
     with pytest.raises(ValueError, match="'dimensions' must be a non-empty list"):
-        builder.add_coordinate("cdp_x", dimensions=[], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate("cdp_x", dimensions=(), data_type=ScalarType.FLOAT32)
 
     # Add a variable using non-existent dimensions
     msg = "Pre-existing dimension named 'xline' is not found"
     with pytest.raises(ValueError, match=msg):
-        builder.add_coordinate("bad_cdp-x", dimensions=["inline", "xline"], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate("bad_cdp-x", dimensions=("inline", "xline"), data_type=ScalarType.FLOAT32)
 
     # Validate state transition
-    builder.add_coordinate("cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+    builder.add_coordinate("cdp_x", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32)
     validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
     validate_variable(
         builder,
@@ -60,7 +59,7 @@ def test_add_coordinate() -> None:
     # Adding coordinate with the same name twice
     msg = "Adding coordinate with the same name twice is not allowed"
     with pytest.raises(ValueError, match=msg):
-        builder.add_coordinate("cdp_x", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+        builder.add_coordinate("cdp_x", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32)
 
 
 def test_add_coordinate_with_defaults() -> None:
@@ -70,7 +69,7 @@ def test_add_coordinate_with_defaults() -> None:
     builder.add_dimension("crossline", 200)
 
     # Add coordinate using defaults
-    builder.add_coordinate("cdp", dimensions=["inline", "crossline"], data_type=ScalarType.FLOAT32)
+    builder.add_coordinate("cdp", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT32)
     validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
     validate_coordinate(builder, name="cdp", dims=[("inline", 100), ("crossline", 200)], dtype=ScalarType.FLOAT32)
     v = validate_variable(
@@ -92,16 +91,17 @@ def test_coordinate_with_full_parameters() -> None:
     builder.add_dimension("crossline", 200)
 
     # Add coordinate with all metadata
+    metadata = CoordinateMetadata(
+        units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT),
+        attributes={"MGA": 51, "UnitSystem": "Imperial"},
+    )
     builder.add_coordinate(
         "cdp",
         long_name="Common Depth Point",
-        dimensions=["inline", "crossline"],
+        dimensions=("inline", "crossline"),
         data_type=ScalarType.FLOAT16,
         compressor=Blosc(cname=BloscCname.zstd),
-        metadata_info=[
-            AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
-            UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"}),
-        ],
+        metadata=metadata,
     )
     validate_builder(builder, _BuilderState.HAS_COORDINATES, n_dims=2, n_coords=1, n_var=1)
     c = validate_coordinate(builder, name="cdp", dims=[("inline", 100), ("crossline", 200)], dtype=ScalarType.FLOAT16)

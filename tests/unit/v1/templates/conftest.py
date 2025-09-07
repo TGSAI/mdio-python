@@ -3,9 +3,9 @@
 # conftest.py
 import pytest
 
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.dtype import StructuredField
-from mdio.schemas.dtype import StructuredType
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.dtype import StructuredField
+from mdio.builder.schemas.dtype import StructuredType
 
 
 @pytest.fixture(scope="session")

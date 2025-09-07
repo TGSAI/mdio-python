@@ -2,7 +2,7 @@
 :tocdepth: 3
 ```
 
-```{currentModule} mdio.schemas.v1.dataset
+```{currentModule} mdio.builder.schemas.v1.dataset
 
 ```
 
@@ -39,19 +39,16 @@
 :::{dropdown} Variable
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.v1.variable.Variable
+.. autopydantic_model:: mdio.builder.schemas.v1.variable.Variable
     :inherited-members: BaseModel
 
-.. autopydantic_model:: mdio.schemas.v1.variable.Coordinate
+.. autopydantic_model:: mdio.builder.schemas.v1.variable.Coordinate
     :inherited-members: BaseModel
 
-.. autopydantic_model:: mdio.schemas.v1.variable.CoordinateMetadata
+.. autopydantic_model:: mdio.builder.schemas.v1.variable.CoordinateMetadata
     :inherited-members: BaseModel
 
-.. automodule:: mdio.schemas.metadata
-    :members: UserAttributes
-
-.. autopydantic_model:: mdio.schemas.v1.variable.VariableMetadata
+.. autopydantic_model:: mdio.builder.schemas.v1.variable.VariableMetadata
     :inherited-members: BaseModel
 ```
 
@@ -60,11 +57,7 @@
 :::{dropdown} Units
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.v1.units.AllUnits
-```
-
-```{eval-rst}
-.. automodule:: mdio.schemas.v1.units
+.. automodule:: mdio.builder.schemas.v1.units
     :members: LengthUnitModel,
               TimeUnitModel,
               AngleUnitModel,
@@ -79,14 +72,12 @@
 :::{dropdown} Stats
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.schemas.v1.stats.StatisticsMetadata
+.. autopydantic_model:: mdio.builder.schemas.v1.stats.SummaryStatistics
 
-.. autopydantic_model:: mdio.schemas.v1.stats.SummaryStatistics
-
-.. autopydantic_model:: mdio.schemas.v1.stats.EdgeDefinedHistogram
+.. autopydantic_model:: mdio.builder.schemas.v1.stats.EdgeDefinedHistogram
     :inherited-members: BaseModel
 
-.. autopydantic_model:: mdio.schemas.v1.stats.CenteredBinHistogram
+.. autopydantic_model:: mdio.builder.schemas.v1.stats.CenteredBinHistogram
     :inherited-members: BaseModel
 ```
 
@@ -95,37 +86,37 @@
 :::{dropdown} Enums
 
 ```{eval-rst}
-.. autoclass:: mdio.schemas.v1.units.AngleUnitEnum()
+.. autoclass:: mdio.builder.schemas.v1.units.AngleUnitEnum()
     :members:
     :undoc-members:
     :member-order: bysource
 
-.. autoclass:: mdio.schemas.v1.units.DensityUnitEnum()
+.. autoclass:: mdio.builder.schemas.v1.units.DensityUnitEnum()
     :members:
     :undoc-members:
     :member-order: bysource
 
-.. autoclass:: mdio.schemas.v1.units.FrequencyUnitEnum()
+.. autoclass:: mdio.builder.schemas.v1.units.FrequencyUnitEnum()
     :members:
     :undoc-members:
     :member-order: bysource
 
-.. autoclass:: mdio.schemas.v1.units.LengthUnitEnum()
+.. autoclass:: mdio.builder.schemas.v1.units.LengthUnitEnum()
     :members:
     :undoc-members:
     :member-order: bysource
 
-.. autoclass:: mdio.schemas.v1.units.SpeedUnitEnum()
+.. autoclass:: mdio.builder.schemas.v1.units.SpeedUnitEnum()
     :members:
     :undoc-members:
     :member-order: bysource
 
-.. autoclass:: mdio.schemas.v1.units.TimeUnitEnum()
+.. autoclass:: mdio.builder.schemas.v1.units.TimeUnitEnum()
     :members:
     :undoc-members:
     :member-order: bysource
 
-.. autoclass:: mdio.schemas.v1.units.VoltageUnitEnum()
+.. autoclass:: mdio.builder.schemas.v1.units.VoltageUnitEnum()
     :members:
     :undoc-members:
     :member-order: bysource

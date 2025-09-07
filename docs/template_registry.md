@@ -1,4 +1,4 @@
-# Template Registry Singleton
+# Template Registry
 
 A thread-safe singleton registry for managing dataset templates in MDIO applications.
 
@@ -27,7 +27,7 @@ The `TemplateRegistry` implements the singleton pattern to ensure there's only o
 ### Basic Usage
 
 ```python
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
+from mdio.builder.template_registry import TemplateRegistry
 
 # Get the singleton instance
 registry = TemplateRegistry()
@@ -37,7 +37,7 @@ registry = TemplateRegistry.get_instance()
 
 # Register a template
 template = MyDatasetTemplate()
-template_name=registry.register(template)
+template_name = registry.register(template)
 print(f"Registered template named {template_name}")
 
 # Retrieve a template using a well-known name
@@ -58,7 +58,7 @@ template_names = registry.list_all_templates()
 For convenience, you can use global functions that operate on the singleton instance:
 
 ```python
-from mdio.schemas.v1.templates.template_registry import (
+from mdio.builder.template_registry import (
     register_template,
     get_template,
     is_template_registered,
@@ -94,81 +94,10 @@ assert registry1 is registry2 is registry3
 
 ## API Reference
 
-### Core Methods
-
-#### `register(instance: AbstractDatasetTemplate) -> str`
-
-Registers a template instance and returns its normalized name.
-
-- **Parameters:**
-  - `instance`: Template instance implementing `AbstractDatasetTemplate`
-- **Returns:** The template name
-- **Raises:** `ValueError` if template name is already registered
-
-#### `get(template_name: str) -> AbstractDatasetTemplate`
-
-Retrieves a registered template by name.
-
-- **Parameters:**
-  - `template_name`: Name of the template (case-insensitive)
-- **Returns:** The registered template instance
-- **Raises:** `KeyError` if template is not registered
-
-#### `unregister(template_name: str) -> None`
-
-Removes a template from the registry.
-
-- **Parameters:**
-  - `template_name`: Name of the template to remove
-- **Raises:** `KeyError` if template is not registered
-
-#### `is_registered(template_name: str) -> bool`
-
-Checks if a template is registered.
-
-- **Parameters:**
-  - `template_name`: Name of the template to check
-- **Returns:** `True` if template is registered, `False` otherwise
-
-#### `list_all_templates() -> List[str]`
-
-Returns a list of all registered template names.
-
-- **Returns:** List of template names
-
-#### `clear() -> None`
-
-Removes all registered templates. Useful for testing.
-
-### Class Methods
-
-#### `get_instance() -> TemplateRegistry`
-
-Alternative way to get the singleton instance.
-
-- **Returns:** The singleton registry instance
-
-### Global Functions
-
-#### `get_template_registry() -> TemplateRegistry`
-
-Returns the global singleton registry instance.
-
-#### `register_template(template: AbstractDatasetTemplate) -> str`
-
-Registers a template in the global registry.
-
-#### `get_template(name: str) -> AbstractDatasetTemplate`
-
-Gets a template from the global registry.
-
-#### `is_template_registered(name: str) -> bool`
-
-Checks if a template is registered in the global registry.
-
-#### `list_templates() -> List[str]`
-
-Lists all templates in the global registry.
+```{eval-rst}
+.. automodule:: mdio.builder.template_registry
+   :members:
+```
 
 ## Thread Safety
 
@@ -201,10 +130,11 @@ for thread in threads:
 ## Example: Complete Template Management
 
 ```python
-from mdio.schemas.v1.templates.template_registry import TemplateRegistry
-from mdio.schemas.v1.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
-from mdio.schemas.v1.templates.seismic_3d_prestack_time import Seismic3DPostStackTimeTemplate
-from mdio.schemas.v1.templates.seismic_3d_prestack import Seismic3DPreStackTemplate
+from mdio.builder.template_registry import TemplateRegistry
+from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
+from mdio.builder.schemas.v1 import Seismic3DPostStackTimeTemplate
+from mdio.builder.schemas.v1 import Seismic3DPreStackTemplate
+
 
 def setup_templates():
     """Register MDIO templates runtime.
@@ -221,17 +151,14 @@ def setup_templates():
 
     print(f"Registered templates: {list_templates()}")
 
+
 # Application startup
 setup_standard_templates()
 
 # Later in the application
 template = TemplateRegistry().get_template("PostStack3DDepth")
 dataset = template.create_dataset(name="Seismic 3d m/m/ft",
-                                  sizes = [256, 512, 384]
-                                  coord_units = [
-                                    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),
-                                    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),
-                                    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))]
+                                  sizes=[256, 512, 384])
 ```
 
 ## Error Handling

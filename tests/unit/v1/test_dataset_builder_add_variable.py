@@ -2,22 +2,19 @@
 
 import pytest
 
-from mdio.schemas.chunk_grid import RegularChunkGrid
-from mdio.schemas.chunk_grid import RegularChunkShape
-from mdio.schemas.compressors import Blosc
-from mdio.schemas.compressors import BloscCname
-from mdio.schemas.dtype import ScalarType
-from mdio.schemas.metadata import ChunkGridMetadata
-from mdio.schemas.metadata import UserAttributes
-from mdio.schemas.v1.dataset_builder import MDIODatasetBuilder
-from mdio.schemas.v1.dataset_builder import _BuilderState
-from mdio.schemas.v1.stats import CenteredBinHistogram
-from mdio.schemas.v1.stats import StatisticsMetadata
-from mdio.schemas.v1.stats import SummaryStatistics
-from mdio.schemas.v1.units import AllUnits
-from mdio.schemas.v1.units import LengthUnitEnum
-from mdio.schemas.v1.units import LengthUnitModel
-from mdio.schemas.v1.variable import VariableMetadata
+from mdio.builder.dataset_builder import MDIODatasetBuilder
+from mdio.builder.dataset_builder import _BuilderState
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
+from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.v1.stats import CenteredBinHistogram
+from mdio.builder.schemas.v1.stats import SummaryStatistics
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.variable import CoordinateMetadata
+from mdio.builder.schemas.v1.variable import VariableMetadata
 
 from .helpers import validate_builder
 from .helpers import validate_variable
@@ -137,14 +134,10 @@ def test_add_variable_with_defaults() -> None:
     builder.add_dimension("crossline", 200)
     builder.add_dimension("depth", 300)
     # Add dimension coordinates
+    depth_metadata = CoordinateMetadata(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
     builder.add_coordinate("inline", dimensions=("inline",), data_type=ScalarType.UINT32)
     builder.add_coordinate("crossline", dimensions=("crossline",), data_type=ScalarType.UINT32)
-    builder.add_coordinate(
-        "depth",
-        dimensions=("depth",),
-        data_type=ScalarType.UINT32,
-        metadata_info=[AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))],
-    )
+    builder.add_coordinate("depth", dimensions=("depth",), data_type=ScalarType.UINT32, metadata=depth_metadata)
 
     # Add data variable using defaults
     builder.add_variable("ampl", dimensions=("inline", "crossline", "depth"), data_type=ScalarType.FLOAT32)
@@ -178,6 +171,14 @@ def test_add_variable_full_parameters() -> None:
     builder.add_coordinate("cdp_y", dimensions=("inline", "crossline"), data_type=ScalarType.FLOAT64)
 
     # Add data variable with full parameters
+    histogram = CenteredBinHistogram(bin_centers=[1, 2], counts=[10, 15])
+    stats = SummaryStatistics(count=100, sum=1215.1, sum_squares=125.12, min=5.61, max=10.84, histogram=histogram)
+    metadata = VariableMetadata(
+        units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT),
+        attributes={"MGA": 51, "UnitSystem": "Imperial"},
+        chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(20,))),
+        stats_v1=stats,
+    )
     builder.add_variable(
         "ampl",
         long_name="Amplitude (dimensionless)",
@@ -185,21 +186,7 @@ def test_add_variable_full_parameters() -> None:
         data_type=ScalarType.FLOAT32,
         compressor=Blosc(cname=BloscCname.zstd),
         coordinates=("inline", "crossline", "depth", "cdp_x", "cdp_y"),
-        metadata_info=[
-            AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT)),
-            UserAttributes(attributes={"MGA": 51, "UnitSystem": "Imperial"}),
-            ChunkGridMetadata(chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=[20]))),
-            StatisticsMetadata(
-                stats_v1=SummaryStatistics(
-                    count=100,
-                    sum=1215.1,
-                    sumSquares=125.12,
-                    min=5.61,
-                    max=10.84,
-                    histogram=CenteredBinHistogram(binCenters=[1, 2], counts=[10, 15]),
-                )
-            ),
-        ],
+        metadata=metadata,
     )
     validate_builder(builder, _BuilderState.HAS_VARIABLES, n_dims=3, n_coords=5, n_var=6)
     v = validate_variable(

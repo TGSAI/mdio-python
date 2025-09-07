@@ -2,7 +2,7 @@
 :tocdepth: 3
 ```
 
-```{currentModule} mdio.schemas.dimension
+```{currentModule} mdio.builder.schemas.dimension
 
 ```
 
