@@ -25,7 +25,7 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
         return f"PreStackCocaGathers3D{self._data_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {"surveyType": "3D", "gatherType": "cdp_coca"}
+        return {"surveyType": "3D", "gatherType": "common_offset_common_azimuth"}
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
