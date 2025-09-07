@@ -270,7 +270,7 @@ class TestReader:
         expected_attrs = {
             "count": 97354860,
             "sum": -8594.551666259766,
-            "sum_squares": 40571291.6875,
+            "sumSquares": 40571291.6875,
             "min": -8.375323295593262,
             "max": 0.0,
             "histogram": {"counts": [], "bin_centers": []},
