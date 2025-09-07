@@ -6,10 +6,13 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
 
+import zarr
 from upath import UPath
 from xarray import Dataset as xr_Dataset
 from xarray import open_zarr as xr_open_zarr
 from xarray.backends.api import to_zarr as xr_to_zarr
+
+from mdio.constants import ZarrFormat
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -47,7 +50,13 @@ def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dat
     """
     input_path = _normalize_path(input_path)
     storage_options = _normalize_storage_options(input_path)
-    return xr_open_zarr(input_path.as_posix(), chunks=chunks, storage_options=storage_options)
+    zarr_format = zarr.config.get("default_zarr_format")
+    return xr_open_zarr(
+        input_path.as_posix(),
+        chunks=chunks,
+        storage_options=storage_options,
+        mask_and_scale=zarr_format == ZarrFormat.V3,  # off for v2, on for v3
+    )
 
 
 def to_mdio(  # noqa: PLR0913
@@ -57,7 +66,6 @@ def to_mdio(  # noqa: PLR0913
     *,
     compute: bool = True,
     region: Mapping[str, slice | Literal["auto"]] | Literal["auto"] | None = None,
-    zarr_format: int = 3,
 ) -> None:
     """Write dataset contents to an MDIO output_path.
 
@@ -74,18 +82,17 @@ def to_mdio(  # noqa: PLR0913
             can be computed to write array data later. Metadata is always updated eagerly.
         region: Optional mapping from dimension names to either a) ``"auto"``, or b) integer slices, indicating
             the region of existing MDIO array(s) in which to write this dataset's data.
-        zarr_format: The desired zarr format to target. The default is 3.
     """
     output_path = _normalize_path(output_path)
     storage_options = _normalize_storage_options(output_path)
+    zarr_format = zarr.config.get("default_zarr_format")
     xr_to_zarr(
         dataset,
         store=output_path.as_posix(),  # xarray doesn't like URI when file:// is protocol
         mode=mode,
         compute=compute,
-        consolidated=False,
+        consolidated=zarr_format == ZarrFormat.V2,  # off for v3, on for v2
         region=region,
         storage_options=storage_options,
-        zarr_format=zarr_format,
         write_empty_chunks=False,
     )
