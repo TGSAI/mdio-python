@@ -1,4 +1,4 @@
-# Template Registry Singleton
+# Template Registry
 
 A thread-safe singleton registry for managing dataset templates in MDIO applications.
 
