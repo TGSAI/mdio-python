@@ -1,5 +1,6 @@
 """Unit tests for Seismic2DPostStackTemplate."""
 
+import pytest
 from tests.unit.v1.helpers import validate_variable
 
 from mdio.builder.schemas.chunk_grid import RegularChunkGrid
@@ -11,6 +12,7 @@ from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
 from mdio.builder.schemas.v1.units import TimeUnitModel
 from mdio.builder.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
+from mdio.builder.templates.types import SeismicDataDomain
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
@@ -72,17 +74,18 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     assert cdp_y.metadata.units_v1 == UNITS_METER
 
 
+@pytest.mark.parametrize("data_domain", ["time", "depth"])
 class TestSeismic2DPostStackTemplate:
     """Unit tests for Seismic2DPostStackTemplate."""
 
-    def test_configuration_depth(self) -> None:
+    def test_configuration(self, data_domain: SeismicDataDomain) -> None:
         """Test configuration of Seismic2DPostStackTemplate with depth domain."""
-        t = Seismic2DPostStackTemplate("depth")
+        t = Seismic2DPostStackTemplate(data_domain=data_domain)
 
         # Template attributes
-        assert t._trace_domain == "depth"
+        assert t._data_domain == data_domain
         assert t._coord_dim_names == ("cdp",)
-        assert t._dim_names == ("cdp", "depth")
+        assert t._dim_names == ("cdp", data_domain)
         assert t._coord_names == ("cdp_x", "cdp_y")
         assert t._var_chunk_shape == (1024, 1024)
 
@@ -94,84 +97,15 @@ class TestSeismic2DPostStackTemplate:
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
         assert attrs == {
-            "surveyDimensionality": "2D",
-            "ensembleType": "line",
-            "processingStage": "post-stack",
+            "surveyType": "2D",
+            "gatherType": "stacked",
         }
 
         assert t.default_variable_name == "amplitude"
 
-    def test_configuration_time(self) -> None:
-        """Test configuration of Seismic2DPostStackTemplate with time domain."""
-        t = Seismic2DPostStackTemplate("time")
-
-        # Template attributes
-        assert t._trace_domain == "time"
-        assert t._coord_dim_names == ("cdp",)
-        assert t._dim_names == ("cdp", "time")
-        assert t._coord_names == ("cdp_x", "cdp_y")
-        assert t._var_chunk_shape == (1024, 1024)
-
-        # Variables instantiated when build_dataset() is called
-        assert t._builder is None
-        assert t._dim_sizes == ()
-        assert t._horizontal_coord_unit is None
-
-        # Verify dataset attributes
-        attrs = t._load_dataset_attributes()
-        assert attrs == {
-            "surveyDimensionality": "2D",
-            "ensembleType": "line",
-            "processingStage": "post-stack",
-        }
-        assert t.default_variable_name == "amplitude"
-
-    def test_domain_case_handling(self) -> None:
-        """Test that domain parameter handles different cases correctly."""
-        # Test uppercase
-        t1 = Seismic2DPostStackTemplate("ELEVATION")
-        assert t1._trace_domain == "elevation"
-        assert t1.name == "PostStack2DElevation"
-
-        # Test mixed case
-        t2 = Seismic2DPostStackTemplate("elevatioN")
-        assert t2._trace_domain == "elevation"
-        assert t2.name == "PostStack2DElevation"
-
-    def test_build_dataset_depth(self, structured_headers: StructuredType) -> None:
-        """Test building a complete 2D depth dataset."""
-        t = Seismic2DPostStackTemplate("depth")
-
-        dataset = t.build_dataset(
-            "Seismic 2D Depth Line 001",
-            sizes=(2048, 4096),
-            horizontal_coord_unit=UNITS_METER,
-            headers=structured_headers,
-        )
-
-        # Verify dataset metadata
-        assert dataset.metadata.name == "Seismic 2D Depth Line 001"
-        assert dataset.metadata.attributes["surveyDimensionality"] == "2D"
-        assert dataset.metadata.attributes["ensembleType"] == "line"
-        assert dataset.metadata.attributes["processingStage"] == "post-stack"
-
-        _validate_coordinates_headers_trace_mask(dataset, structured_headers, "depth")
-
-        # Verify seismic variable
-        seismic = validate_variable(
-            dataset,
-            name="amplitude",
-            dims=[("cdp", 2048), ("depth", 4096)],
-            coords=["cdp_x", "cdp_y"],
-            dtype=ScalarType.FLOAT32,
-        )
-        assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1024, 1024)
-        assert seismic.metadata.stats_v1 is None
-
-    def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
+    def test_build_dataset_time(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
         """Test building a complete 2D time dataset."""
-        t = Seismic2DPostStackTemplate("time")
+        t = Seismic2DPostStackTemplate(data_domain=data_domain)
 
         dataset = t.build_dataset(
             "Seismic 2D Time Line 001",
@@ -182,17 +116,16 @@ class TestSeismic2DPostStackTemplate:
 
         # Verify dataset metadata
         assert dataset.metadata.name == "Seismic 2D Time Line 001"
-        assert dataset.metadata.attributes["surveyDimensionality"] == "2D"
-        assert dataset.metadata.attributes["ensembleType"] == "line"
-        assert dataset.metadata.attributes["processingStage"] == "post-stack"
+        assert dataset.metadata.attributes["surveyType"] == "2D"
+        assert dataset.metadata.attributes["gatherType"] == "stacked"
 
-        _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers, data_domain)
 
         # Verify seismic variable
         v = validate_variable(
             dataset,
             name="amplitude",
-            dims=[("cdp", 2048), ("time", 4096)],
+            dims=[("cdp", 2048), (data_domain, 4096)],
             coords=["cdp_x", "cdp_y"],
             dtype=ScalarType.FLOAT32,
         )
@@ -200,20 +133,12 @@ class TestSeismic2DPostStackTemplate:
         assert v.metadata.chunk_grid.configuration.chunk_shape == (1024, 1024)
         assert v.metadata.stats_v1 is None
 
-    def test_time_vs_depth_comparison(self) -> None:
-        """Test differences between time and depth templates."""
-        time_template = Seismic2DPostStackTemplate("time")
-        depth_template = Seismic2DPostStackTemplate("depth")
 
-        # Different trace domains
-        assert time_template._trace_domain == "time"
-        assert depth_template._trace_domain == "depth"
+@pytest.mark.parametrize("data_domain", ["Time", "DePTh"])
+def test_domain_case_handling(data_domain: str) -> None:
+    """Test that domain parameter handles different cases correctly."""
+    template = Seismic2DPostStackTemplate(data_domain=data_domain)
+    assert template._data_domain == data_domain.lower()
 
-        # Different names
-        assert time_template.name == "PostStack2DTime"
-        assert depth_template.name == "PostStack2DDepth"
-
-        # Same other attributes
-        assert time_template._coord_dim_names == depth_template._coord_dim_names
-        assert time_template._coord_names == depth_template._coord_names
-        assert time_template._var_chunk_shape == depth_template._var_chunk_shape
+    data_domain_suffix = data_domain.lower().capitalize()
+    assert template.name == f"PostStack2D{data_domain_suffix}"

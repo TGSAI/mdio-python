@@ -280,9 +280,9 @@ class TestNdImportExport:
             case "3d_stack":
                 template_name = "PostStack3D" + domain
             case "2d_gather":
-                template_name = "PreStackCdpGathers2D" + domain
+                template_name = "PreStackCdpOffsetGathers2D" + domain
             case "3d_gather":
-                template_name = "PreStackCdpGathers3D" + domain
+                template_name = "PreStackCdpOffsetGathers3D" + domain
             case "2d_streamer":
                 template_name = "PreStackShotGathers2D" + domain
             case "3d_streamer":

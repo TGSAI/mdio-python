@@ -6,25 +6,26 @@ from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.units import AngleUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.abstract_dataset_template import SeismicDataDomain
 
 
 class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
     """Seismic Shot pre-stack 3D time or depth Dataset template."""
 
-    def __init__(self, domain: str):
-        super().__init__(domain=domain)
+    def __init__(self, data_domain: SeismicDataDomain):
+        super().__init__(data_domain=data_domain)
 
         self._coord_dim_names = ("inline", "crossline", "offset", "azimuth")
-        self._dim_names = (*self._coord_dim_names, self._trace_domain)
+        self._dim_names = (*self._coord_dim_names, self._data_domain)
         self._coord_names = ("cdp_x", "cdp_y")
         self._var_chunk_shape = (8, 8, 32, 1, 1024)
 
     @property
     def _name(self) -> str:
-        return f"PreStackCocaGathers3D{self._trace_domain.capitalize()}"
+        return f"PreStackCocaGathers3D{self._data_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {"surveyDimensionality": "3D", "ensembleType": "cdp_coca", "processingStage": "pre-stack"}
+        return {"surveyType": "3D", "gatherType": "cdp_coca"}
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates

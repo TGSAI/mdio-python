@@ -15,6 +15,7 @@ from mdio.builder.schemas.v1.dataset import Dataset
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
+from mdio.builder.templates.types import SeismicDataDomain
 
 
 class AbstractDatasetTemplate(ABC):
@@ -24,8 +25,13 @@ class AbstractDatasetTemplate(ABC):
     to override specific steps.
     """
 
-    def __init__(self, domain: str = "") -> None:
-        self._trace_domain = domain.lower()
+    def __init__(self, data_domain: SeismicDataDomain) -> None:
+        self._data_domain = data_domain.lower()
+
+        if self._data_domain not in ["depth", "time"]:
+            msg = "domain must be 'depth' or 'time'"
+            raise ValueError(msg)
+
         self._coord_dim_names = ()
         self._dim_names = ()
         self._coord_names = ()
@@ -80,7 +86,7 @@ class AbstractDatasetTemplate(ABC):
     @property
     def trace_domain(self) -> str:
         """Returns the name of the trace domain."""
-        return self._trace_domain
+        return self._data_domain
 
     @property
     def dimension_names(self) -> tuple[str, ...]:

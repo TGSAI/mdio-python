@@ -12,16 +12,21 @@ from mdio.builder.template_registry import is_template_registered
 from mdio.builder.template_registry import list_templates
 from mdio.builder.template_registry import register_template
 from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.types import SeismicDataDomain
 
 EXPECTED_DEFAULT_TEMPLATE_NAMES = [
     "PostStack2DTime",
     "PostStack2DDepth",
     "PostStack3DTime",
     "PostStack3DDepth",
-    "PreStackCdpGathers2DTime",
-    "PreStackCdpGathers2DDepth",
-    "PreStackCdpGathers3DTime",
-    "PreStackCdpGathers3DDepth",
+    "PreStackCdpOffsetGathers2DTime",
+    "PreStackCdpAngleGathers2DDepth",
+    "PreStackCdpOffsetGathers2DTime",
+    "PreStackCdpAngleGathers2DDepth",
+    "PreStackCdpOffsetGathers3DTime",
+    "PreStackCdpAngleGathers3DTime",
+    "PreStackCdpOffsetGathers3DDepth",
+    "PreStackCdpAngleGathers3DDepth",
     "PreStackCocaGathers3DTime",
     "PreStackCocaGathers3DDepth",
     "PreStackShotGathers2DTime",
@@ -32,8 +37,8 @@ EXPECTED_DEFAULT_TEMPLATE_NAMES = [
 class MockDatasetTemplate(AbstractDatasetTemplate):
     """Mock template for testing."""
 
-    def __init__(self, name: str):
-        super().__init__()
+    def __init__(self, name: str, data_domain: SeismicDataDomain = "time"):
+        super().__init__(data_domain=data_domain)
         self.template_name = name
 
     @property
@@ -184,7 +189,7 @@ class TestTemplateRegistrySingleton:
         registry.register(template2)
 
         templates = registry.list_all_templates()
-        assert len(templates) == 12 + 2  # 12 default + 2 custom
+        assert len(templates) == 16 + 2  # 16 default + 2 custom
         assert "Template_One" in templates
         assert "Template_Two" in templates
 
@@ -194,7 +199,7 @@ class TestTemplateRegistrySingleton:
 
         # Default templates are always installed
         templates = list_templates()
-        assert len(templates) == 12
+        assert len(templates) == 16
 
         # Add some templates
         template1 = MockDatasetTemplate("Template1")
@@ -203,7 +208,7 @@ class TestTemplateRegistrySingleton:
         registry.register(template1)
         registry.register(template2)
 
-        assert len(registry.list_all_templates()) == 12 + 2  # 12 default + 2 custom
+        assert len(registry.list_all_templates()) == 16 + 2  # 16 default + 2 custom
 
         # Clear all
         registry.clear()
@@ -281,7 +286,7 @@ class TestGlobalFunctions:
         register_template(template2)
 
         templates = list_templates()
-        assert len(templates) == 14  # 12 default + 2 custom
+        assert len(templates) == 18  # 16 default + 2 custom
         assert "template1" in templates
         assert "template2" in templates
 
@@ -327,7 +332,7 @@ class TestConcurrentAccess:
         assert len(errors) == 0
         assert len(results) == 10
         # Including 8 default templates
-        assert len(registry.list_all_templates()) == 22  # 12 default + 10 registered
+        assert len(registry.list_all_templates()) == 26  # 16 default + 10 registered
 
         # Check all templates are registered
         for i in range(10):

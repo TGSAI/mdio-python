@@ -1,5 +1,6 @@
 """Unit tests for Seismic3DPreStackCocaTemplate."""
 
+import pytest
 from tests.unit.v1.helpers import validate_variable
 
 from mdio.builder.schemas.chunk_grid import RegularChunkGrid
@@ -14,6 +15,7 @@ from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
 from mdio.builder.schemas.v1.units import TimeUnitModel
 from mdio.builder.templates.seismic_3d_prestack_coca import Seismic3DPreStackCocaTemplate
+from mdio.builder.templates.types import SeismicDataDomain
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
@@ -108,16 +110,17 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
 
 
+@pytest.mark.parametrize("data_domain", ["depth", "time"])
 class TestSeismic3DPreStackCocaTemplate:
     """Unit tests for Seismic3DPreStackCocaTemplate."""
 
-    def test_configuration_time(self) -> None:
+    def test_configuration(self, data_domain: SeismicDataDomain) -> None:
         """Unit tests for Seismic3DPreStackCocaTemplate in time domain."""
-        t = Seismic3DPreStackCocaTemplate(domain="time")
+        t = Seismic3DPreStackCocaTemplate(data_domain=data_domain)
 
         # Template attributes
         assert t._coord_dim_names == ("inline", "crossline", "offset", "azimuth")
-        assert t._dim_names == ("inline", "crossline", "offset", "azimuth", "time")
+        assert t._dim_names == ("inline", "crossline", "offset", "azimuth", data_domain)
         assert t._coord_names == ("cdp_x", "cdp_y")
         assert t._var_chunk_shape == (8, 8, 32, 1, 1024)
 
@@ -129,15 +132,14 @@ class TestSeismic3DPreStackCocaTemplate:
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
         assert attrs == {
-            "surveyDimensionality": "3D",
-            "ensembleType": "cdp_coca",
-            "processingStage": "pre-stack",
+            "surveyType": "3D",
+            "gatherType": "cdp_coca",
         }
         assert t.default_variable_name == "amplitude"
 
-    def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
+    def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build in time domain."""
-        t = Seismic3DPreStackCocaTemplate(domain="time")
+        t = Seismic3DPreStackCocaTemplate(data_domain=data_domain)
 
         dataset = t.build_dataset(
             "Permian Basin 3D CDP Coca Gathers",
@@ -147,17 +149,16 @@ class TestSeismic3DPreStackCocaTemplate:
         )
 
         assert dataset.metadata.name == "Permian Basin 3D CDP Coca Gathers"
-        assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
-        assert dataset.metadata.attributes["ensembleType"] == "cdp_coca"
-        assert dataset.metadata.attributes["processingStage"] == "pre-stack"
+        assert dataset.metadata.attributes["surveyType"] == "3D"
+        assert dataset.metadata.attributes["gatherType"] == "cdp_coca"
 
-        _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers, data_domain)
 
         # Verify seismic variable (prestack shot depth data)
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[("inline", 256), ("crossline", 256), ("offset", 100), ("azimuth", 6), ("time", 2048)],
+            dims=[("inline", 256), ("crossline", 256), ("offset", 100), ("azimuth", 6), (data_domain, 2048)],
             coords=["cdp_x", "cdp_y"],
             dtype=ScalarType.FLOAT32,
         )
@@ -166,3 +167,13 @@ class TestSeismic3DPreStackCocaTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == (8, 8, 32, 1, 1024)
         assert seismic.metadata.stats_v1 is None
+
+
+@pytest.mark.parametrize("data_domain", ["Time", "DePTh"])
+def test_domain_case_handling(data_domain: str) -> None:
+    """Test that domain parameter handles different cases correctly."""
+    template = Seismic3DPreStackCocaTemplate(data_domain=data_domain)
+    assert template._data_domain == data_domain.lower()
+
+    data_domain_suffix = data_domain.lower().capitalize()
+    assert template.name == f"PreStackCocaGathers3D{data_domain_suffix}"
