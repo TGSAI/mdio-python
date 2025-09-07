@@ -1,8 +1,18 @@
 """Constant values used across MDIO."""
 
+from enum import IntEnum
+
 import numpy as np
 
 from mdio.schemas.dtype import ScalarType
+
+
+class ZarrFormat(IntEnum):
+    """Zarr version enum."""
+
+    V2 = 2
+    V3 = 3
+
 
 FLOAT16_MAX = np.finfo("float16").max
 FLOAT16_MIN = np.finfo("float16").min

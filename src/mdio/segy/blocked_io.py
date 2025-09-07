@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
+import zarr
 from dask.array import Array
 from dask.array import map_blocks
 from psutil import cpu_count
@@ -17,6 +18,7 @@ from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
 
 from mdio.api.io import _normalize_storage_options
+from mdio.constants import ZarrFormat
 from mdio.core.indexing import ChunkIterator
 from mdio.schemas.v1.stats import CenteredBinHistogram
 from mdio.schemas.v1.stats import SummaryStatistics
@@ -117,6 +119,9 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     zarr_group = zarr_open_group(output_path.as_posix(), mode="a", storage_options=storage_options)
     attr_json = final_stats.model_dump_json()
     zarr_group[data_variable_name].attrs.update({"statsV1": attr_json})
+
+    if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
+        zarr.consolidate_metadata(zarr_group.store)
 
     return final_stats
 

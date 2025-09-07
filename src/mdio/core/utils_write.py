@@ -7,23 +7,11 @@ from dask.array.rechunk import _balance_chunksizes
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
-    from zarr import Group
 
 
 MAX_SIZE_LIVE_MASK = 512 * 1024**2
 
 JsonSerializable = str | int | float | bool | None | dict[str, "JsonSerializable"] | list["JsonSerializable"]
-
-
-def write_attribute(name: str, attribute: JsonSerializable, zarr_group: "Group") -> None:
-    """Write a mappable to Zarr array or group attribute.
-
-    Args:
-        name: Name of the attribute.
-        attribute: Mapping to write. Must be JSON serializable.
-        zarr_group: Output group or array.
-    """
-    zarr_group.attrs[name] = attribute
 
 
 def get_constrained_chunksize(
@@ -45,7 +33,7 @@ def get_constrained_chunksize(
     return tuple(_balance_chunksizes(chunk)[0] for chunk in chunks)
 
 
-def get_live_mask_chunksize(shape: tuple[int, ...]) -> tuple[int]:
+def get_live_mask_chunksize(shape: tuple[int, ...]) -> tuple[int, ...]:
     """Given a live_mask shape, calculate the optimal write chunk size.
 
     Args:

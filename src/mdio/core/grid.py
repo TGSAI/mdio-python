@@ -7,9 +7,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import zarr
+from numcodecs.zarr3 import Blosc
 from zarr.codecs import BloscCodec
 
 from mdio.constants import UINT32_MAX
+from mdio.constants import ZarrFormat
 from mdio.core.utils_write import get_constrained_chunksize
 
 if TYPE_CHECKING:
@@ -108,8 +110,15 @@ class Grid:
             dtype=map_dtype,
             max_bytes=self._INTERNAL_CHUNK_SIZE_TARGET,
         )
-        grid_compressor = BloscCodec(cname="zstd")
-        common_kwargs = {"shape": live_shape, "chunks": chunks, "compressors": grid_compressor, "store": None}
+
+        zarr_format = zarr.config.get("default_zarr_format")
+
+        common_kwargs = {"shape": live_shape, "chunks": chunks, "store": None}
+        if zarr_format == ZarrFormat.V2:
+            common_kwargs["compressors"] = Blosc(cname="zstd")
+        else:
+            common_kwargs["compressors"] = BloscCodec(cname="zstd")
+
         self.map = zarr.create_array(fill_value=fill_value, dtype=map_dtype, **common_kwargs)
         self.live_mask = zarr.create_array(fill_value=0, dtype=bool, **common_kwargs)
 

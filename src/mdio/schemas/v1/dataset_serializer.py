@@ -1,8 +1,10 @@
 """Convert MDIO v1 schema Dataset to Xarray DataSet and write it in Zarr."""
 
 import numpy as np
+import zarr
 from dask import array as dask_array
 from dask.array.core import normalize_chunks
+from numcodecs import Blosc
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
 from zarr.codecs import BloscCodec
@@ -16,6 +18,7 @@ try:
 except ImportError:
     zfpy_ZFPY = None  # noqa: N816
 
+from mdio.constants import ZarrFormat
 from mdio.constants import fill_value_map
 from mdio.schemas.compressors import ZFP as mdio_ZFP  # noqa: N811
 from mdio.schemas.compressors import Blosc as mdio_Blosc
@@ -121,13 +124,17 @@ def _get_zarr_chunks(var: Variable, all_named_dims: dict[str, NamedDimension]) -
 
 def _convert_compressor(
     compressor: mdio_Blosc | mdio_ZFP | None,
-) -> BloscCodec | zfpy_ZFPY | None:
+) -> BloscCodec | Blosc | zfpy_ZFPY | None:
     """Convert a compressor to a numcodecs compatible format."""
     if compressor is None:
         return None
 
     if isinstance(compressor, mdio_Blosc):
-        return BloscCodec(**compressor.model_dump(exclude={"name"}))
+        blosc_kwargs = compressor.model_dump(exclude={"name"}, mode="json")
+        if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
+            blosc_kwargs["shuffle"] = -1 if blosc_kwargs["shuffle"] is None else blosc_kwargs["shuffle"]
+            return Blosc(**blosc_kwargs)
+        return BloscCodec(**blosc_kwargs)
 
     if isinstance(compressor, mdio_ZFP):
         if zfpy_ZFPY is None:
@@ -215,11 +222,19 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         if v.long_name:
             data_array.attrs["long_name"] = v.long_name
 
+        zarr_format = zarr.config.get("default_zarr_format")
+        fill_value_key = "_FillValue" if zarr_format == ZarrFormat.V2 else "fill_value"
+        fill_value = _get_fill_value(v.data_type) if v.name != "headers" else None
+
         encoding = {
             "chunks": original_chunks,
             "compressor": _convert_compressor(v.compressor),
-            "fill_value": _get_fill_value(v.data_type),
+            fill_value_key: fill_value,
         }
+
+        if zarr_format == ZarrFormat.V2:
+            encoding["chunk_key_encoding"] = {"name": "v2", "configuration": {"separator": "/"}}
+            print(encoding)
 
         data_array.encoding = encoding
 
