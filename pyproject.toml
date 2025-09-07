@@ -80,37 +80,37 @@ line-length = 120
 
 [tool.ruff.lint]
 select = [
-    "E",      # pycodestyle
-    "F",      # pyflakes
-    "B",      # bugbear
-    "I",      # isort
-    "UP",     # pyupgrade
-    "N",      # pep8-naming
-    "D",      # pydocstyle
-    "ANN",    # annotations
-    "S",      # bandit
-    "A",      # builtins
-    "C4",     # comprehensions
-    "DTZ",    # datetimez
-    "EM",     # errmsg
-    "ICN",    # import-conventions
-    "PIE",    # pie
-    "PT",     # pytest-style
-    "RSE",    # raise
-    "RET",    # return
-    "SIM",    # simplify
-    "TID",    # tidy-imports
-    "TC",     # type-checking
-    "ARG",    # unused-arguments
-    "PTH",    # use-pathlib
-    "TD",     # todos
-    "PL",     # pylint
-    "FLY",    # flynt
-    "NPY201", # numpy
-    "LOG",    # logging
-    "G",      # logging-format
-    "PERF",   # perflint
-    "FA",     # flake8-future-annotations
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "B",    # bugbear
+    "I",    # isort
+    "UP",   # pyupgrade
+    "N",    # pep8-naming
+    "D",    # pydocstyle
+    "ANN",  # annotations
+    "S",    # bandit
+    "A",    # builtins
+    "C4",   # comprehensions
+    "DTZ",  # datetimez
+    "EM",   # errmsg
+    "ICN",  # import-conventions
+    "PIE",  # pie
+    "PT",   # pytest-style
+    "RSE",  # raise
+    "RET",  # return
+    "SIM",  # simplify
+    "TID",  # tidy-imports
+    "TC",   # type-checking
+    "ARG",  # unused-arguments
+    "PTH",  # use-pathlib
+    "TD",   # todos
+    "PL",   # pylint
+    "FLY",  # flynt
+    "NPY",  # numpy
+    "LOG",  # logging
+    "G",    # logging-format
+    "PERF", # perflint
+    "FA",   # flake8-future-annotations
 ]
 
 ignore = [

@@ -352,6 +352,8 @@ class TestExport:
 
     def test_3d_export(self, segy_input: Path, zarr_tmp: Path, segy_export_tmp: Path) -> None:
         """Test 3D export to IBM and IEEE."""
+        rng = np.random.default_rng(seed=1234)
+
         spec = custom_teapot_dome_segy_spec(keep_unaltered=True)
 
         mdio_to_segy(segy_spec=spec, input_path=zarr_tmp, output_path=segy_export_tmp)
@@ -364,7 +366,7 @@ class TestExport:
         out_segy = SegyFile(segy_export_tmp, spec=spec)
 
         num_traces = in_segy.num_traces
-        random_indices = np.random.choice(num_traces, 100, replace=False)
+        random_indices = rng.choice(num_traces, 100, replace=False)
         in_traces = in_segy.trace[random_indices]
         out_traces = out_segy.trace[random_indices]
 
