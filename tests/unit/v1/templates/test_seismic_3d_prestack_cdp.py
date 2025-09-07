@@ -128,7 +128,7 @@ class TestSeismic3DPreStackCDPTemplate:
         gather_domain: CdpGatherDomain,
         structured_headers: StructuredType,
     ) -> None:
-        """Unit tests for Seismic3DPreStackCDPDepthTemplate build with depth domain."""
+        """Unit tests for Seismic3DPreStackCDPDepthTemplate build."""
         t = Seismic3DPreStackCDPTemplate(data_domain, gather_domain)
 
         gather_domain_suffix = gather_domain.capitalize()

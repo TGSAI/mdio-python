@@ -115,7 +115,7 @@ class TestSeismic3DPreStackCocaTemplate:
     """Unit tests for Seismic3DPreStackCocaTemplate."""
 
     def test_configuration(self, data_domain: SeismicDataDomain) -> None:
-        """Unit tests for Seismic3DPreStackCocaTemplate in time domain."""
+        """Unit tests for Seismic3DPreStackCocaTemplate."""
         t = Seismic3DPreStackCocaTemplate(data_domain=data_domain)
 
         # Template attributes
@@ -135,7 +135,7 @@ class TestSeismic3DPreStackCocaTemplate:
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
-        """Unit tests for Seismic3DPreStackShotTemplate build in time domain."""
+        """Unit tests for Seismic3DPreStackShotTemplate build."""
         t = Seismic3DPreStackCocaTemplate(data_domain=data_domain)
 
         dataset = t.build_dataset(

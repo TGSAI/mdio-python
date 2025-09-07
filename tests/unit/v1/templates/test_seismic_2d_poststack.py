@@ -79,7 +79,7 @@ class TestSeismic2DPostStackTemplate:
     """Unit tests for Seismic2DPostStackTemplate."""
 
     def test_configuration(self, data_domain: SeismicDataDomain) -> None:
-        """Test configuration of Seismic2DPostStackTemplate with depth domain."""
+        """Test configuration of Seismic2DPostStackTemplate."""
         t = Seismic2DPostStackTemplate(data_domain=data_domain)
 
         # Template attributes

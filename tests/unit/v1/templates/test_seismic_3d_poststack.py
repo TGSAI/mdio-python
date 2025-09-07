@@ -96,7 +96,7 @@ class TestSeismic3DPostStackTemplate:
     """Unit tests for Seismic3DPostStackTemplate."""
 
     def test_configuration(self, data_domain: SeismicDataDomain) -> None:
-        """Unit tests for Seismic3DPostStackTemplate with depth domain."""
+        """Unit tests for Seismic3DPostStackTemplate."""
         t = Seismic3DPostStackTemplate(data_domain=data_domain)
 
         # Template attributes to be overridden by subclasses
@@ -117,7 +117,7 @@ class TestSeismic3DPostStackTemplate:
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
-        """Unit tests for Seismic3DPostStackTemplate build with depth domain."""
+        """Unit tests for Seismic3DPostStackTemplate build."""
         t = Seismic3DPostStackTemplate(data_domain=data_domain)
 
         data_domain_suffix = data_domain.capitalize()
