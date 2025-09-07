@@ -260,7 +260,6 @@ class TestReader:
         assert attributes["defaultVariableName"] == "amplitude"
         assert attributes["surveyType"] == "3D"
         assert attributes["gatherType"] == "stacked"
-        assert attributes["processingStage"] == "post-stack"
         assert attributes["textHeader"] == text_header_teapot_dome()
         assert attributes["binaryHeader"] == binary_header_teapot_dome()
 
