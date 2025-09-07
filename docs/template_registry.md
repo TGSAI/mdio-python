@@ -229,11 +229,7 @@ setup_standard_templates()
 # Later in the application
 template = TemplateRegistry().get_template("PostStack3DDepth")
 dataset = template.create_dataset(name="Seismic 3d m/m/ft",
-                                  sizes=[256, 512, 384]
-coord_units = [
-    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),
-    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.METER)),
-    AllUnits(units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT))]
+                                  sizes=[256, 512, 384])
 ```
 
 ## Error Handling

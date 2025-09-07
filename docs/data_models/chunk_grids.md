@@ -2,7 +2,7 @@
 :tocdepth: 3
 ```
 
-```{currentModule} mdio.schemas.chunk_grid
+```{currentModule} mdio.builder.schemas.chunk_grid
 
 ```
 

@@ -2,7 +2,7 @@
 :tocdepth: 3
 ```
 
-```{currentModule} mdio.schemas.compressors
+```{currentModule} mdio.builder.schemas.compressors
 
 ```
 
