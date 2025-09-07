@@ -49,23 +49,23 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     )
     assert inline.metadata is None
 
-    crossline = validate_variable(
+    cable = validate_variable(
         dataset,
         name="cable",
         dims=[("cable", 512)],
         coords=["cable"],
         dtype=ScalarType.INT32,
     )
-    assert crossline.metadata is None
+    assert cable.metadata is None
 
-    crossline = validate_variable(
+    channel = validate_variable(
         dataset,
         name="channel",
         dims=[("channel", 24)],
         coords=["channel"],
         dtype=ScalarType.INT32,
     )
-    assert crossline.metadata is None
+    assert channel.metadata is None
 
     domain = validate_variable(
         dataset,
@@ -80,7 +80,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     validate_variable(
         dataset,
         name="gun",
-        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256)],
         coords=["gun"],
         dtype=ScalarType.UINT8,
     )
@@ -88,7 +88,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     source_coord_x = validate_variable(
         dataset,
         name="source_coord_x",
-        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256)],
         coords=["source_coord_x"],
         dtype=ScalarType.FLOAT64,
     )
@@ -97,7 +97,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     source_coord_y = validate_variable(
         dataset,
         name="source_coord_y",
-        dims=[("shot_point", 256), ("cable", 512), ("channel", 24)],
+        dims=[("shot_point", 256)],
         coords=["source_coord_y"],
         dtype=ScalarType.FLOAT64,
     )
@@ -134,7 +134,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert t._coord_dim_names == ("shot_point", "cable", "channel")
         assert t._dim_names == ("shot_point", "cable", "channel", "time")
         assert t._coord_names == ("gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
-        assert t._var_chunk_shape == (1, 1, 512, 4096)
+        assert t._var_chunk_shape == (8, 2, 128, 1024)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
@@ -145,7 +145,7 @@ class TestSeismic3DPreStackShotTemplate:
         attrs = t._load_dataset_attributes()
         assert attrs == {
             "surveyType": "3D",
-            "gatherType": "shot_point",
+            "gatherType": "common_shot",
         }
 
         assert t.name == "PreStackShotGathers3DTime"
@@ -164,7 +164,7 @@ class TestSeismic3DPreStackShotTemplate:
 
         assert dataset.metadata.name == "North Sea 3D Shot Time"
         assert dataset.metadata.attributes["surveyType"] == "3D"
-        assert dataset.metadata.attributes["gatherType"] == "shot_point"
+        assert dataset.metadata.attributes["gatherType"] == "common_shot"
 
         _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
 
@@ -179,7 +179,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert isinstance(seismic.compressor, Blosc)
         assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1, 1, 512, 4096)
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (8, 2, 128, 1024)
         assert seismic.metadata.stats_v1 is None
 
 
