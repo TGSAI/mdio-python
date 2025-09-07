@@ -1,5 +1,6 @@
 """Unit tests for Seismic3DPostStackTemplate."""
 
+import pytest
 from tests.unit.v1.helpers import validate_variable
 
 from mdio.builder.schemas.chunk_grid import RegularChunkGrid
@@ -13,6 +14,7 @@ from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
 from mdio.builder.schemas.v1.units import TimeUnitModel
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
+from mdio.builder.templates.types import SeismicDataDomain
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
@@ -89,17 +91,18 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
 
 
+@pytest.mark.parametrize("data_domain", ["depth", "time"])
 class TestSeismic3DPostStackTemplate:
     """Unit tests for Seismic3DPostStackTemplate."""
 
-    def test_configuration_depth(self) -> None:
-        """Unit tests for Seismic3DPostStackTemplate with depth domain."""
-        t = Seismic3DPostStackTemplate(domain="depth")
+    def test_configuration(self, data_domain: SeismicDataDomain) -> None:
+        """Unit tests for Seismic3DPostStackTemplate."""
+        t = Seismic3DPostStackTemplate(data_domain=data_domain)
 
         # Template attributes to be overridden by subclasses
-        assert t._trace_domain == "depth"  # Domain should be lowercased
+        assert t._data_domain == data_domain  # Domain should be lowercased
         assert t._coord_dim_names == ("inline", "crossline")
-        assert t._dim_names == ("inline", "crossline", "depth")
+        assert t._dim_names == ("inline", "crossline", data_domain)
         assert t._coord_names == ("cdp_x", "cdp_y")
         assert t._var_chunk_shape == (128, 128, 128)
 
@@ -110,54 +113,15 @@ class TestSeismic3DPostStackTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {
-            "surveyDimensionality": "3D",
-            "ensembleType": "line",
-            "processingStage": "post-stack",
-        }
+        assert attrs == {"surveyType": "3D", "gatherType": "stacked"}
         assert t.default_variable_name == "amplitude"
 
-    def test_configuration_time(self) -> None:
-        """Unit tests for Seismic3DPostStackTemplate with time domain."""
-        t = Seismic3DPostStackTemplate(domain="time")
+    def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
+        """Unit tests for Seismic3DPostStackTemplate build."""
+        t = Seismic3DPostStackTemplate(data_domain=data_domain)
 
-        # Template attributes to be overridden by subclasses
-        assert t._trace_domain == "time"  # Domain should be lowercased
-        assert t._coord_dim_names == ("inline", "crossline")
-        assert t._dim_names == ("inline", "crossline", "time")
-        assert t._coord_names == ("cdp_x", "cdp_y")
-        assert t._var_chunk_shape == (128, 128, 128)
-
-        # Variables instantiated when build_dataset() is called
-        assert t._builder is None
-        assert t._dim_sizes == ()
-        assert t._horizontal_coord_unit is None
-
-        assert t._load_dataset_attributes() == {
-            "surveyDimensionality": "3D",
-            "ensembleType": "line",
-            "processingStage": "post-stack",
-        }
-
-        assert t.name == "PostStack3DTime"
-
-    def test_domain_case_handling(self) -> None:
-        """Test that domain parameter handles different cases correctly."""
-        # Test uppercase
-        t1 = Seismic3DPostStackTemplate("ELEVATION")
-        assert t1._trace_domain == "elevation"
-        assert t1.name == "PostStack3DElevation"
-
-        # Test mixed case
-        t2 = Seismic3DPostStackTemplate("elevatioN")
-        assert t2._trace_domain == "elevation"
-        assert t2.name == "PostStack3DElevation"
-
-    def test_build_dataset_depth(self, structured_headers: StructuredType) -> None:
-        """Unit tests for Seismic3DPostStackTemplate build with depth domain."""
-        t = Seismic3DPostStackTemplate(domain="depth")
-
-        assert t.name == "PostStack3DDepth"
+        data_domain_suffix = data_domain.capitalize()
+        assert t.name == f"PostStack3D{data_domain_suffix}"
         dataset = t.build_dataset(
             "Seismic 3D",
             sizes=(256, 512, 1024),
@@ -166,17 +130,16 @@ class TestSeismic3DPostStackTemplate:
         )
 
         assert dataset.metadata.name == "Seismic 3D"
-        assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
-        assert dataset.metadata.attributes["ensembleType"] == "line"
-        assert dataset.metadata.attributes["processingStage"] == "post-stack"
+        assert dataset.metadata.attributes["surveyType"] == "3D"
+        assert dataset.metadata.attributes["gatherType"] == "stacked"
 
-        _validate_coordinates_headers_trace_mask(dataset, structured_headers, "depth")
+        _validate_coordinates_headers_trace_mask(dataset, structured_headers, data_domain)
 
         # Verify seismic variable
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[("inline", 256), ("crossline", 512), ("depth", 1024)],
+            dims=[("inline", 256), ("crossline", 512), (data_domain, 1024)],
             coords=["cdp_x", "cdp_y"],
             dtype=ScalarType.FLOAT32,
         )
@@ -186,35 +149,12 @@ class TestSeismic3DPostStackTemplate:
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == (128, 128, 128)
         assert seismic.metadata.stats_v1 is None
 
-    def test_build_dataset_time(self, structured_headers: StructuredType) -> None:
-        """Unit tests for Seismic3DPostStackTimeTemplate build with time domain."""
-        t = Seismic3DPostStackTemplate(domain="time")
 
-        assert t.name == "PostStack3DTime"
-        dataset = t.build_dataset(
-            "Seismic 3D",
-            sizes=(256, 512, 1024),
-            horizontal_coord_unit=UNITS_METER,
-            headers=structured_headers,
-        )
+@pytest.mark.parametrize("data_domain", ["Time", "DePTh"])
+def test_domain_case_handling(data_domain: str) -> None:
+    """Test that domain parameter handles different cases correctly."""
+    template = Seismic3DPostStackTemplate(data_domain=data_domain)
+    assert template._data_domain == data_domain.lower()
 
-        assert dataset.metadata.name == "Seismic 3D"
-        assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
-        assert dataset.metadata.attributes["ensembleType"] == "line"
-        assert dataset.metadata.attributes["processingStage"] == "post-stack"
-
-        _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
-
-        # Verify seismic variable
-        seismic = validate_variable(
-            dataset,
-            name="amplitude",
-            dims=[("inline", 256), ("crossline", 512), ("time", 1024)],
-            coords=["cdp_x", "cdp_y"],
-            dtype=ScalarType.FLOAT32,
-        )
-        assert isinstance(seismic.compressor, Blosc)
-        assert seismic.compressor.cname == BloscCname.zstd
-        assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (128, 128, 128)
-        assert seismic.metadata.stats_v1 is None
+    data_domain_suffix = data_domain.lower().capitalize()
+    assert template.name == f"PostStack3D{data_domain_suffix}"

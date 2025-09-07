@@ -255,12 +255,11 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 6
+        assert len(attributes) == 5
         # Validate all attributes provided by the abstract template
         assert attributes["defaultVariableName"] == "amplitude"
-        assert attributes["surveyDimensionality"] == "3D"
-        assert attributes["ensembleType"] == "line"
-        assert attributes["processingStage"] == "post-stack"
+        assert attributes["surveyType"] == "3D"
+        assert attributes["gatherType"] == "stacked"
         assert attributes["textHeader"] == text_header_teapot_dome()
         assert attributes["binaryHeader"] == binary_header_teapot_dome()
 

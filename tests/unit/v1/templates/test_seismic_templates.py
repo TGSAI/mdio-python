@@ -22,7 +22,7 @@ class TestSeismicTemplates:
         # Define a template with a custom data variable name 'velocity'
         class Velocity2DPostStackTemplate(Seismic2DPostStackTemplate):
             def __init__(self, domain: str):
-                super().__init__(domain=domain)
+                super().__init__(data_domain=domain)
 
             @property
             def _default_variable_name(self) -> str:
@@ -30,7 +30,7 @@ class TestSeismicTemplates:
 
             @property
             def _name(self) -> str:
-                return f"Velocity2D{self._trace_domain.capitalize()}"
+                return f"Velocity2D{self._data_domain.capitalize()}"
 
         t = Velocity2DPostStackTemplate("depth")
         assert t.name == "Velocity2DDepth"
@@ -55,8 +55,8 @@ class TestSeismicTemplates:
         assert Seismic3DPostStackTemplate("time").name == "PostStack3DTime"
         assert Seismic3DPostStackTemplate("depth").name == "PostStack3DDepth"
 
-        assert Seismic3DPreStackCDPTemplate("time").name == "PreStackCdpGathers3DTime"
-        assert Seismic3DPreStackCDPTemplate("depth").name == "PreStackCdpGathers3DDepth"
+        assert Seismic3DPreStackCDPTemplate("time", "angle").name == "PreStackCdpAngleGathers3DTime"
+        assert Seismic3DPreStackCDPTemplate("depth", "offset").name == "PreStackCdpOffsetGathers3DDepth"
 
         assert Seismic3DPreStackShotTemplate("time").name == "PreStackShotGathers3DTime"
 

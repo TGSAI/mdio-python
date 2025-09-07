@@ -76,10 +76,11 @@ class TemplateRegistry:
         self.register(Seismic3DPostStackTemplate("depth"))
 
         # CDP/CMP Ordered Data
-        self.register(Seismic2DPreStackCDPTemplate("time"))
-        self.register(Seismic2DPreStackCDPTemplate("depth"))
-        self.register(Seismic3DPreStackCDPTemplate("time"))
-        self.register(Seismic3DPreStackCDPTemplate("depth"))
+        for data_domain in ("time", "depth"):
+            for gather_domain in ("offset", "angle"):
+                self.register(Seismic3DPreStackCDPTemplate(data_domain, gather_domain))
+                self.register(Seismic2DPreStackCDPTemplate(data_domain, gather_domain))
+
         self.register(Seismic3DPreStackCocaTemplate("time"))
         self.register(Seismic3DPreStackCocaTemplate("depth"))
 
