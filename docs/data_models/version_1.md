@@ -60,10 +60,6 @@
 :::{dropdown} Units
 
 ```{eval-rst}
-.. autopydantic_model:: mdio.builder.schemas.v1.units.AllUnits
-```
-
-```{eval-rst}
 .. automodule:: mdio.builder.schemas.v1.units
     :members: LengthUnitModel,
               TimeUnitModel,

@@ -1,12 +1,5 @@
 # API Reference
 
-## Readers / Writers
-
-```{eval-rst}
-.. automodule:: mdio.api.accessor
-   :members:
-```
-
 ## Data Converters
 
 ### Seismic Data
@@ -37,17 +30,6 @@ and
 
 .. automodule:: mdio.converters.mdio
    :members:
-
-.. automodule:: mdio.converters.numpy
-   :members:
-```
-
-## Convenience Functions
-
-```{eval-rst}
-.. automodule:: mdio.api.convenience
-   :members:
-   :exclude-members: create_rechunk_plan, write_rechunked_values
 ```
 
 ## Core Functionality
@@ -56,19 +38,5 @@ and
 
 ```{eval-rst}
 .. automodule:: mdio.core.dimension
-   :members:
-```
-
-### Creation
-
-```{eval-rst}
-.. automodule:: mdio.core.factory
-   :members:
-```
-
-### Data I/O
-
-```{eval-rst}
-.. automodule:: mdio.core.serialization
    :members:
 ```
