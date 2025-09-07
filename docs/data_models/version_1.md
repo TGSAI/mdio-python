@@ -48,9 +48,6 @@
 .. autopydantic_model:: mdio.builder.schemas.v1.variable.CoordinateMetadata
     :inherited-members: BaseModel
 
-.. automodule:: mdio.builder.schemas.metadata
-    :members: UserAttributes
-
 .. autopydantic_model:: mdio.builder.schemas.v1.variable.VariableMetadata
     :inherited-members: BaseModel
 ```
