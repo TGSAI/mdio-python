@@ -108,7 +108,7 @@ class TestSeismic2DPostStackTemplate:
             "Seismic 2D Time Line 001",
             sizes=(2048, 4096),
             horizontal_coord_unit=UNITS_METER,
-            headers=structured_headers,
+            header_dtype=structured_headers,
         )
 
         # Verify dataset metadata

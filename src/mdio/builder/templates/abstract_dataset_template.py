@@ -46,7 +46,7 @@ class AbstractDatasetTemplate(ABC):
         name: str,
         sizes: tuple[int, ...],
         horizontal_coord_unit: LengthUnitModel,
-        headers: StructuredType = None,
+        header_dtype: StructuredType = None,
     ) -> Dataset:
         """Template method that builds the dataset.
 
@@ -54,7 +54,7 @@ class AbstractDatasetTemplate(ABC):
             name: The name of the dataset.
             sizes: The sizes of the dimensions.
             horizontal_coord_unit: The units for the horizontal coordinates.
-            headers: Optional structured headers for the dataset.
+            header_dtype: Optional structured headers for the dataset.
 
         Returns:
             Dataset: The constructed dataset
@@ -69,8 +69,8 @@ class AbstractDatasetTemplate(ABC):
         self._add_coordinates()
         self._add_variables()
         self._add_trace_mask()
-        if headers:
-            self._add_trace_headers(headers)
+        if header_dtype:
+            self._add_trace_headers(header_dtype)
         return self._builder.build()
 
     @property
@@ -184,7 +184,7 @@ class AbstractDatasetTemplate(ABC):
             coordinates=self._coord_names,
         )
 
-    def _add_trace_headers(self, headers: StructuredType) -> None:
+    def _add_trace_headers(self, header_dtype: StructuredType) -> None:
         """Add trace mask variables."""
         # headers = StructuredType.model_validate(header_fields)
 
@@ -192,7 +192,7 @@ class AbstractDatasetTemplate(ABC):
         self._builder.add_variable(
             name="headers",
             dimensions=self._dim_names[:-1],  # All dimensions except vertical (the last one)
-            data_type=headers,
+            data_type=header_dtype,
             compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self._coord_names,
             metadata=VariableMetadata(chunk_grid=chunk_grid),

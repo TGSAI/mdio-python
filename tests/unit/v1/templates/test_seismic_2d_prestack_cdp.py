@@ -138,7 +138,7 @@ class TestSeismic2DPreStackCDPTemplate:
             "North Sea 2D Prestack",
             sizes=(512, 36, 1536),
             horizontal_coord_unit=UNITS_METER,
-            headers=structured_headers,
+            header_dtype=structured_headers,
         )
 
         assert dataset.metadata.name == "North Sea 2D Prestack"

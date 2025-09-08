@@ -142,7 +142,7 @@ class TestSeismic3DPreStackCocaTemplate:
             "Permian Basin 3D CDP Coca Gathers",
             sizes=(256, 256, 100, 6, 2048),
             horizontal_coord_unit=UNITS_METER,
-            headers=structured_headers,
+            header_dtype=structured_headers,
         )
 
         assert dataset.metadata.name == "Permian Basin 3D CDP Coca Gathers"

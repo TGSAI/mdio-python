@@ -368,16 +368,13 @@ def segy_to_mdio(  # noqa PLR0913
     grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
-    # TODO(Altay): Turn this dtype into packed representation
-    # https://github.com/TGSAI/mdio-python/issues/601
-    headers = to_structured_type(segy_spec.trace.header.dtype)
-
+    header_dtype = to_structured_type(segy_spec.trace.header.dtype)
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
         sizes=grid.shape,
         horizontal_coord_unit=horizontal_unit,
-        headers=headers,
+        header_dtype=header_dtype,
     )
 
     _add_segy_ingest_attributes(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)

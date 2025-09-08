@@ -147,7 +147,7 @@ class TestSeismic2DPreStackShotTemplate:
             "North Sea 2D Shot Time",
             sizes=(256, 24, 2048),
             horizontal_coord_unit=UNITS_METER,
-            headers=structured_headers,
+            header_dtype=structured_headers,
         )
 
         assert dataset.metadata.name == "North Sea 2D Shot Time"

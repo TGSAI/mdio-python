@@ -126,7 +126,7 @@ class TestSeismic3DPostStackTemplate:
             "Seismic 3D",
             sizes=(256, 512, 1024),
             horizontal_coord_unit=UNITS_METER,
-            headers=structured_headers,
+            header_dtype=structured_headers,
         )
 
         assert dataset.metadata.name == "Seismic 3D"
