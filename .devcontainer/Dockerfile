@@ -10,7 +10,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Install UV dependency manager
-ARG UV_VERSION="0.6.11"
+ARG UV_VERSION="0.8.15"
 RUN if [ "${UV_VERSION}" != "none" ]; then bash -c "umask 0002 && pip3 install uv==${UV_VERSION}"; fi
 
 # Nox installation using UV (system-level tool)
