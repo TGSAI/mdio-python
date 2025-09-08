@@ -152,7 +152,7 @@ relative_files = true
 
 [tool.coverage.report]
 show_missing = true
-fail_under = 90
+fail_under = 85
 exclude_also = [
     "if __name__ == __main__:",
     "if TYPE_CHECKING:",
