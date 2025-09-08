@@ -17,7 +17,6 @@ from mdio.api.io import to_mdio
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.xarray_builder import to_xarray_dataset
-from mdio.constants import UINT32_MAX
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
@@ -230,12 +229,23 @@ def populate_non_dim_coordinates(
     drop_vars_delayed: list[str],
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate the xarray dataset with coordinate variables."""
-    not_null = grid.map[:] != UINT32_MAX
-    for c_name, c_values in coordinates.items():
-        c_tmp_array = dataset[c_name].values
-        c_tmp_array[not_null] = c_values
-        dataset[c_name][:] = c_tmp_array
-        drop_vars_delayed.append(c_name)
+    non_data_domain_dims = grid.dim_names[:-1]  # minus the data domain dimension
+    for coord_name, coord_values in coordinates.items():
+        da_coord = dataset[coord_name]
+        tmp_coord_values = dataset[coord_name].values
+
+        coord_axes = tuple(non_data_domain_dims.index(coord_dim) for coord_dim in da_coord.dims)
+        coord_slices = tuple(slice(None) if idx in coord_axes else 0 for idx in range(len(non_data_domain_dims)))
+        coord_trace_indices = grid.map[coord_slices]
+
+        not_null = coord_trace_indices != grid.map.fill_value
+        tmp_coord_values[not_null] = coord_values[coord_trace_indices[not_null]]
+        dataset[coord_name][:] = tmp_coord_values
+        drop_vars_delayed.append(coord_name)
+
+        # TODO(Altay): Add verification of reduced coordinates being the same as the first
+        # https://github.com/TGSAI/mdio-python/issues/645
+
     return dataset, drop_vars_delayed
 
 
