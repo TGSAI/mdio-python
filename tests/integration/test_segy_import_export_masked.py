@@ -64,6 +64,7 @@ class SegyFactoryConfig:
 class SegyToMdioConfig:
     """Configuration class for SEG-Y to MDIO conversion."""
 
+    template: str
     chunks: Iterable[int]
 
 
@@ -95,53 +96,68 @@ class MaskedExportConfig:
         yield self.selection_conf
 
 
-# fmt: off
 STACK_2D_CONF = MaskedExportConfig(
     GridConfig(name="2d_stack", dims=[Dimension("cdp", 1, 1948, 1)]),
     SegyFactoryConfig(revision=1, header_byte_map={"cdp": 21}, num_samples=201),
-    SegyToMdioConfig(chunks=[25, 128]),
+    SegyToMdioConfig(chunks=[25, 128], template="PostStack2DTime"),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.998),
 )
 
 STACK_3D_CONF = MaskedExportConfig(
     GridConfig(name="3d_stack", dims=[Dimension("inline", 10, 20, 1), Dimension("crossline", 100, 20, 2)]),
     SegyFactoryConfig(revision=1, header_byte_map={"inline": 189, "crossline": 193}, num_samples=201),
-    SegyToMdioConfig(chunks=[6, 6, 6]),
+    SegyToMdioConfig(chunks=[6, 6, 6], template="PostStack3DTime"),
     SelectionMaskConfig(mask_num_dims=2, remove_frac=0.98),
 )
 
 GATHER_2D_CONF = MaskedExportConfig(
     GridConfig(name="2d_gather", dims=[Dimension("cdp", 1, 40, 1), Dimension("offset", 25, 20, 25)]),
     SegyFactoryConfig(revision=1, header_byte_map={"cdp": 21, "offset": 37}, num_samples=201),
-    SegyToMdioConfig(chunks=[2, 12, 128]),
+    SegyToMdioConfig(chunks=[2, 12, 128], template="PreStackCdpOffsetGathers2DTime"),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.9),
 )
 
 GATHER_3D_CONF = MaskedExportConfig(
-    GridConfig(name="3d_gather", dims=[Dimension("inline", 10, 8, 1), Dimension("crossline", 100, 10, 2), Dimension("offset", 25, 10, 25)]),
+    GridConfig(
+        name="3d_gather",
+        dims=[Dimension("inline", 10, 8, 1), Dimension("crossline", 100, 10, 2), Dimension("offset", 25, 10, 25)],
+    ),
     SegyFactoryConfig(revision=1, header_byte_map={"inline": 189, "crossline": 193, "offset": 37}, num_samples=201),
-    SegyToMdioConfig(chunks=[4, 4, 2, 128]),
+    SegyToMdioConfig(chunks=[4, 4, 2, 128], template="PreStackCdpOffsetGathers3DTime"),
     SelectionMaskConfig(mask_num_dims=2, remove_frac=0.96),
 )
 
 STREAMER_2D_CONF = MaskedExportConfig(
     GridConfig(name="2d_streamer", dims=[Dimension("shot_point", 10, 10, 1), Dimension("channel", 25, 60, 25)]),
     SegyFactoryConfig(revision=1, header_byte_map={"shot_point": 7, "channel": 131}, num_samples=201),
-    SegyToMdioConfig(chunks=[2, 12, 128]),
+    SegyToMdioConfig(chunks=[2, 12, 128], template="PreStackShotGathers2DTime"),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.7),
 )
 
 STREAMER_3D_CONF = MaskedExportConfig(
-    GridConfig(name="3d_streamer", dims=[Dimension("shot_point", 10, 5, 1), Dimension("cable", 1, 6, 1), Dimension("channel", 25, 60, 25)]),
+    GridConfig(
+        name="3d_streamer",
+        dims=[Dimension("shot_point", 10, 5, 1), Dimension("cable", 1, 6, 1), Dimension("channel", 25, 60, 25)],
+    ),
     SegyFactoryConfig(revision=1, header_byte_map={"shot_point": 7, "cable": 193, "channel": 131}, num_samples=201),
-    SegyToMdioConfig(chunks=[1, 2, 12, 128]),
+    SegyToMdioConfig(chunks=[1, 2, 12, 128], template="PreStackShotGathers3DTime"),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.5),
 )
 
 COCA_3D_CONF = MaskedExportConfig(
-    GridConfig(name="3d_coca", dims=[Dimension("inline", 10, 8, 1), Dimension("crossline", 100, 8, 2), Dimension("offset", 25, 15, 25), Dimension("azimuth", 0, 4, 30)]),
-    SegyFactoryConfig(revision=1, header_byte_map={"inline": 189, "crossline": 193, "offset": 37, "azimuth": 232}, num_samples=201),
-    SegyToMdioConfig(chunks=[4, 4, 4, 1, 128]),
+    GridConfig(
+        name="3d_coca",
+        dims=[
+            Dimension("inline", 10, 8, 1),
+            Dimension("crossline", 100, 8, 2),
+            Dimension("offset", 25, 15, 25),
+            Dimension("azimuth", 0, 4, 30),
+        ],
+    ),
+    SegyFactoryConfig(
+        revision=1, header_byte_map={"inline": 189, "crossline": 193, "offset": 37, "azimuth": 232}, num_samples=201
+    ),
+    SegyToMdioConfig(chunks=[4, 4, 4, 1, 128], template="PreStackCocaGathers3DTime"),
     SelectionMaskConfig(mask_num_dims=2, remove_frac=0.9),
 )
 # fmt: on
@@ -182,41 +198,55 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
     spec = _segy_spec_mock_nd_segy(grid_conf, segy_factory_conf)
     factory = SegyFactory(spec=spec, samples_per_trace=segy_factory_conf.num_samples)
 
-    dim_coords = ()
-    for dim in grid_conf.dims:
-        start, size, step = dim.start, dim.size, dim.step
-        stop = start + (size * step)
-        dim_coords += (np.arange(start, stop, step),)
+    grid_shape = [dim.size for dim in grid_conf.dims]
+    grid_unit_spaced = np.mgrid[tuple(slice(None, size) for size in grid_shape)]
 
-    dim_grid = np.meshgrid(*dim_coords, indexing="ij")
-    trace_numbers = np.arange(dim_grid[0].size) + 1
+    dim_grids = {}
+    dim_coords = {}
+    for dim, grid in zip(grid_conf.dims, grid_unit_spaced, strict=True):
+        dim_grids[dim.name] = grid
+        dim_coords[dim.name] = dim.start + grid * dim.step
 
+    num_traces = np.prod(grid_shape)
+    trace_numbers = np.arange(num_traces) + 1
     samples = factory.create_trace_sample_template(trace_numbers.size)
     headers = factory.create_trace_header_template(trace_numbers.size)
 
     # Fill dimension coordinates (e.g. inline, crossline, etc.)
-    for dim_idx, dim in enumerate(grid_conf.dims):
-        headers[dim.name] = dim_grid[dim_idx].ravel()
+    for key, values in dim_coords.items():
+        headers[key] = values.ravel()
 
     # Fill coordinates (e.g. {SRC-REC-CDP}-X/Y
     headers["coordinate_scalar"] = -100
-    for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
-        start = 700000
-        step = 100
-        stop = start + step * (trace_numbers.size - 0)
-        headers[field] = np.arange(start=start, stop=stop, step=step)
-    for field in ["cdp_y", "source_coord_y", "group_coord_y"]:
-        start = 4000000
-        step = 100
-        stop = start + step * (trace_numbers.size - 0)
-        headers[field] = np.arange(start=start, stop=stop, step=step)
 
-    # Array filled with repeating sequence
-    sequence = np.array([1, 2, 3])
-    # Calculate the number of times the sequence needs to be repeated
-    num_repetitions = int(np.ceil(trace_numbers.size / len(sequence)))
-    repeated_array = np.tile(sequence, num_repetitions)[: trace_numbers.size]
-    headers["gun"] = repeated_array
+    x_origin, y_origin = 700_000, 4_000_000
+    x_step, y_step = 100, 100
+
+    if grid_conf.name in ("2d_stack", "2d_gather"):
+        headers["cdp_x"] = (x_origin + dim_grids["cdp"] * x_step).ravel()
+        headers["cdp_y"] = (y_origin + dim_grids["cdp"] * y_step).ravel()
+    elif grid_conf.name in ("3d_stack", "3d_gather", "3d_coca"):
+        headers["cdp_x"] = (x_origin + dim_grids["inline"] * x_step).ravel()
+        headers["cdp_y"] = (y_origin + dim_grids["crossline"] * y_step).ravel()
+    elif grid_conf.name in ("2d_streamer", "3d_streamer"):
+        headers["source_coord_x"] = (x_origin + dim_grids["shot_point"] * x_step).ravel()
+        headers["source_coord_y"] = (y_origin + dim_grids["shot_point"] * y_step).ravel()
+        cable_key = "channel" if grid_conf.name == "2d_streamer" else "cable"
+        chan_key = "channel" if grid_conf.name == "2d_streamer" else "cable"
+        headers["group_coord_x"] = (x_origin + dim_grids["shot_point"] * x_step + dim_grids[chan_key] * x_step).ravel()
+        headers["group_coord_y"] = (y_origin + dim_grids["shot_point"] * y_step + dim_grids[cable_key] * y_step).ravel()
+        headers["gun"] = np.tile((1, 2, 3), num_traces // 3)
+
+    # for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
+    #     start = 700000
+    #     step = 100
+    #     stop = start + step * (trace_numbers.size - 0)
+    #     headers[field] = np.arange(start=start, stop=stop, step=step)
+    # for field in ["cdp_y", "source_coord_y", "group_coord_y"]:
+    #     start = 4000000
+    #     step = 100
+    #     stop = start + step * (trace_numbers.size - 0)
+    #     headers[field] = np.arange(start=start, stop=stop, step=step)
 
     samples[:] = trace_numbers[..., None]
 
@@ -255,13 +285,11 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.getbasetemp() / "export_masked"
 
 
-# fmt: off
 @pytest.mark.parametrize(
     "test_conf",
     [STACK_2D_CONF, STACK_3D_CONF, GATHER_2D_CONF, GATHER_3D_CONF, STREAMER_2D_CONF, STREAMER_3D_CONF, COCA_3D_CONF],
     ids=["2d_stack", "3d_stack", "2d_gather", "3d_gather", "2d_streamer", "3d_streamer", "3d_coca"],
 )
-# fmt: on
 class TestNdImportExport:
     """Test import/export of n-D SEG-Ys to MDIO, with and without selection mask."""
 
@@ -273,31 +301,12 @@ class TestNdImportExport:
         """
         grid_conf, segy_factory_conf, segy_to_mdio_conf, _ = test_conf
 
-        domain = "Time"
-        match grid_conf.name:
-            case "2d_stack":
-                template_name = "PostStack2D" + domain
-            case "3d_stack":
-                template_name = "PostStack3D" + domain
-            case "2d_gather":
-                template_name = "PreStackCdpOffsetGathers2D" + domain
-            case "3d_gather":
-                template_name = "PreStackCdpOffsetGathers3D" + domain
-            case "2d_streamer":
-                template_name = "PreStackShotGathers2D" + domain
-            case "3d_streamer":
-                template_name = "PreStackShotGathers3D" + domain
-            # case "3d_coca":
-            #     templateName = "PostStack3D" + domain
-            case _:
-                err = f"Unsupported test configuration: {grid_conf.name}"
-                raise ValueError(err)
-
         segy_path = export_masked_path / f"{grid_conf.name}.sgy"
         mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
 
         segy_spec: SegySpec = mock_nd_segy(segy_path, grid_conf, segy_factory_conf)
 
+        template_name = segy_to_mdio_conf.template
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get(template_name),
@@ -338,20 +347,19 @@ class TestNdImportExport:
         headers = ds["headers"]
         assert headers.shape == live_mask.shape
         assert set(headers.dims) == {dim.name for dim in grid_conf.dims}
-        # Validate header values
-        trace_index = 0
-        trace_header = headers.values.flatten()[trace_index]
-        expected_x = 700000 + trace_index * 100
-        expected_y = 4000000 + trace_index * 100
-        expected_gun = 1 + (trace_index % 3)
+        # Validate header values on first trace
+        trace_header = headers.values.ravel()[0]
+        expected_x = 700_000
+        expected_y = 4_000_000
+        expected_gun = 1
         assert trace_header["coordinate_scalar"] == -100
-        assert trace_header["source_coord_x"] == expected_x
-        assert trace_header["source_coord_y"] == expected_y
-        assert trace_header["group_coord_x"] == expected_x
-        assert trace_header["group_coord_y"] == expected_y
-        assert trace_header["cdp_x"] == expected_x
-        assert trace_header["cdp_y"] == expected_y
-        assert trace_header["gun"] == expected_gun
+        assert trace_header["source_coord_x"] == (expected_x if "streamer" in grid_conf.name else 0)
+        assert trace_header["source_coord_y"] == (expected_y if "streamer" in grid_conf.name else 0)
+        assert trace_header["group_coord_x"] == (expected_x if "streamer" in grid_conf.name else 0)
+        assert trace_header["group_coord_y"] == (expected_y if "streamer" in grid_conf.name else 0)
+        assert trace_header["cdp_x"] == (expected_x if "streamer" not in grid_conf.name else 0)
+        assert trace_header["cdp_y"] == (expected_y if "streamer" not in grid_conf.name else 0)
+        assert trace_header["gun"] == (expected_gun if "streamer" in grid_conf.name else 0)
 
         # Validate trace samples
         # Traces have constant samples with the value equal to the trace index
@@ -361,7 +369,6 @@ class TestNdImportExport:
         # The trace index goes from 1 to num_traces
         expected = np.arange(1, num_traces + 1, dtype=np.float32).reshape(live_mask.shape)
         assert np.array_equal(actual, expected)
-
 
     def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test export of an n-D MDIO file back to SEG-Y.
@@ -380,7 +387,7 @@ class TestNdImportExport:
         mdio_to_segy(
             segy_spec=_segy_spec_mock_nd_segy(grid_conf, segy_factory_conf),
             input_path=mdio_path,
-            output_path=segy_rt_path
+            output_path=segy_rt_path,
         )
 
         expected_sgy = SegyFile(segy_path)
@@ -400,7 +407,6 @@ class TestNdImportExport:
         assert_array_equal(desired=expected_traces.header, actual=actual_traces.header)
         assert_array_equal(desired=expected_traces.sample, actual=actual_traces.sample)
 
-
     def test_export_masked(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
         """Test export of an n-D MDIO file back to SEG-Y with masked export.
 
@@ -419,7 +425,7 @@ class TestNdImportExport:
             segy_spec=_segy_spec_mock_nd_segy(grid_conf, segy_factory_conf),
             input_path=mdio_path,
             output_path=segy_rt_path,
-            selection_mask=selection_mask
+            selection_mask=selection_mask,
         )
 
         expected_trc_idx = selection_mask.ravel().nonzero()[0]
