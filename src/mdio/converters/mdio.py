@@ -3,14 +3,15 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import TYPE_CHECKING
 
 import numpy as np
 from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
-from mdio import MDIOReader
+from mdio.api.io import _normalize_path
+from mdio.api.io import open_mdio
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
@@ -21,18 +22,21 @@ try:
 except ImportError:
     distributed = None
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from segy.schema import SegySpec
+    from upath import UPath
+
 
 default_cpus = cpu_count(logical=True)
 NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 
 
-def mdio_to_segy(  # noqa: PLR0912, PLR0913
-    mdio_path_or_buffer: str,
-    output_segy_path: str,
-    endian: str = "big",
-    access_pattern: str = "012",
-    storage_options: dict = None,
-    new_chunks: tuple[int, ...] = None,
+def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
+    segy_spec: SegySpec,
+    input_path: UPath | Path | str,
+    output_path: UPath | Path | str,
     selection_mask: np.ndarray = None,
     client: distributed.Client = None,
 ) -> None:
@@ -47,13 +51,9 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913
     A `selection_mask` can be provided (same shape as spatial grid) to export a subset.
 
     Args:
-        mdio_path_or_buffer: Input path where the MDIO is located.
-        output_segy_path: Path to the output SEG-Y file.
-        endian: Endianness of the input SEG-Y. Rev.2 allows little endian. Default is 'big'.
-        access_pattern: This specificies the chunk access pattern. Underlying zarr.Array must
-            exist. Examples: '012', '01'
-        storage_options: Storage options for the cloud storage backend. Default: None (anonymous)
-        new_chunks: Set manual chunksize. For development purposes only.
+        segy_spec: The SEG-Y specification to use for the conversion.
+        input_path: Store or URL (and cloud options) for MDIO file.
+        output_path: Path to the output SEG-Y file.
         selection_mask: Array that lists the subset of traces
         client: Dask client. If `None` we will use local threaded scheduler. If `auto` is used we
             will create multiple processes (with 8 threads each).
@@ -64,97 +64,83 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913
 
     Examples:
         To export an existing local MDIO file to SEG-Y we use the code snippet below. This will
-        export the full MDIO (without padding) to SEG-Y format using IBM floats and big-endian
-        byte order.
+        export the full MDIO (without padding) to SEG-Y format.
 
+        >>> from upath import UPath
         >>> from mdio import mdio_to_segy
         >>>
-        >>>
-        >>> mdio_to_segy(
-        ...     mdio_path_or_buffer="prefix2/file.mdio",
-        ...     output_segy_path="prefix/file.segy",
-        ... )
-
-        If we want to export this as an IEEE big-endian, using a selection mask, we would run:
-
-        >>> mdio_to_segy(
-        ...     mdio_path_or_buffer="prefix2/file.mdio",
-        ...     output_segy_path="prefix/file.segy",
-        ...     selection_mask=boolean_mask,
-        ... )
-
+        >>> input_path = UPath("prefix2/file.mdio")
+        >>> output_path = UPath("prefix/file.segy")
+        >>> mdio_to_segy(input_path, output_path)
     """
-    backend = "dask"
+    input_path = _normalize_path(input_path)
+    output_path = _normalize_path(output_path)
 
-    output_segy_path = Path(output_segy_path)
+    # First we open with vanilla zarr backend and then get some info
+    # We will re-open with `new_chunks` and Dask later in mdio_spec_to_segy
+    dataset = open_mdio(input_path)
 
-    mdio = MDIOReader(
-        mdio_path_or_buffer=mdio_path_or_buffer,
-        access_pattern=access_pattern,
-        storage_options=storage_options,
-    )
+    default_variable_name = dataset.attrs["attributes"]["defaultVariableName"]
+    amplitude = dataset[default_variable_name]
+    chunks = amplitude.encoding["preferred_chunks"]
+    sizes = amplitude.sizes
+    dtype = amplitude.dtype
+    new_chunks = segy_export_rechunker(chunks, sizes, dtype)
 
-    if new_chunks is None:
-        new_chunks = segy_export_rechunker(mdio.chunks, mdio.shape, mdio._traces.dtype)
-
-    creation_args = [
-        mdio_path_or_buffer,
-        output_segy_path,
-        access_pattern,
-        endian,
-        storage_options,
-        new_chunks,
-        backend,
-    ]
+    creation_args = [segy_spec, input_path, output_path, new_chunks]
 
     if client is not None:
         if distributed is not None:
             # This is in case we work with big data
             feature = client.submit(mdio_spec_to_segy, *creation_args)
-            mdio, segy_factory = feature.result()
+            dataset, segy_factory = feature.result()
         else:
             msg = "Distributed client was provided, but `distributed` is not installed"
             raise ImportError(msg)
     else:
-        mdio, segy_factory = mdio_spec_to_segy(*creation_args)
+        dataset, segy_factory = mdio_spec_to_segy(*creation_args)
 
-    live_mask = mdio.live_mask.compute()
+    trace_mask = dataset["trace_mask"].compute()
 
     if selection_mask is not None:
-        live_mask = live_mask & selection_mask
+        if trace_mask.shape != selection_mask.shape:
+            msg = "Selection mask and trace mask shapes do not match."
+            raise ValueError(msg)
+        selection_mask = trace_mask.copy(data=selection_mask)  # make into DataArray
+        trace_mask = trace_mask & selection_mask
 
     # This handles the case if we are skipping a whole block.
-    if live_mask.sum() == 0:
+    if trace_mask.sum() == 0:
         msg = "No traces will be written out. Live mask is empty."
         raise ValueError(msg)
 
     # Find rough dim limits, so we don't unnecessarily hit disk / cloud store.
     # Typically, gets triggered when there is a selection mask
-    dim_slices = ()
-    live_nonzeros = live_mask.nonzero()
-    for dim_nonzeros in live_nonzeros:
-        start = np.min(dim_nonzeros)
-        stop = np.max(dim_nonzeros) + 1
-        dim_slices += (slice(start, stop),)
+    dim_slices = {}
+    dim_live_indices = np.nonzero(trace_mask.values)
+    for dim_name, dim_live in zip(trace_mask.dims, dim_live_indices, strict=True):
+        start = dim_live.min().item()
+        stop = dim_live.max().item() + 1
+        dim_slices[dim_name] = slice(start, stop)
 
-    # Lazily pull the data with limits now, and limit mask so its the same shape.
-    live_mask, headers, samples = mdio[dim_slices]
-    live_mask = live_mask.rechunk(headers.chunks)
+    # Lazily pull the data with limits now.
+    # All the variables, metadata, etc. is all sliced to the same range.
+    dataset = dataset.isel(dim_slices)
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]
-        live_mask = live_mask & selection_mask
+        dataset["trace_mask"] = dataset["trace_mask"] & selection_mask
 
     # tmp file root
-    out_dir = output_segy_path.parent
+    out_dir = output_path.parent
     tmp_dir = TemporaryDirectory(dir=out_dir)
 
     with tmp_dir:
         with TqdmCallback(desc="Unwrapping MDIO Blocks"):
             block_records = to_segy(
-                samples=samples,
-                headers=headers,
-                live_mask=live_mask,
+                samples=dataset[default_variable_name].data,
+                headers=dataset["headers"].data,
+                live_mask=dataset["trace_mask"].data,
                 segy_factory=segy_factory,
                 file_root=tmp_dir.name,
             )
@@ -165,7 +151,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913
                 block_records = block_records.compute(num_workers=NUM_CPUS)
 
         ordered_files = [rec.path for rec in block_records.ravel() if rec != 0]
-        ordered_files = [output_segy_path] + ordered_files
+        ordered_files = [output_path] + ordered_files
 
         if client is not None:
             _ = client.submit(concat_files, paths=ordered_files).result()

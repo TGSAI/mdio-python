@@ -1,42 +1,42 @@
-"""Conversion from SEG-Y to MDIO."""
+"""Conversion from SEG-Y to MDIO v1 format."""
 
 from __future__ import annotations
 
 import logging
 import os
 from typing import TYPE_CHECKING
-from typing import Any
 
 import numpy as np
-import zarr
-from numcodecs import Blosc
 from segy import SegyFile
 from segy.config import SegySettings
-from segy.schema import HeaderField
+from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
+from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
+from mdio.api.io import _normalize_path
+from mdio.api.io import to_mdio
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.xarray_builder import to_xarray_dataset
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
-from mdio.core import Grid
-from mdio.core.factory import MDIOCreateConfig
-from mdio.core.factory import MDIOVariableConfig
-from mdio.core.factory import create_empty
-from mdio.core.utils_write import write_attribute
+from mdio.converters.type_converter import to_structured_type
+from mdio.core.grid import Grid
 from mdio.segy import blocked_io
-from mdio.segy.compat import mdio_segy_spec
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
     from pathlib import Path
+    from typing import Any
 
-try:
-    import zfpy  # Base library
-    from numcodecs import ZFPY  # Codec
-except ImportError:
-    ZFPY = None
-    zfpy = None
+    from segy.arrays import HeaderArray as SegyHeaderArray
+    from segy.schema import SegySpec
+    from upath import UPath
+    from xarray import Dataset as xr_Dataset
 
+    from mdio.builder.schemas import Dataset
+    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.core.dimension import Dimension
 
 logger = logging.getLogger(__name__)
 
@@ -115,354 +115,301 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
-def get_compressor(lossless: bool, compression_tolerance: float = -1) -> Blosc | ZFPY | None:
-    """Get the appropriate compressor for the seismic traces."""
-    if lossless:
-        compressor = Blosc("zstd")
-    else:
-        if zfpy is None or ZFPY is None:
-            msg = (
-                "Lossy compression requires the 'zfpy' library. It is not installed in your "
-                "environment. To proceed, please install 'zfpy' or install mdio `lossy` extra."
-            )
-            raise ImportError(msg)
+def _scan_for_headers(
+    segy_file: SegyFile,
+    template: AbstractDatasetTemplate,
+    grid_overrides: dict[str, Any] | None = None,
+) -> tuple[list[Dimension], SegyHeaderArray]:
+    """Extract trace dimensions and index headers from the SEG-Y file.
 
-        compressor = ZFPY(mode=zfpy.mode_fixed_accuracy, tolerance=compression_tolerance)
-    return compressor
-
-
-def segy_to_mdio(  # noqa: PLR0913, PLR0915
-    segy_path: str | Path,
-    mdio_path_or_buffer: str | Path,
-    index_bytes: Sequence[int],
-    index_names: Sequence[str] | None = None,
-    index_types: Sequence[str] | None = None,
-    chunksize: tuple[int, ...] | None = None,
-    lossless: bool = True,
-    compression_tolerance: float = 0.01,
-    storage_options_input: dict[str, Any] | None = None,
-    storage_options_output: dict[str, Any] | None = None,
-    overwrite: bool = False,
-    grid_overrides: dict | None = None,
-) -> None:
-    """Convert SEG-Y file to MDIO format.
-
-    MDIO allows ingesting flattened seismic surveys in SEG-Y format into a multidimensional tensor
-    that represents the correct geometry of the seismic dataset.
-
-    The SEG-Y file must be on disk, MDIO currently does not support reading SEG-Y directly from
-    the cloud object store.
-
-    The output MDIO file can be local or on the cloud. For local files, a UNIX or Windows path is
-    sufficient. However, for cloud stores, an appropriate protocol must be provided. See examples
-    for more details.
-
-    The SEG-Y headers for indexing must also be specified. The index byte locations (starts from 1)
-    are the minimum amount of information needed to index the file. However, we suggest giving
-    names to the index dimensions, and if needed providing the header lengths if they are not
-    standard. By default, all header entries are assumed to be 4-byte long.
-
-    The chunk size depends on the data type, however, it can be chosen to accommodate any
-    workflow's access patterns. See examples below for some common use cases.
-
-    By default, the data is ingested with LOSSLESS compression. This saves disk space in the range
-    of 20% to 40%. MDIO also allows data to be compressed using the ZFP compressor's fixed rate
-    lossy compression. If lossless parameter is set to False and MDIO was installed using the lossy
-    extra; then the data will be compressed to approximately 30% of its original size and will be
-    perceptually lossless. The compression ratio can be adjusted using the option compression_ratio
-    (integer). Higher values will compress more, but will introduce artifacts.
-
-    Args:
-        segy_path: Path to the input SEG-Y file
-        mdio_path_or_buffer: Output path for the MDIO file, either local or cloud-based (e.g.,
-            with `s3://`, `gcs://`, or `abfs://` protocols).
-        index_bytes: Tuple of the byte location for the index attributes
-        index_names: List of names for the index dimensions. If not provided, defaults to `dim_0`,
-            `dim_1`, ..., with the last dimension named `sample`.
-        index_types: Tuple of the data-types for the index attributes. Must be in {"int16, int32,
-            float16, float32, ibm32"}. Default is 4-byte integers for each index key.
-        chunksize: Tuple specifying the chunk sizes for each dimension of the array. It must match
-            the number of dimensions in the input array.
-        lossless: If True, uses lossless Blosc compression with zstandard. If False, uses ZFP lossy
-            compression (requires `zfpy` library).
-        compression_tolerance: Tolerance for ZFP compression in lossy mode. Ignored if
-            `lossless=True`. Default is 0.01, providing ~70% size reduction.
-        storage_options_input: Dictionary of storage options for the SEGY input output file (e.g.,
-            cloud credentials). Defaults to None.
-        storage_options_output: Dictionary of storage options for the MDIO output output file
-            (e.g., cloud credentials). Defaults to None.
-        overwrite: If True, overwrites existing MDIO file at the specified path.
-        grid_overrides: Option to add grid overrides. See examples.
-
-    Raises:
-        GridTraceCountError: Raised if grid won't hold all traces in the SEG-Y file.
-        ValueError: If length of chunk sizes don't match number of dimensions.
-        NotImplementedError: If can't determine chunking automatically for 4D+.
-
-    Examples:
-        If we are working locally and ingesting a 3D post-stack seismic file, we can use the
-        following example. This will ingest with default chunks of 128 x 128 x 128.
-
-        >>> from mdio import segy_to_mdio
-        >>>
-        >>>
-        >>> segy_to_mdio(
-        ...     segy_path="prefix1/file.segy",
-        ...     mdio_path_or_buffer="prefix2/file.mdio",
-        ...     index_bytes=(189, 193),
-        ...     index_names=("inline", "crossline")
-        ... )
-
-        If we are on Amazon Web Services, we can do it like below. The protocol before the URL can
-        be `s3` for AWS, `gcs` for Google Cloud, and `abfs` for Microsoft Azure. In this example we
-        also change the chunk size as a demonstration.
-
-        >>> segy_to_mdio(
-        ...     segy_path="prefix/file.segy",
-        ...     mdio_path_or_buffer="s3://bucket/file.mdio",
-        ...     index_bytes=(189, 193),
-        ...     index_names=("inline", "crossline"),
-        ...     chunksize=(64, 64, 512),
-        ... )
-
-        Another example of loading a 4D seismic such as 3D seismic pre-stack gathers is below. This
-        will allow us to extract offset planes efficiently or run things in a local neighborhood
-        very efficiently.
-
-        >>> segy_to_mdio(
-        ...     segy_path="prefix/file.segy",
-        ...     mdio_path_or_buffer="s3://bucket/file.mdio",
-        ...     index_bytes=(189, 193, 37),
-        ...     index_names=("inline", "crossline", "offset"),
-        ...     chunksize=(16, 16, 16, 512),
-        ... )
-
-        We can override the dataset grid by the `grid_overrides` parameter. This allows us to
-        ingest files that don't conform to the true geometry of the seismic acquisition.
-
-        For example if we are ingesting 3D seismic shots that don't have a cable number and channel
-        numbers are sequential (i.e. each cable doesn't start with channel number 1; we can tell
-        MDIO to ingest this with the correct geometry by calculating cable numbers and wrapped
-        channel numbers. Note the missing byte location and word length for the "cable" index.
-
-        >>> segy_to_mdio(
-        ...     segy_path="prefix/shot_file.segy",
-        ...     mdio_path_or_buffer="s3://bucket/shot_file.mdio",
-        ...     index_bytes=(17, None, 13),
-        ...     index_lengths=(4, None, 4),
-        ...     index_names=("shot", "cable", "channel"),
-        ...     chunksize=(8, 2, 128, 1024),
-        ...     grid_overrides={
-        ...         "ChannelWrap": True, "ChannelsPerCable": 800,
-        ...         "CalculateCable": True
-        ...     },
-        ... )
-
-        If we do have cable numbers in the headers, but channels are still sequential (aka.
-        unwrapped), we can still ingest it like this.
-
-        >>> segy_to_mdio(
-        ...     segy_path="prefix/shot_file.segy",
-        ...     mdio_path_or_buffer="s3://bucket/shot_file.mdio",
-        ...     index_bytes=(17, 137, 13),
-        ...     index_lengths=(4, 2, 4),
-        ...     index_names=("shot_point", "cable", "channel"),
-        ...     chunksize=(8, 2, 128, 1024),
-        ...     grid_overrides={"ChannelWrap": True, "ChannelsPerCable": 800},
-        ... )
-
-        For shot gathers with channel numbers and wrapped channels, no grid overrides necessary.
-
-        In cases where the user does not know if the input has unwrapped channels but desires to
-        store with wrapped channel index use:
-        >>> grid_overrides = {
-        ...    "AutoChannelWrap": True,
-        ...    "AutoChannelTraceQC": 1000000
-        ... }
-
-        For ingestion of pre-stack streamer data where the user needs to access/index
-        *common-channel gathers* (single gun) then the following strategy can be used to densely
-        ingest while indexing on gun number:
-
-        >>> segy_to_mdio(
-        ...     segy_path="prefix/shot_file.segy",
-        ...     mdio_path_or_buffer="s3://bucket/shot_file.mdio",
-        ...     index_bytes=(133, 171, 17, 137, 13),
-        ...     index_lengths=(2, 2, 4, 2, 4),
-        ...     index_names=("shot_line", "gun", "shot_point", "cable", "channel"),
-        ...     chunksize=(1, 1, 8, 1, 128, 1024),
-        ...     grid_overrides={
-        ...         "AutoShotWrap": True,
-        ...         "AutoChannelWrap": True,
-        ...         "AutoChannelTraceQC":  1000000
-        ...     },
-        ... )
-
-        For AutoShotWrap and AutoChannelWrap to work, the user must provide "shot_line", "gun",
-        "shot_point", "cable", "channel". For improved common-channel performance consider
-        modifying the chunksize to be (1, 1, 32, 1, 32, 2048) for good common-shot and
-        common-channel performance or (1, 1, 128, 1, 1, 2048) for common-channel performance.
-
-        For cases with no well-defined trace header for indexing a NonBinned grid override is
-        provided.This creates the index and attributes an incrementing integer to the trace for
-        the index based on first in first out. For example a CDP and Offset keyed file might have a
-        header for offset as real world offset which would result in a very sparse populated index.
-        Instead, the following override will create a new index from 1 to N, where N is the number
-        of offsets within a CDP ensemble. The index to be auto generated is called "trace". Note
-        the required "chunksize" parameter in the grid override. This is due to the non-binned
-        ensemble chunksize is irrelevant to the index dimension chunksizes and has to be specified
-        in the grid override itself. Note the lack of offset, only indexing CDP, providing CDP
-        header type, and chunksize for only CDP and Sample dimension. The chunksize for non-binned
-        dimension is in the grid overrides as described above. The below configuration will yield
-        1MB chunks:
-
-        >>> segy_to_mdio(
-        ...     segy_path="prefix/cdp_offset_file.segy",
-        ...     mdio_path_or_buffer="s3://bucket/cdp_offset_file.mdio",
-        ...     index_bytes=(21,),
-        ...     index_types=("int32",),
-        ...     index_names=("cdp",),
-        ...     chunksize=(4, 1024),
-        ...     grid_overrides={"NonBinned": True, "chunksize": 64},
-        ... )
-
-        A more complicated case where you may have a 5D dataset that is not binned in Offset and
-        Azimuth directions can be ingested like below. However, the Offset and Azimuth dimensions
-        will be combined to "trace" dimension. The below configuration will yield 1MB chunks.
-
-        >>> segy_to_mdio(
-        ...     segy_path="prefix/cdp_offset_file.segy",
-        ...     mdio_path_or_buffer="s3://bucket/cdp_offset_file.mdio",
-        ...     index_bytes=(189, 193),
-        ...     index_types=("int32", "int32"),
-        ...     index_names=("inline", "crossline"),
-        ...     chunksize=(4, 4, 1024),
-        ...     grid_overrides={"NonBinned": True, "chunksize": 64},
-        ... )
-
-        For dataset with expected duplicate traces we have the following parameterization. This
-        will use the same logic as NonBinned with a fixed chunksize of 1. The other keys are still
-        important. The below example allows multiple traces per receiver (i.e. reshoot).
-
-        >>> segy_to_mdio(
-        ...     segy_path="prefix/cdp_offset_file.segy",
-        ...     mdio_path_or_buffer="s3://bucket/cdp_offset_file.mdio",
-        ...     index_bytes=(9, 213, 13),
-        ...     index_types=("int32", "int16", "int32"),
-        ...     index_names=("shot", "cable", "chan"),
-        ...     chunksize=(8, 2, 256, 512),
-        ...     grid_overrides={"HasDuplicates": True},
-        ... )
+    This is an expensive operation.
+    It scans the SEG-Y file in chunks by using ProcessPoolExecutor
     """
-    index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
-    index_types = index_types or ["int32"] * len(index_bytes)
-
-    if chunksize is not None and len(chunksize) != len(index_bytes) + 1:
-        message = (
-            f"Length of chunks={len(chunksize)} must be equal to array "
-            f"dimensions={len(index_bytes) + 1}"
-        )
-        raise ValueError(message)
-
-    # Handle storage options and check permissions etc
-    storage_options_input = storage_options_input or {}
-    storage_options_output = storage_options_output or {}
-
-    # Open SEG-Y with MDIO's SegySpec. Endianness will be inferred.
-    mdio_spec = mdio_segy_spec()
-    segy_settings = SegySettings(storage_options=storage_options_input)
-    segy = SegyFile(url=segy_path, spec=mdio_spec, settings=segy_settings)
-
-    text_header = segy.text_header
-    binary_header = segy.binary_header
-    num_traces = segy.num_traces
-
-    # Index the dataset using a spec that interprets the user provided index headers.
-    index_fields = []
-    for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
-        index_fields.append(HeaderField(name=name, byte=byte, format=format_))
-    mdio_spec_grid = mdio_spec.customize(trace_header_fields=index_fields)
-    segy_grid = SegyFile(url=segy_path, spec=mdio_spec_grid, settings=segy_settings)
-
-    dimensions, chunksize, index_headers = get_grid_plan(
-        segy_file=segy_grid,
+    full_chunk_size = template.full_chunk_size
+    segy_dimensions, chunk_size, segy_headers = get_grid_plan(
+        segy_file=segy_file,
         return_headers=True,
-        chunksize=chunksize,
+        template=template,
+        chunksize=full_chunk_size,
         grid_overrides=grid_overrides,
     )
-    grid = Grid(dims=dimensions)
-    grid_density_qc(grid, num_traces)
-    grid.build_map(index_headers)
+    if full_chunk_size != chunk_size:
+        # TODO(Dmitriy): implement grid overrides
+        # https://github.com/TGSAI/mdio-python/issues/585
+        # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
+        # support for grid overrides is implemented
+        err = "Support for changing full_chunk_size in grid overrides is not yet implemented"
+        raise NotImplementedError(err)
+    return segy_dimensions, segy_headers
 
+
+def _build_and_check_grid(segy_dimensions: list[Dimension], segy_file: SegyFile, segy_headers: SegyHeaderArray) -> Grid:
+    """Build and check the grid from the SEG-Y headers and dimensions.
+
+    Args:
+        segy_dimensions: List of of all SEG-Y dimensions to build grid from.
+        segy_file: Instance of SegyFile to check for trace count.
+        segy_headers: Headers read in from SEG-Y file for building the trace map.
+
+    Returns:
+        A grid instance populated with the dimensions and trace index map.
+
+    Raises:
+        GridTraceCountError: If number of traces in SEG-Y file does not match the parsed grid
+    """
+    grid = Grid(dims=segy_dimensions)
+    grid_density_qc(grid, segy_file.num_traces)
+    grid.build_map(segy_headers)
     # Check grid validity by comparing trace numbers
-    if np.sum(grid.live_mask) != num_traces:
+    if np.sum(grid.live_mask) != segy_file.num_traces:
         for dim_name in grid.dim_names:
             dim_min, dim_max = grid.get_min(dim_name), grid.get_max(dim_name)
             logger.warning("%s min: %s max: %s", dim_name, dim_min, dim_max)
         logger.warning("Ingestion grid shape: %s.", grid.shape)
-        raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
+        raise GridTraceCountError(np.sum(grid.live_mask), segy_file.num_traces)
+    return grid
 
-    if chunksize is None:
-        dim_count = len(index_names) + 1
-        if dim_count == 2:  # noqa: PLR2004
-            chunksize = (512,) * 2
 
-        elif dim_count == 3:  # noqa: PLR2004
-            chunksize = (64,) * 3
+def _get_coordinates(
+    grid: Grid,
+    segy_headers: SegyHeaderArray,
+    mdio_template: AbstractDatasetTemplate,
+) -> tuple[list[Dimension], dict[str, SegyHeaderArray]]:
+    """Get the data dim and non-dim coordinates from the SEG-Y headers and MDIO template.
 
-        else:
-            msg = (
-                f"Default chunking for {dim_count}-D seismic data is not implemented yet. "
-                "Please explicity define chunk sizes."
-            )
-            raise NotImplementedError(msg)
+    Select a subset of the segy_dimensions that corresponds to the MDIO dimensions
+    The dimensions are ordered as in the MDIO template.
+    The last dimension is always the vertical domain dimension
 
-        suffix = [str(x) for x in range(dim_count)]
-        suffix = "".join(suffix)
-    else:
-        suffix = [dim_chunks if dim_chunks > 0 else None for dim_chunks in chunksize]
-        suffix = [str(idx) for idx, value in enumerate(suffix) if value is not None]
-        suffix = "".join(suffix)
+    Args:
+        grid: Inferred MDIO grid for SEG-Y file.
+        segy_headers: Headers read in from SEG-Y file.
+        mdio_template: The MDIO template to use for the conversion.
 
-    compressors = get_compressor(lossless, compression_tolerance)
-    header_dtype = segy.spec.trace.header.dtype.newbyteorder("=")
-    var_conf = MDIOVariableConfig(
-        name=f"chunked_{suffix}",
-        dtype="float32",
-        chunks=chunksize,
-        compressors=compressors,
+    Raises:
+        ValueError: If a dimension or coordinate name from the MDIO template is not found in
+                    the SEG-Y headers.
+
+    Returns:
+        A tuple containing:
+            - A list of dimension coordinates (1-D arrays).
+            - A dict of non-dimension coordinates (str: N-D arrays).
+    """
+    dimensions_coords = []
+    for dim_name in mdio_template.dimension_names:
+        if dim_name not in grid.dim_names:
+            err = f"Dimension '{dim_name}' was not found in SEG-Y dimensions."
+            raise ValueError(err)
+        dimensions_coords.append(grid.select_dim(dim_name))
+
+    non_dim_coords: dict[str, SegyHeaderArray] = {}
+    for coord_name in mdio_template.coordinate_names:
+        if coord_name not in segy_headers.dtype.names:
+            err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
+            raise ValueError(err)
+        non_dim_coords[coord_name] = segy_headers[coord_name]
+
+    return dimensions_coords, non_dim_coords
+
+
+def populate_dim_coordinates(
+    dataset: xr_Dataset, grid: Grid, drop_vars_delayed: list[str]
+) -> tuple[xr_Dataset, list[str]]:
+    """Populate the xarray dataset with dimension coordinate variables."""
+    for dim in grid.dims:
+        dataset[dim.name].values[:] = dim.coords
+        drop_vars_delayed.append(dim.name)
+    return dataset, drop_vars_delayed
+
+
+def populate_non_dim_coordinates(
+    dataset: xr_Dataset,
+    grid: Grid,
+    coordinates: dict[str, SegyHeaderArray],
+    drop_vars_delayed: list[str],
+) -> tuple[xr_Dataset, list[str]]:
+    """Populate the xarray dataset with coordinate variables."""
+    non_data_domain_dims = grid.dim_names[:-1]  # minus the data domain dimension
+    for coord_name, coord_values in coordinates.items():
+        da_coord = dataset[coord_name]
+        tmp_coord_values = dataset[coord_name].values
+
+        coord_axes = tuple(non_data_domain_dims.index(coord_dim) for coord_dim in da_coord.dims)
+        coord_slices = tuple(slice(None) if idx in coord_axes else 0 for idx in range(len(non_data_domain_dims)))
+        coord_trace_indices = grid.map[coord_slices]
+
+        not_null = coord_trace_indices != grid.map.fill_value
+        tmp_coord_values[not_null] = coord_values[coord_trace_indices[not_null]]
+        dataset[coord_name][:] = tmp_coord_values
+        drop_vars_delayed.append(coord_name)
+
+        # TODO(Altay): Add verification of reduced coordinates being the same as the first
+        # https://github.com/TGSAI/mdio-python/issues/645
+
+    return dataset, drop_vars_delayed
+
+
+def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitModel | None:
+    """Get the coordinate unit from the SEG-Y headers."""
+    name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
+    unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
+    if unit_hdr is None or len(unit_hdr.coords) == 0:
+        return None
+
+    if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.METERS:
+        unit = LengthUnitEnum.METER
+    if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.FEET:
+        unit = LengthUnitEnum.FOOT
+
+    return LengthUnitModel(length=unit)
+
+
+def _populate_coordinates(
+    dataset: xr_Dataset,
+    grid: Grid,
+    coords: dict[str, SegyHeaderArray],
+) -> tuple[xr_Dataset, list[str]]:
+    """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
+
+    This will write the xr Dataset with coords and dimensions, but empty traces and headers.
+
+    Args:
+        dataset: The xarray dataset to populate.
+        grid: The grid object containing the grid map.
+        coords: The non-dim coordinates to populate.
+
+    Returns:
+        Xarray dataset with filled coordinates and updated variables to drop after writing
+    """
+    drop_vars_delayed = []
+    # Populate the dimension coordinate variables (1-D arrays)
+    dataset, vars_to_drop_later = populate_dim_coordinates(dataset, grid, drop_vars_delayed=drop_vars_delayed)
+
+    # Populate the non-dimension coordinate variables (N-dim arrays)
+    dataset, vars_to_drop_later = populate_non_dim_coordinates(
+        dataset, grid, coordinates=coords, drop_vars_delayed=drop_vars_delayed
+    )
+
+    return dataset, drop_vars_delayed
+
+
+def _add_segy_ingest_attributes(dataset: Dataset, segy_file: SegyFile, grid_overrides: dict[str, Any] | None) -> None:
+    text_header = segy_file.text_header.splitlines()
+    # Validate:
+    # text_header this should be a 40-items array of strings with width of 80 characters.
+    item_count = 40
+    if len(text_header) != item_count:
+        err = f"Invalid text header count: expected {item_count}, got {len(text_header)}"
+        raise ValueError(err)
+    char_count = 80
+    for i, line in enumerate(text_header):
+        if len(line) != char_count:
+            err = f"Invalid text header {i} line length: expected {char_count}, got {len(line)}"
+            raise ValueError(err)
+    ext_text_header = segy_file.ext_text_header
+
+    # If using SegyFile.ext_text_header this should be a minimum of 40 elements and must
+    # capture all textual information (ensure text_header is a subset of ext_text_header).
+    if ext_text_header is not None:
+        for ext_hdr in ext_text_header:
+            text_header.append(ext_hdr.splitlines())
+
+    # Handle case where it may not have any metadata yet
+    if dataset.metadata.attributes is None:
+        dataset.metadata.attributes = {}
+
+    segy_attributes = {
+        "textHeader": text_header,
+        "binaryHeader": segy_file.binary_header.to_dict(),
+    }
+
+    if grid_overrides is not None:
+        segy_attributes["gridOverrides"] = grid_overrides
+
+    # Update the attributes with the text and binary headers.
+    dataset.metadata.attributes.update(segy_attributes)
+
+
+def segy_to_mdio(  # noqa PLR0913
+    segy_spec: SegySpec,
+    mdio_template: AbstractDatasetTemplate,
+    input_path: UPath | Path | str,
+    output_path: UPath | Path | str,
+    overwrite: bool = False,
+    grid_overrides: dict[str, Any] | None = None,
+) -> None:
+    """A function that converts a SEG-Y file to an MDIO v1 file.
+
+    Ingest a SEG-Y file according to the segy_spec. This could be a spec from registry or custom.
+
+    Args:
+        segy_spec: The SEG-Y specification to use for the conversion.
+        mdio_template: The MDIO template to use for the conversion.
+        input_path: The universal path of the input SEG-Y file.
+        output_path: The universal path for the output MDIO v1 file.
+        overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
+        grid_overrides: Option to add grid overrides.
+
+    Raises:
+        FileExistsError: If the output location already exists and overwrite is False.
+    """
+    input_path = _normalize_path(input_path)
+    output_path = _normalize_path(output_path)
+
+    if not overwrite and output_path.exists():
+        err = f"Output location '{output_path.as_posix()}' exists. Set `overwrite=True` if intended."
+        raise FileExistsError(err)
+
+    segy_settings = SegySettings(storage_options=input_path.storage_options)
+    segy_file = SegyFile(url=input_path.as_posix(), spec=segy_spec, settings=segy_settings)
+
+    segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
+
+    grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
+
+    _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
+    header_dtype = to_structured_type(segy_spec.trace.header.dtype)
+    horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
+    mdio_ds: Dataset = mdio_template.build_dataset(
+        name=mdio_template.name,
+        sizes=grid.shape,
+        horizontal_coord_unit=horizontal_unit,
         header_dtype=header_dtype,
     )
-    config = MDIOCreateConfig(path=mdio_path_or_buffer, grid=grid, variables=[var_conf])
 
-    root_group = create_empty(
-        config,
-        overwrite=overwrite,
-        storage_options=storage_options_output,
-        consolidate_meta=False,
-    )
-    data_group = root_group["data"]
-    meta_group = root_group["metadata"]
-    data_array = data_group[f"chunked_{suffix}"]
-    header_array = meta_group[f"chunked_{suffix}_trace_headers"]
+    _add_segy_ingest_attributes(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)
 
-    # Write actual live mask and metadata to empty MDIO
-    meta_group["live_mask"][:] = grid.live_mask[:]
-    nonzero_count = np.count_nonzero(grid.live_mask)
-    write_attribute(name="trace_count", zarr_group=root_group, attribute=nonzero_count)
-    write_attribute(name="text_header", zarr_group=meta_group, attribute=text_header.split("\n"))
-    write_attribute(name="binary_header", zarr_group=meta_group, attribute=binary_header.to_dict())
+    xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
-    # Write traces
-    stats = blocked_io.to_zarr(
-        segy_file=segy,
+    xr_dataset, drop_vars_delayed = _populate_coordinates(
+        dataset=xr_dataset,
         grid=grid,
-        data_array=data_array,
-        header_array=header_array,
+        coords=non_dim_coords,
     )
 
-    # Write actual stats
-    for key, value in stats.items():
-        write_attribute(name=key, zarr_group=root_group, attribute=value)
+    xr_dataset.trace_mask.data[:] = grid.live_mask
 
-    zarr.consolidate_metadata(root_group.store)
+    # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
+    # blocked_io.to_zarr() -> _workers.trace_worker()
+
+    # This will create the Zarr store with the correct structure but with empty arrays
+    to_mdio(xr_dataset, output_path=output_path, mode="w", compute=False)
+
+    # This will write the non-dimension coordinates and trace mask
+    meta_ds = xr_dataset[drop_vars_delayed + ["trace_mask"]]
+    to_mdio(meta_ds, output_path=output_path, mode="r+", compute=True)
+
+    # Now we can drop them to simplify chunked write of the data variable
+    xr_dataset = xr_dataset.drop_vars(drop_vars_delayed)
+
+    # Write the headers and traces in chunks using grid_map to indicate dead traces
+    default_variable_name = mdio_template.default_variable_name
+    # This is an memory-expensive and time-consuming read-write operation
+    # performed in chunks to save the memory
+    blocked_io.to_zarr(
+        segy_file=segy_file,
+        output_path=output_path,
+        grid_map=grid.map,
+        dataset=xr_dataset,
+        data_variable_name=default_variable_name,
+    )

@@ -12,12 +12,14 @@ from dask.array.core import normalize_chunks
 
 from mdio.core import Dimension
 from mdio.segy.geometry import GridOverrider
-from mdio.segy.parsers import parse_index_headers
+from mdio.segy.parsers import parse_headers
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
     from segy import SegyFile
     from segy.arrays import HeaderArray
+
+    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
 
 
 logger = logging.getLogger(__name__)
@@ -25,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 def get_grid_plan(  # noqa:  C901
     segy_file: SegyFile,
-    chunksize: list[int],
+    chunksize: tuple[int, ...] | None,
+    template: AbstractDatasetTemplate,
     return_headers: bool = False,
     grid_overrides: dict[str, Any] | None = None,
 ) -> tuple[list[Dimension], tuple[int, ...]] | tuple[list[Dimension], tuple[int, ...], HeaderArray]:
@@ -40,6 +43,7 @@ def get_grid_plan(  # noqa:  C901
     Args:
         segy_file: SegyFile instance.
         chunksize:  Chunk sizes to be used in grid plan.
+        template: MDIO template where coordinate names and domain will be taken.
         return_headers: Option to return parsed headers with `Dimension` objects. Default is False.
         grid_overrides: Option to add grid overrides. See main documentation.
 
@@ -49,37 +53,37 @@ def get_grid_plan(  # noqa:  C901
     if grid_overrides is None:
         grid_overrides = {}
 
-    index_headers = parse_index_headers(segy_file=segy_file)
-    index_names = list(index_headers.dtype.names)
-
-    dims = []
+    # Keep only dimension and non-dimension coordinates excluding the vertical axis
+    horizontal_dimensions = template.dimension_names[:-1]
+    horizontal_coordinates = horizontal_dimensions + template.coordinate_names
+    headers_subset = parse_headers(segy_file=segy_file, subset=horizontal_coordinates)
 
     # Handle grid overrides.
     override_handler = GridOverrider()
-    index_headers, index_names, chunksize = override_handler.run(
-        index_headers,
-        index_names,
+    headers_subset, horizontal_coordinates, chunksize = override_handler.run(
+        headers_subset,
+        horizontal_coordinates,
         chunksize=chunksize,
         grid_overrides=grid_overrides,
     )
 
-    for index_name in index_names:
-        dim_unique = np.unique(index_headers[index_name])
-        dims.append(Dimension(coords=dim_unique, name=index_name))
+    dimensions = []
+    for dim_name in horizontal_dimensions:
+        dim_unique = np.unique(headers_subset[dim_name])
+        dimensions.append(Dimension(coords=dim_unique, name=dim_name))
 
     sample_labels = segy_file.sample_labels / 1000  # normalize
 
     if all(sample_labels.astype("int64") == sample_labels):
         sample_labels = sample_labels.astype("int64")
 
-    sample_dim = Dimension(coords=sample_labels, name="sample")
-
-    dims.append(sample_dim)
+    vertical_dim = Dimension(coords=sample_labels, name=template.trace_domain)
+    dimensions.append(vertical_dim)
 
     if return_headers:
-        return dims, chunksize, index_headers
+        return dimensions, chunksize, headers_subset
 
-    return dims, chunksize
+    return dimensions, chunksize
 
 
 def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
@@ -109,11 +113,11 @@ def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
 
 
 def segy_export_rechunker(
-    chunks: tuple[int, ...],
-    shape: tuple[int, ...],
+    chunks: dict[str, int],
+    sizes: dict[str, int],
     dtype: DTypeLike,
     limit: str = "300M",
-) -> tuple[tuple[int, ...], ...]:
+) -> dict[str, int]:
     """Determine chunk sizes for writing out SEG-Y given limit.
 
     This module finds the desired chunk sizes for given chunk size `limit` in a depth first order.
@@ -127,36 +131,37 @@ def segy_export_rechunker(
     serialized in the natural data order.
 
     Args:
-        chunks: The chunk sizes on disk.
-        shape: Shape of the whole array.
+        chunks: The chunk sizes on disk, per dimension.
+        sizes: Shape of the whole array, per dimension.
         dtype: Numpy `dtype` of the array.
         limit: Chunk size limit in, optional. Default is "300 MB"
 
     Returns:
         Adjusted chunk sizes for further processing
     """
-    ndim = len(shape) - 1  # minus the sample axis
+    dim_names = list(sizes.keys())
+    sample_dim_key = dim_names[-1]
 
-    # set sample chunks to max
-    prev_chunks = chunks[:-1] + (shape[-1],)
+    # set sample dim chunks (last one) to max
+    prev_chunks = chunks.copy()
+    prev_chunks[sample_dim_key] = sizes[sample_dim_key]
 
-    new_chunks = ()
-    for idx in range(ndim, -1, -1):
-        tmp_chunks = prev_chunks[:idx] + ("auto",) + prev_chunks[idx + 1 :]
+    new_chunks = {}
+    for dim_name in reversed(list(prev_chunks)):
+        tmp_chunks: dict[str, int | str] = prev_chunks.copy()
+        tmp_chunks[dim_name] = "auto"
 
         new_chunks = normalize_chunks(
-            chunks=tmp_chunks,
-            shape=shape,
+            chunks=tuple(tmp_chunks.values()),
+            shape=tuple(sizes.values()),
             limit=limit,
-            previous_chunks=prev_chunks,
+            previous_chunks=tuple(prev_chunks.values()),
             dtype=dtype,
         )
-
-        prev_chunks = new_chunks
+        new_chunks = dict(zip(dim_names, new_chunks, strict=True))
+        prev_chunks = new_chunks.copy()
 
     # Ensure the sample (last dim) is single chunk.
-    if len(new_chunks[-1]) != 1:
-        new_chunks = new_chunks[:-1] + (shape[-1],)
-
+    new_chunks[sample_dim_key] = sizes[sample_dim_key]
     logger.debug("Auto export rechunking to: %s", new_chunks)
     return new_chunks

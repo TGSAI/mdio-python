@@ -1,6 +1,18 @@
 """Constant values used across MDIO."""
 
+from enum import IntEnum
+
 import numpy as np
+
+from mdio.builder.schemas.dtype import ScalarType
+
+
+class ZarrFormat(IntEnum):
+    """Zarr version enum."""
+
+    V2 = 2
+    V3 = 3
+
 
 FLOAT16_MAX = np.finfo("float16").max
 FLOAT16_MIN = np.finfo("float16").min
@@ -34,3 +46,22 @@ UINT32_MAX = np.iinfo("uint32").max
 
 UINT64_MIN = 0
 UINT64_MAX = np.iinfo("uint64").max
+
+# Zarr fill values for different scalar types
+fill_value_map = {
+    ScalarType.BOOL: None,
+    ScalarType.FLOAT16: np.nan,
+    ScalarType.FLOAT32: np.nan,
+    ScalarType.FLOAT64: np.nan,
+    ScalarType.UINT8: UINT8_MAX,
+    ScalarType.UINT16: UINT16_MAX,
+    ScalarType.UINT32: UINT32_MAX,
+    ScalarType.UINT64: UINT64_MAX,
+    ScalarType.INT8: INT8_MAX,
+    ScalarType.INT16: INT16_MAX,
+    ScalarType.INT32: INT32_MAX,
+    ScalarType.INT64: INT64_MAX,
+    ScalarType.COMPLEX64: complex(np.nan, np.nan),
+    ScalarType.COMPLEX128: complex(np.nan, np.nan),
+    ScalarType.COMPLEX256: complex(np.nan, np.nan),
+}

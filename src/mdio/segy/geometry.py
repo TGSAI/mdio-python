@@ -274,9 +274,7 @@ def analyze_non_indexed_headers(index_headers: HeaderArray, dtype: DTypeLike = n
 
     counter = create_counter(0, total_depth, unique_headers, header_names)
 
-    index_headers = create_trace_index(
-        total_depth, counter, index_headers, header_names, dtype=dtype
-    )
+    index_headers = create_trace_index(total_depth, counter, index_headers, header_names, dtype=dtype)
 
     t_stop = time.perf_counter()
     logger.debug("Time spent generating trace index: %.4f s", t_start - t_stop)
@@ -457,9 +455,7 @@ class AutoChannelWrap(GridOverrideCommand):
         unique_cables, cable_chan_min, cable_chan_max, geom_type = result
         logger.info("Ingesting dataset as %s", geom_type.name)
 
-        for cable, chan_min, chan_max in zip(
-            unique_cables, cable_chan_min, cable_chan_max, strict=True
-        ):
+        for cable, chan_min, chan_max in zip(unique_cables, cable_chan_min, cable_chan_max, strict=True):
             logger.info("Cable: %s has min chan: %s and max chan: %s", cable, chan_min, chan_max)
 
         # This might be slow and could be improved with a rewrite to prevent so many lookups
@@ -468,9 +464,7 @@ class AutoChannelWrap(GridOverrideCommand):
                 cable_idxs = np.where(index_headers["cable"][:] == cable)
                 cc_min = cable_chan_min[idx]
 
-                index_headers["channel"][cable_idxs] = (
-                    index_headers["channel"][cable_idxs] - cc_min + 1
-                )
+                index_headers["channel"][cable_idxs] = index_headers["channel"][cable_idxs] - cc_min + 1
 
         return index_headers
 
@@ -489,9 +483,7 @@ class ChannelWrap(GridOverrideCommand):
         self.check_required_keys(index_headers)
         self.check_required_params(grid_overrides)
 
-    def transform(
-        self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]
-    ) -> NDArray:
+    def transform(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
@@ -554,9 +546,7 @@ class AutoShotWrap(GridOverrideCommand):
 
         max_num_guns = 1
         for shot_line in unique_shot_lines:
-            logger.info(
-                "shot_line: %s has guns: %s", shot_line, unique_guns_in_shot_line[str(shot_line)]
-            )
+            logger.info("shot_line: %s has guns: %s", shot_line, unique_guns_in_shot_line[str(shot_line)])
             num_guns = len(unique_guns_in_shot_line[str(shot_line)])
             max_num_guns = max(num_guns, max_num_guns)
 

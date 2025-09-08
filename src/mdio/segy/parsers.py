@@ -21,8 +21,9 @@ if TYPE_CHECKING:
 default_cpus = cpu_count(logical=True)
 
 
-def parse_index_headers(
+def parse_headers(
     segy_file: SegyFile,
+    subset: list[str] | None = None,
     block_size: int = 10000,
     progress_bar: bool = True,
 ) -> HeaderArray:
@@ -30,6 +31,7 @@ def parse_index_headers(
 
     Args:
         segy_file: SegyFile instance.
+        subset: List of header names to filter and keep.
         block_size: Number of traces to read for each block.
         progress_bar: Enable or disable progress bar. Default is True.
 
@@ -57,7 +59,7 @@ def parse_index_headers(
     }
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
     with ProcessPoolExecutor(num_workers) as executor:
-        lazy_work = executor.map(header_scan_worker, repeat(segy_kw), trace_ranges)
+        lazy_work = executor.map(header_scan_worker, repeat(segy_kw), trace_ranges, repeat(subset))
 
         if progress_bar is True:
             lazy_work = tqdm(

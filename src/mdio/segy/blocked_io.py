@@ -2,18 +2,25 @@
 
 from __future__ import annotations
 
+import multiprocessing as mp
 import os
 from concurrent.futures import ProcessPoolExecutor
-from itertools import repeat
+from concurrent.futures import as_completed
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import numpy as np
+import zarr
 from dask.array import Array
 from dask.array import map_blocks
 from psutil import cpu_count
 from tqdm.auto import tqdm
+from zarr import open_group as zarr_open_group
 
+from mdio.api.io import _normalize_storage_options
+from mdio.builder.schemas.v1.stats import CenteredBinHistogram
+from mdio.builder.schemas.v1.stats import SummaryStatistics
+from mdio.constants import ZarrFormat
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker
 from mdio.segy.creation import SegyPartRecord
@@ -25,89 +32,98 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
     from segy import SegyFile
-
-    from mdio.core import Grid
+    from upath import UPath
+    from xarray import Dataset as xr_Dataset
+    from zarr import Array as zarr_Array
 
 default_cpus = cpu_count(logical=True)
 
 
-def to_zarr(segy_file: SegyFile, grid: Grid, data_array: Array, header_array: Array) -> dict:
-    """Blocked I/O from SEG-Y to chunked `zarr.core.Array`.
+def _create_stats() -> SummaryStatistics:
+    histogram = CenteredBinHistogram(bin_centers=[], counts=[])
+    return SummaryStatistics(count=0, min=0, max=0, sum=0, sum_squares=0, histogram=histogram)
+
+
+def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatistics) -> None:
+    final_stats.count += partial_stats.count
+    final_stats.min = min(final_stats.min, partial_stats.min)
+    final_stats.max = min(final_stats.max, partial_stats.max)
+    final_stats.sum += partial_stats.sum
+    final_stats.sum_squares += partial_stats.sum_squares
+
+
+def to_zarr(  # noqa: PLR0913, PLR0915
+    segy_file: SegyFile,
+    output_path: UPath,
+    grid_map: zarr_Array,
+    dataset: xr_Dataset,
+    data_variable_name: str,
+) -> SummaryStatistics:
+    """Blocked I/O from SEG-Y to chunked `xarray.Dataset`.
 
     Args:
         segy_file: SEG-Y file instance.
-        grid: mdio.Grid instance
-        data_array: Handle for zarr.core.Array we are writing trace data
-        header_array: Handle for zarr.core.Array we are writing trace headers
+        output_path: Output universal path for the output MDIO dataset.
+        grid_map: Zarr array with grid map for the traces.
+        dataset: Handle for xarray.Dataset we are writing trace data
+        data_variable_name: Name of the data variable in the dataset.
 
     Returns:
-        Global statistics for the SEG-Y as a dictionary.
+        None
     """
-    # Initialize chunk iterator (returns next chunk slice indices each iteration)
-    chunker = ChunkIterator(data_array, chunk_samples=False)
-    num_chunks = len(chunker)
+    data = dataset[data_variable_name]
 
+    final_stats = _create_stats()
+
+    data_variable_chunks = data.encoding.get("chunks")
+    worker_chunks = data_variable_chunks[:-1] + (data.shape[-1],)  # un-chunk sample axis
+    chunk_iter = ChunkIterator(shape=data.shape, chunks=worker_chunks, dim_names=data.dims)
+    num_chunks = chunk_iter.num_chunks
+
+    # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
+    # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
     num_workers = min(num_chunks, num_cpus)
-
-    # Chunksize here is for multiprocessing, not Zarr chunksize.
-    pool_chunksize, extra = divmod(num_chunks, num_workers * 4)
-    pool_chunksize += 1 if extra else pool_chunksize
+    context = mp.get_context("spawn")
+    executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
 
     segy_kw = {
         "url": segy_file.fs.unstrip_protocol(segy_file.url),
         "spec": segy_file.spec,
         "settings": segy_file.settings,
     }
-    tqdm_kw = {"unit": "block", "dynamic_ncols": True}
-    with ProcessPoolExecutor(max_workers=num_workers) as executor:
-        lazy_work = executor.map(
-            trace_worker,  # fn
-            repeat(segy_kw),
-            repeat(data_array),
-            repeat(header_array),
-            repeat(grid),
-            chunker,
-            chunksize=pool_chunksize,
-        )
+    with executor:
+        futures = []
+        common_args = (segy_kw, output_path, data_variable_name)
+        for region in chunk_iter:
+            subset_args = (region, grid_map, dataset.isel(region))
+            future = executor.submit(trace_worker, *common_args, *subset_args)
+            futures.append(future)
 
-        lazy_work = tqdm(
-            iterable=lazy_work,
+        iterable = tqdm(
+            as_completed(futures),
             total=num_chunks,
-            desc=f"Ingesting SEG-Y in {num_chunks} chunks",
-            **tqdm_kw,
+            unit="block",
+            desc="Ingesting traces",
         )
 
-        # This executes the lazy work.
-        chunk_stats = list(lazy_work)
+        for future in iterable:
+            result = future.result()
+            if result is not None:
+                _update_stats(final_stats, result)
 
-    # This comes in as n_chunk x 5 columns.
-    # Columns in order: count, sum, sum of squared, min, max.
-    # We can compute global mean, std, rms, min, max.
-    # Transposing because we want each statistic as a row to unpack later.
-    # REF: https://math.stackexchange.com/questions/1547141/aggregating-standard-deviation-to-a-summary-point  # noqa: E501
-    # REF: https://www.mathwords.com/r/root_mean_square.htm
-    chunk_stats = [stat for stat in chunk_stats if stat is not None]
+    # Xarray doesn't directly support incremental attribute updates when appending to an existing Zarr store.
+    # HACK: We will update the array attribute using zarr's API directly.
+    # Use the data_variable_name to get the array in the Zarr group and write "statistics" metadata there
+    storage_options = _normalize_storage_options(output_path)
+    zarr_group = zarr_open_group(output_path.as_posix(), mode="a", storage_options=storage_options)
+    attr_json = final_stats.model_dump_json()
+    zarr_group[data_variable_name].attrs.update({"statsV1": attr_json})
 
-    chunk_stats = zip(*chunk_stats)  # noqa: B905
-    glob_count, glob_sum, glob_sum_square, glob_min, glob_max = chunk_stats
+    if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
+        zarr.consolidate_metadata(zarr_group.store)
 
-    glob_count = np.sum(glob_count)  # Comes in as `uint32`
-    glob_sum = np.sum(glob_sum)  # `float64`
-    glob_sum_square = np.sum(glob_sum_square)  # `float64`
-    glob_min = np.min(glob_min)  # `float32`
-    glob_max = np.max(glob_max)  # `float32`
-
-    glob_mean = glob_sum / glob_count
-    glob_std = np.sqrt(glob_sum_square / glob_count - (glob_sum / glob_count) ** 2)
-    glob_rms = np.sqrt(glob_sum_square / glob_count)
-
-    # We need to write these as float64 because float32 is not JSON serializable
-    # Trace data is originally float32, hence min/max
-    glob_min = glob_min.min().astype("float64")
-    glob_max = glob_max.max().astype("float64")
-
-    return {"mean": glob_mean, "std": glob_std, "rms": glob_rms, "min": glob_min, "max": glob_max}
+    return final_stats
 
 
 def segy_record_concat(
@@ -226,9 +242,7 @@ def to_segy(
     # Calculate axes with only one chunk to be reduced
     num_blocks = samples.numblocks
     non_consecutive_axes = find_trailing_ones_index(num_blocks)
-    reduce_axes = tuple(
-        i for i in range(non_consecutive_axes - 1, len(num_blocks)) if num_blocks[i] == 1
-    )
+    reduce_axes = tuple(i for i in range(non_consecutive_axes - 1, len(num_blocks)) if num_blocks[i] == 1)
 
     # Append headers, and write block as stack of SEG-Ys (full sample dim).
     # Output is N-1 dimensions. We merged headers + samples to new dtype.

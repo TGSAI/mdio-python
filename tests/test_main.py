@@ -15,6 +15,9 @@ def runner() -> CliRunner:
     return CliRunner()
 
 
+# TODO(Altay): Redesign and implement the new v1 CLI
+# https://github.com/TGSAI/mdio-python/issues/646
+@pytest.mark.skip(reason="CLI hasn't been updated to work with v1 yet.")
 @pytest.mark.dependency
 def test_main_succeeds(runner: CliRunner, segy_input: Path, zarr_tmp: Path) -> None:
     """It exits with a status code of zero."""

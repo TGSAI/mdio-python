@@ -2,14 +2,11 @@
 
 from __future__ import annotations
 
-import inspect
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import Any
 
 import numpy as np
 
-from mdio.core.serialization import Serializer
 from mdio.exceptions import ShapeError
 
 if TYPE_CHECKING:
@@ -47,15 +44,6 @@ class Dimension:
         """Size of the dimension."""
         return len(self.coords)
 
-    def to_dict(self) -> dict[str, Any]:
-        """Convert dimension to dictionary."""
-        return {"name": self.name, "coords": self.coords.tolist()}
-
-    @classmethod
-    def from_dict(cls, other: dict[str, Any]) -> Dimension:
-        """Make dimension from dictionary."""
-        return Dimension(**other)
-
     def __len__(self) -> int:
         """Length magic."""
         return self.size
@@ -88,36 +76,3 @@ class Dimension:
     def max(self) -> NDArray[float]:
         """Get maximum value of dimension."""
         return np.max(self.coords)
-
-    def serialize(self, stream_format: str) -> str:
-        """Serialize the dimension into buffer."""
-        serializer = DimensionSerializer(stream_format)
-        return serializer.serialize(self)
-
-    @classmethod
-    def deserialize(cls, stream: str, stream_format: str) -> Dimension:
-        """Deserialize buffer into Dimension."""
-        serializer = DimensionSerializer(stream_format)
-        return serializer.deserialize(stream)
-
-
-class DimensionSerializer(Serializer):
-    """Serializer implementation for Dimension."""
-
-    def serialize(self, dimension: Dimension) -> str:
-        """Serialize Dimension into buffer."""
-        payload = {
-            "name": dimension.name,
-            "length": len(dimension),
-            "coords": dimension.coords.tolist(),
-        }
-        return self.serialize_func(payload)
-
-    def deserialize(self, stream: str) -> Dimension:
-        """Deserialize buffer into Dimension."""
-        signature = inspect.signature(Dimension)
-
-        payload = self.deserialize_func(stream)
-        payload = self.validate_payload(payload, signature)
-
-        return Dimension(**payload)
