@@ -156,7 +156,7 @@ class TestSeismic3DPreStackShotTemplate:
             "North Sea 3D Shot Time",
             sizes=(256, 512, 24, 2048),
             horizontal_coord_unit=UNITS_METER,
-            headers=structured_headers,
+            header_dtype=structured_headers,
         )
 
         assert dataset.metadata.name == "North Sea 3D Shot Time"
