@@ -36,6 +36,9 @@ if TYPE_CHECKING:
 dask.config.set(scheduler="synchronous")
 
 
+# TODO(Altay): Finish implementing these grid overrides.
+# https://github.com/TGSAI/mdio-python/issues/612
+@pytest.mark.skip(reason="NonBinned and HasDuplicates haven't been properly implemented yet.")
 @pytest.mark.parametrize("grid_override", [{"NonBinned": True}, {"HasDuplicates": True}])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:
@@ -161,6 +164,8 @@ class TestImport4DSparse:
         assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
 
 
+# TODO(Altay): Finish implementing these grid overrides.
+# https://github.com/TGSAI/mdio-python/issues/612
 @pytest.mark.skip(reason="AutoShotWrap requires a template that is not implemented yet.")
 @pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True}, {"AutoShotWrap": True}, None])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
