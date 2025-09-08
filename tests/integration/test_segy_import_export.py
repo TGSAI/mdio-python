@@ -20,6 +20,7 @@ from tests.integration.testing_helpers import get_inline_header_values
 from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_variable
 
+from mdio import __version__
 from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
 from mdio.builder.template_registry import TemplateRegistry
@@ -245,7 +246,7 @@ class TestReader:
         """Metadata reading tests."""
         ds = open_mdio(zarr_tmp)
         expected_attrs = {
-            "apiVersion": "1.0.0a1",
+            "apiVersion": __version__,
             "createdOn": "2025-08-06 16:21:54.747880+00:00",
             "name": "PostStack3DTime",
         }

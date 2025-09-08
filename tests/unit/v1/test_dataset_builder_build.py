@@ -1,5 +1,6 @@
 """Tests the schema v1 dataset_builder.build() public API."""
 
+from mdio import __version__
 from mdio.builder.dataset_builder import MDIODatasetBuilder
 from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.schemas.dtype import ScalarType
@@ -50,7 +51,7 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
 
     # Verify dataset structure
     assert dataset.metadata.name == "Seismic"
-    assert dataset.metadata.api_version == "1.0.0a1"
+    assert dataset.metadata.api_version == __version__
     assert dataset.metadata.attributes["foo"] == "bar"
     assert len(dataset.metadata.attributes["textHeader"]) == 3
 
