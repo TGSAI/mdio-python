@@ -37,6 +37,12 @@
 [install_pip]: https://mdio-python.readthedocs.io/en/latest/installation.html#using-pip-and-virtualenv
 [install_conda]: https://mdio-python.readthedocs.io/en/latest/installation.html#using-conda
 
+> 🎉 MDIO v1 is out. Ingestion and export for SEG-Y is fully functional with templates! However, there may still
+> be minor issues. Please report any issues you encounter.
+
+> 🚧👷🏻 We are actively working on updating the documentation and adding missing features to v1 release. Please
+> check back later for more updates!
+
 **_"MDIO"_** is a library to work with large multidimensional energy datasets.
 The primary motivation behind **MDIO** is to represent multidimensional
 time series data in a format that makes it easier to use in resource assessment,
@@ -52,7 +58,7 @@ This is not an official TGS product.
 
 - Abstractions for common energy data types (see below).
 - Cloud native chunked storage based on [Zarr][zarr] and [fsspec][fsspec].
-- Lossy and lossless data compression using [Blosc][blosc] and [ZFP][zfp].
+- Standardized models for lossy and lossless data compression using [Blosc][blosc] and [ZFP][zfp].
 - Distributed reads and writes using [Dask][dask].
 - Powerful command-line-interface (CLI) based on [Click][click]
 
@@ -60,14 +66,9 @@ This is not an official TGS product.
 
 - Oil & Gas Data
   - Import and export 2D - 5D seismic data types stored in SEG-Y.
+  - Optimized chunking logic for various seismic types using MDIO templates.
+  - Native [Xarray][xarray] data model and interface wrapper.
   - Import seismic interpretation, horizon, data. **FUTURE**
-  - Optimized chunking logic for various seismic types. **FUTURE**
-- Wind Resource Assessment
-  - Numerical weather prediction models with arbitrary metadata. **FUTURE**
-  - Optimized chunking logic for time-series analysis and mapping. **FUTURE**
-  - [Xarray][xarray] interface. **FUTURE**
-
-The features marked as **FUTURE** will be open-sourced at a later date.
 
 # Installing MDIO
 
@@ -99,7 +100,7 @@ For Python API please see the [API Reference] for details.
 ## Minimal
 
 Chunked storage and parallelization: `zarr`, `dask`, `numba`, and `psutil`.\
-SEG-Y Parsing: `segyio`\
+SEG-Y Parsing: `TGSAI/segy`\
 CLI and Progress Bars: `click`, `click-params`, and `tqdm`.
 
 ## Optional
@@ -125,17 +126,11 @@ please [file an issue] along with a detailed description.
 
 # Credits
 
-This project was established at [TGS](https://www.tgs.com/). Current maintainer is
-[Altay Sansal](https://github.com/tasansal) with the support of
+This project was established at [TGS](https://www.tgs.com/). The current maintainer is [Altay Sansal](https://github.com/tasansal) with the support of
 many more great colleagues.
 
-This project template is based on [@cjolowicz]'s [Hypermodern Python Cookiecutter]
-template.
-
-[@cjolowicz]: https://github.com/cjolowicz
 [pypi]: https://pypi.org/
 [conda-forge]: https://conda-forge.org/
-[hypermodern python cookiecutter]: https://github.com/cjolowicz/cookiecutter-hypermodern-python
 [file an issue]: https://github.com/TGSAI/mdio-python/issues
 [pip]: https://pip.pypa.io/
 [conda]: https://docs.conda.io/
