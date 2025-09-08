@@ -243,6 +243,9 @@ def populate_non_dim_coordinates(
         dataset[coord_name][:] = tmp_coord_values
         drop_vars_delayed.append(coord_name)
 
+        # TODO(Altay): Add verification of reduced coordinates being the same as the first
+        # https://github.com/TGSAI/mdio-python/issues/645
+
     return dataset, drop_vars_delayed
 
 
