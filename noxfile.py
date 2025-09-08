@@ -24,15 +24,7 @@ package = "mdio"
 python_versions = ["3.13", "3.12", "3.11"]
 nox.needs_version = ">=2025.2.9"
 nox.options.default_venv_backend = "uv"
-nox.options.sessions = (
-    "pre-commit",
-    "safety",
-    "mypy",
-    "tests",
-    "typeguard",
-    "xdoctest",
-    "docs-build",
-)
+nox.options.sessions = ("pre-commit", "safety", "mypy", "tests", "typeguard", "xdoctest", "docs-build")
 
 
 def session_install_uv(
@@ -141,12 +133,7 @@ def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
 @session(name="pre-commit", python=python_versions[0])
 def precommit(session: Session) -> None:
     """Lint using pre-commit."""
-    args = session.posargs or [
-        "run",
-        "--all-files",
-        "--hook-stage=manual",
-        "--show-diff-on-failure",
-    ]
+    args = session.posargs or ["run", "--all-files", "--hook-stage=manual", "--show-diff-on-failure"]
     session_install_uv_package(session, ["ruff", "pre-commit", "pre-commit-hooks"])
     session.run("pre-commit", *args)
     if args and args[0] == "install":
@@ -164,13 +151,7 @@ def safety(session: Session) -> None:
 
     # CVE-2019-8341, jinja2: not a problem for us
     ignore = ["70612"]
-    session.run(
-        "safety",
-        "check",
-        "--full-report",
-        f"--file={requirements_tmp}",
-        f"--ignore={','.join(ignore)}",
-    )
+    session.run("safety", "check", "--full-report", f"--file={requirements_tmp}", f"--ignore={','.join(ignore)}")
 
 
 @session(python=python_versions)
@@ -188,16 +169,7 @@ def mypy(session: Session) -> None:
 def tests(session: Session) -> None:
     """Run the test suite."""
     session_install_uv(session)
-    session_install_uv_package(
-        session,
-        [
-            "coverage[toml]",
-            "pytest",
-            "pygments",
-            "pytest-dependency",
-            "s3fs",
-        ],
-    )
+    session_install_uv_package(session, ["coverage[toml]", "pytest", "pygments", "pytest-dependency", "s3fs"])
 
     try:
         session.run("coverage", "run", "--parallel", "-m", "pytest", *session.posargs)
