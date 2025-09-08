@@ -228,7 +228,6 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
 
         if zarr_format == ZarrFormat.V2:
             encoding["chunk_key_encoding"] = {"name": "v2", "configuration": {"separator": "/"}}
-            print(encoding)
 
         data_array.encoding = encoding
 
