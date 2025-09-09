@@ -91,9 +91,9 @@ def mock_trace_worker(
     # We used a 2D selection with 2D index_slices
     assert grid_map.shape == (3, 4, 20)
     # We used a 3D selection with isel()
-    assert tuple(dataset.dims[d] for d in region) == (3, 4, 5)
+    assert tuple(dataset.sizes[d] for d in region) == (3, 4, 5)
 
-    dimension_names = list(dataset.dims)
+    dimension_names = list(dataset.sizes)
 
     slice0 = region[dimension_names[0]]
     slice1 = region[dimension_names[1]]

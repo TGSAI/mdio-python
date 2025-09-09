@@ -16,7 +16,7 @@ import click
 KNOWN_MODULES = ["segy.py", "copy.py", "info.py"]
 
 
-class MyCLI(click.MultiCommand):
+class MyCLI(click.Group):
     """CLI generator via plugin design pattern.
 
     This class dynamically loads command modules from the specified `plugin_folder`. If the
@@ -26,8 +26,8 @@ class MyCLI(click.MultiCommand):
 
     Args:
         plugin_folder: Path to the directory containing command modules
-        *args: Variable length argument list passed to the click.MultiCommand.
-        **kwargs: Arbitrary keyword arguments passed to the click.MultiCommand.
+        *args: Variable length argument list passed to the click.Group.
+        **kwargs: Arbitrary keyword arguments passed to the click.Group.
     """
 
     def __init__(self, plugin_folder: Path, *args: Any, **kwargs: Any):  # noqa: ANN401

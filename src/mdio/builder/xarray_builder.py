@@ -222,7 +222,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
 
         encoding = {
             "chunks": original_chunks,
-            "compressor": _convert_compressor(v.compressor),
+            "compressors": _convert_compressor(v.compressor),
             fill_value_key: fill_value,
         }
 

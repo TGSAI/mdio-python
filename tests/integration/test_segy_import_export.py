@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import warnings
 from typing import TYPE_CHECKING
 
 import dask
@@ -361,7 +362,13 @@ class TestExport:
 
         spec = custom_teapot_dome_segy_spec(keep_unaltered=True)
 
-        mdio_to_segy(segy_spec=spec, input_path=zarr_tmp, output_path=segy_export_tmp)
+        with warnings.catch_warnings():
+            # UserWarning:
+            # "The specified chunks separate the stored chunks along dimension "inline" starting at index 256.
+            # This could degrade performance. Instead, consider rechunking after loading."
+            warn = r"The specified chunks separate the stored chunks along dimension"
+            warnings.filterwarnings("ignore", message=warn, category=UserWarning)
+            mdio_to_segy(segy_spec=spec, input_path=zarr_tmp, output_path=segy_export_tmp)
 
         # Check if file sizes match on IBM file.
         assert segy_input.stat().st_size == segy_export_tmp.stat().st_size

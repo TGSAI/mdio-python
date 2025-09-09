@@ -1,10 +1,15 @@
 """Tests the schema v1 dataset_serializer public API."""
 
+import warnings
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
+import zarr
 from xarray import DataArray as xr_DataArray
+from zarr import Array
 from zarr import zeros as zarr_zeros
 from zarr.codecs import BloscCodec
 
@@ -295,7 +300,48 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
     xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
-    xr_ds.to_zarr(store=file_path, mode="w", compute=False)
+    with warnings.catch_warnings():
+        # ZarrUserWarning:
+        # Consolidated metadata is currently not part in the Zarr format 3 specification.
+        # It may not be supported by other zarr implementations and may change in the future.
+        warnings.simplefilter("ignore", category=zarr.errors.ZarrUserWarning)
+        xr_ds.to_zarr(store=file_path, mode="w", compute=False)
+
+
+def _zarr_zeros(shape: tuple[int, ...], **kwargs: dict[str, Any]) -> Array:
+    """Create a Zarr array filled with zeros."""
+    with warnings.catch_warnings():
+        # UnstableSpecificationWarning:
+        # f"The data type ({dtype}) does not have a Zarr V3 specification. "
+        # "That means that the representation of arrays saved with this data type may change without "
+        # "warning in a future version of Zarr Python. "
+        # "Arrays stored with this data type may be unreadable by other Zarr libraries. "
+        # "Use this data type at your own risk! "
+        # "Check https://github.com/zarr-developers/zarr-extensions/tree/main/data-types for the "
+        # "status of data type specifications for Zarr V3."
+        warn = r"The data type \((.*?)\) does not have a Zarr V3 specification\."
+        warnings.filterwarnings("ignore", message=warn, category=zarr.errors.UnstableSpecificationWarning)
+        return zarr_zeros(shape, **kwargs)
+
+
+def _to_zarr(xar: xr_DataArray, file_path: Path, mode: str, encoding: Mapping | None) -> None:
+    with warnings.catch_warnings():
+        # UnstableSpecificationWarning:
+        # "The data type ({dtype}) does not have a Zarr V3 specification. "
+        # "That means that the representation of arrays saved with this data type may change without "
+        # "warning in a future version of Zarr Python. "
+        # "Arrays stored with this data type may be unreadable by other Zarr libraries. "
+        # "Use this data type at your own risk! "
+        # "Check https://github.com/zarr-developers/zarr-extensions/tree/main/data-types for the "
+        # "status of data type specifications for Zarr V3."
+        warn = r"The data type \((.*?)\) does not have a Zarr V3 specification\."
+        warnings.filterwarnings("ignore", message=warn, category=zarr.errors.UnstableSpecificationWarning)
+        # ZarrUserWarning:
+        # "Consolidated metadata is currently not part in the Zarr format 3 specification."
+        # "It may not be supported by other zarr implementations and may change in the future."
+        warn = r"Consolidated metadata is currently not part in the Zarr format 3 specification"
+        warnings.filterwarnings("ignore", message=warn, category=zarr.errors.ZarrUserWarning)
+        xar.to_zarr(file_path, mode=mode, encoding=encoding, compute=False)
 
 
 def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> None:
@@ -320,12 +366,12 @@ def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:
 
     # Create a zarr array using the data type,
     # Specify encoding as the array attribute
-    data = zarr_zeros((36, 36), dtype=dtype)
+    data = _zarr_zeros((36, 36), dtype=dtype)
     aa = xr_DataArray(name="myattr", data=data)
     aa.encoding = my_attr_encoding
 
     file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_1", debugging=False)
-    aa.to_zarr(file_path, mode="w", compute=False)
+    _to_zarr(aa, file_path, mode="w", encoding=None)
 
 
 def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
@@ -340,13 +386,13 @@ def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
 
     # Create a zarr array using the data type,
     # Do not specify encoding as the array attribute
-    data = zarr_zeros((36, 36), dtype=dtype)
+    data = _zarr_zeros((36, 36), dtype=dtype)
     aa = xr_DataArray(name="myattr", data=data)
 
     file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_2", debugging=False)
     # Specify encoding per array
     encoding = {"myattr": my_attr_encoding}
-    aa.to_zarr(file_path, mode="w", encoding=encoding, compute=False)
+    _to_zarr(aa, file_path, mode="w", encoding=encoding)
 
 
 def test_to_zarr_from_np(tmp_path: Path) -> None:
@@ -364,4 +410,4 @@ def test_to_zarr_from_np(tmp_path: Path) -> None:
     file_path = output_path(tmp_path, "to_zarr/zarr_np", debugging=False)
     # Specify encoding per array
     encoding = {"myattr": my_attr_encoding}
-    aa.to_zarr(file_path, mode="w", encoding=encoding, compute=False)
+    _to_zarr(aa, file_path, mode="w", encoding=encoding)
