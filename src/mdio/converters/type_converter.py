@@ -78,6 +78,8 @@ def to_structured_type(data_type: np_dtype) -> StructuredType:
 def to_numpy_dtype(data_type: ScalarType | StructuredType) -> np_dtype:
     """Get the numpy dtype for a variable."""
     if isinstance(data_type, ScalarType):
+        if data_type == ScalarType.HEADERS_V3:
+            return np_dtype("|V240")
         return np_dtype(data_type.value)
     if isinstance(data_type, StructuredType):
         return np_dtype([(f.name, f.format.value) for f in data_type.fields])

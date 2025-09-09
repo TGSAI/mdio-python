@@ -64,4 +64,5 @@ fill_value_map = {
     ScalarType.COMPLEX64: complex(np.nan, np.nan),
     ScalarType.COMPLEX128: complex(np.nan, np.nan),
     ScalarType.COMPLEX256: complex(np.nan, np.nan),
+    ScalarType.HEADERS_V3: b"\x00" * 240,
 }
