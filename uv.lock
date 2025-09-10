@@ -1670,7 +1670,7 @@ wheels = [
 
 [[package]]
 name = "multidimio"
-version = "1.0.0a1"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "click" },

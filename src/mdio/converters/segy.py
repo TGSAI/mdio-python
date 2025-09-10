@@ -14,14 +14,20 @@ from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.xarray_builder import to_xarray_dataset
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
+from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -330,6 +336,36 @@ def _add_segy_ingest_attributes(dataset: Dataset, segy_file: SegyFile, grid_over
     dataset.metadata.attributes.update(segy_attributes)
 
 
+def _chunk_variable(ds: Dataset, variable_name: str) -> None:
+    """Determines the chunking for a Varible in the Dataset."""
+    idx = -1
+    for i in range(len(ds.variables)):
+        if ds.variables[i].name == variable_name:
+            idx = i
+            break
+
+    def determine_target_size(var_type: str) -> int:
+        """Determines the target size (in bytes) for a Variable based on its type."""
+        if var_type == "bool":
+            return MAX_SIZE_LIVE_MASK
+        return MAX_COORDINATES_BYTES
+
+    # Create the chunk grid metadata
+    var_type = ds.variables[idx].data_type
+    full_shape = tuple(dim.size for dim in ds.variables[idx].dimensions)
+    target_size = determine_target_size(var_type)
+
+    chunk_shape = get_constrained_chunksize(full_shape, var_type, target_size)
+    chunks = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
+
+    # Update the variable's metadata with the new chunk grid
+    if ds.variables[idx].metadata is None:
+        # ds.variables[idx].metadata = VariableMetadata(chunk_shape=chunks.chunk_shape)
+        ds.variables[idx].metadata = VariableMetadata(chunk_grid=chunks)
+    else:
+        ds.variables[idx].metadata.chunk_grid = chunks
+
+
 def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
@@ -378,6 +414,10 @@ def segy_to_mdio(  # noqa PLR0913
     )
 
     _add_segy_ingest_attributes(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)
+
+    _chunk_variable(ds=mdio_ds, variable_name="trace_mask")  # trace_mask is a Variable and not a Coordinate
+    for coord in mdio_template.coordinate_names:
+        _chunk_variable(ds=mdio_ds, variable_name=coord)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
