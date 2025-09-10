@@ -11,6 +11,7 @@ from segy import SegyFile
 from segy.config import SegySettings
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
+import zarr
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
@@ -23,6 +24,7 @@ from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.xarray_builder import to_xarray_dataset
+from mdio.constants import ZarrFormat
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
@@ -434,8 +436,11 @@ def segy_to_mdio(  # noqa PLR0913
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
 
     if os.getenv("MDIO__DO_RAW_HEADERS") == "1":
-        logger.warning("MDIO__DO_RAW_HEADERS is experimental and expected to change or be removed.")
-        mdio_template = _add_raw_headers_to_template(mdio_template)
+        if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
+            logger.warning("Raw headers are only supported for Zarr v3. Skipping raw headers.")
+        else:
+            logger.warning("MDIO__DO_RAW_HEADERS is experimental and expected to change or be removed.")
+            mdio_template = _add_raw_headers_to_template(mdio_template)
 
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
