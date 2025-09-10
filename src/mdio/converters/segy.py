@@ -14,19 +14,20 @@ from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
+from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.xarray_builder import to_xarray_dataset
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
-from mdio.builder.schemas.chunk_grid import RegularChunkGrid
-from mdio.builder.schemas.chunk_grid import RegularChunkShape
-from mdio.builder.schemas.compressors import Blosc
-from mdio.builder.schemas.compressors import BloscCname
-from mdio.builder.schemas.dtype import ScalarType
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -340,6 +341,7 @@ def _add_grid_override_to_metadata(dataset: Dataset, grid_overrides: dict[str, A
 
 def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> AbstractDatasetTemplate:
     """Add raw headers capability to the MDIO template by monkey-patching its _add_variables method.
+
     This function modifies the template's _add_variables method to also add a raw headers variable
     with the following characteristics:
     - Same rank as the Headers variable (all dimensions except vertical)
@@ -351,9 +353,11 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
     - Chunked the same as the Headers variable
     Args:
         mdio_template: The MDIO template to mutate
+    Returns:
+        The mutated MDIO template
     """
     # Check if raw headers enhancement has already been applied to avoid duplicate additions
-    if hasattr(mdio_template, '_mdio_raw_headers_enhanced'):
+    if hasattr(mdio_template, "_mdio_raw_headers_enhanced"):
         return mdio_template
 
     # Store the original _add_variables method
@@ -368,7 +372,6 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
 
         # Create chunk grid metadata
         chunk_metadata = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
-        from mdio.builder.schemas.v1.variable import VariableMetadata
 
         # Add the raw headers variable using the builder's add_variable method
         mdio_template._builder.add_variable(

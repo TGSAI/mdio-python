@@ -154,39 +154,39 @@ def trace_worker(  # noqa: PLR0913
         )
     if raw_header_key in worker_variables:
         tmp_raw_headers = np.zeros_like(dataset[raw_header_key])
-        
+
         # Get the indices where we need to place results
         live_mask = not_null
         live_positions = np.where(live_mask.ravel())[0]
-        
+
         if len(live_positions) > 0:
             # Calculate byte ranges for headers
-            HEADER_SIZE = 240
+            header_size = 240
             trace_offset = segy_file.spec.trace.offset
             trace_itemsize = segy_file.spec.trace.itemsize
-            
+
             starts = []
             ends = []
             for global_trace_idx in live_trace_indexes:
                 header_start = trace_offset + global_trace_idx * trace_itemsize
-                header_end = header_start + HEADER_SIZE
+                header_end = header_start + header_size
                 starts.append(header_start)
                 ends.append(header_end)
-            
+
             # Capture raw bytes
             raw_header_bytes = merge_cat_file(segy_file.fs, segy_file.url, starts, ends)
-            
+
             # Convert and place results
             raw_headers_array = np.frombuffer(bytes(raw_header_bytes), dtype="|V240")
             tmp_raw_headers.ravel()[live_positions] = raw_headers_array
-        
+
         ds_to_write[raw_header_key] = Variable(
             ds_to_write[raw_header_key].dims,
             tmp_raw_headers,
             attrs=ds_to_write[raw_header_key].attrs,
             encoding=ds_to_write[raw_header_key].encoding,
         )
-    
+
     data_variable = ds_to_write[data_variable_name]
     fill_value = _get_fill_value(ScalarType(data_variable.dtype.name))
     tmp_samples = np.full_like(data_variable, fill_value=fill_value)
