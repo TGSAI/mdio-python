@@ -32,6 +32,9 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
+from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -429,6 +432,36 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
     return mdio_template
 
 
+def _chunk_variable(ds: Dataset, variable_name: str) -> None:
+    """Determines the chunking for a Varible in the Dataset."""
+    idx = -1
+    for i in range(len(ds.variables)):
+        if ds.variables[i].name == variable_name:
+            idx = i
+            break
+
+    def determine_target_size(var_type: str) -> int:
+        """Determines the target size (in bytes) for a Variable based on its type."""
+        if var_type == "bool":
+            return MAX_SIZE_LIVE_MASK
+        return MAX_COORDINATES_BYTES
+
+    # Create the chunk grid metadata
+    var_type = ds.variables[idx].data_type
+    full_shape = tuple(dim.size for dim in ds.variables[idx].dimensions)
+    target_size = determine_target_size(var_type)
+
+    chunk_shape = get_constrained_chunksize(full_shape, var_type, target_size)
+    chunks = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
+
+    # Update the variable's metadata with the new chunk grid
+    if ds.variables[idx].metadata is None:
+        # ds.variables[idx].metadata = VariableMetadata(chunk_shape=chunks.chunk_shape)
+        ds.variables[idx].metadata = VariableMetadata(chunk_grid=chunks)
+    else:
+        ds.variables[idx].metadata.chunk_grid = chunks
+
+
 def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
@@ -486,6 +519,10 @@ def segy_to_mdio(  # noqa PLR0913
     )
 
     _add_grid_override_to_metadata(dataset=mdio_ds, grid_overrides=grid_overrides)
+
+    _chunk_variable(ds=mdio_ds, variable_name="trace_mask")  # trace_mask is a Variable and not a Coordinate
+    for coord in mdio_template.coordinate_names:
+        _chunk_variable(ds=mdio_ds, variable_name=coord)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 

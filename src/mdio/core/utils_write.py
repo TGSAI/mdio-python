@@ -10,6 +10,7 @@ if TYPE_CHECKING:
 
 
 MAX_SIZE_LIVE_MASK = 512 * 1024**2
+MAX_COORDINATES_BYTES = 128 * 1024**2
 
 JsonSerializable = str | int | float | bool | None | dict[str, "JsonSerializable"] | list["JsonSerializable"]
 
