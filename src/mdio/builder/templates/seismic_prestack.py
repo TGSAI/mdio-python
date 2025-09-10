@@ -6,16 +6,12 @@ from mdio.schemas.v1.templates.abstract_dataset_template import AbstractDatasetT
 
 
 class SeismicPreStackTemplate(AbstractDatasetTemplate):
-    """
-    Seismic pre-stack time Dataset template.
-    
+    """Seismic pre-stack time Dataset template.
+
     This should be used for both 2D and 3D datasets. Common-shot or common-channel datasets
 
     Args:
         domain: The domain of the dataset.
-
-    Raises:
-        ValueError: If the domain is not 'time' or 'depth'.
     """
 
     def __init__(self, domain: str = "time"):
