@@ -7,11 +7,11 @@ import os
 from typing import TYPE_CHECKING
 
 import numpy as np
+import zarr
 from segy import SegyFile
 from segy.config import SegySettings
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
-import zarr
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
