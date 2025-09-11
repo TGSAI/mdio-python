@@ -300,13 +300,7 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
     xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
-    with warnings.catch_warnings():
-        # ZarrUserWarning:
-        # Consolidated metadata is currently not part in the Zarr format 3 specification.
-        # It may not be supported by other zarr implementations and may change in the future.
-        warnings.simplefilter("ignore", category=zarr.errors.ZarrUserWarning)
-        xr_ds.to_zarr(store=file_path, mode="w", compute=False)
-
+    to_mdio(dataset=xr_ds, output_path=file_path, mode="w", compute=False)
 
 def _zarr_zeros(shape: tuple[int, ...], **kwargs: dict[str, Any]) -> Array:
     """Create a Zarr array filled with zeros."""
@@ -325,6 +319,8 @@ def _zarr_zeros(shape: tuple[int, ...], **kwargs: dict[str, Any]) -> Array:
 
 
 def _to_zarr(xar: xr_DataArray, file_path: Path, mode: str, encoding: Mapping | None) -> None:
+    zarr_format = zarr.config.get("default_zarr_format")
+    consolidated=zarr_format == 2  # off for v3, on for v2
     with warnings.catch_warnings():
         # UnstableSpecificationWarning:
         # "The data type ({dtype}) does not have a Zarr V3 specification. "
@@ -336,12 +332,7 @@ def _to_zarr(xar: xr_DataArray, file_path: Path, mode: str, encoding: Mapping | 
         # "status of data type specifications for Zarr V3."
         warn = r"The data type \((.*?)\) does not have a Zarr V3 specification\."
         warnings.filterwarnings("ignore", message=warn, category=zarr.errors.UnstableSpecificationWarning)
-        # ZarrUserWarning:
-        # "Consolidated metadata is currently not part in the Zarr format 3 specification."
-        # "It may not be supported by other zarr implementations and may change in the future."
-        warn = r"Consolidated metadata is currently not part in the Zarr format 3 specification"
-        warnings.filterwarnings("ignore", message=warn, category=zarr.errors.ZarrUserWarning)
-        xar.to_zarr(file_path, mode=mode, encoding=encoding, compute=False)
+        xar.to_zarr(file_path, mode=mode, encoding=encoding, compute=False, consolidated=consolidated)
 
 
 def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> None:
