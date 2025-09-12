@@ -95,17 +95,14 @@ def mdio_segy_spec(version_str: str | None = None) -> SegySpec:
     )
 
 
-def revision_encode(binary_header: dict, version_str: str) -> dict:
+def encode_segy_revision(binary_header: dict) -> dict:
     """Encode revision code to binary header.
 
-    We have two cases where legacy MDIO uses keys "SEGYRevision" and "SEGYRevisionMinor" whereas
-    the new one uses "segy_revision_major" and "segy_revision_minor". Given either case we return
-    the correctly Rev1 like encoded revision code, ready to write to SEG-Y.
+    Return the correctly Rev1-like encoded revision code, ready to write to SEG-Y.
 
     Args:
         binary_header: Dictionary representing the SEG-Y binary header. Contains keys for major
             and minor revision numbers.
-        version_str: MDIO version string to determine the encoding format.
 
     Returns:
         The updated binary header with the encoded revision.
@@ -113,11 +110,7 @@ def revision_encode(binary_header: dict, version_str: str) -> dict:
     Raises:
         InvalidMDIOError: Raised when binary header in MDIO is broken.
     """
-    version_obj = version.parse(version_str)
-    if version_obj > version.parse("0.7.4"):
-        major_key, minor_key = "segy_revision_major", "segy_revision_minor"
-    else:  # MDIO <0.8
-        major_key, minor_key = "SEGYRevision", "SEGYRevisionMinor"
+    major_key, minor_key = "segy_revision_major", "segy_revision_minor"
 
     try:
         major = binary_header.pop(major_key)
