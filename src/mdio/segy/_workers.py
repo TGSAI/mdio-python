@@ -28,6 +28,7 @@ from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.xarray_builder import _get_fill_value
 from mdio.constants import UINT32_MAX
+from mdio.constants import UINT64_MAX
 
 
 class SegyFileArguments(TypedDict):
@@ -107,7 +108,9 @@ def trace_worker(  # noqa: PLR0913
     region_slices = tuple(region.values())
     local_grid_map = grid_map[region_slices[:-1]]  # minus last (vertical) axis
 
-    not_null = local_grid_map != UINT32_MAX
+    # The dtype.max is the sentinel value for the grid map.
+    # Normally, this is uint32, but some grids need to be promoted to uint64.
+    not_null = local_grid_map != np.iinfo(local_grid_map.dtype).max
     if not not_null.any():
         return None
 
