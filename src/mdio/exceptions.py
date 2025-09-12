@@ -59,3 +59,7 @@ class MDIOAlreadyExistsError(MDIOError):
 
 class MDIONotFoundError(MDIOError):
     """Raised when MDIO file doesn't exist."""
+
+
+class MDIOMissingVariableError(MDIOError):
+    """Raised when a variable is missing from the MDIO dataset."""

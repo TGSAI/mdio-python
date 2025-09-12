@@ -7,6 +7,7 @@ expected full or partial files.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -31,6 +32,9 @@ if TYPE_CHECKING:
     from collections.abc import Iterable
 
     from numpy.typing import NDArray
+
+
+os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
 
 
 @dataclass

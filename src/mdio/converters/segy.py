@@ -294,6 +294,10 @@ def _populate_coordinates(
 
 
 def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file: SegyFile) -> xr_Dataset:
+    save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
+    if not save_file_header:
+        return xr_dataset
+
     expected_rows = 40
     expected_cols = 80
 

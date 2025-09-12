@@ -10,9 +10,11 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from segy.factory import SegyFactory
+from segy.schema import SegyStandard
 from tqdm.auto import tqdm
 
 from mdio.api.io import open_mdio
+from mdio.exceptions import MDIOMissingVariableError
 from mdio.segy.compat import encode_segy_revision
 
 if TYPE_CHECKING:
@@ -60,8 +62,18 @@ def mdio_spec_to_segy(
 
     Returns:
         Opened Xarray Dataset for MDIO file and SegyFactory
+
+    Raises:
+        MDIOMissingVariableError: If MDIO file does not contain SEG-Y headers.
     """
     dataset = open_mdio(input_path, chunks=new_chunks)
+
+    if "segy_file_header" not in dataset:
+        msg = (
+            "MDIO does not contain SEG-Y file headers to write to output. Please add a dummy segy_file_header "
+            "variable and fill its metadata (.attrs) with `textHeader` and `binaryHeader`."
+        )
+        raise MDIOMissingVariableError(msg)
 
     file_header = dataset["segy_file_header"]
     text_header = file_header.attrs["textHeader"]
@@ -71,6 +83,10 @@ def mdio_spec_to_segy(
     factory = make_segy_factory(spec=segy_spec, binary_header=binary_header)
 
     text_header_bytes = factory.create_textual_header(text_header)
+
+    # Remove segy_revision from binary header if target SEG-Y is Rev0
+    if segy_spec.segy_standard is SegyStandard.REV0 and "segy_revision" in binary_header:
+        binary_header.pop("segy_revision")
     binary_header_bytes = factory.create_binary_header(binary_header)
 
     with output_path.open(mode="wb") as fp:
