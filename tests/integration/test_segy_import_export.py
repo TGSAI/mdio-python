@@ -34,7 +34,9 @@ if TYPE_CHECKING:
 
     from segy.schema import SegySpec
 
+
 dask.config.set(scheduler="synchronous")
+os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
 
 
 # TODO(Altay): Finish implementing these grid overrides.
