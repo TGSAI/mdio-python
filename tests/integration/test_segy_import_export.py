@@ -277,7 +277,7 @@ class TestReader:
             "sum": -8594.551666259766,
             "sumSquares": 40571291.6875,
             "min": -8.375323295593262,
-            "max": 0.0,
+            "max": 7.723702430725098,
             "histogram": {"counts": [], "binCenters": []},
         }
         actual_attrs_json = json.loads(ds["amplitude"].attrs["statsV1"])
