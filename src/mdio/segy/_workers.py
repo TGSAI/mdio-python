@@ -27,8 +27,6 @@ from zarr.core.config import config as zarr_config
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.xarray_builder import _get_fill_value
-from mdio.constants import UINT32_MAX
-from mdio.constants import UINT64_MAX
 
 
 class SegyFileArguments(TypedDict):
