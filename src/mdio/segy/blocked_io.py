@@ -47,7 +47,7 @@ def _create_stats() -> SummaryStatistics:
 def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatistics) -> None:
     final_stats.count += partial_stats.count
     final_stats.min = min(final_stats.min, partial_stats.min)
-    final_stats.max = min(final_stats.max, partial_stats.max)
+    final_stats.max = max(final_stats.max, partial_stats.max)
     final_stats.sum += partial_stats.sum
     final_stats.sum_squares += partial_stats.sum_squares
 
