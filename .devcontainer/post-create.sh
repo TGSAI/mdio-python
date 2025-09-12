@@ -2,6 +2,9 @@
 
 set -e
 
+# Install useful developer tools used by mdio development
+uv tool install nox bump-my-version
+
 # Sync the environment, installing the project editable and including dev dependencies
 uv sync
 
