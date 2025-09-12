@@ -34,9 +34,9 @@ def custom_teapot_dome_segy_spec(keep_unaltered: bool) -> SegySpec:
     )
 
 
-def text_header_teapot_dome() -> list[str]:
+def text_header_teapot_dome() -> str:
     """Return the teapot dome expected text header."""
-    return [
+    header_rows = [
         "C 1 CLIENT: ROCKY MOUNTAIN OILFIELD TESTING CENTER                              ",
         "C 2 PROJECT: NAVAL PETROLEUM RESERVE #3 (TEAPOT DOME); NATRONA COUNTY, WYOMING  ",
         "C 3 LINE: 3D                                                                    ",
@@ -78,6 +78,7 @@ def text_header_teapot_dome() -> list[str]:
         "C39               (voice) 303.694.9629 (fax) 303.771.1646                       ",
         "C40 END EBCDIC                                                                  ",
     ]
+    return "\n".join(header_rows)
 
 
 def binary_header_teapot_dome() -> dict[str, int]:

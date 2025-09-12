@@ -73,7 +73,7 @@ class TestImport4DNonReg:
 
         ds = open_mdio(zarr_tmp)
 
-        assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
+        assert ds["segy_file_header"].attrs["binaryHeader"]["samples_per_trace"] == num_samples
         assert ds.attrs["attributes"]["gridOverrides"] == grid_override
 
         assert npt.assert_array_equal(ds["shot_point"], shots)
@@ -120,7 +120,7 @@ class TestImport4D:
 
         ds = open_mdio(zarr_tmp)
 
-        assert ds.attrs["attributes"]["binaryHeader"]["samples_per_trace"] == num_samples
+        assert ds["segy_file_header"].attrs["binaryHeader"]["samples_per_trace"] == num_samples
         assert ds.attrs["attributes"].get("gridOverrides", None) == grid_override  # may not exist, so default=None
 
         xrt.assert_duckarray_equal(ds["shot_point"], shots)
@@ -261,13 +261,15 @@ class TestReader:
 
         attributes = ds.attrs["attributes"]
         assert attributes is not None
-        assert len(attributes) == 5
+        assert len(attributes) == 3
         # Validate all attributes provided by the abstract template
         assert attributes["defaultVariableName"] == "amplitude"
         assert attributes["surveyType"] == "3D"
         assert attributes["gatherType"] == "stacked"
-        assert attributes["textHeader"] == text_header_teapot_dome()
-        assert attributes["binaryHeader"] == binary_header_teapot_dome()
+
+        segy_file_header = ds["segy_file_header"]
+        assert segy_file_header.attrs["textHeader"] == text_header_teapot_dome()
+        assert segy_file_header.attrs["binaryHeader"] == binary_header_teapot_dome()
 
     def test_variable_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
