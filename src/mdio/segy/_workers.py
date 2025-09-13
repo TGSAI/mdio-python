@@ -9,6 +9,7 @@ from typing import cast
 
 import numpy as np
 from segy import SegyFile
+from segy.indexing import merge_cat_file
 
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.dtype import ScalarType
@@ -122,12 +123,15 @@ def trace_worker(  # noqa: PLR0913
     traces = segy_file.trace[live_trace_indexes]
 
     header_key = "headers"
+    raw_header_key = "raw_headers"
 
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
     worker_variables = [data_variable_name]
     if header_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
         worker_variables.append(header_key)
+    if raw_header_key in dataset.data_vars:
+        worker_variables.append(raw_header_key)
 
     ds_to_write = dataset[worker_variables]
 
@@ -145,6 +149,40 @@ def trace_worker(  # noqa: PLR0913
             tmp_headers,
             attrs=ds_to_write[header_key].attrs,
             encoding=ds_to_write[header_key].encoding,  # Not strictly necessary, but safer than not doing it.
+        )
+    if raw_header_key in worker_variables:
+        tmp_raw_headers = np.zeros_like(dataset[raw_header_key])
+
+        # Get the indices where we need to place results
+        live_mask = not_null
+        live_positions = np.where(live_mask.ravel())[0]
+
+        if len(live_positions) > 0:
+            # Calculate byte ranges for headers
+            header_size = 240
+            trace_offset = segy_file.spec.trace.offset
+            trace_itemsize = segy_file.spec.trace.itemsize
+
+            starts = []
+            ends = []
+            for global_trace_idx in live_trace_indexes:
+                header_start = trace_offset + global_trace_idx * trace_itemsize
+                header_end = header_start + header_size
+                starts.append(header_start)
+                ends.append(header_end)
+
+            # Capture raw bytes
+            raw_header_bytes = merge_cat_file(segy_file.fs, segy_file.url, starts, ends)
+
+            # Convert and place results
+            raw_headers_array = np.frombuffer(bytes(raw_header_bytes), dtype="|V240")
+            tmp_raw_headers.ravel()[live_positions] = raw_headers_array
+
+        ds_to_write[raw_header_key] = Variable(
+            ds_to_write[raw_header_key].dims,
+            tmp_raw_headers,
+            attrs=ds_to_write[raw_header_key].attrs,
+            encoding=ds_to_write[raw_header_key].encoding,
         )
 
     data_variable = ds_to_write[data_variable_name]
