@@ -289,10 +289,31 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.getbasetemp() / "export_masked"
 
 
+@pytest.fixture
+def raw_headers_env(request: pytest.FixtureRequest) -> None:
+    """Fixture to set/unset MDIO__DO_RAW_HEADERS environment variable."""
+    env_value = request.param
+    if env_value is not None:
+        os.environ["MDIO__DO_RAW_HEADERS"] = env_value
+    else:
+        os.environ.pop("MDIO__DO_RAW_HEADERS", None)
+
+    yield
+
+    # Cleanup after test
+    os.environ.pop("MDIO__DO_RAW_HEADERS", None)
+
+
 @pytest.mark.parametrize(
     "test_conf",
     [STACK_2D_CONF, STACK_3D_CONF, GATHER_2D_CONF, GATHER_3D_CONF, STREAMER_2D_CONF, STREAMER_3D_CONF, COCA_3D_CONF],
     ids=["2d_stack", "3d_stack", "2d_gather", "3d_gather", "2d_streamer", "3d_streamer", "3d_coca"],
+)
+@pytest.mark.parametrize(
+    "raw_headers_env",
+    ["1", None],
+    ids=["with_raw_headers", "without_raw_headers"],
+    indirect=True,
 )
 class TestNdImportExport:
     """Test import/export of n-D SEG-Ys to MDIO, with and without selection mask."""
