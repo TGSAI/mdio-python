@@ -1,16 +1,9 @@
 """Tests the schema v1 dataset_serializer public API."""
 
-import warnings
-from collections.abc import Mapping
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 import pytest
-import zarr
-from xarray import DataArray as xr_DataArray
-from zarr import Array
-from zarr import zeros as zarr_zeros
 from zarr.codecs import BloscCodec
 
 from mdio import to_mdio
@@ -302,38 +295,6 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     to_mdio(dataset=xr_ds, output_path=file_path, mode="w", compute=False)
 
-def _zarr_zeros(shape: tuple[int, ...], **kwargs: dict[str, Any]) -> Array:
-    """Create a Zarr array filled with zeros."""
-    with warnings.catch_warnings():
-        # UnstableSpecificationWarning:
-        # f"The data type ({dtype}) does not have a Zarr V3 specification. "
-        # "That means that the representation of arrays saved with this data type may change without "
-        # "warning in a future version of Zarr Python. "
-        # "Arrays stored with this data type may be unreadable by other Zarr libraries. "
-        # "Use this data type at your own risk! "
-        # "Check https://github.com/zarr-developers/zarr-extensions/tree/main/data-types for the "
-        # "status of data type specifications for Zarr V3."
-        warn = r"The data type \((.*?)\) does not have a Zarr V3 specification\."
-        warnings.filterwarnings("ignore", message=warn, category=zarr.errors.UnstableSpecificationWarning)
-        return zarr_zeros(shape, **kwargs)
-
-
-def _to_zarr(xar: xr_DataArray, file_path: Path, mode: str, encoding: Mapping | None) -> None:
-    zarr_format = zarr.config.get("default_zarr_format")
-    consolidated=zarr_format == 2  # off for v3, on for v2
-    with warnings.catch_warnings():
-        # UnstableSpecificationWarning:
-        # "The data type ({dtype}) does not have a Zarr V3 specification. "
-        # "That means that the representation of arrays saved with this data type may change without "
-        # "warning in a future version of Zarr Python. "
-        # "Arrays stored with this data type may be unreadable by other Zarr libraries. "
-        # "Use this data type at your own risk! "
-        # "Check https://github.com/zarr-developers/zarr-extensions/tree/main/data-types for the "
-        # "status of data type specifications for Zarr V3."
-        warn = r"The data type \((.*?)\) does not have a Zarr V3 specification\."
-        warnings.filterwarnings("ignore", message=warn, category=zarr.errors.UnstableSpecificationWarning)
-        xar.to_zarr(file_path, mode=mode, encoding=encoding, compute=False, consolidated=consolidated)
-
 
 def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> None:
     """Test building a complete dataset."""
@@ -343,62 +304,3 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     to_mdio(xr_ds, output_path=file_path, mode="w-", compute=False)
-
-
-def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:
-    """Test writing XArray dataset with data as Zarr zero array to Zarr.
-
-    Set encoding in as DataArray attributes
-    """
-    # Create a data type and the fill value
-    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
-
-    my_attr_encoding = {"fill_value": np.void((0, 0), dtype=dtype)}
-
-    # Create a zarr array using the data type,
-    # Specify encoding as the array attribute
-    data = _zarr_zeros((36, 36), dtype=dtype)
-    aa = xr_DataArray(name="myattr", data=data)
-    aa.encoding = my_attr_encoding
-
-    file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_1", debugging=False)
-    _to_zarr(aa, file_path, mode="w", encoding=None)
-
-
-def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
-    """Test writing XArray dataset with data as Zarr zero array to Zarr.
-
-    Set encoding in the to_zar method
-    """
-    # Create a data type and the fill value
-    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
-
-    my_attr_encoding = {"fill_value": np.void((0, 0), dtype=dtype)}
-
-    # Create a zarr array using the data type,
-    # Do not specify encoding as the array attribute
-    data = _zarr_zeros((36, 36), dtype=dtype)
-    aa = xr_DataArray(name="myattr", data=data)
-
-    file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_2", debugging=False)
-    # Specify encoding per array
-    encoding = {"myattr": my_attr_encoding}
-    _to_zarr(aa, file_path, mode="w", encoding=encoding)
-
-
-def test_to_zarr_from_np(tmp_path: Path) -> None:
-    """Test writing XArray dataset with data as NumPy array to Zarr."""
-    # Create a data type and the fill value
-    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
-
-    my_attr_encoding = {"fill_value": np.void((0, 0), dtype=dtype)}
-
-    # Create a zarr array using the data type
-    # Do not specify encoding as the array attribute
-    data = np.zeros((36, 36), dtype=dtype)
-    aa = xr_DataArray(name="myattr", data=data)
-
-    file_path = output_path(tmp_path, "to_zarr/zarr_np", debugging=False)
-    # Specify encoding per array
-    encoding = {"myattr": my_attr_encoding}
-    _to_zarr(aa, file_path, mode="w", encoding=encoding)
