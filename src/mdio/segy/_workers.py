@@ -166,6 +166,7 @@ def trace_worker(  # noqa: PLR0913
             tmp_raw_headers,
             attrs=ds_to_write[raw_header_key].attrs,
             encoding=ds_to_write[raw_header_key].encoding,  # Not strictly necessary, but safer than not doing it.
+        )
 
 
     del raw_headers  # Manage memory
