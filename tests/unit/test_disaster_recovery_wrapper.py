@@ -27,6 +27,7 @@ if TYPE_CHECKING:
 
 SAMPLES_PER_TRACE = 1501
 
+
 class TestDisasterRecoveryWrapper:
     """Test cases for disaster recovery wrapper functionality."""
 
@@ -51,17 +52,19 @@ class TestDisasterRecoveryWrapper:
 
         return spec.customize(trace_header_fields=header_fields)
 
-    @pytest.fixture(params=[
-        {"endianness": Endianness.BIG, "data_format": 1, "name": "big_endian_ibm"},
-        {"endianness": Endianness.BIG, "data_format": 5, "name": "big_endian_ieee"},
-        {"endianness": Endianness.LITTLE, "data_format": 1, "name": "little_endian_ibm"},
-        {"endianness": Endianness.LITTLE, "data_format": 5, "name": "little_endian_ieee"},
-    ])
-    def segy_config(self, request) -> dict:
+    @pytest.fixture(
+        params=[
+            {"endianness": Endianness.BIG, "data_format": 1, "name": "big_endian_ibm"},
+            {"endianness": Endianness.BIG, "data_format": 5, "name": "big_endian_ieee"},
+            {"endianness": Endianness.LITTLE, "data_format": 1, "name": "little_endian_ibm"},
+            {"endianness": Endianness.LITTLE, "data_format": 5, "name": "little_endian_ieee"},
+        ]
+    )
+    def segy_config(self, request: pytest.FixtureRequest) -> dict:
         """Parameterized fixture for different SEGY configurations."""
         return request.param
 
-    def create_test_segy_file(
+    def create_test_segy_file(  # noqa: PLR0913
         self,
         spec: SegySpec,
         num_traces: int,
@@ -119,7 +122,7 @@ class TestDisasterRecoveryWrapper:
         self, segy_path: Path, trace_index: int, byte_start: int, byte_length: int
     ) -> NDArray:
         """Extract specific bytes from a trace header in the SEGY file."""
-        with open(segy_path, "rb") as f:
+        with segy_path.open("rb") as f:
             # Skip text header (3200 bytes) + binary header (400 bytes)
             header_offset = 3600
 
@@ -164,18 +167,12 @@ class TestDisasterRecoveryWrapper:
         for trace_idx in test_indices:
             # Get raw and transformed headers
             raw_headers, transformed_headers, traces = get_header_raw_and_transformed(
-                segy_file=segy_file,
-                indices=trace_idx,
-                do_reverse_transforms=True
+                segy_file=segy_file, indices=trace_idx, do_reverse_transforms=True
             )
 
             # Extract bytes from disk for inline (bytes 189-192) and crossline (bytes 193-196)
-            inline_bytes_disk = self.extract_header_bytes_from_file(
-                segy_path, trace_idx, 189, 4
-            )
-            crossline_bytes_disk = self.extract_header_bytes_from_file(
-                segy_path, trace_idx, 193, 4
-            )
+            inline_bytes_disk = self.extract_header_bytes_from_file(segy_path, trace_idx, 189, 4)
+            crossline_bytes_disk = self.extract_header_bytes_from_file(segy_path, trace_idx, 193, 4)
 
             # Convert raw headers to bytes for comparison
             if raw_headers is not None:
@@ -185,30 +182,30 @@ class TestDisasterRecoveryWrapper:
                 if raw_headers.ndim == 0:
                     # Single trace case
                     raw_data_bytes = raw_headers.tobytes()
-                    inline_offset = raw_headers.dtype.fields['inline'][1]
-                    crossline_offset = raw_headers.dtype.fields['crossline'][1]
-                    inline_size = raw_headers.dtype.fields['inline'][0].itemsize
-                    crossline_size = raw_headers.dtype.fields['crossline'][0].itemsize
-                    
+                    inline_offset = raw_headers.dtype.fields["inline"][1]
+                    crossline_offset = raw_headers.dtype.fields["crossline"][1]
+                    inline_size = raw_headers.dtype.fields["inline"][0].itemsize
+                    crossline_size = raw_headers.dtype.fields["crossline"][0].itemsize
+
                     raw_inline_bytes = np.frombuffer(
-                        raw_data_bytes[inline_offset:inline_offset+inline_size], dtype=np.uint8
+                        raw_data_bytes[inline_offset : inline_offset + inline_size], dtype=np.uint8
                     )
                     raw_crossline_bytes = np.frombuffer(
-                        raw_data_bytes[crossline_offset:crossline_offset+crossline_size], dtype=np.uint8
+                        raw_data_bytes[crossline_offset : crossline_offset + crossline_size], dtype=np.uint8
                     )
                 else:
                     # Multiple traces case - this test uses single trace index, so extract that trace
                     raw_data_bytes = raw_headers[0:1].tobytes()  # Extract first trace
-                    inline_offset = raw_headers.dtype.fields['inline'][1]
-                    crossline_offset = raw_headers.dtype.fields['crossline'][1]
-                    inline_size = raw_headers.dtype.fields['inline'][0].itemsize
-                    crossline_size = raw_headers.dtype.fields['crossline'][0].itemsize
-                    
+                    inline_offset = raw_headers.dtype.fields["inline"][1]
+                    crossline_offset = raw_headers.dtype.fields["crossline"][1]
+                    inline_size = raw_headers.dtype.fields["inline"][0].itemsize
+                    crossline_size = raw_headers.dtype.fields["crossline"][0].itemsize
+
                     raw_inline_bytes = np.frombuffer(
-                        raw_data_bytes[inline_offset:inline_offset+inline_size], dtype=np.uint8
+                        raw_data_bytes[inline_offset : inline_offset + inline_size], dtype=np.uint8
                     )
                     raw_crossline_bytes = np.frombuffer(
-                        raw_data_bytes[crossline_offset:crossline_offset+crossline_size], dtype=np.uint8
+                        raw_data_bytes[crossline_offset : crossline_offset + crossline_size], dtype=np.uint8
                     )
 
                 print(f"Transformed headers: {transformed_headers.tobytes()}")
@@ -217,10 +214,12 @@ class TestDisasterRecoveryWrapper:
                 print(f"Crossline bytes disk: {crossline_bytes_disk.tobytes()}")
 
                 # Compare bytes
-                assert np.array_equal(raw_inline_bytes, inline_bytes_disk), \
+                assert np.array_equal(raw_inline_bytes, inline_bytes_disk), (
                     f"Inline bytes mismatch for trace {trace_idx} in {config_name}"
-                assert np.array_equal(raw_crossline_bytes, crossline_bytes_disk), \
+                )
+                assert np.array_equal(raw_crossline_bytes, crossline_bytes_disk), (
                     f"Crossline bytes mismatch for trace {trace_idx} in {config_name}"
+                )
 
     def test_header_validation_no_transforms(
         self, temp_dir: Path, basic_segy_spec: SegySpec, segy_config: dict
@@ -252,7 +251,7 @@ class TestDisasterRecoveryWrapper:
         raw_headers, transformed_headers, traces = get_header_raw_and_transformed(
             segy_file=segy_file,
             indices=slice(None),  # All traces
-            do_reverse_transforms=False
+            do_reverse_transforms=False,
         )
 
         # When transforms are disabled, raw_headers should be None
@@ -262,13 +261,8 @@ class TestDisasterRecoveryWrapper:
         assert transformed_headers is not None
         assert transformed_headers.size == num_traces
 
-    def test_multiple_traces_validation(
-        self, temp_dir: Path, basic_segy_spec: SegySpec, segy_config: dict
-    ) -> None:
+    def test_multiple_traces_validation(self, temp_dir: Path, basic_segy_spec: SegySpec, segy_config: dict) -> None:
         """Test validation with multiple traces at once."""
-        if True:
-            import segy
-            print(segy.__version__)
         config_name = segy_config["name"]
         endianness = segy_config["endianness"]
         data_format = segy_config["data_format"]
@@ -301,7 +295,7 @@ class TestDisasterRecoveryWrapper:
         raw_headers, transformed_headers, traces = get_header_raw_and_transformed(
             segy_file=segy_file,
             indices=slice(None),  # All traces
-            do_reverse_transforms=True
+            do_reverse_transforms=True,
         )
 
         first = True
@@ -309,12 +303,8 @@ class TestDisasterRecoveryWrapper:
         # Validate each trace
         for trace_idx in range(num_traces):
             # Extract bytes from disk
-            inline_bytes_disk = self.extract_header_bytes_from_file(
-                segy_path, trace_idx, 189, 4
-            )
-            crossline_bytes_disk = self.extract_header_bytes_from_file(
-                segy_path, trace_idx, 193, 4
-            )
+            inline_bytes_disk = self.extract_header_bytes_from_file(segy_path, trace_idx, 189, 4)
+            crossline_bytes_disk = self.extract_header_bytes_from_file(segy_path, trace_idx, 193, 4)
 
             if first:
                 print(raw_headers.dtype)
@@ -327,30 +317,30 @@ class TestDisasterRecoveryWrapper:
             if raw_headers.ndim == 0:
                 # Single trace case
                 raw_data_bytes = raw_headers.tobytes()
-                inline_offset = raw_headers.dtype.fields['inline'][1]
-                crossline_offset = raw_headers.dtype.fields['crossline'][1]
-                inline_size = raw_headers.dtype.fields['inline'][0].itemsize
-                crossline_size = raw_headers.dtype.fields['crossline'][0].itemsize
-                
+                inline_offset = raw_headers.dtype.fields["inline"][1]
+                crossline_offset = raw_headers.dtype.fields["crossline"][1]
+                inline_size = raw_headers.dtype.fields["inline"][0].itemsize
+                crossline_size = raw_headers.dtype.fields["crossline"][0].itemsize
+
                 raw_inline_bytes = np.frombuffer(
-                    raw_data_bytes[inline_offset:inline_offset+inline_size], dtype=np.uint8
+                    raw_data_bytes[inline_offset : inline_offset + inline_size], dtype=np.uint8
                 )
                 raw_crossline_bytes = np.frombuffer(
-                    raw_data_bytes[crossline_offset:crossline_offset+crossline_size], dtype=np.uint8
+                    raw_data_bytes[crossline_offset : crossline_offset + crossline_size], dtype=np.uint8
                 )
             else:
                 # Multiple traces case
-                raw_data_bytes = raw_headers[trace_idx:trace_idx+1].tobytes()
-                inline_offset = raw_headers.dtype.fields['inline'][1]
-                crossline_offset = raw_headers.dtype.fields['crossline'][1]
-                inline_size = raw_headers.dtype.fields['inline'][0].itemsize
-                crossline_size = raw_headers.dtype.fields['crossline'][0].itemsize
-                
+                raw_data_bytes = raw_headers[trace_idx : trace_idx + 1].tobytes()
+                inline_offset = raw_headers.dtype.fields["inline"][1]
+                crossline_offset = raw_headers.dtype.fields["crossline"][1]
+                inline_size = raw_headers.dtype.fields["inline"][0].itemsize
+                crossline_size = raw_headers.dtype.fields["crossline"][0].itemsize
+
                 raw_inline_bytes = np.frombuffer(
-                    raw_data_bytes[inline_offset:inline_offset+inline_size], dtype=np.uint8
+                    raw_data_bytes[inline_offset : inline_offset + inline_size], dtype=np.uint8
                 )
                 raw_crossline_bytes = np.frombuffer(
-                    raw_data_bytes[crossline_offset:crossline_offset+crossline_size], dtype=np.uint8
+                    raw_data_bytes[crossline_offset : crossline_offset + crossline_size], dtype=np.uint8
                 )
 
             print(f"Raw inline bytes: {raw_inline_bytes.tobytes()}")
@@ -359,18 +349,23 @@ class TestDisasterRecoveryWrapper:
             print(f"Crossline bytes disk: {crossline_bytes_disk.tobytes()}")
 
             # Compare
-            assert np.array_equal(raw_inline_bytes, inline_bytes_disk), \
+            assert np.array_equal(raw_inline_bytes, inline_bytes_disk), (
                 f"Inline bytes mismatch for trace {trace_idx} in {config_name}"
-            assert np.array_equal(raw_crossline_bytes, crossline_bytes_disk), \
+            )
+            assert np.array_equal(raw_crossline_bytes, crossline_bytes_disk), (
                 f"Crossline bytes mismatch for trace {trace_idx} in {config_name}"
+            )
 
-    @pytest.mark.parametrize("trace_indices", [
-        0,  # Single trace
-        [0, 2, 4],  # Multiple specific traces
-        slice(1, 4),  # Range of traces
-    ])
+    @pytest.mark.parametrize(
+        "trace_indices",
+        [
+            0,  # Single trace
+            [0, 2, 4],  # Multiple specific traces
+            slice(1, 4),  # Range of traces
+        ],
+    )
     def test_different_index_types(
-        self, temp_dir: Path, basic_segy_spec: SegySpec, segy_config: dict, trace_indices
+        self, temp_dir: Path, basic_segy_spec: SegySpec, segy_config: dict, trace_indices: int | list[int] | slice
     ) -> None:
         """Test with different types of trace indices."""
         config_name = segy_config["name"]
@@ -397,9 +392,7 @@ class TestDisasterRecoveryWrapper:
 
         # Get headers with different index types
         raw_headers, transformed_headers, traces = get_header_raw_and_transformed(
-            segy_file=segy_file,
-            indices=trace_indices,
-            do_reverse_transforms=True
+            segy_file=segy_file, indices=trace_indices, do_reverse_transforms=True
         )
 
         # Basic validation that we got results

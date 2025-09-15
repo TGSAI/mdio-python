@@ -9,7 +9,6 @@ from typing import cast
 
 import numpy as np
 from segy import SegyFile
-from segy.indexing import merge_cat_file
 
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.dtype import ScalarType
@@ -82,6 +81,7 @@ def header_scan_worker(
 
     return cast("HeaderArray", trace_header)
 
+
 def trace_worker(  # noqa: PLR0913
     segy_kw: SegyFileArguments,
     output_path: UPath,
@@ -135,11 +135,12 @@ def trace_worker(  # noqa: PLR0913
     if header_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
         worker_variables.append(header_key)
     if raw_header_key in dataset.data_vars:
-
         do_reverse_transforms = True
         worker_variables.append(raw_header_key)
 
-    raw_headers, transformed_headers, traces = get_header_raw_and_transformed(segy_file, live_trace_indexes, do_reverse_transforms=do_reverse_transforms)
+    raw_headers, transformed_headers, traces = get_header_raw_and_transformed(
+        segy_file, live_trace_indexes, do_reverse_transforms=do_reverse_transforms
+    )
     ds_to_write = dataset[worker_variables]
 
     if header_key in worker_variables:
@@ -167,7 +168,6 @@ def trace_worker(  # noqa: PLR0913
             attrs=ds_to_write[raw_header_key].attrs,
             encoding=ds_to_write[raw_header_key].encoding,  # Not strictly necessary, but safer than not doing it.
         )
-
 
     del raw_headers  # Manage memory
     data_variable = ds_to_write[data_variable_name]

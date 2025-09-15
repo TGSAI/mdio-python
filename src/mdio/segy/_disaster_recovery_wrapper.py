@@ -4,18 +4,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from segy.schema import Endianness
+from segy.transforms import ByteSwapTransform
+from segy.transforms import IbmFloatTransform
+
 if TYPE_CHECKING:
-    import numpy as np
-    from segy.file import SegyFile
-    from segy.transforms import Transform, ByteSwapTransform, IbmFloatTransform
     from numpy.typing import NDArray
+    from segy import SegyFile
+    from segy.transforms import Transform
+    from segy.transforms import TransformPipeline
+
 
 def _reverse_single_transform(data: NDArray, transform: Transform, endianness: Endianness) -> NDArray:
     """Reverse a single transform operation."""
-    from segy.schema import Endianness
-    from segy.transforms import ByteSwapTransform
-    from segy.transforms import IbmFloatTransform
-
     if isinstance(transform, ByteSwapTransform):
         # Reverse the endianness conversion
         if endianness == Endianness.LITTLE:
@@ -24,20 +25,19 @@ def _reverse_single_transform(data: NDArray, transform: Transform, endianness: E
         reverse_transform = ByteSwapTransform(Endianness.BIG)
         return reverse_transform.apply(data)
 
-    elif isinstance(transform, IbmFloatTransform):  # TODO: This seems incorrect...
+    # TODO(BrianMichell): #0000 Do we actually need to worry about IBM/IEEE transforms here?
+    if isinstance(transform, IbmFloatTransform):
         # Reverse IBM float conversion
         reverse_direction = "to_ibm" if transform.direction == "to_ieee" else "to_ieee"
         reverse_transform = IbmFloatTransform(reverse_direction, transform.keys)
         return reverse_transform.apply(data)
 
-    else:
-        # For unknown transforms, return data unchanged
-        return data
+    # For unknown transforms, return data unchanged
+    return data
+
 
 def get_header_raw_and_transformed(
-    segy_file: SegyFile,
-    indices: int | list[int] | NDArray | slice,
-    do_reverse_transforms: bool = True
+    segy_file: SegyFile, indices: int | list[int] | NDArray | slice, do_reverse_transforms: bool = True
 ) -> tuple[NDArray | None, NDArray, NDArray]:
     """Get both raw and transformed header data.
 
@@ -54,15 +54,20 @@ def get_header_raw_and_transformed(
 
     # Reverse transforms to get raw data
     if do_reverse_transforms:
-        raw_headers = _reverse_transforms(transformed_headers, segy_file.header.transform_pipeline, segy_file.spec.endianness)
+        raw_headers = _reverse_transforms(
+            transformed_headers, segy_file.header.transform_pipeline, segy_file.spec.endianness
+        )
     else:
         raw_headers = None
 
     return raw_headers, transformed_headers, traces
 
-def _reverse_transforms(transformed_data: NDArray, transform_pipeline, endianness: Endianness) -> NDArray:
+
+def _reverse_transforms(
+    transformed_data: NDArray, transform_pipeline: TransformPipeline, endianness: Endianness
+) -> NDArray:
     """Reverse the transform pipeline to get raw data."""
-    raw_data = transformed_data.copy() if hasattr(transformed_data, 'copy') else transformed_data
+    raw_data = transformed_data.copy() if hasattr(transformed_data, "copy") else transformed_data
 
     # Apply transforms in reverse order
     for transform in reversed(transform_pipeline.transforms):
