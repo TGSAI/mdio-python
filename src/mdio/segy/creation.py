@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from segy.factory import SegyFactory
-from segy.schema import SegyStandard
+from segy.standards.fields import binary
 from tqdm.auto import tqdm
 
 from mdio.api.io import open_mdio
@@ -84,9 +84,12 @@ def mdio_spec_to_segy(
 
     text_header_bytes = factory.create_textual_header(text_header)
 
-    # Remove segy_revision from binary header if target SEG-Y is Rev0
-    if segy_spec.segy_standard is SegyStandard.REV0 and "segy_revision" in binary_header:
-        binary_header.pop("segy_revision")
+    # During MDIO SEGY import, TGSAI/segy always creates revision major/minor fields
+    # We may not have it in the user desired spec. In that case we add it here
+    if "segy_revision" not in segy_spec.binary_header.names:
+        rev_field = binary.Rev1.SEGY_REVISION.model
+        segy_spec.binary_header.customize(fields=rev_field)
+
     binary_header_bytes = factory.create_binary_header(binary_header)
 
     with output_path.open(mode="wb") as fp:
