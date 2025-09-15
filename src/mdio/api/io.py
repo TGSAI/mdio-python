@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -14,6 +13,7 @@ from xarray import open_zarr as xr_open_zarr
 from xarray.backends.api import to_zarr as xr_to_zarr
 
 from mdio.constants import ZarrFormat
+from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -52,22 +52,14 @@ def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dat
     input_path = _normalize_path(input_path)
     storage_options = _normalize_storage_options(input_path)
     zarr_format = zarr.config.get("default_zarr_format")
-    with warnings.catch_warnings():
-        # RuntimeWarning:
-        # Failed to open Zarr store with consolidated metadata, but successfully read with non-consolidated metadata.
-        # This is typically much slower for opening a dataset. To silence this warning, consider:
-        # 1. Consolidating metadata in this existing store with zarr.consolidate_metadata().
-        # 2. Explicitly setting consolidated=False, to avoid trying to read consolidate metadata, or
-        # 3. Explicitly setting consolidated=True, to raise an error in this case instead of falling back to try
-        #    reading non-consolidated metadata.
-        warn = r"Failed to open Zarr store with consolidated metadata, but successfully read with non-consolidated"
-        warnings.filterwarnings("ignore", message=warn, category=RuntimeWarning)
-        return xr_open_zarr(
-            input_path.as_posix(),
-            chunks=chunks,
-            storage_options=storage_options,
-            mask_and_scale=zarr_format == ZarrFormat.V3,  # off for v2, on for v3
-        )
+
+    return xr_open_zarr(
+        input_path.as_posix(),
+        chunks=chunks,
+        storage_options=storage_options,
+        mask_and_scale=zarr_format == ZarrFormat.V3,  # off for v2, on for v3
+        consolidated=zarr_format == ZarrFormat.V2,  # on for v2, off for v3
+    )
 
 
 def to_mdio(  # noqa: PLR0913
@@ -97,23 +89,14 @@ def to_mdio(  # noqa: PLR0913
     output_path = _normalize_path(output_path)
     storage_options = _normalize_storage_options(output_path)
     zarr_format = zarr.config.get("default_zarr_format")
-    with warnings.catch_warnings():
-        # UnstableSpecificationWarning:
-        # f"The data type ({dtype}) does not have a Zarr V3 specification. "
-        # "That means that the representation of arrays saved with this data type may change without "
-        # "warning in a future version of Zarr Python. "
-        # "Arrays stored with this data type may be unreadable by other Zarr libraries. "
-        # "Use this data type at your own risk! "
-        # "Check https://github.com/zarr-developers/zarr-extensions/tree/main/data-types for the "
-        # "status of data type specifications for Zarr V3."
-        warn = r"The data type \((.*?)\) does not have a Zarr V3 specification\."
-        warnings.filterwarnings("ignore", message=warn, category=zarr.errors.UnstableSpecificationWarning)
+
+    with zarr_warnings_suppress_unstable_structs_v3():
         xr_to_zarr(
             dataset,
             store=output_path.as_posix(),  # xarray doesn't like URI when file:// is protocol
             mode=mode,
             compute=compute,
-            consolidated=zarr_format == ZarrFormat.V2,  # off for v3, on for v2
+            consolidated=zarr_format == ZarrFormat.V2,  # on for v2, off for v3
             region=region,
             storage_options=storage_options,
             write_empty_chunks=False,
