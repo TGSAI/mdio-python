@@ -177,7 +177,7 @@ class TestTeapotRoundtrip:
                 output_path=zarr_tmp,
                 overwrite=True,
             )
-        mock_rm.assert_called_once_with(str(zarr_tmp.absolute()), recursive=True)
+        mock_rm.assert_called_once_with(zarr_tmp, recursive=True)
 
     @pytest.mark.dependency("test_3d_import")
     def test_dataset_metadata(self, zarr_tmp: Path) -> None:
