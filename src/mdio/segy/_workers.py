@@ -27,6 +27,7 @@ from zarr.core.config import config as zarr_config
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.xarray_builder import _get_fill_value
+from mdio.constants import fill_value_map
 
 
 class SegyFileArguments(TypedDict):
@@ -108,7 +109,7 @@ def trace_worker(  # noqa: PLR0913
 
     # The dtype.max is the sentinel value for the grid map.
     # Normally, this is uint32, but some grids need to be promoted to uint64.
-    not_null = local_grid_map != np.iinfo(local_grid_map.dtype).max
+    not_null = local_grid_map != fill_value_map.get(local_grid_map.dtype.name)
     if not not_null.any():
         return None
 
