@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import os
 from typing import TYPE_CHECKING
+from unittest.mock import MagicMock
+from unittest.mock import patch
 
 import dask
 import numpy as np
@@ -146,6 +148,36 @@ class TestTeapotRoundtrip:
             output_path=zarr_tmp,
             overwrite=True,
         )
+
+    @pytest.mark.dependency("test_3d_import")
+    @patch("fsspec.implementations.local.LocalFileSystem.rm")
+    def test_teapot_import_overwrite(
+        self, mock_rm: MagicMock, segy_input: Path, zarr_tmp: Path, teapot_segy_spec: SegySpec
+    ) -> None:
+        """Test importing a SEG-Y file to MDIO, when the output path exists."""
+        msg = f"Output location '{zarr_tmp.absolute()}' exists. Set `overwrite=True` if intended."
+        with pytest.raises(FileExistsError, match=msg):
+            segy_to_mdio(
+                segy_spec=teapot_segy_spec,
+                mdio_template=TemplateRegistry().get("PostStack3DTime"),
+                input_path=segy_input,
+                output_path=zarr_tmp,
+                overwrite=False,
+            )
+
+        # Try to delete a locked file
+        msg = "Operation not permitted"
+        mock_rm.side_effect = PermissionError(msg)
+        err = f"Error overwriting an existing mdio dataset '{zarr_tmp.absolute()}' - {msg}"
+        with pytest.raises(PermissionError, match=err):
+            segy_to_mdio(
+                segy_spec=teapot_segy_spec,
+                mdio_template=TemplateRegistry().get("PostStack3DTime"),
+                input_path=segy_input,
+                output_path=zarr_tmp,
+                overwrite=True,
+            )
+        mock_rm.assert_called_once_with(str(zarr_tmp.absolute()), recursive=True)
 
     @pytest.mark.dependency("test_3d_import")
     def test_dataset_metadata(self, zarr_tmp: Path) -> None:

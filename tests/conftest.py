@@ -23,7 +23,9 @@ warnings.filterwarnings(
 def fake_segy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the fake SEG-Y files we are going to create."""
     if DEBUG_MODE:
-        return Path("TMP/fake_segy")
+        tmp_dir = Path("TMP/fake_segy")
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        return tmp_dir
     return tmp_path_factory.mktemp(r"fake_segy")
 
 

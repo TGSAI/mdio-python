@@ -6,6 +6,7 @@ import logging
 import os
 from typing import TYPE_CHECKING
 
+import fsspec
 import numpy as np
 from segy import SegyFile
 from segy.config import SegySettings
@@ -355,13 +356,25 @@ def segy_to_mdio(  # noqa PLR0913
 
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
+        os_error_type: If there is an OSError removing an existing output location.
     """
     input_path = _normalize_path(input_path)
     output_path = _normalize_path(output_path)
 
-    if not overwrite and output_path.exists():
-        err = f"Output location '{output_path.as_posix()}' exists. Set `overwrite=True` if intended."
-        raise FileExistsError(err)
+    if output_path.exists():
+        if not overwrite:
+            err = f"Output location '{output_path.absolute()}' exists. Set `overwrite=True` if intended."
+            raise FileExistsError(err)
+        # NOTE: the output_path was normalized to UPath
+        # Remove the existing output first
+        try:
+            # Infer the filesystem based on the path's protocol
+            fs, fs_path = fsspec.core.url_to_fs(str(output_path))
+            fs.rm(fs_path, recursive=True)  # works for both local and remote paths
+        except OSError as e:
+            os_error_type = type(e)
+            err = f"Error overwriting an existing mdio dataset '{output_path.absolute()}' - {e}"
+            raise os_error_type(err) from e
 
     segy_settings = SegySettings(storage_options=input_path.storage_options)
     segy_file = SegyFile(url=input_path.as_posix(), spec=segy_spec, settings=segy_settings)
