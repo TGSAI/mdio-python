@@ -4,8 +4,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-from xarray import DataArray as xr_DataArray
-from zarr import zeros as zarr_zeros
 from zarr.codecs import BloscCodec
 
 from mdio import to_mdio
@@ -295,7 +293,7 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
     xr_ds = to_xarray_dataset(dataset)
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
-    xr_ds.to_zarr(store=file_path, mode="w", compute=False)
+    to_mdio(dataset=xr_ds, output_path=file_path, mode="w", compute=False)
 
 
 def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> None:
@@ -306,62 +304,3 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
 
     file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
     to_mdio(xr_ds, output_path=file_path, mode="w-", compute=False)
-
-
-def test_to_zarr_from_zarr_zeros_1(tmp_path: Path) -> None:
-    """Test writing XArray dataset with data as Zarr zero array to Zarr.
-
-    Set encoding in as DataArray attributes
-    """
-    # Create a data type and the fill value
-    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
-
-    my_attr_encoding = {"fill_value": np.void((0, 0), dtype=dtype)}
-
-    # Create a zarr array using the data type,
-    # Specify encoding as the array attribute
-    data = zarr_zeros((36, 36), dtype=dtype)
-    aa = xr_DataArray(name="myattr", data=data)
-    aa.encoding = my_attr_encoding
-
-    file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_1", debugging=False)
-    aa.to_zarr(file_path, mode="w", compute=False)
-
-
-def test_to_zarr_from_zarr_zeros_2(tmp_path: Path) -> None:
-    """Test writing XArray dataset with data as Zarr zero array to Zarr.
-
-    Set encoding in the to_zar method
-    """
-    # Create a data type and the fill value
-    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
-
-    my_attr_encoding = {"fill_value": np.void((0, 0), dtype=dtype)}
-
-    # Create a zarr array using the data type,
-    # Do not specify encoding as the array attribute
-    data = zarr_zeros((36, 36), dtype=dtype)
-    aa = xr_DataArray(name="myattr", data=data)
-
-    file_path = output_path(tmp_path, "to_zarr/zarr_zarr_zerros_2", debugging=False)
-    # Specify encoding per array
-    encoding = {"myattr": my_attr_encoding}
-    aa.to_zarr(file_path, mode="w", encoding=encoding, compute=False)
-
-
-def test_to_zarr_from_np(tmp_path: Path) -> None:
-    """Test writing XArray dataset with data as NumPy array to Zarr."""
-    # Create a data type and the fill value
-    dtype = np.dtype([("inline", "int32"), ("cdp_x", "float64")])
-
-    my_attr_encoding = {"fill_value": np.void((0, 0), dtype=dtype)}
-
-    # Create a zarr array using the data type
-    # Do not specify encoding as the array attribute
-    data = np.zeros((36, 36), dtype=dtype)
-    aa = xr_DataArray(name="myattr", data=data)
-
-    file_path = output_path(tmp_path, "to_zarr/zarr_np", debugging=False)
-    # Specify encoding per array
-    encoding = {"myattr": my_attr_encoding}
-    aa.to_zarr(file_path, mode="w", encoding=encoding, compute=False)
