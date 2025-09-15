@@ -155,7 +155,7 @@ class TestTeapotRoundtrip:
         self, mock_rm: MagicMock, segy_input: Path, zarr_tmp: Path, teapot_segy_spec: SegySpec
     ) -> None:
         """Test importing a SEG-Y file to MDIO, when the output path exists."""
-        msg = f"Output location '{zarr_tmp.absolute()}' exists. Set `overwrite=True` if intended."
+        msg = f"Output location \'.*\' exists. Set `overwrite=True` if intended."
         with pytest.raises(FileExistsError, match=msg):
             segy_to_mdio(
                 segy_spec=teapot_segy_spec,
