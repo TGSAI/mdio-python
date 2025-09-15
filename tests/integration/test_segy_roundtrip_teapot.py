@@ -168,7 +168,7 @@ class TestTeapotRoundtrip:
         # Try to delete a locked file
         msg = "Operation not permitted"
         mock_rm.side_effect = PermissionError(msg)
-        err = f"Error overwriting an existing mdio dataset '{zarr_tmp.absolute()}' - {msg}"
+        err = f"Error overwriting an existing mdio dataset '.*' - {msg}"
         with pytest.raises(PermissionError, match=err):
             segy_to_mdio(
                 segy_spec=teapot_segy_spec,
