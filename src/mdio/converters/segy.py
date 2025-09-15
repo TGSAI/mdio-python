@@ -293,41 +293,44 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_segy_ingest_attributes(dataset: Dataset, segy_file: SegyFile, grid_overrides: dict[str, Any] | None) -> None:
-    text_header = segy_file.text_header.splitlines()
-    # Validate:
-    # text_header this should be a 40-items array of strings with width of 80 characters.
-    item_count = 40
-    if len(text_header) != item_count:
-        err = f"Invalid text header count: expected {item_count}, got {len(text_header)}"
+def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file: SegyFile) -> xr_Dataset:
+    save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
+    if not save_file_header:
+        return xr_dataset
+
+    expected_rows = 40
+    expected_cols = 80
+
+    text_header = segy_file.text_header
+    text_header_rows = text_header.splitlines()
+    text_header_cols_bad = [len(row) != expected_cols for row in text_header_rows]
+
+    if len(text_header_rows) != expected_rows:
+        err = f"Invalid text header count: expected {expected_rows}, got {len(text_header)}"
         raise ValueError(err)
-    char_count = 80
-    for i, line in enumerate(text_header):
-        if len(line) != char_count:
-            err = f"Invalid text header {i} line length: expected {char_count}, got {len(line)}"
-            raise ValueError(err)
-    ext_text_header = segy_file.ext_text_header
 
-    # If using SegyFile.ext_text_header this should be a minimum of 40 elements and must
-    # capture all textual information (ensure text_header is a subset of ext_text_header).
-    if ext_text_header is not None:
-        for ext_hdr in ext_text_header:
-            text_header.append(ext_hdr.splitlines())
+    if any(text_header_cols_bad):
+        err = f"Invalid text header columns: expected {expected_cols} per line."
+        raise ValueError(err)
 
-    # Handle case where it may not have any metadata yet
+    xr_dataset["segy_file_header"] = ((), "")
+    xr_dataset["segy_file_header"].attrs.update(
+        {
+            "textHeader": text_header,
+            "binaryHeader": segy_file.binary_header.to_dict(),
+        }
+    )
+
+    return xr_dataset
+
+
+def _add_grid_override_to_metadata(dataset: Dataset, grid_overrides: dict[str, Any] | None) -> None:
+    """Add grid override to Dataset metadata if needed."""
     if dataset.metadata.attributes is None:
         dataset.metadata.attributes = {}
 
-    segy_attributes = {
-        "textHeader": text_header,
-        "binaryHeader": segy_file.binary_header.to_dict(),
-    }
-
     if grid_overrides is not None:
-        segy_attributes["gridOverrides"] = grid_overrides
-
-    # Update the attributes with the text and binary headers.
-    dataset.metadata.attributes.update(segy_attributes)
+        dataset.metadata.attributes["gridOverrides"] = grid_overrides
 
 
 def segy_to_mdio(  # noqa PLR0913
@@ -377,7 +380,7 @@ def segy_to_mdio(  # noqa PLR0913
         header_dtype=header_dtype,
     )
 
-    _add_segy_ingest_attributes(dataset=mdio_ds, segy_file=segy_file, grid_overrides=grid_overrides)
+    _add_grid_override_to_metadata(dataset=mdio_ds, grid_overrides=grid_overrides)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
@@ -387,8 +390,9 @@ def segy_to_mdio(  # noqa PLR0913
         coords=non_dim_coords,
     )
 
-    xr_dataset.trace_mask.data[:] = grid.live_mask
+    xr_dataset = _add_segy_file_headers(xr_dataset, segy_file)
 
+    xr_dataset.trace_mask.data[:] = grid.live_mask
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
     # blocked_io.to_zarr() -> _workers.trace_worker()
 

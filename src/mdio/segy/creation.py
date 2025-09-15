@@ -10,10 +10,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from segy.factory import SegyFactory
+from segy.standards.fields import binary
 from tqdm.auto import tqdm
 
 from mdio.api.io import open_mdio
-from mdio.segy.compat import revision_encode
+from mdio.exceptions import MDIOMissingVariableError
+from mdio.segy.compat import encode_segy_revision
 
 if TYPE_CHECKING:
     import xarray as xr
@@ -25,9 +27,8 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def make_segy_factory(dataset: xr.Dataset, spec: SegySpec) -> SegyFactory:
+def make_segy_factory(spec: SegySpec, binary_header: dict[str, int]) -> SegyFactory:
     """Generate SEG-Y factory from MDIO metadata."""
-    binary_header = dataset.attrs["attributes"]["binaryHeader"]
     sample_interval = binary_header["sample_interval"]
     samples_per_trace = binary_header["samples_per_trace"]
     return SegyFactory(
@@ -61,24 +62,39 @@ def mdio_spec_to_segy(
 
     Returns:
         Opened Xarray Dataset for MDIO file and SegyFactory
+
+    Raises:
+        MDIOMissingVariableError: If MDIO file does not contain SEG-Y headers.
     """
     dataset = open_mdio(input_path, chunks=new_chunks)
-    factory = make_segy_factory(dataset, spec=segy_spec)
 
-    attr = dataset.attrs["attributes"]
+    if "segy_file_header" not in dataset:
+        msg = (
+            "MDIO does not contain SEG-Y file headers to write to output. Please add a dummy segy_file_header "
+            "variable and fill its metadata (.attrs) with `textHeader` and `binaryHeader`."
+        )
+        raise MDIOMissingVariableError(msg)
 
-    txt_header = attr["textHeader"]
-    text_str = "\n".join(txt_header)
-    text_bytes = factory.create_textual_header(text_str)
+    file_header = dataset["segy_file_header"]
+    text_header = file_header.attrs["textHeader"]
+    binary_header = file_header.attrs["binaryHeader"]
+    binary_header = encode_segy_revision(binary_header)
 
-    bin_header = attr["binaryHeader"]
-    mdio_file_version = dataset.attrs["apiVersion"]
-    binary_header = revision_encode(bin_header, mdio_file_version)
-    bin_hdr_bytes = factory.create_binary_header(binary_header)
+    factory = make_segy_factory(spec=segy_spec, binary_header=binary_header)
+
+    text_header_bytes = factory.create_textual_header(text_header)
+
+    # During MDIO SEGY import, TGSAI/segy always creates revision major/minor fields
+    # We may not have it in the user desired spec. In that case we add it here
+    if "segy_revision" not in segy_spec.binary_header.names:
+        rev_field = binary.Rev1.SEGY_REVISION.model
+        segy_spec.binary_header.customize(fields=rev_field)
+
+    binary_header_bytes = factory.create_binary_header(binary_header)
 
     with output_path.open(mode="wb") as fp:
-        fp.write(text_bytes)
-        fp.write(bin_hdr_bytes)
+        fp.write(text_header_bytes)
+        fp.write(binary_header_bytes)
 
     return dataset, factory
 

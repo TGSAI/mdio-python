@@ -225,14 +225,16 @@ def docs_build(session: Session) -> None:
     session_install_uv_package(
         session,
         [
+            "aiohttp",
             "autodoc-pydantic",
+            "furo",
+            "linkify-it-py",
+            "matplotlib",
+            "myst-nb",
             "sphinx",
             "sphinx-click",
             "sphinx-copybutton",
             "sphinx-design",
-            "furo",
-            "myst-nb",
-            "linkify-it-py",
         ],
     )
 
@@ -251,15 +253,17 @@ def docs(session: Session) -> None:
     session_install_uv_package(
         session,
         [
+            "aiohttp",
             "autodoc-pydantic",
+            "furo",
+            "linkify-it-py",
+            "matplotlib",
+            "myst-nb",
             "sphinx",
             "sphinx-autobuild",
             "sphinx-click",
             "sphinx-copybutton",
             "sphinx-design",
-            "furo",
-            "myst-nb",
-            "linkify-it-py",
         ],
     )
 

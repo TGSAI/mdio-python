@@ -112,6 +112,10 @@ def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
     return total_dims - trailing_ones_count
 
 
+# TODO (Dmitriy Repin): Investigate the following warning generated at test_3d_export
+# https://github.com/TGSAI/mdio-python/issues/657
+# "The specified chunks separate the stored chunks along dimension "inline" starting at index 256.
+# This could degrade performance. Instead, consider rechunking after loading."
 def segy_export_rechunker(
     chunks: dict[str, int],
     sizes: dict[str, int],
