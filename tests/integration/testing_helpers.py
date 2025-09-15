@@ -5,42 +5,6 @@ from collections.abc import Callable
 import numpy as np
 import xarray as xr
 from numpy.typing import DTypeLike
-from segy.schema import HeaderField
-from segy.schema import SegySpec
-
-
-def customize_segy_specs(
-    segy_spec: SegySpec,
-    index_bytes: tuple[int, ...] | None = None,
-    index_names: tuple[int, ...] | None = None,
-    index_types: tuple[int, ...] | None = None,
-    keep_unaltered: bool = False,
-) -> SegySpec:
-    """Customize SEG-Y specifications with user-defined index fields."""
-    if not index_bytes:
-        # No customization
-        return segy_spec
-
-    index_names = index_names or [f"dim_{i}" for i in range(len(index_bytes))]
-    index_types = index_types or ["int32"] * len(index_bytes)
-
-    if not (len(index_names) == len(index_bytes) == len(index_types)):
-        err = "All index fields must have the same length."
-        raise ValueError(err)
-
-    fields = {}
-    if keep_unaltered:
-        # Keep unaltered fields, but remove the fields that are being customized
-        # to avoid field name duplication
-        for f in segy_spec.trace.header.fields:
-            if f.name not in index_names:
-                fields[f.byte] = f
-
-    # Index the dataset using a spec that interprets the user provided index headers.
-    for name, byte, format_ in zip(index_names, index_bytes, index_types, strict=True):
-        fields[byte] = HeaderField(name=name, byte=byte, format=format_)
-
-    return segy_spec.customize(trace_header_fields=fields.values())
 
 
 def get_values(arr: xr.DataArray) -> np.ndarray:
