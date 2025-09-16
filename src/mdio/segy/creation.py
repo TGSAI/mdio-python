@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from shutil import copyfileobj
@@ -66,7 +67,12 @@ def mdio_spec_to_segy(
     Raises:
         MDIOMissingVariableError: If MDIO file does not contain SEG-Y headers.
     """
-    dataset = open_mdio(input_path, chunks=new_chunks)
+    # NOTE: the warning analysis and the reason for its suppression are here:
+    # https://github.com/TGSAI/mdio-python/issues/657
+    warn = "The specified chunks separate the stored chunks along dimension"
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=warn, category=UserWarning)
+        dataset = open_mdio(input_path, chunks=new_chunks)
 
     if "segy_file_header" not in dataset:
         msg = (
