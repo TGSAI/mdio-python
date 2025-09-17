@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-import os
 import multiprocessing as mp
+import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from math import ceil
