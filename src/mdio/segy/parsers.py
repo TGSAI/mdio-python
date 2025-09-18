@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import multiprocessing as mp
 import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
@@ -58,7 +59,10 @@ def parse_headers(
         "settings": segy_file.settings,
     }
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
-    with ProcessPoolExecutor(num_workers) as executor:
+    # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
+    # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
+    context = mp.get_context("spawn")
+    with ProcessPoolExecutor(num_workers, mp_context=context) as executor:
         lazy_work = executor.map(header_scan_worker, repeat(segy_kw), trace_ranges, repeat(subset))
 
         if progress_bar is True:
