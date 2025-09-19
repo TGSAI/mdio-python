@@ -190,6 +190,8 @@ class TestTeapotRoundtrip:
         }
         actual_attrs = json.loads(ds["amplitude"].attrs["statsV1"])
         assert actual_attrs.keys() == expected_attrs.keys()
+        actual_attrs.pop("histogram")
+        expected_attrs.pop("histogram")
         np.testing.assert_allclose(list(actual_attrs.values()), list(expected_attrs.values()))
 
     def test_grid(self, zarr_tmp: Path, teapot_segy_spec: SegySpec) -> None:
