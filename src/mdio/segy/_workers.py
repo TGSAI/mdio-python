@@ -12,6 +12,7 @@ from segy import SegyFile
 
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.dtype import ScalarType
+from mdio.segy._disaster_recovery_wrapper import get_header_raw_and_transformed
 
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
@@ -121,23 +122,31 @@ def trace_worker(  # noqa: PLR0913
     zarr_config.set({"threading.max_workers": 1})
 
     live_trace_indexes = local_grid_map[not_null].tolist()
-    traces = segy_file.trace[live_trace_indexes]
 
     header_key = "headers"
+    raw_header_key = "raw_headers"
+
+    # Used to disable the reverse transforms if we aren't going to write the raw headers
+    do_reverse_transforms = False
 
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
     worker_variables = [data_variable_name]
     if header_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
         worker_variables.append(header_key)
+    if raw_header_key in dataset.data_vars:
+        do_reverse_transforms = True
+        worker_variables.append(raw_header_key)
 
+    raw_headers, transformed_headers, traces = get_header_raw_and_transformed(
+        segy_file, live_trace_indexes, do_reverse_transforms=do_reverse_transforms
+    )
     ds_to_write = dataset[worker_variables]
 
     if header_key in worker_variables:
         # Create temporary array for headers with the correct shape
-        # TODO(BrianMichell): Implement this better so that we can enable fill values without changing the code. #noqa: TD003
         tmp_headers = np.zeros_like(dataset[header_key])
-        tmp_headers[not_null] = traces.header
+        tmp_headers[not_null] = transformed_headers
         # Create a new Variable object to avoid copying the temporary array
         # The ideal solution is to use `ds_to_write[header_key][:] = tmp_headers`
         # but Xarray appears to be copying memory instead of doing direct assignment.
@@ -148,7 +157,19 @@ def trace_worker(  # noqa: PLR0913
             attrs=ds_to_write[header_key].attrs,
             encoding=ds_to_write[header_key].encoding,  # Not strictly necessary, but safer than not doing it.
         )
+    del transformed_headers  # Manage memory
+    if raw_header_key in worker_variables:
+        tmp_raw_headers = np.zeros_like(dataset[raw_header_key])
+        tmp_raw_headers[not_null] = raw_headers.view("|V240")
 
+        ds_to_write[raw_header_key] = Variable(
+            ds_to_write[raw_header_key].dims,
+            tmp_raw_headers,
+            attrs=ds_to_write[raw_header_key].attrs,
+            encoding=ds_to_write[raw_header_key].encoding,  # Not strictly necessary, but safer than not doing it.
+        )
+
+    del raw_headers  # Manage memory
     data_variable = ds_to_write[data_variable_name]
     fill_value = _get_fill_value(ScalarType(data_variable.dtype.name))
     tmp_samples = np.full_like(data_variable, fill_value=fill_value)

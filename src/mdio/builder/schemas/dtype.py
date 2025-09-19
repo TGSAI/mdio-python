@@ -32,6 +32,7 @@ class ScalarType(StrEnum):
     COMPLEX64 = "complex64"
     COMPLEX128 = "complex128"
     COMPLEX256 = "complex256"
+    HEADERS_V3 = "r1920"  # Raw number of BITS, must be a multiple of 8
 
 
 class StructuredField(CamelCaseStrictModel):

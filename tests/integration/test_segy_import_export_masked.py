@@ -289,15 +289,36 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.getbasetemp() / "export_masked"
 
 
+@pytest.fixture
+def raw_headers_env(request: pytest.FixtureRequest) -> None:
+    """Fixture to set/unset MDIO__DO_RAW_HEADERS environment variable."""
+    env_value = request.param
+    if env_value is not None:
+        os.environ["MDIO__DO_RAW_HEADERS"] = env_value
+    else:
+        os.environ.pop("MDIO__DO_RAW_HEADERS", None)
+
+    yield
+
+    # Cleanup after test
+    os.environ.pop("MDIO__DO_RAW_HEADERS", None)
+
+
 @pytest.mark.parametrize(
     "test_conf",
     [STACK_2D_CONF, STACK_3D_CONF, GATHER_2D_CONF, GATHER_3D_CONF, STREAMER_2D_CONF, STREAMER_3D_CONF, COCA_3D_CONF],
     ids=["2d_stack", "3d_stack", "2d_gather", "3d_gather", "2d_streamer", "3d_streamer", "3d_coca"],
 )
+@pytest.mark.parametrize(
+    "raw_headers_env",
+    ["1", None],
+    ids=["with_raw_headers", "without_raw_headers"],
+    indirect=True,
+)
 class TestNdImportExport:
     """Test import/export of n-D SEG-Ys to MDIO, with and without selection mask."""
 
-    def test_import(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+    def test_import(self, test_conf: MaskedExportConfig, export_masked_path: Path, raw_headers_env: None) -> None:  # noqa: ARG002
         """Test import of an n-D SEG-Y file to MDIO.
 
         NOTE: This test must be executed before running 'test_ingested_mdio', 'test_export', and
@@ -319,7 +340,12 @@ class TestNdImportExport:
             overwrite=True,
         )
 
-    def test_ingested_mdio(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+    def test_ingested_mdio(
+        self,
+        test_conf: MaskedExportConfig,
+        export_masked_path: Path,
+        raw_headers_env: None,  # noqa: ARG002
+    ) -> None:
         """Verify if ingested data is correct.
 
         NOTE: This test must be executed after the 'test_import' successfully completes
@@ -374,7 +400,7 @@ class TestNdImportExport:
         expected = np.arange(1, num_traces + 1, dtype=np.float32).reshape(live_mask.shape)
         assert np.array_equal(actual, expected)
 
-    def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+    def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path, raw_headers_env: None) -> None:  # noqa: ARG002
         """Test export of an n-D MDIO file back to SEG-Y.
 
         NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio'
@@ -411,7 +437,12 @@ class TestNdImportExport:
         assert_array_equal(desired=expected_traces.header, actual=actual_traces.header)
         assert_array_equal(desired=expected_traces.sample, actual=actual_traces.sample)
 
-    def test_export_masked(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+    def test_export_masked(
+        self,
+        test_conf: MaskedExportConfig,
+        export_masked_path: Path,
+        raw_headers_env: None,  # noqa: ARG002
+    ) -> None:
         """Test export of an n-D MDIO file back to SEG-Y with masked export.
 
         NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio'
