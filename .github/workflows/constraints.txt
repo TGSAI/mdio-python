@@ -1,2 +1,2 @@
-bump-my-version==1.2.1
+bump-my-version==1.2.3
 nox==2025.5.1
