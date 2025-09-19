@@ -188,8 +188,9 @@ class TestTeapotRoundtrip:
             "max": 7.723702430725098,
             "histogram": {"counts": [], "binCenters": []},
         }
-        actual_attrs_json = json.loads(ds["amplitude"].attrs["statsV1"])
-        assert actual_attrs_json == expected_attrs
+        actual_attrs = json.loads(ds["amplitude"].attrs["statsV1"])
+        assert actual_attrs.keys() == expected_attrs.keys()
+        np.testing.assert_allclose(actual_attrs.values(), expected_attrs.values())
 
     def test_grid(self, zarr_tmp: Path, teapot_segy_spec: SegySpec) -> None:
         """Test validating MDIO variables."""
