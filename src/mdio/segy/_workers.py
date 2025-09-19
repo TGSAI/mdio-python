@@ -134,14 +134,15 @@ def trace_worker(  # noqa: PLR0913
     ds_to_write = dataset[worker_variables]
 
     if header_key in worker_variables:
-        # Create temporary array for headers with the correct shape
-        # TODO(BrianMichell): Implement this better so that we can enable fill values without changing the code. #noqa: TD003
+        # TODO(BrianMichell): Implement this better so that we can enable fill values without changing the code
+        # https://github.com/TGSAI/mdio-python/issues/584
         tmp_headers = np.zeros_like(dataset[header_key])
         tmp_headers[not_null] = traces.header
         # Create a new Variable object to avoid copying the temporary array
         # The ideal solution is to use `ds_to_write[header_key][:] = tmp_headers`
         # but Xarray appears to be copying memory instead of doing direct assignment.
         # TODO(BrianMichell): #614 Look into this further.
+        # https://github.com/TGSAI/mdio-python/issues/584
         ds_to_write[header_key] = Variable(
             ds_to_write[header_key].dims,
             tmp_headers,
@@ -153,8 +154,9 @@ def trace_worker(  # noqa: PLR0913
     fill_value = _get_fill_value(ScalarType(data_variable.dtype.name))
     tmp_samples = np.full_like(data_variable, fill_value=fill_value)
     tmp_samples[not_null] = traces.sample
-    # Create a new Variable object to avoid copying the temporary array
+
     # TODO(BrianMichell): #614 Look into this further.
+    # https://github.com/TGSAI/mdio-python/issues/584
     ds_to_write[data_variable_name] = Variable(
         ds_to_write[data_variable_name].dims,
         tmp_samples,
@@ -164,12 +166,13 @@ def trace_worker(  # noqa: PLR0913
 
     to_mdio(ds_to_write, output_path=output_path, region=region, mode="r+")
 
+    nonzero_samples = np.ma.masked_values(traces.sample, 0, copy=False)
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
     return SummaryStatistics(
-        count=traces.sample.size,
-        min=traces.sample.min(),
-        max=traces.sample.max(),
-        sum=traces.sample.sum(),
-        sum_squares=(traces.sample**2).sum(),
+        count=nonzero_samples.count(),
+        min=nonzero_samples.min(),
+        max=nonzero_samples.max(),
+        sum=nonzero_samples.sum(dtype="float64"),
+        sum_squares=(np.ma.power(nonzero_samples, 2).sum(dtype="float64")),
         histogram=histogram,
     )
