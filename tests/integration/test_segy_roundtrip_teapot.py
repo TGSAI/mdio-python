@@ -190,7 +190,7 @@ class TestTeapotRoundtrip:
         }
         actual_attrs = json.loads(ds["amplitude"].attrs["statsV1"])
         assert actual_attrs.keys() == expected_attrs.keys()
-        np.testing.assert_allclose(actual_attrs.values(), expected_attrs.values())
+        np.testing.assert_allclose(list(actual_attrs.values()), list(expected_attrs.values()))
 
     def test_grid(self, zarr_tmp: Path, teapot_segy_spec: SegySpec) -> None:
         """Test validating MDIO variables."""
