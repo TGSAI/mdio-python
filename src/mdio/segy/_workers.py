@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 from typing import TYPE_CHECKING
-from typing import TypedDict
 from typing import cast
 
 import numpy as np
@@ -14,12 +13,14 @@ from mdio.api.io import to_mdio
 from mdio.builder.schemas.dtype import ScalarType
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from segy.arrays import HeaderArray
-    from segy.config import SegySettings
-    from segy.schema import SegySpec
     from upath import UPath
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
+
+    from mdio.segy.segy_file_args import SegyFileArguments
 
 from xarray import Variable
 from zarr.core.config import config as zarr_config
@@ -28,14 +29,6 @@ from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.xarray_builder import _get_fill_value
 from mdio.constants import fill_value_map
-
-
-class SegyFileArguments(TypedDict):
-    """Arguments to open SegyFile instance creation."""
-
-    url: str
-    spec: SegySpec | None
-    settings: SegySettings | None
 
 
 def header_scan_worker(
@@ -176,3 +169,26 @@ def trace_worker(  # noqa: PLR0913
         sum_squares=(np.ma.power(nonzero_samples, 2).sum(dtype="float64")),
         histogram=histogram,
     )
+
+
+def info_worker(
+    segy_kw: SegyFileArguments, trace_indices: Iterable[int] | None = None
+) -> tuple[int, np.NDArray[np.int32], str, list[dict]]:
+    """Reads information fomr a SEG-Y file.
+
+    Args:
+        segy_kw: Arguments to open SegyFile instance.
+        trace_indices: Optional iterable of trace indices to read. If None, none of the traces are read.
+
+    Returns:
+        Tuple consisting of number of traces, sample labels, text header and binary headers, and optionally traces.
+    """
+    segy_file = SegyFile(**segy_kw)
+    num_traces: int = segy_file.num_traces
+    sample_labels: np.NDArray[np.int32] = segy_file.sample_labels
+    text_header = segy_file.text_header
+    binary_headers = segy_file.binary_header.to_dict()
+    if trace_indices is not None:
+        traces = segy_file.trace[list(trace_indices)]
+        return num_traces, sample_labels, text_header, binary_headers, traces
+    return num_traces, sample_labels, text_header, binary_headers
