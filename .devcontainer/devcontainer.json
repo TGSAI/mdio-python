@@ -2,7 +2,11 @@
   "image": "mcr.microsoft.com/devcontainers/python:1-3.13-bookworm",
   // Configure tool-specific properties.
   "features": {
-    "ghcr.io/va-h/devcontainers-features/uv:1": { "version": "0.8.17" }
+    "ghcr.io/va-h/devcontainers-features/uv:1": { "version": "0.8.17" },
+    "ghcr.io/dhoeric/features/google-cloud-cli:1": {}
+  },
+  "containerEnv": {
+    "UV_LINK_MODE": "copy"
   },
   "customizations": {
     "vscode": {

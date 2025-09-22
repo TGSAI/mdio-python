@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 import json
+import multiprocessing as mp
 import os
+from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING
 
 import dask
 import numpy as np
 import numpy.testing as npt
 import pytest
-from segy import SegyFile
+
 from segy.schema import HeaderField
 from segy.schema import ScalarType
 from segy.standards import get_segy_standard
@@ -23,15 +25,20 @@ from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.segy import segy_to_mdio
+from mdio.segy._workers import info_worker
+from mdio.segy.segy_file_args import SegyFileArguments
 
 if TYPE_CHECKING:
     from pathlib import Path
 
     from segy.schema import SegySpec
-
+import time
 
 dask.config.set(scheduler="synchronous")
 os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
+
+# Cloud tests are disabled by default.
+requires_cloud = pytest.mark.skipif(True, reason="Disabled by default.")
 
 
 @pytest.fixture
@@ -147,6 +154,25 @@ class TestTeapotRoundtrip:
             overwrite=True,
         )
 
+    @requires_cloud
+    @pytest.mark.dependency
+    def test_teapot_import_cloud(
+        self, teapot_segy_cloud: str, teapot_mdio_cloud: str, teapot_segy_spec: SegySpec, capsys: pytest.CaptureFixture
+    ) -> None:
+        """Test importing a SEG-Y file from cloud to cloud MDIO."""
+        os.environ["MDIO__IMPORT__CLOUD_NATIVE"] = "true"
+        start_time = time.time()
+        segy_to_mdio(
+            segy_spec=teapot_segy_spec,
+            mdio_template=TemplateRegistry().get("PostStack3DTime"),
+            input_path=teapot_segy_cloud,
+            output_path=teapot_mdio_cloud,
+            overwrite=True,
+        )
+        elapsed_time = time.time() - start_time
+        # with capsys.disabled():
+        #     print(f"segy_to_mdio cloud import took {elapsed_time:.2f} seconds")
+
     @pytest.mark.dependency("test_3d_import")
     def test_dataset_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
@@ -255,29 +281,59 @@ class TestTeapotRoundtrip:
         mean, std = slices.mean(), slices.std()
         npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
 
+    def _validate_3d_export(
+        self, segy_input: Path | str, segy_export_tmp: Path | str, teapot_segy_spec: SegySpec
+    ) -> None:
+        # Check if file sizes match on IBM file.
+        assert segy_input.stat().st_size == segy_export_tmp.stat().st_size
+
+        known_num_traces = 64860
+        rng = np.random.default_rng(seed=1234)
+        random_indices = rng.choice(known_num_traces, 100, replace=False)
+
+        # IBM. Is random original traces and headers match round-trip file?
+        with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
+            in_segy_args = SegyFileArguments(url=segy_input, spec=teapot_segy_spec)
+            future = executor.submit(info_worker, in_segy_args, trace_indices=random_indices)
+            in_result = future.result()
+            in_num_traces, in_sample_labels, in_text_header, in_binary_headers, in_traces = in_result
+
+        with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
+            out_segy_args = SegyFileArguments(url=segy_export_tmp, spec=teapot_segy_spec)
+            future = executor.submit(info_worker, out_segy_args, trace_indices=random_indices)
+            out_result = future.result()
+            out_num_traces, out_sample_labels, out_text_header, out_binary_headers, out_traces = out_result
+
+        assert in_num_traces == known_num_traces
+        assert in_num_traces == out_num_traces
+        npt.assert_array_equal(desired=in_sample_labels, actual=out_sample_labels)
+        assert in_text_header == out_text_header
+        assert in_binary_headers == out_binary_headers
+        npt.assert_array_equal(desired=in_traces.header, actual=out_traces.header)
+        npt.assert_array_equal(desired=in_traces.sample, actual=out_traces.sample)
+
     @pytest.mark.dependency("test_3d_import")
     def test_3d_export(
         self, segy_input: Path, zarr_tmp: Path, segy_export_tmp: Path, teapot_segy_spec: SegySpec
     ) -> None:
         """Test 3D export."""
-        rng = np.random.default_rng(seed=1234)
-
         mdio_to_segy(segy_spec=teapot_segy_spec, input_path=zarr_tmp, output_path=segy_export_tmp)
+        self._validate_3d_export(segy_input, segy_export_tmp, teapot_segy_spec)
 
-        # Check if file sizes match on IBM file.
-        assert segy_input.stat().st_size == segy_export_tmp.stat().st_size
-
-        # IBM. Is random original traces and headers match round-trip file?
-        in_segy = SegyFile(segy_input, spec=teapot_segy_spec)
-        out_segy = SegyFile(segy_export_tmp, spec=teapot_segy_spec)
-
-        num_traces = in_segy.num_traces
-        random_indices = rng.choice(num_traces, 100, replace=False)
-        in_traces = in_segy.trace[random_indices]
-        out_traces = out_segy.trace[random_indices]
-
-        assert in_segy.num_traces == out_segy.num_traces
-        assert in_segy.text_header == out_segy.text_header
-        assert in_segy.binary_header == out_segy.binary_header
-        npt.assert_array_equal(desired=in_traces.header, actual=out_traces.header)
-        npt.assert_array_equal(desired=in_traces.sample, actual=out_traces.sample)
+    @requires_cloud
+    @pytest.mark.dependency("test_teapot_import_cloud")
+    def test_3d_export_cloud(
+        self,
+        teapot_segy_spec: SegySpec,
+        teapot_mdio_cloud: str,
+        segy_export_tmp2: Path,
+        segy_input: Path,
+        capsys: pytest.CaptureFixture,
+    ) -> None:
+        """Test 3D export."""
+        start_time = time.time()
+        mdio_to_segy(segy_spec=teapot_segy_spec, input_path=teapot_mdio_cloud, output_path=segy_export_tmp2)
+        elapsed_time = time.time() - start_time
+        self._validate_3d_export(segy_input, segy_export_tmp2, teapot_segy_spec)
+        # with capsys.disabled():
+        #     print(f"mdio_to_segy cloud export took {elapsed_time:.2f} seconds")
