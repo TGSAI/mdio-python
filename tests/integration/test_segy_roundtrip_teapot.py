@@ -12,7 +12,6 @@ import dask
 import numpy as np
 import numpy.testing as npt
 import pytest
-
 from segy.schema import HeaderField
 from segy.schema import ScalarType
 from segy.standards import get_segy_standard
@@ -32,7 +31,6 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from segy.schema import SegySpec
-import time
 
 dask.config.set(scheduler="synchronous")
 os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
@@ -157,11 +155,10 @@ class TestTeapotRoundtrip:
     @requires_cloud
     @pytest.mark.dependency
     def test_teapot_import_cloud(
-        self, teapot_segy_cloud: str, teapot_mdio_cloud: str, teapot_segy_spec: SegySpec, capsys: pytest.CaptureFixture
+        self, teapot_segy_cloud: str, teapot_mdio_cloud: str, teapot_segy_spec: SegySpec
     ) -> None:
         """Test importing a SEG-Y file from cloud to cloud MDIO."""
         os.environ["MDIO__IMPORT__CLOUD_NATIVE"] = "true"
-        start_time = time.time()
         segy_to_mdio(
             segy_spec=teapot_segy_spec,
             mdio_template=TemplateRegistry().get("PostStack3DTime"),
@@ -169,9 +166,6 @@ class TestTeapotRoundtrip:
             output_path=teapot_mdio_cloud,
             overwrite=True,
         )
-        elapsed_time = time.time() - start_time
-        # with capsys.disabled():
-        #     print(f"segy_to_mdio cloud import took {elapsed_time:.2f} seconds")
 
     @pytest.mark.dependency("test_3d_import")
     def test_dataset_metadata(self, zarr_tmp: Path) -> None:
@@ -323,17 +317,8 @@ class TestTeapotRoundtrip:
     @requires_cloud
     @pytest.mark.dependency("test_teapot_import_cloud")
     def test_3d_export_cloud(
-        self,
-        teapot_segy_spec: SegySpec,
-        teapot_mdio_cloud: str,
-        segy_export_tmp2: Path,
-        segy_input: Path,
-        capsys: pytest.CaptureFixture,
+        self, teapot_segy_spec: SegySpec, teapot_mdio_cloud: str, segy_export_tmp2: Path, segy_input: Path
     ) -> None:
         """Test 3D export."""
-        start_time = time.time()
         mdio_to_segy(segy_spec=teapot_segy_spec, input_path=teapot_mdio_cloud, output_path=segy_export_tmp2)
-        elapsed_time = time.time() - start_time
         self._validate_3d_export(segy_input, segy_export_tmp2, teapot_segy_spec)
-        # with capsys.disabled():
-        #     print(f"mdio_to_segy cloud export took {elapsed_time:.2f} seconds")
