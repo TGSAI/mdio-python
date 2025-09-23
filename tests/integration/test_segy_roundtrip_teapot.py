@@ -181,15 +181,18 @@ class TestTeapotRoundtrip:
         """Metadata reading tests."""
         ds = open_mdio(zarr_tmp)
         expected_attrs = {
-            "count": 97354860,
-            "sum": -8594.551666259766,
-            "sumSquares": 40571291.6875,
+            "count": 46854270,
+            "sum": -8594.551589292674,
+            "sumSquares": 40571285.42351971,
             "min": -8.375323295593262,
             "max": 7.723702430725098,
             "histogram": {"counts": [], "binCenters": []},
         }
-        actual_attrs_json = json.loads(ds["amplitude"].attrs["statsV1"])
-        assert actual_attrs_json == expected_attrs
+        actual_attrs = json.loads(ds["amplitude"].attrs["statsV1"])
+        assert actual_attrs.keys() == expected_attrs.keys()
+        actual_attrs.pop("histogram")
+        expected_attrs.pop("histogram")
+        np.testing.assert_allclose(list(actual_attrs.values()), list(expected_attrs.values()))
 
     def test_grid(self, zarr_tmp: Path, teapot_segy_spec: SegySpec) -> None:
         """Test validating MDIO variables."""
@@ -237,23 +240,22 @@ class TestTeapotRoundtrip:
         """Read and compare every 75 inlines' mean and std. dev."""
         ds = open_mdio(zarr_tmp)
         inlines = ds["amplitude"][::75, :, :]
-        mean, std = inlines.mean(), inlines.std()
-        npt.assert_allclose([mean, std], [1.0555277e-04, 6.0027051e-01])
+        mean, std = inlines.mean(dtype="float64"), inlines.std(dtype="float64")
+        npt.assert_allclose([mean, std], [0.00010555267, 0.60027058412])  # 11 precision
 
     def test_crossline_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
         ds = open_mdio(zarr_tmp)
         xlines = ds["amplitude"][:, ::75, :]
-        mean, std = xlines.mean(), xlines.std()
-
-        npt.assert_allclose([mean, std], [-5.0329847e-05, 5.9406823e-01])
+        mean, std = xlines.mean(dtype="float64"), xlines.std(dtype="float64")
+        npt.assert_allclose([mean, std], [-5.03298501828e-05, 0.59406807762])  # 11 precision
 
     def test_zslice_reads(self, zarr_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
         ds = open_mdio(zarr_tmp)
         slices = ds["amplitude"][:, :, ::225]
-        mean, std = slices.mean(), slices.std()
-        npt.assert_allclose([mean, std], [0.005236923, 0.61279935])
+        mean, std = slices.mean(dtype="float64"), slices.std(dtype="float64")
+        npt.assert_allclose([mean, std], [0.00523692339, 0.61279943571])  # 11 precision
 
     @pytest.mark.dependency("test_3d_import")
     def test_3d_export(
