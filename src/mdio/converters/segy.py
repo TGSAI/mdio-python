@@ -151,7 +151,13 @@ def _scan_for_headers(
 
 
 def _read_segy_file_mp(segy_kw: SegyFileArguments) -> tuple[int, np.NDArray[np.int32], str, list[dict]]:
-    """Read SEG-Y file in a separate process."""
+    """Read SEG-Y file in a separate process.
+
+    This is an ugly workaround for Zarr issues 3487 'Explicitly using fsspec and zarr FsspecStore causes
+    RuntimeError "Task attached to a different loop"'
+    """
+    # TODO (Dmitriy Repin): when Zarr issue 3487 is resolved, we can remove this workaround
+    # https://github.com/zarr-developers/zarr-python/issues/3487
     with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
         future = executor.submit(info_worker, segy_kw)
         return future.result()
