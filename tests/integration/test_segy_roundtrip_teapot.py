@@ -24,6 +24,7 @@ from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.segy import segy_to_mdio
+from mdio.segy._workers import SegyInfo
 from mdio.segy._workers import info_worker
 from mdio.segy.segy_file_args import SegyFileArguments
 
@@ -291,53 +292,20 @@ class TestTeapotRoundtrip:
         with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
             in_segy_args = SegyFileArguments(url=segy_input, spec=teapot_segy_spec)
             future = executor.submit(info_worker, in_segy_args, trace_indices=random_indices)
-            in_result = future.result()
-            in_num_traces, in_sample_labels, in_text_header, in_binary_headers, in_traces = in_result
+            in_r: SegyInfo = future.result()
 
         with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
             out_segy_args = SegyFileArguments(url=segy_export_tmp, spec=teapot_segy_spec)
             future = executor.submit(info_worker, out_segy_args, trace_indices=random_indices)
-            out_result = future.result()
-            out_num_traces, out_sample_labels, out_text_header, out_binary_headers, out_traces = out_result
+            out_r: SegyInfo = future.result()
 
-        assert in_num_traces == known_num_traces
-        assert in_num_traces == out_num_traces
-        npt.assert_array_equal(desired=in_sample_labels, actual=out_sample_labels)
-        assert in_text_header == out_text_header
-        assert in_binary_headers == out_binary_headers
-        npt.assert_array_equal(desired=in_traces.header, actual=out_traces.header)
-        npt.assert_array_equal(desired=in_traces.sample, actual=out_traces.sample)
-
-    def _validate_3d_export(
-        self, segy_input: Path | str, segy_export_tmp: Path | str, teapot_segy_spec: SegySpec
-    ) -> None:
-        # Check if file sizes match on IBM file.
-        assert segy_input.stat().st_size == segy_export_tmp.stat().st_size
-
-        known_num_traces = 64860
-        rng = np.random.default_rng(seed=1234)
-        random_indices = rng.choice(known_num_traces, 100, replace=False)
-
-        # IBM. Is random original traces and headers match round-trip file?
-        with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
-            in_segy_args = SegyFileArguments(url=segy_input, spec=teapot_segy_spec)
-            future = executor.submit(info_worker, in_segy_args, trace_indices=random_indices)
-            in_result = future.result()
-            in_num_traces, in_sample_labels, in_text_header, in_binary_headers, in_traces = in_result
-
-        with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
-            out_segy_args = SegyFileArguments(url=segy_export_tmp, spec=teapot_segy_spec)
-            future = executor.submit(info_worker, out_segy_args, trace_indices=random_indices)
-            out_result = future.result()
-            out_num_traces, out_sample_labels, out_text_header, out_binary_headers, out_traces = out_result
-
-        assert in_num_traces == known_num_traces
-        assert in_num_traces == out_num_traces
-        npt.assert_array_equal(desired=in_sample_labels, actual=out_sample_labels)
-        assert in_text_header == out_text_header
-        assert in_binary_headers == out_binary_headers
-        npt.assert_array_equal(desired=in_traces.header, actual=out_traces.header)
-        npt.assert_array_equal(desired=in_traces.sample, actual=out_traces.sample)
+        assert in_r.num_traces == known_num_traces
+        assert in_r.num_traces == out_r.num_traces
+        npt.assert_array_equal(desired=in_r.sample_labels, actual=out_r.sample_labels)
+        assert in_r.text_header == out_r.text_header
+        assert in_r.binary_header_dict == out_r.binary_header_dict
+        npt.assert_array_equal(desired=in_r.traces.header, actual=out_r.traces.header)
+        npt.assert_array_equal(desired=in_r.traces.sample, actual=out_r.traces.sample)
 
     @pytest.mark.dependency("test_3d_import")
     def test_3d_export(

@@ -8,6 +8,10 @@ from typing import cast
 
 import numpy as np
 from segy import SegyFile
+from segy.arrays import HeaderArray
+from segy.schema import Endianness
+from segy.transforms import TransformFactory
+from segy.transforms import TransformPipeline
 
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.dtype import ScalarType
@@ -15,12 +19,14 @@ from mdio.builder.schemas.dtype import ScalarType
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from segy.arrays import HeaderArray
+    from segy.schema import SegySpec
     from upath import UPath
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
 
     from mdio.segy.segy_file_args import SegyFileArguments
+
+from dataclasses import dataclass
 
 from xarray import Variable
 from zarr.core.config import config as zarr_config
@@ -171,10 +177,44 @@ def trace_worker(  # noqa: PLR0913
     )
 
 
+@dataclass
+class SegyInfo:
+    """Dataclass for the information returned by the info_worker."""
+
+    num_traces: int
+    sample_labels: np.ndarray
+    text_header: str
+    binary_header_dict: dict
+    raw_binary_headers: bytes
+    traces: np.ndarray | None
+
+
+# We should move this function to the SEG-Y library
+# and call it inside of binary_header(self) (segy/file.py:142)
+def _to_binary_header_array(buffer_bytes: bytes, spec: SegySpec) -> HeaderArray:
+    """Parse binary header bytes, based on spec."""
+    buffer = bytearray(buffer_bytes)
+
+    bin_hdr = np.frombuffer(buffer, dtype=spec.binary_header.dtype)
+
+    transforms = TransformPipeline()
+
+    if spec.endianness == Endianness.BIG:
+        little_endian = TransformFactory.create("byte_swap", Endianness.LITTLE)
+        transforms.add_transform(little_endian)
+
+    interpret_revision = TransformFactory.create("segy_revision")
+    transforms.add_transform(interpret_revision)
+
+    return HeaderArray(transforms.apply(bin_hdr))
+
+
 def info_worker(
     segy_kw: SegyFileArguments, trace_indices: Iterable[int] | None = None
 ) -> tuple[int, np.NDArray[np.int32], str, list[dict]]:
-    """Reads information fomr a SEG-Y file.
+    """Reads information from a SEG-Y file.
+
+    This function should only read small-sized metadata and a few traces.
 
     Args:
         segy_kw: Arguments to open SegyFile instance.
@@ -187,8 +227,21 @@ def info_worker(
     num_traces: int = segy_file.num_traces
     sample_labels: np.NDArray[np.int32] = segy_file.sample_labels
     text_header = segy_file.text_header
-    binary_headers = segy_file.binary_header.to_dict()
-    if trace_indices is not None:
-        traces = segy_file.trace[list(trace_indices)]
-        return num_traces, sample_labels, text_header, binary_headers, traces
-    return num_traces, sample_labels, text_header, binary_headers
+
+    raw_binary_headers: bytes = segy_file.fs.read_block(
+        fn=segy_file.url,
+        offset=segy_file.spec.binary_header.offset,
+        length=segy_file.spec.binary_header.itemsize,
+    )
+    binary_header_dict = _to_binary_header_array(raw_binary_headers, segy_file.spec).to_dict()
+
+    traces = segy_file.trace[list(trace_indices)] if trace_indices is not None else None
+
+    return SegyInfo(
+        num_traces=num_traces,
+        sample_labels=sample_labels,
+        text_header=text_header,
+        binary_header_dict=binary_header_dict,
+        raw_binary_headers=raw_binary_headers,
+        traces=traces,
+    )

@@ -24,6 +24,7 @@ from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
 from mdio.segy import blocked_io
+from mdio.segy._workers import SegyInfo
 from mdio.segy._workers import info_worker
 from mdio.segy.utilities import get_grid_plan
 
@@ -150,7 +151,7 @@ def _scan_for_headers(
     return segy_dimensions, segy_headers
 
 
-def _read_segy_file_mp(segy_kw: SegyFileArguments) -> tuple[int, np.NDArray[np.int32], str, list[dict]]:
+def _read_segy_file_mp(segy_kw: SegyFileArguments) -> SegyInfo:
     """Read SEG-Y file in a separate process.
 
     This is an ugly workaround for Zarr issues 3487 'Explicitly using fsspec and zarr FsspecStore causes
@@ -313,7 +314,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_segy_file_headers(xr_dataset: xr_Dataset, text_header: str, binary_headers: list[dict]) -> xr_Dataset:
+def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_info: SegyInfo) -> xr_Dataset:
     save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
     if not save_file_header:
         return xr_dataset
@@ -321,11 +322,11 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, text_header: str, binary_head
     expected_rows = 40
     expected_cols = 80
 
-    text_header_rows = text_header.splitlines()
+    text_header_rows = segy_info.text_header.splitlines()
     text_header_cols_bad = [len(row) != expected_cols for row in text_header_rows]
 
     if len(text_header_rows) != expected_rows:
-        err = f"Invalid text header count: expected {expected_rows}, got {len(text_header)}"
+        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_info.text_header)}"
         raise ValueError(err)
 
     if any(text_header_cols_bad):
@@ -335,8 +336,9 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, text_header: str, binary_head
     xr_dataset["segy_file_header"] = ((), "")
     xr_dataset["segy_file_header"].attrs.update(
         {
-            "textHeader": text_header,
-            "binaryHeader": binary_headers,
+            "textHeader": segy_info.text_header,
+            "binaryHeader": segy_info.binary_header_dict,
+            # "rawBinaryHeader": segy_info.raw_binary_headers,
         }
     )
 
@@ -389,17 +391,17 @@ def segy_to_mdio(  # noqa PLR0913
         "settings": segy_settings,
     }
 
-    num_traces, sample_labels, text_header, binary_headers = _read_segy_file_mp(segy_kw)
+    segy_info: SegyInfo = _read_segy_file_mp(segy_kw)
 
     segy_dimensions, segy_headers = _scan_for_headers(
         segy_kw,
-        num_traces=num_traces,
-        sample_labels=sample_labels,
+        num_traces=segy_info.num_traces,
+        sample_labels=segy_info.sample_labels,
         template=mdio_template,
         grid_overrides=grid_overrides,
     )
 
-    grid = _build_and_check_grid(segy_dimensions, num_traces, segy_headers)
+    grid = _build_and_check_grid(segy_dimensions, segy_info.num_traces, segy_headers)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
@@ -421,7 +423,7 @@ def segy_to_mdio(  # noqa PLR0913
         coords=non_dim_coords,
     )
 
-    xr_dataset = _add_segy_file_headers(xr_dataset, text_header=text_header, binary_headers=binary_headers)
+    xr_dataset = _add_segy_file_headers(xr_dataset, segy_info=segy_info)
 
     xr_dataset.trace_mask.data[:] = grid.live_mask
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
