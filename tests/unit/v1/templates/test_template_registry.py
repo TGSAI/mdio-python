@@ -33,6 +33,7 @@ EXPECTED_DEFAULT_TEMPLATE_NAMES = [
     "CocaGathers3DDepth",
     "StreamerShotGathers2D",
     "StreamerShotGathers3D",
+    "StreamerFieldRecords3D"
 ]
 
 
@@ -239,7 +240,7 @@ class TestTemplateRegistrySingleton:
         registry.register(template2)
 
         templates = registry.list_all_templates()
-        assert len(templates) == 16 + 2  # 16 default + 2 custom
+        assert len(templates) == 17 + 2  # 17 default + 2 custom
         assert "Template_One" in templates
         assert "Template_Two" in templates
 
@@ -249,7 +250,7 @@ class TestTemplateRegistrySingleton:
 
         # Default templates are always installed
         templates = list_templates()
-        assert len(templates) == 16
+        assert len(templates) == 17
 
         # Add some templates
         template1 = MockDatasetTemplate("Template1")
@@ -258,7 +259,7 @@ class TestTemplateRegistrySingleton:
         registry.register(template1)
         registry.register(template2)
 
-        assert len(registry.list_all_templates()) == 16 + 2  # 16 default + 2 custom
+        assert len(registry.list_all_templates()) == 17 + 2  # 17 default + 2 custom
 
         # Clear all
         registry.clear()
@@ -391,7 +392,7 @@ class TestGlobalFunctions:
         register_template(template2)
 
         templates = list_templates()
-        assert len(templates) == 18  # 16 default + 2 custom
+        assert len(templates) == 19  # 17 default + 2 custom
         assert "template1" in templates
         assert "template2" in templates
 
@@ -433,8 +434,8 @@ class TestConcurrentAccess:
         # All registrations should succeed
         assert len(errors) == 0
         assert len(results) == 10
-        # Including 8 default templates
-        assert len(registry.list_all_templates()) == 26  # 16 default + 10 registered
+        # Including default templates
+        assert len(registry.list_all_templates()) == 27  # 17 default + 10 registered
 
         # Check all templates are registered
         for i in range(10):
