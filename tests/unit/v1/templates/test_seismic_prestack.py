@@ -151,7 +151,13 @@ class TestSeismic3DPreStackShotTemplate:
         assert t._data_domain == "time"
         assert t._coord_dim_names == ["shot_line", "gun", "shot_point", "cable", "channel"]
         assert t._dim_names == ["shot_line", "gun", "shot_point", "cable", "channel", "time"]
-        assert t._coord_names == ["energy_source_point_number", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]
+        assert t._coord_names == [
+            "energy_source_point_number",
+            "source_coord_x",
+            "source_coord_y",
+            "group_coord_x",
+            "group_coord_y",
+        ]
         assert t._var_chunk_shape == [1, 1, 16, 1, 32, -1]
 
         # Variables instantiated when build_dataset() is called
