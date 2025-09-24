@@ -14,7 +14,7 @@ class SeismicPreStackTemplate(AbstractDatasetTemplate):
     This should be used for both 2D and 3D datasets. Common-shot or common-channel datasets
 
     Args:
-        domain: The domain of the dataset.
+        data_domain: The domain of the dataset.
     """
 
     def __init__(self, data_domain: SeismicDataDomain):
