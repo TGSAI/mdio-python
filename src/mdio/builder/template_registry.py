@@ -27,6 +27,8 @@ from mdio.builder.templates.seismic_3d_cdp import Seismic3DCdpGathersTemplate
 from mdio.builder.templates.seismic_3d_coca import Seismic3DCocaGathersTemplate
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.builder.templates.seismic_3d_streamer_shot import Seismic3DStreamerShotGathersTemplate
+from mdio.builder.templates.seismic_3d_streamer_field import Seismic3DStreamerFieldRecords
+
 
 if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
@@ -135,6 +137,7 @@ class TemplateRegistry:
         # Field (shot) data
         self.register(Seismic2DStreamerShotGathersTemplate())
         self.register(Seismic3DStreamerShotGathersTemplate())
+        self.register(Seismic3DStreamerFieldRecords())
 
     def get(self, template_name: str) -> AbstractDatasetTemplate:
         """Get an instance of a template from the registry by its name.
