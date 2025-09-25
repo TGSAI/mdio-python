@@ -23,7 +23,9 @@ warnings.filterwarnings(
 def fake_segy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the fake SEG-Y files we are going to create."""
     if DEBUG_MODE:
-        return Path("TMP/fake_segy")
+        tmp_dir = Path("tmp/fake_segy")
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        return tmp_dir
     return tmp_path_factory.mktemp(r"fake_segy")
 
 
@@ -37,7 +39,7 @@ def segy_input_uri() -> str:
 def segy_input(segy_input_uri: str, tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Download teapot dome dataset for testing."""
     if DEBUG_MODE:
-        tmp_dir = Path("TMP/segy")
+        tmp_dir = Path("tmp/segy")
         tmp_dir.mkdir(parents=True, exist_ok=True)
     else:
         tmp_dir = tmp_path_factory.mktemp("segy")
@@ -50,7 +52,7 @@ def segy_input(segy_input_uri: str, tmp_path_factory: pytest.TempPathFactory) ->
 def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
     if DEBUG_MODE:
-        return Path("TMP/mdio")
+        return Path("tmp/mdio")
     return tmp_path_factory.mktemp(r"mdio")
 
 
@@ -58,7 +60,7 @@ def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
     if DEBUG_MODE:
-        return Path("TMP/mdio2")
+        return Path("tmp/mdio2")
     return tmp_path_factory.mktemp(r"mdio2")
 
 
@@ -66,7 +68,7 @@ def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the round-trip IBM SEG-Y."""
     if DEBUG_MODE:
-        tmp_dir = Path("TMP/segy")
+        tmp_dir = Path("tmp/segy")
         tmp_dir.mkdir(parents=True, exist_ok=True)
     else:
         tmp_dir = tmp_path_factory.mktemp("segy")

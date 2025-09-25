@@ -130,6 +130,18 @@ def binary_header_teapot_dome() -> dict[str, int]:
     }
 
 
+def raw_binary_header_teapot_dome() -> str:
+    """Return the teapot dome expected raw binary header, base64 encoded."""
+    return (
+        "AAAnDwAAJw8AAAABALwAAAfQAAAF3QXdAAEAOQAEAAEAAAAAAAAAAAAAAAAAAAAAAAIAAQAEAAIAAQAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    )
+
+
 class TestTeapotRoundtrip:
     """Tests for Teapot Dome data ingestion and export."""
 
@@ -176,6 +188,7 @@ class TestTeapotRoundtrip:
         segy_file_header = ds["segy_file_header"]
         assert segy_file_header.attrs["textHeader"] == text_header_teapot_dome()
         assert segy_file_header.attrs["binaryHeader"] == binary_header_teapot_dome()
+        assert segy_file_header.attrs["rawBinaryHeader"] == raw_binary_header_teapot_dome()
 
     def test_variable_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
