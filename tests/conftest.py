@@ -22,7 +22,7 @@ warnings.filterwarnings(
 @pytest.fixture(scope="session")
 def fake_segy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the fake SEG-Y files we are going to create."""
-    if DEBUG_MODE:
+    if DEBUG_MODE:  # pragma: no cover
         return Path("TMP/fake_segy")
     return tmp_path_factory.mktemp(r"fake_segy")
 
@@ -36,7 +36,7 @@ def segy_input_uri() -> str:
 @pytest.fixture(scope="session")
 def segy_input(segy_input_uri: str, tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Download teapot dome dataset for testing."""
-    if DEBUG_MODE:
+    if DEBUG_MODE:  # pragma: no cover
         tmp_dir = Path("TMP/segy")
         tmp_dir.mkdir(parents=True, exist_ok=True)
     else:
@@ -49,15 +49,15 @@ def segy_input(segy_input_uri: str, tmp_path_factory: pytest.TempPathFactory) ->
 @pytest.fixture(scope="module")
 def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
-    if DEBUG_MODE:
+    if DEBUG_MODE:  # pragma: no cover
         return Path("TMP/mdio")
     return tmp_path_factory.mktemp(r"mdio")
 
 
 @pytest.fixture(scope="module")
-def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:  # pragma: no cover - used by disabled test
     """Make a temp file for the output MDIO."""
-    if DEBUG_MODE:
+    if DEBUG_MODE:  # pragma: no cover
         return Path("TMP/mdio2")
     return tmp_path_factory.mktemp(r"mdio2")
 
@@ -65,7 +65,7 @@ def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.fixture(scope="session")
 def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the round-trip IBM SEG-Y."""
-    if DEBUG_MODE:
+    if DEBUG_MODE:  # pragma: no cover
         tmp_dir = Path("TMP/segy")
         tmp_dir.mkdir(parents=True, exist_ok=True)
     else:

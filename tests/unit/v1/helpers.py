@@ -1,7 +1,5 @@
 """Helper methods used in unit tests."""
 
-from pathlib import Path
-
 from mdio.builder.dataset_builder import MDIODatasetBuilder
 from mdio.builder.dataset_builder import _BuilderState
 from mdio.builder.dataset_builder import _get_named_dimension
@@ -66,7 +64,7 @@ def validate_variable(
     elif isinstance(container, Dataset):
         var_list = container.variables
         global_coord_list = _get_all_coordinates(container)
-    else:
+    else:  # pragma: no cover
         err_msg = f"Expected MDIODatasetBuilder or Dataset, got {type(container)}"
         raise TypeError(err_msg)
 
@@ -105,7 +103,7 @@ def _get_coordinate(
     in the global coordinate list.
     If the coordinate is stored as a Coordinate object, it is returned directly.
     """
-    if coordinates_or_references is None:
+    if coordinates_or_references is None:  # pragma: no cover
         return None
 
     for c in coordinates_or_references:
@@ -115,7 +113,7 @@ def _get_coordinate(
             # Find the Coordinate in the global list and return it.
             if global_coord_list is not None:
                 cc = next((cc for cc in global_coord_list if cc.name == name), None)
-            if cc is None:
+            if cc is None:  # pragma: no cover
                 msg = f"Pre-existing coordinate named {name!r} is not found"
                 raise ValueError(msg)
             return cc
@@ -124,7 +122,7 @@ def _get_coordinate(
             # Return it.
             return c
 
-    return None
+    return None  # pragma: no cover
 
 
 def _get_all_coordinates(dataset: Dataset) -> list[Coordinate]:
@@ -136,19 +134,6 @@ def _get_all_coordinates(dataset: Dataset) -> list[Coordinate]:
                 if isinstance(c, Coordinate) and c.name not in all_coords:
                     all_coords[c.name] = c
     return list(all_coords.values())
-
-
-def output_path(file_dir: Path, file_name: str, debugging: bool = False) -> Path:
-    """Generate the output path for the test file-system output.
-
-    Note:
-        Use debugging=True, if you need to retain the created files for debugging
-        purposes. Otherwise, the files will be created in-memory and not saved to disk.
-    """
-    if debugging:
-        return file_dir / f"mdio-tests/{file_name}.zarr"
-
-    return file_dir / f"{file_name}.zarr"
 
 
 def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:

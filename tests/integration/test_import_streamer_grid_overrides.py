@@ -33,7 +33,7 @@ os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
 @pytest.mark.skip(reason="NonBinned and HasDuplicates haven't been properly implemented yet.")
 @pytest.mark.parametrize("grid_override", [{"NonBinned": True}, {"HasDuplicates": True}])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
-class TestImport4DNonReg:
+class TestImport4DNonReg:  # pragma: no cover - tests is skipped
     """Test for 4D segy import with grid overrides."""
 
     def test_import_4d_segy(  # noqa: PLR0913
@@ -161,7 +161,7 @@ class TestImport4DSparse:
 @pytest.mark.skip(reason="AutoShotWrap requires a template that is not implemented yet.")
 @pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True}, {"AutoShotWrap": True}, None])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
-class TestImport6D:
+class TestImport6D:  # pragma: no cover - tests is skipped
     """Test for 6D segy import with grid overrides."""
 
     def test_import_6d_segy(  # noqa: PLR0913

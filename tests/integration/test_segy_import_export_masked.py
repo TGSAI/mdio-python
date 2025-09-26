@@ -241,17 +241,6 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
         headers["group_coord_y"] = (y_origin + dim_grids["shot_point"] * y_step + dim_grids[cable_key] * y_step).ravel()
         headers["gun"] = np.tile((1, 2, 3), num_traces // 3)
 
-    # for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
-    #     start = 700000
-    #     step = 100
-    #     stop = start + step * (trace_numbers.size - 0)
-    #     headers[field] = np.arange(start=start, stop=stop, step=step)
-    # for field in ["cdp_y", "source_coord_y", "group_coord_y"]:
-    #     start = 4000000
-    #     step = 100
-    #     stop = start + step * (trace_numbers.size - 0)
-    #     headers[field] = np.arange(start=start, stop=stop, step=step)
-
     samples[:] = trace_numbers[..., None]
 
     with fsspec.open(path, mode="wb") as fp:
@@ -284,7 +273,7 @@ def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: Grid
 @pytest.fixture
 def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Fixture that generates temp directory for export tests."""
-    if DEBUG_MODE:
+    if DEBUG_MODE:  # pragma: no cover
         return Path("TMP/export_masked")
     return tmp_path_factory.getbasetemp() / "export_masked"
 
