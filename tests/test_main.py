@@ -30,6 +30,7 @@ def test_main_succeeds(
     result = runner.invoke(__main__.main, args=cli_args)
     assert result.exit_code == 0
 
+
 @pytest.mark.skip(reason="CLI hasn't been updated to work with v1 yet.")
 @pytest.mark.dependency(depends=["test_main_succeeds"])
 def test_main_cloud(
