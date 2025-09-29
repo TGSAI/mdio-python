@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from pathlib import Path
 
     from segy.schema import SegySpec
+    from xarray import Dataset as xr_Dataset
+
 from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_variable
 
@@ -27,7 +29,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
     """Tests for create_empty_mdio function."""
 
     @classmethod
-    def _validate_empty_mdio_dataset(cls, ds, segy_spec: SegySpec) -> None:
+    def _validate_empty_mdio_dataset(cls, ds: xr_Dataset, segy_spec: SegySpec) -> None:
         """Validate an empty MDIO dataset structure and content."""
         # Check that the dataset has the expected shape
         assert ds.sizes == {"inline": 200, "crossline": 300, "time": 750}
@@ -79,11 +81,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
 
         # Call create_empty_mdio
         create_empty_mdio(
-            segy_spec=segy_spec, 
-            mdio_template=mdio_template, 
-            grid=grid, 
-            output_path=empty_mdio, 
-            overwrite=True
+            segy_spec=segy_spec, mdio_template=mdio_template, grid=grid, output_path=empty_mdio, overwrite=True
         )
 
         return empty_mdio
@@ -125,7 +123,6 @@ class TestCreateEmptyPostStack3DTimeMdio:
         ds = open_mdio(empty_mdio_path)
         self._validate_empty_mdio_dataset(ds, segy_spec)
 
-
     def test_overwrite_behavior(self, segy_spec: SegySpec, empty_mdio: Path) -> None:
         """Test overwrite parameter behavior in create_empty_mdio."""
         # Create the grid with the specified dimensions
@@ -138,7 +135,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
         )
 
         mdio_template = get_template("PostStack3DTime")
-        
+
         # First: Create a directory and populate it with garbage data
         empty_mdio.mkdir(parents=True, exist_ok=True)
         garbage_file = empty_mdio / "garbage.txt"
@@ -146,35 +143,27 @@ class TestCreateEmptyPostStack3DTimeMdio:
         garbage_dir = empty_mdio / "garbage_dir"
         garbage_dir.mkdir()
         (garbage_dir / "nested_garbage.txt").write_text("More garbage")
-        
+
         # Verify the directory exists with garbage data
         assert empty_mdio.exists()
         assert garbage_file.exists()
         assert garbage_dir.exists()
-        
+
         # Second call: Try to create MDIO with overwrite=False - should raise FileExistsError
         with pytest.raises(FileExistsError, match="Output location.*exists"):
             create_empty_mdio(
-                segy_spec=segy_spec,
-                mdio_template=mdio_template,
-                grid=grid,
-                output_path=empty_mdio,
-                overwrite=False
+                segy_spec=segy_spec, mdio_template=mdio_template, grid=grid, output_path=empty_mdio, overwrite=False
             )
-        
+
         # Third call: Create MDIO with overwrite=True - should succeed and overwrite garbage
         create_empty_mdio(
-            segy_spec=segy_spec,
-            mdio_template=mdio_template,
-            grid=grid,
-            output_path=empty_mdio,
-            overwrite=True
+            segy_spec=segy_spec, mdio_template=mdio_template, grid=grid, output_path=empty_mdio, overwrite=True
         )
-        
+
         # Validate that the MDIO file can be loaded correctly using the helper function
         ds = open_mdio(empty_mdio)
         self._validate_empty_mdio_dataset(ds, segy_spec)
-        
+
         # Verify the garbage data was overwritten (should not exist)
         assert not garbage_file.exists(), "Garbage file should have been overwritten"
         assert not garbage_dir.exists(), "Garbage directory should have been overwritten"
