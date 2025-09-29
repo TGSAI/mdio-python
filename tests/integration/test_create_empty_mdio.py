@@ -26,6 +26,34 @@ from mdio.core import Grid
 class TestCreateEmptyPostStack3DTimeMdio:
     """Tests for create_empty_mdio function."""
 
+    @classmethod
+    def _validate_empty_mdio_dataset(cls, ds, segy_spec: SegySpec) -> None:
+        """Validate an empty MDIO dataset structure and content."""
+        # Check that the dataset has the expected shape
+        assert ds.sizes == {"inline": 200, "crossline": 300, "time": 750}
+
+        # Validate the dimension coordinate variables
+        validate_variable(ds, "inline", (200,), ("inline",), np.int32, range(100, 300), get_values)
+        validate_variable(ds, "crossline", (300,), ("crossline",), np.int32, range(1000, 1600, 2), get_values)
+        validate_variable(ds, "time", (750,), ("time",), np.int32, range(0, 3000, 4), get_values)
+
+        # Validate the non-dimensional coordinate variables (should be empty for empty dataset)
+        validate_variable(ds, "cdp_x", (200, 300), ("inline", "crossline"), np.float64, None, None)
+        validate_variable(ds, "cdp_y", (200, 300), ("inline", "crossline"), np.float64, None, None)
+
+        # Validate the headers (should be empty for empty dataset)
+        # Infer the dtype from segy_spec and ignore endianness
+        header_dtype = segy_spec.trace.header.dtype.newbyteorder("native")
+        validate_variable(ds, "headers", (200, 300), ("inline", "crossline"), header_dtype, None, None)
+
+        # Validate the trace mask (should be all True for empty dataset)
+        validate_variable(ds, "trace_mask", (200, 300), ("inline", "crossline"), np.bool_, None, None)
+        trace_mask = ds["trace_mask"].values
+        assert np.all(trace_mask), "All traces should be marked as live in empty dataset"
+
+        # Validate the amplitude data (should be empty)
+        validate_variable(ds, "amplitude", (200, 300, 750), ("inline", "crossline", "time"), np.float32, None, None)
+
     @pytest.fixture(scope="class")
     def segy_spec(self) -> SegySpec:
         """Return the SEG-Y specification for the test."""
@@ -95,28 +123,58 @@ class TestCreateEmptyPostStack3DTimeMdio:
     def test_grid(self, empty_mdio_path: Path, segy_spec: SegySpec) -> None:
         """Test grid validation for empty MDIO file."""
         ds = open_mdio(empty_mdio_path)
+        self._validate_empty_mdio_dataset(ds, segy_spec)
 
-        # Check that the dataset has the expected shape
-        assert ds.sizes == {"inline": 200, "crossline": 300, "time": 750}
 
-        # Validate the dimension coordinate variables
-        validate_variable(ds, "inline", (200,), ("inline",), np.int32, range(100, 300), get_values)
-        validate_variable(ds, "crossline", (300,), ("crossline",), np.int32, range(1000, 1600, 2), get_values)
-        validate_variable(ds, "time", (750,), ("time",), np.int32, range(0, 3000, 4), get_values)
+    def test_overwrite_behavior(self, segy_spec: SegySpec, empty_mdio: Path) -> None:
+        """Test overwrite parameter behavior in create_empty_mdio."""
+        # Create the grid with the specified dimensions
+        grid = Grid(
+            dims=[
+                Dimension(name="inline", coords=range(100, 300, 1)),  # 100-300 with step 1
+                Dimension(name="crossline", coords=range(1000, 1600, 2)),  # 1000-1600 with step 2
+                Dimension(name="time", coords=range(0, 3000, 4)),  # 0-3 seconds 4ms sample rate
+            ]
+        )
 
-        # Validate the non-dimensional coordinate variables (should be empty for empty dataset)
-        validate_variable(ds, "cdp_x", (200, 300), ("inline", "crossline"), np.float64, None, None)
-        validate_variable(ds, "cdp_y", (200, 300), ("inline", "crossline"), np.float64, None, None)
-
-        # Validate the headers (should be empty for empty dataset)
-        # Infer the dtype from segy_spec and ignore endianness
-        header_dtype = segy_spec.trace.header.dtype.newbyteorder("native")
-        validate_variable(ds, "headers", (200, 300), ("inline", "crossline"), header_dtype, None, None)
-
-        # Validate the trace mask (should be all True for empty dataset)
-        validate_variable(ds, "trace_mask", (200, 300), ("inline", "crossline"), np.bool_, None, None)
-        trace_mask = ds["trace_mask"].values
-        assert np.all(trace_mask), "All traces should be marked as live in empty dataset"
-
-        # Validate the amplitude data (should be empty)
-        validate_variable(ds, "amplitude", (200, 300, 750), ("inline", "crossline", "time"), np.float32, None, None)
+        mdio_template = get_template("PostStack3DTime")
+        
+        # First: Create a directory and populate it with garbage data
+        empty_mdio.mkdir(parents=True, exist_ok=True)
+        garbage_file = empty_mdio / "garbage.txt"
+        garbage_file.write_text("This is garbage data that should be overwritten")
+        garbage_dir = empty_mdio / "garbage_dir"
+        garbage_dir.mkdir()
+        (garbage_dir / "nested_garbage.txt").write_text("More garbage")
+        
+        # Verify the directory exists with garbage data
+        assert empty_mdio.exists()
+        assert garbage_file.exists()
+        assert garbage_dir.exists()
+        
+        # Second call: Try to create MDIO with overwrite=False - should raise FileExistsError
+        with pytest.raises(FileExistsError, match="Output location.*exists"):
+            create_empty_mdio(
+                segy_spec=segy_spec,
+                mdio_template=mdio_template,
+                grid=grid,
+                output_path=empty_mdio,
+                overwrite=False
+            )
+        
+        # Third call: Create MDIO with overwrite=True - should succeed and overwrite garbage
+        create_empty_mdio(
+            segy_spec=segy_spec,
+            mdio_template=mdio_template,
+            grid=grid,
+            output_path=empty_mdio,
+            overwrite=True
+        )
+        
+        # Validate that the MDIO file can be loaded correctly using the helper function
+        ds = open_mdio(empty_mdio)
+        self._validate_empty_mdio_dataset(ds, segy_spec)
+        
+        # Verify the garbage data was overwritten (should not exist)
+        assert not garbage_file.exists(), "Garbage file should have been overwritten"
+        assert not garbage_dir.exists(), "Garbage directory should have been overwritten"
