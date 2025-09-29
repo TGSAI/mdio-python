@@ -285,7 +285,7 @@ def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: Grid
 def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Fixture that generates temp directory for export tests."""
     if DEBUG_MODE:
-        return Path("TMP/export_masked")
+        return Path("tmp/export_masked")
     return tmp_path_factory.getbasetemp() / "export_masked"
 
 
