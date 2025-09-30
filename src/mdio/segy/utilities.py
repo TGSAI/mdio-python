@@ -16,17 +16,19 @@ from mdio.segy.parsers import parse_headers
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
-    from segy import SegyFile
     from segy.arrays import HeaderArray
 
     from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.segy.segy_file_args import SegyFileArguments
 
 
 logger = logging.getLogger(__name__)
 
 
-def get_grid_plan(  # noqa:  C901
-    segy_file: SegyFile,
+def get_grid_plan(  # noqa:  C901, PLR0913
+    segy_kw: SegyFileArguments,
+    num_traces: int,
+    sample_labels: np.ndarray,
     chunksize: tuple[int, ...] | None,
     template: AbstractDatasetTemplate,
     return_headers: bool = False,
@@ -41,7 +43,9 @@ def get_grid_plan(  # noqa:  C901
     4. Create `Dimension` for sample axis using binary header.
 
     Args:
-        segy_file: SegyFile instance.
+        segy_kw: SEG-Y file arguments.
+        num_traces: Total number of traces in the SEG-Y file.
+        sample_labels: Sample labels from binary header.
         chunksize:  Chunk sizes to be used in grid plan.
         template: MDIO template where coordinate names and domain will be taken.
         return_headers: Option to return parsed headers with `Dimension` objects. Default is False.
@@ -56,7 +60,7 @@ def get_grid_plan(  # noqa:  C901
     # Keep only dimension and non-dimension coordinates excluding the vertical axis
     horizontal_dimensions = template.dimension_names[:-1]
     horizontal_coordinates = horizontal_dimensions + template.coordinate_names
-    headers_subset = parse_headers(segy_file=segy_file, subset=horizontal_coordinates)
+    headers_subset = parse_headers(segy_kw=segy_kw, num_traces=num_traces, subset=horizontal_coordinates)
 
     # Handle grid overrides.
     override_handler = GridOverrider()
@@ -72,7 +76,7 @@ def get_grid_plan(  # noqa:  C901
         dim_unique = np.unique(headers_subset[dim_name])
         dimensions.append(Dimension(coords=dim_unique, name=dim_name))
 
-    sample_labels = segy_file.sample_labels / 1000  # normalize
+    sample_labels = sample_labels / 1000  # normalize
 
     if all(sample_labels.astype("int64") == sample_labels):
         sample_labels = sample_labels.astype("int64")

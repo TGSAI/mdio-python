@@ -23,7 +23,9 @@ warnings.filterwarnings(
 def fake_segy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the fake SEG-Y files we are going to create."""
     if DEBUG_MODE:
-        return Path("TMP/fake_segy")
+        tmp_dir = Path("TMP/fake_segy")
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        return tmp_dir
     return tmp_path_factory.mktemp(r"fake_segy")
 
 
@@ -31,6 +33,18 @@ def fake_segy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def segy_input_uri() -> str:
     """Path to dome dataset for cloud testing."""
     return "http://s3.amazonaws.com/teapot/filt_mig.sgy"
+
+
+@pytest.fixture(scope="session")
+def teapot_segy_cloud() -> str:
+    """Path to the Teapot dome dataset for cloud testing."""
+    return "gs://tgs-datascience-mdio-dev/filt_mig.sgy"
+
+
+@pytest.fixture(scope="session")
+def teapot_mdio_cloud() -> str:
+    """Path to the Teapot dome dataset for cloud testing."""
+    return "gs://tgs-datascience-mdio-dev/filt_mig.mdio"
 
 
 @pytest.fixture(scope="session")
@@ -71,3 +85,14 @@ def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     else:
         tmp_dir = tmp_path_factory.mktemp("segy")
     return tmp_dir / "teapot_roundtrip.segy"
+
+
+@pytest.fixture(scope="session")
+def segy_export_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Make a temp file for the round-trip IBM SEG-Y."""
+    if DEBUG_MODE:
+        tmp_dir = Path("TMP/segy")
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+    else:
+        tmp_dir = tmp_path_factory.mktemp("segy")
+    return tmp_dir / "teapot_roundtrip2.segy"
