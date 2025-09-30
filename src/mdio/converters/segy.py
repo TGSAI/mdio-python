@@ -7,6 +7,7 @@ import os
 from typing import TYPE_CHECKING
 
 import numpy as np
+import zarr
 from segy import SegyFile
 from segy.config import SegySettings
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
@@ -14,9 +15,16 @@ from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
+from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.xarray_builder import to_xarray_dataset
+from mdio.constants import ZarrFormat
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
@@ -333,6 +341,61 @@ def _add_grid_override_to_metadata(dataset: Dataset, grid_overrides: dict[str, A
         dataset.metadata.attributes["gridOverrides"] = grid_overrides
 
 
+def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> AbstractDatasetTemplate:
+    """Add raw headers capability to the MDIO template by monkey-patching its _add_variables method.
+
+    This function modifies the template's _add_variables method to also add a raw headers variable
+    with the following characteristics:
+    - Same rank as the Headers variable (all dimensions except vertical)
+    - Name: "RawHeaders"
+    - Type: ScalarType.HEADERS
+    - No coordinates
+    - zstd compressor
+    - No additional metadata
+    - Chunked the same as the Headers variable
+
+    Args:
+        mdio_template: The MDIO template to mutate
+    Returns:
+        The mutated MDIO template
+    """
+    # Check if raw headers enhancement has already been applied to avoid duplicate additions
+    if hasattr(mdio_template, "_mdio_raw_headers_enhanced"):
+        return mdio_template
+
+    # Store the original _add_variables method
+    original_add_variables = mdio_template._add_variables
+
+    def enhanced_add_variables() -> None:
+        # Call the original method first
+        original_add_variables()
+
+        # Now add the raw headers variable
+        chunk_shape = mdio_template._var_chunk_shape[:-1]
+
+        # Create chunk grid metadata
+        chunk_metadata = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
+
+        # Add the raw headers variable using the builder's add_variable method
+        mdio_template._builder.add_variable(
+            name="raw_headers",
+            long_name="Raw Headers",
+            dimensions=mdio_template._dim_names[:-1],  # All dimensions except vertical
+            data_type=ScalarType.BYTES240,
+            compressor=Blosc(cname=BloscCname.zstd),
+            coordinates=None,  # No coordinates as specified
+            metadata=VariableMetadata(chunk_grid=chunk_metadata),
+        )
+
+    # Replace the template's _add_variables method
+    mdio_template._add_variables = enhanced_add_variables
+
+    # Mark the template as enhanced to prevent duplicate monkey-patching
+    mdio_template._mdio_raw_headers_enhanced = True
+
+    return mdio_template
+
+
 def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
@@ -372,6 +435,14 @@ def segy_to_mdio(  # noqa PLR0913
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
+
+    if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
+        if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
+            logger.warning("Raw headers are only supported for Zarr v3. Skipping raw headers.")
+        else:
+            logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
+            mdio_template = _add_raw_headers_to_template(mdio_template)
+
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
