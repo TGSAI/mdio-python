@@ -353,6 +353,7 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
     - zstd compressor
     - No additional metadata
     - Chunked the same as the Headers variable
+
     Args:
         mdio_template: The MDIO template to mutate
     Returns:

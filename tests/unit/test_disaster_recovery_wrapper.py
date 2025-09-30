@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 import pytest
@@ -19,7 +21,10 @@ from segy.schema import HeaderField
 from segy.schema import SegySpec
 from segy.standards import get_segy_standard
 
-from mdio.segy._disaster_recovery_wrapper import SegyFileTraceDataWrapper
+from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
+
+if TYPE_CHECKING:
+    from collections.abc import Generator
 
 SAMPLES_PER_TRACE = 1501
 
@@ -28,7 +33,7 @@ class TestDisasterRecoveryWrapper:
     """Test cases for disaster recovery wrapper functionality."""
 
     @pytest.fixture
-    def temp_dir(self) -> Path:
+    def temp_dir(self) -> Generator[Path, Any, None]:
         """Create a temporary directory for test files."""
         with tempfile.TemporaryDirectory() as tmp_dir:
             yield Path(tmp_dir)
@@ -140,7 +145,7 @@ class TestDisasterRecoveryWrapper:
 
         # Test single trace
         trace_idx = 3
-        wrapper = SegyFileTraceDataWrapper(segy_file, trace_idx)
+        wrapper = SegyFileRawTraceWrapper(segy_file, trace_idx)
 
         # Test that properties are accessible
         assert wrapper.header is not None
@@ -184,7 +189,7 @@ class TestDisasterRecoveryWrapper:
 
         # Test with list of indices
         trace_indices = [0, 2, 4]
-        wrapper = SegyFileTraceDataWrapper(segy_file, trace_indices)
+        wrapper = SegyFileRawTraceWrapper(segy_file, trace_indices)
 
         # Test that properties work with multiple traces
         assert wrapper.header is not None
@@ -222,7 +227,7 @@ class TestDisasterRecoveryWrapper:
         segy_file = SegyFile(segy_path, spec=spec)
 
         # Test with slice
-        wrapper = SegyFileTraceDataWrapper(segy_file, slice(5, 15))
+        wrapper = SegyFileRawTraceWrapper(segy_file, slice(5, 15))
 
         # Test that properties work with slice
         assert wrapper.header is not None
@@ -269,7 +274,7 @@ class TestDisasterRecoveryWrapper:
         segy_file = SegyFile(segy_path, spec=spec)
 
         # Create wrapper with different index types
-        wrapper = SegyFileTraceDataWrapper(segy_file, trace_indices)
+        wrapper = SegyFileRawTraceWrapper(segy_file, trace_indices)
 
         # Basic validation that we got results
         assert wrapper.header is not None
