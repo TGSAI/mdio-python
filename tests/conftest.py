@@ -74,8 +74,9 @@ def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 @pytest.fixture(scope="class")
-def empty_mdio(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def empty_mdio_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for empty MDIO testing."""
     if DEBUG_MODE:
-        return Path("tmp/empty_mdio")
+        tmp_dir = Path("tmp/empty_mdio")
+        tmp_dir.mkdir(parents=True, exist_ok=True)
     return tmp_path_factory.mktemp(r"empty_mdio")

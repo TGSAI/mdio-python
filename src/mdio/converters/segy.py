@@ -249,7 +249,7 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitModel | None:
+def get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
     name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
     unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
@@ -372,7 +372,7 @@ def segy_to_mdio(  # noqa PLR0913
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
-    horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
+    horizontal_unit = get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
         sizes=grid.shape,
@@ -446,7 +446,7 @@ def create_empty_mdio(  # noqa PLR0913
 
     # Build the dataset structure using the template and grid
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
-    horizontal_unit = _get_horizontal_coordinate_unit(grid.dims)
+    horizontal_unit = get_horizontal_coordinate_unit(grid.dims)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
         sizes=grid.shape,
