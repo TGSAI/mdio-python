@@ -286,7 +286,7 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory, raw_headers_env
     """Fixture that generates temp directory for export tests."""
     # Create path suffix based on current raw headers environment variable
     # raw_headers_env dependency ensures the environment variable is set before this runs
-    raw_headers_enabled = os.getenv("MDIO__DO_RAW_HEADERS") == "1"
+    raw_headers_enabled = os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on")
     path_suffix = "with_raw_headers" if raw_headers_enabled else "without_raw_headers"
 
     if DEBUG_MODE:
@@ -296,17 +296,17 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory, raw_headers_env
 
 @pytest.fixture
 def raw_headers_env(request: pytest.FixtureRequest) -> None:
-    """Fixture to set/unset MDIO__DO_RAW_HEADERS environment variable."""
+    """Fixture to set/unset MDIO__IMPORT__RAW_HEADERS environment variable."""
     env_value = request.param
     if env_value is not None:
-        os.environ["MDIO__DO_RAW_HEADERS"] = env_value
+        os.environ["MDIO__IMPORT__RAW_HEADERS"] = env_value
     else:
-        os.environ.pop("MDIO__DO_RAW_HEADERS", None)
+        os.environ.pop("MDIO__IMPORT__RAW_HEADERS", None)
 
     yield
 
     # Cleanup after test - both environment variable and template state
-    os.environ.pop("MDIO__DO_RAW_HEADERS", None)
+    os.environ.pop("MDIO__IMPORT__RAW_HEADERS", None)
 
     # Clean up any template modifications to ensure test isolation
     registry = TemplateRegistry.get_instance()
@@ -513,7 +513,7 @@ class TestNdImportExport:
         export_masked_path: Path,
         raw_headers_env: None,  # noqa: ARG002
     ) -> None:
-        """Test that raw headers are preserved byte-for-byte when MDIO__DO_RAW_HEADERS=1."""
+        """Test that raw headers are preserved byte-for-byte when MDIO__IMPORT__RAW_HEADERS=1."""
         grid_conf, segy_factory_conf, _, _ = test_conf
         segy_path = export_masked_path / f"{grid_conf.name}.sgy"
         mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
@@ -523,10 +523,12 @@ class TestNdImportExport:
 
         # Check if raw_headers should exist based on environment variable
         has_raw_headers = "raw_headers" in ds.data_vars
-        if os.getenv("MDIO__DO_RAW_HEADERS") == "1":
-            assert has_raw_headers, "raw_headers should be present when MDIO__DO_RAW_HEADERS=1"
+        if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
+            assert has_raw_headers, "raw_headers should be present when MDIO__IMPORT__RAW_HEADERS=1"
         else:
-            assert not has_raw_headers, f"raw_headers should not be present when MDIO__DO_RAW_HEADERS is not set\n {ds}"
+            assert not has_raw_headers, (
+                f"raw_headers should not be present when MDIO__IMPORT__RAW_HEADERS is not set\n {ds}"
+            )
             return  # Exit early if raw_headers are not expected
 
         # Get data (only if raw_headers exist)

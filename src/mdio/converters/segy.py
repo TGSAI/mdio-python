@@ -435,11 +435,11 @@ def segy_to_mdio(  # noqa PLR0913
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
 
-    if os.getenv("MDIO__DO_RAW_HEADERS") == "1":
+    if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
         if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
             logger.warning("Raw headers are only supported for Zarr v3. Skipping raw headers.")
         else:
-            logger.warning("MDIO__DO_RAW_HEADERS is experimental and expected to change or be removed.")
+            logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
             mdio_template = _add_raw_headers_to_template(mdio_template)
 
     horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
