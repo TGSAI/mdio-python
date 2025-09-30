@@ -380,7 +380,7 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
             name="raw_headers",
             long_name="Raw Headers",
             dimensions=mdio_template._dim_names[:-1],  # All dimensions except vertical
-            data_type=ScalarType.HEADERS_V3,
+            data_type=ScalarType.BYTES240,
             compressor=Blosc(cname=BloscCname.zstd),
             coordinates=None,  # No coordinates as specified
             metadata=VariableMetadata(chunk_grid=chunk_metadata),
