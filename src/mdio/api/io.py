@@ -10,7 +10,7 @@ import zarr
 from upath import UPath
 from xarray import Dataset as xr_Dataset
 from xarray import open_zarr as xr_open_zarr
-from xarray.backends.api import to_zarr as xr_to_zarr
+from xarray.backends.writers import to_zarr as xr_to_zarr
 
 from mdio.constants import ZarrFormat
 from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
