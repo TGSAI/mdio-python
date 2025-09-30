@@ -290,7 +290,7 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory, raw_headers_env
     path_suffix = "with_raw_headers" if raw_headers_enabled else "without_raw_headers"
 
     if DEBUG_MODE:
-        return Path(f"TMP/export_masked_{path_suffix}")
+        return Path(f"tmp/export_masked_{path_suffix}")
     return tmp_path_factory.getbasetemp() / f"export_masked_{path_suffix}"
 
 

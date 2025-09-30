@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -123,6 +125,35 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
+@dataclass
+class SegyFileHeaderDump:
+    """Segy metadata information."""
+
+    text_header: str
+    binary_header_dict: dict
+    raw_binary_headers: bytes
+
+
+def _get_segy_file_header_dump(segy_file: SegyFile) -> SegyFileHeaderDump:
+    """Reads information from a SEG-Y file."""
+    text_header = segy_file.text_header
+
+    raw_binary_headers: bytes = segy_file.fs.read_block(
+        fn=segy_file.url,
+        offset=segy_file.spec.binary_header.offset,
+        length=segy_file.spec.binary_header.itemsize,
+    )
+
+    # We read here twice, but it's ok for now. Only 400-bytes.
+    binary_header_dict = segy_file.binary_header.to_dict()
+
+    return SegyFileHeaderDump(
+        text_header=text_header,
+        binary_header_dict=binary_header_dict,
+        raw_binary_headers=raw_binary_headers,
+    )
+
+
 def _scan_for_headers(
     segy_file: SegyFile,
     template: AbstractDatasetTemplate,
@@ -151,12 +182,12 @@ def _scan_for_headers(
     return segy_dimensions, segy_headers
 
 
-def _build_and_check_grid(segy_dimensions: list[Dimension], segy_file: SegyFile, segy_headers: SegyHeaderArray) -> Grid:
+def _build_and_check_grid(segy_dimensions: list[Dimension], num_traces: int, segy_headers: SegyHeaderArray) -> Grid:
     """Build and check the grid from the SEG-Y headers and dimensions.
 
     Args:
         segy_dimensions: List of of all SEG-Y dimensions to build grid from.
-        segy_file: Instance of SegyFile to check for trace count.
+        num_traces: Number of traces in the SEG-Y file.
         segy_headers: Headers read in from SEG-Y file for building the trace map.
 
     Returns:
@@ -166,15 +197,15 @@ def _build_and_check_grid(segy_dimensions: list[Dimension], segy_file: SegyFile,
         GridTraceCountError: If number of traces in SEG-Y file does not match the parsed grid
     """
     grid = Grid(dims=segy_dimensions)
-    grid_density_qc(grid, segy_file.num_traces)
+    grid_density_qc(grid, num_traces)
     grid.build_map(segy_headers)
     # Check grid validity by comparing trace numbers
-    if np.sum(grid.live_mask) != segy_file.num_traces:
+    if np.sum(grid.live_mask) != num_traces:
         for dim_name in grid.dim_names:
             dim_min, dim_max = grid.get_min(dim_name), grid.get_max(dim_name)
             logger.warning("%s min: %s max: %s", dim_name, dim_min, dim_max)
         logger.warning("Ingestion grid shape: %s.", grid.shape)
-        raise GridTraceCountError(np.sum(grid.live_mask), segy_file.num_traces)
+        raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
     return grid
 
 
@@ -301,7 +332,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file: SegyFile) -> xr_Dataset:
+def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_header_dump: SegyFileHeaderDump) -> xr_Dataset:
     save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
     if not save_file_header:
         return xr_dataset
@@ -309,12 +340,11 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file: SegyFile) -> xr_Da
     expected_rows = 40
     expected_cols = 80
 
-    text_header = segy_file.text_header
-    text_header_rows = text_header.splitlines()
+    text_header_rows = segy_file_header_dump.text_header.splitlines()
     text_header_cols_bad = [len(row) != expected_cols for row in text_header_rows]
 
     if len(text_header_rows) != expected_rows:
-        err = f"Invalid text header count: expected {expected_rows}, got {len(text_header)}"
+        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_file_header_dump.text_header)}"
         raise ValueError(err)
 
     if any(text_header_cols_bad):
@@ -324,10 +354,13 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file: SegyFile) -> xr_Da
     xr_dataset["segy_file_header"] = ((), "")
     xr_dataset["segy_file_header"].attrs.update(
         {
-            "textHeader": text_header,
-            "binaryHeader": segy_file.binary_header.to_dict(),
+            "textHeader": segy_file_header_dump.text_header,
+            "binaryHeader": segy_file_header_dump.binary_header_dict,
         }
     )
+    if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
+        raw_binary_base64 = base64.b64encode(segy_file_header_dump.raw_binary_headers).decode("ascii")
+        xr_dataset["segy_file_header"].attrs.update({"rawBinaryHeader": raw_binary_base64})
 
     return xr_dataset
 
@@ -428,10 +461,11 @@ def segy_to_mdio(  # noqa PLR0913
 
     segy_settings = SegySettings(storage_options=input_path.storage_options)
     segy_file = SegyFile(url=input_path.as_posix(), spec=segy_spec, settings=segy_settings)
+    segy_info: SegyFileHeaderDump = _get_segy_file_header_dump(segy_file)
 
     segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
-    grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
+    grid = _build_and_check_grid(segy_dimensions, segy_file.num_traces, segy_headers)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
@@ -461,7 +495,7 @@ def segy_to_mdio(  # noqa PLR0913
         coords=non_dim_coords,
     )
 
-    xr_dataset = _add_segy_file_headers(xr_dataset, segy_file)
+    xr_dataset = _add_segy_file_headers(xr_dataset, segy_info)
 
     xr_dataset.trace_mask.data[:] = grid.live_mask
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
