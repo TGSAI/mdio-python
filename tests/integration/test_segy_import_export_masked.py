@@ -21,7 +21,6 @@ from segy.factory import SegyFactory
 from segy.schema import HeaderField
 from segy.schema import SegySpec
 from segy.standards import get_segy_standard
-from tests.conftest import DEBUG_MODE
 
 from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
@@ -273,8 +272,6 @@ def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: Grid
 @pytest.fixture
 def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Fixture that generates temp directory for export tests."""
-    if DEBUG_MODE:  # pragma: no cover
-        return Path("TMP/export_masked")
     return tmp_path_factory.getbasetemp() / "export_masked"
 
 
