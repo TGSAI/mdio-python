@@ -11,13 +11,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 import zarr
 from segy import SegyFile
-from segy.arrays import HeaderArray
 from segy.config import SegySettings
-from segy.schema import Endianness
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
-from segy.transforms import TransformFactory
-from segy.transforms import TransformPipeline
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
@@ -130,7 +126,7 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
 
 @dataclass
-class SegyInfo:
+class SegyFileHeaderDump:
     """Segy metadata information."""
 
     text_header: str
@@ -138,27 +134,7 @@ class SegyInfo:
     raw_binary_headers: bytes
 
 
-# We should move this function to the SEG-Y library, make it public,
-# and call it inside of binary_header(self) (segy/file.py:142)
-def _to_binary_header_array(buffer_bytes: bytes, spec: SegySpec) -> HeaderArray:
-    """Parse binary header bytes, based on spec."""
-    buffer = bytearray(buffer_bytes)
-
-    bin_hdr = np.frombuffer(buffer, dtype=spec.binary_header.dtype)
-
-    transforms = TransformPipeline()
-
-    if spec.endianness == Endianness.BIG:
-        little_endian = TransformFactory.create("byte_swap", Endianness.LITTLE)
-        transforms.add_transform(little_endian)
-
-    interpret_revision = TransformFactory.create("segy_revision")
-    transforms.add_transform(interpret_revision)
-
-    return HeaderArray(transforms.apply(bin_hdr))
-
-
-def _get_segy_info(segy_file: SegyFile) -> SegyInfo:
+def _get_segy_file_header_dump(segy_file: SegyFile) -> SegyFileHeaderDump:
     """Reads information from a SEG-Y file."""
     text_header = segy_file.text_header
 
@@ -167,9 +143,11 @@ def _get_segy_info(segy_file: SegyFile) -> SegyInfo:
         offset=segy_file.spec.binary_header.offset,
         length=segy_file.spec.binary_header.itemsize,
     )
-    binary_header_dict = _to_binary_header_array(raw_binary_headers, segy_file.spec).to_dict()
 
-    return SegyInfo(
+    # We read here twice, but it's ok for now. Only 400-bytes.
+    binary_header_dict = segy_file.binary_header.to_dict()
+
+    return SegyFileHeaderDump(
         text_header=text_header,
         binary_header_dict=binary_header_dict,
         raw_binary_headers=raw_binary_headers,
@@ -354,7 +332,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_info: SegyInfo) -> xr_Dataset:
+def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_header_dump: SegyFileHeaderDump) -> xr_Dataset:
     save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
     if not save_file_header:
         return xr_dataset
@@ -362,11 +340,11 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_info: SegyInfo) -> xr_Da
     expected_rows = 40
     expected_cols = 80
 
-    text_header_rows = segy_info.text_header.splitlines()
+    text_header_rows = segy_file_header_dump.text_header.splitlines()
     text_header_cols_bad = [len(row) != expected_cols for row in text_header_rows]
 
     if len(text_header_rows) != expected_rows:
-        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_info.text_header)}"
+        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_file_header_dump.text_header)}"
         raise ValueError(err)
 
     if any(text_header_cols_bad):
@@ -376,16 +354,13 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_info: SegyInfo) -> xr_Da
     xr_dataset["segy_file_header"] = ((), "")
     xr_dataset["segy_file_header"].attrs.update(
         {
-            "textHeader": segy_info.text_header,
-            "binaryHeader": segy_info.binary_header_dict,
+            "textHeader": segy_file_header_dump.text_header,
+            "binaryHeader": segy_file_header_dump.binary_header_dict,
         }
     )
-    if os.getenv("MDIO__DO_RAW_HEADERS", "0") == "1":
-        xr_dataset["segy_file_header"].attrs.update(
-            {
-                "rawBinaryHeader": base64.b64encode(segy_info.raw_binary_headers).decode("ascii"),
-            }
-        )
+    if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
+        raw_binary_base64 = base64.b64encode(segy_file_header_dump.raw_binary_headers).decode("ascii")
+        xr_dataset["segy_file_header"].attrs.update({"rawBinaryHeader": raw_binary_base64})
 
     return xr_dataset
 
@@ -486,7 +461,7 @@ def segy_to_mdio(  # noqa PLR0913
 
     segy_settings = SegySettings(storage_options=input_path.storage_options)
     segy_file = SegyFile(url=input_path.as_posix(), spec=segy_spec, settings=segy_settings)
-    segy_info: SegyInfo = _get_segy_info(segy_file)
+    segy_info: SegyFileHeaderDump = _get_segy_file_header_dump(segy_file)
 
     segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 

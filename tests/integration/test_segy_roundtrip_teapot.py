@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 
 dask.config.set(scheduler="synchronous")
 os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
-os.environ["MDIO__DO_RAW_HEADERS"] = "1"
+os.environ["MDIO__IMPORT__RAW_HEADERS"] = "1"
 
 
 @pytest.fixture
