@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import warnings
-from pathlib import Path
+from typing import TYPE_CHECKING
 from urllib.request import urlretrieve
 
 import pytest
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Suppress Dask's chunk balancing warning
 warnings.filterwarnings(
