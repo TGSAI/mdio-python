@@ -26,10 +26,10 @@ dependencies = [
     "psutil>=7.0.0",
     "pydantic>=2.11.9",
     "rich>=14.1.0",
-    "segy>=0.5.0",
+    "segy>=0.5.1.post1",
     "tqdm>=4.67.1",
     "universal-pathlib>=0.2.6",
-    "xarray>=2025.9.0",
+    "xarray>=2025.9.1",
     "zarr>=3.1.3",
 ]
 

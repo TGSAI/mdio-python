@@ -1922,10 +1922,10 @@ requires-dist = [
     { name = "pydantic", specifier = ">=2.11.9" },
     { name = "rich", specifier = ">=14.1.0" },
     { name = "s3fs", marker = "extra == 'cloud'", specifier = ">=2025.9.0" },
-    { name = "segy", specifier = ">=0.5.0" },
+    { name = "segy", specifier = ">=0.5.1.post1" },
     { name = "tqdm", specifier = ">=4.67.1" },
     { name = "universal-pathlib", specifier = ">=0.2.6" },
-    { name = "xarray", specifier = ">=2025.9.0" },
+    { name = "xarray", specifier = ">=2025.9.1" },
     { name = "zarr", specifier = ">=3.1.3" },
     { name = "zfpy", marker = "extra == 'lossy'", specifier = ">=1.0.1" },
 ]
@@ -3198,7 +3198,7 @@ wheels = [
 
 [[package]]
 name = "segy"
-version = "0.5.0.post1"
+version = "0.5.1.post1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fsspec" },
@@ -3210,9 +3210,9 @@ dependencies = [
     { name = "rapidfuzz" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/65/c2/aae81f9f9ae43c28c2d6b543719e6f1805d50d9565f3616af9ce29e3fbc0/segy-0.5.0.post1.tar.gz", hash = "sha256:b8c140fb10cfd4807bc6aab46a6f09d98b82c4995e045f568be3bbf6c044aba6", size = 43037, upload-time = "2025-09-15T13:33:42.348Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0a/c5/c71d4f52eb1587bdeb8401445ac65b08603fb6f77ada46933dec5fbbd6f8/segy-0.5.1.post1.tar.gz", hash = "sha256:655d1b26aa7a698084d190c8b5c7d12802cfbc9627067614606b1d69c5f0f4ae", size = 43354, upload-time = "2025-09-30T20:35:19.879Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/27/f0/b67a8a89dbb331d55e9b37c779c270a48ff09ca83a0055a65a84f33dc100/segy-0.5.0.post1-py3-none-any.whl", hash = "sha256:158661da578147fa5cfbcf335047a2459f86aa5522e1acc4249bb8252d26be55", size = 55408, upload-time = "2025-09-15T13:33:40.571Z" },
+    { url = "https://files.pythonhosted.org/packages/71/ff/ee1b5c982ddfb7185fac41b85ce7a8bd2d5604d6129183a63c2a851109d3/segy-0.5.1.post1-py3-none-any.whl", hash = "sha256:6f36a0795c459d77a3d715d7e5b1444be4cb8368720f89111d452be93d1cf7f1", size = 55757, upload-time = "2025-09-30T20:35:18.665Z" },
 ]
 
 [[package]]
@@ -3611,7 +3611,7 @@ wheels = [
 
 [[package]]
 name = "typer"
-version = "0.16.1"
+version = "0.19.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -3619,9 +3619,9 @@ dependencies = [
     { name = "shellingham" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/43/78/d90f616bf5f88f8710ad067c1f8705bf7618059836ca084e5bb2a0855d75/typer-0.16.1.tar.gz", hash = "sha256:d358c65a464a7a90f338e3bb7ff0c74ac081449e53884b12ba658cbd72990614", size = 102836, upload-time = "2025-08-18T19:18:22.898Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/21/ca/950278884e2ca20547ff3eb109478c6baf6b8cf219318e6bc4f666fad8e8/typer-0.19.2.tar.gz", hash = "sha256:9ad824308ded0ad06cc716434705f691d4ee0bfd0fb081839d2e426860e7fdca", size = 104755, upload-time = "2025-09-23T09:47:48.256Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/2d/76/06dbe78f39b2203d2a47d5facc5df5102d0561e2807396471b5f7c5a30a1/typer-0.16.1-py3-none-any.whl", hash = "sha256:90ee01cb02d9b8395ae21ee3368421faf21fa138cb2a541ed369c08cec5237c9", size = 46397, upload-time = "2025-08-18T19:18:21.663Z" },
+    { url = "https://files.pythonhosted.org/packages/00/22/35617eee79080a5d071d0f14ad698d325ee6b3bf824fc0467c03b30e7fa8/typer-0.19.2-py3-none-any.whl", hash = "sha256:755e7e19670ffad8283db353267cb81ef252f595aa6834a0d1ca9312d9326cb9", size = 46748, upload-time = "2025-09-23T09:47:46.777Z" },
 ]
 
 [[package]]
@@ -3876,16 +3876,16 @@ wheels = [
 
 [[package]]
 name = "xarray"
-version = "2025.9.0"
+version = "2025.9.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "packaging" },
     { name = "pandas" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4e/0b/bbb76e05c8e2099baf90e259c29cafe6a525524b1d1da8bfbc39577c043e/xarray-2025.9.0.tar.gz", hash = "sha256:7dd6816fe0062c49c5e9370dd483843bc13e5ed80a47a9ff10baff2b51e070fb", size = 3040318, upload-time = "2025-09-04T04:20:26.296Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d0/5d/e139112a463336c636d4455494f3227b7f47a2e06ca7571e6b88158ffc06/xarray-2025.9.1.tar.gz", hash = "sha256:f34a27a52c13d1f3cceb7b27276aeec47021558363617dd7ef4f4c8b379011c0", size = 3057322, upload-time = "2025-09-30T05:28:53.084Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/8d/f0/73c24457c941b8b08f7d090853e40f4b2cdde88b5da721f3f28e98df77c9/xarray-2025.9.0-py3-none-any.whl", hash = "sha256:79f0e25fb39571f612526ee998ee5404d8725a1db3951aabffdb287388885df0", size = 1349595, upload-time = "2025-09-04T04:20:24.36Z" },
+    { url = "https://files.pythonhosted.org/packages/0e/a7/6eeb32e705d510a672f74135f538ad27f87f3d600845bfd3834ea3a77c7e/xarray-2025.9.1-py3-none-any.whl", hash = "sha256:3e9708db0d7915c784ed6c227d81b398dca4957afe68d119481f8a448fc88c44", size = 1364411, upload-time = "2025-09-30T05:28:51.294Z" },
 ]
 
 [[package]]
