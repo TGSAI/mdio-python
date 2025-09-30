@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike
 
 
-MAX_SIZE_LIVE_MASK = 256 * 1024**2
+MAX_SIZE_LIVE_MASK = 128 * 1024**2
 MAX_COORDINATES_BYTES = 16 * 1024**2
 
 
