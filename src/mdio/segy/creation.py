@@ -28,38 +28,6 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _filter_raw_unspecified_fields(headers: NDArray) -> NDArray:
-    """Filter out __MDIO_RAW_UNSPECIFIED_Field_* fields from headers array.
-
-    These fields are added during SEGY import to preserve raw header bytes,
-    but they cause dtype mismatches during export. This function removes them.
-
-    Args:
-        headers: Header array that may contain raw unspecified fields.
-
-    Returns:
-        Header array with raw unspecified fields removed.
-    """
-    if headers.dtype.names is None:
-        return headers
-
-    # Find field names that don't start with __MDIO_RAW_UNSPECIFIED_
-    field_names = [name for name in headers.dtype.names if not name.startswith("__MDIO_RAW_UNSPECIFIED_")]
-
-    if len(field_names) == len(headers.dtype.names):
-        # No raw unspecified fields found, return as-is
-        return headers
-
-    # Create new structured array with only the non-raw fields
-    new_dtype = [(name, headers.dtype.fields[name][0]) for name in field_names]
-    filtered_headers = np.empty(headers.shape, dtype=new_dtype)
-
-    for name in field_names:
-        filtered_headers[name] = headers[name]
-
-    return filtered_headers
-
-
 def make_segy_factory(spec: SegySpec, binary_header: dict[str, int]) -> SegyFactory:
     """Generate SEG-Y factory from MDIO metadata."""
     sample_interval = binary_header["sample_interval"]
@@ -199,9 +167,7 @@ def serialize_to_segy_stack(  # noqa: PLR0913
         samples = samples[live_mask]
         headers = headers[live_mask]
 
-        # Filter out raw unspecified fields that cause dtype mismatches
-        filtered_headers = _filter_raw_unspecified_fields(headers)
-        buffer = segy_factory.create_traces(filtered_headers, samples)
+        buffer = segy_factory.create_traces(headers, samples)
 
         global_index = block_start[0]
         record_id_str = str(global_index)
@@ -233,9 +199,7 @@ def serialize_to_segy_stack(  # noqa: PLR0913
             rec_samples = samples[rec_index][rec_live_mask]
             rec_headers = headers[rec_index][rec_live_mask]
 
-            # Filter out raw unspecified fields that cause dtype mismatches
-            filtered_headers = _filter_raw_unspecified_fields(rec_headers)
-            buffer = segy_factory.create_traces(filtered_headers, rec_samples)
+            buffer = segy_factory.create_traces(rec_headers, rec_samples)
 
             global_index = tuple(block_start[i] + rec_index[i] for i in range(record_ndim))
             record_id_str = "/".join(map(str, global_index))
