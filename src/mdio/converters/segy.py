@@ -378,9 +378,14 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_info: SegyInfo) -> xr_Da
         {
             "textHeader": segy_info.text_header,
             "binaryHeader": segy_info.binary_header_dict,
-            "rawBinaryHeader": base64.b64encode(segy_info.raw_binary_headers).decode("ascii"),
         }
     )
+    if os.getenv("MDIO__DO_RAW_HEADERS", "0") == "1":
+        xr_dataset["segy_file_header"].attrs.update(
+            {
+                "rawBinaryHeader": base64.b64encode(segy_info.raw_binary_headers).decode("ascii"),
+            }
+        )
 
     return xr_dataset
 
