@@ -1,21 +1,22 @@
 """Creating MDIO v1 datasets."""
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
+
 from segy.standards import get_segy_standard
+
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
 from mdio.builder.xarray_builder import to_xarray_dataset
-from mdio.converters.segy import get_horizontal_coordinate_unit, populate_dim_coordinates
+from mdio.converters.segy import get_horizontal_coordinate_unit
+from mdio.converters.segy import populate_dim_coordinates
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
 
 if TYPE_CHECKING:
     from pathlib import Path
-    from typing import Any
 
-    from segy.arrays import HeaderArray as SegyHeaderArray
-    from segy.schema import SegySpec
     from upath import UPath
     from xarray import Dataset as xr_Dataset
 
