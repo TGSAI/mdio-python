@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 from typing import TYPE_CHECKING
 
 import dask
@@ -25,13 +24,20 @@ from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.segy import segy_to_mdio
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from pathlib import Path
 
     from segy.schema import SegySpec
 
 
 dask.config.set(scheduler="synchronous")
-os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
+
+
+@pytest.fixture
+def set_env_vars(monkeypatch: Generator[pytest.MonkeyPatch]) -> None:
+    """Set environment variables for the Teapot dome tests."""
+    monkeypatch.setenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "true")
+    monkeypatch.setenv("MDIO__IMPORT__RAW_HEADERS", "true")
 
 
 @pytest.fixture
@@ -130,11 +136,29 @@ def binary_header_teapot_dome() -> dict[str, int]:
     }
 
 
+def raw_binary_header_teapot_dome() -> str:
+    """Return the teapot dome expected raw binary header, base64 encoded."""
+    return (
+        "AAAnDwAAJw8AAAABALwAAAfQAAAF3QXdAAEAOQAEAAEAAAAAAAAAAAAAAAAAAAAAAAIAAQAEAAIAAQAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+        "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+    )
+
+
 class TestTeapotRoundtrip:
     """Tests for Teapot Dome data ingestion and export."""
 
     @pytest.mark.dependency
-    def test_teapot_import(self, segy_input: Path, zarr_tmp: Path, teapot_segy_spec: SegySpec) -> None:
+    @pytest.mark.usefixtures("set_env_vars")
+    def test_teapot_import(
+        self,
+        segy_input: Path,
+        zarr_tmp: Path,
+        teapot_segy_spec: SegySpec,
+    ) -> None:
         """Test importing a SEG-Y file to MDIO.
 
         NOTE: This test must be executed before the 'TestReader' and 'TestExport' tests.
@@ -176,6 +200,7 @@ class TestTeapotRoundtrip:
         segy_file_header = ds["segy_file_header"]
         assert segy_file_header.attrs["textHeader"] == text_header_teapot_dome()
         assert segy_file_header.attrs["binaryHeader"] == binary_header_teapot_dome()
+        assert segy_file_header.attrs["rawBinaryHeader"] == raw_binary_header_teapot_dome()
 
     def test_variable_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""

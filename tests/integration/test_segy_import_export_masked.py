@@ -282,11 +282,61 @@ def generate_selection_mask(selection_conf: SelectionMaskConfig, grid_conf: Grid
 
 
 @pytest.fixture
-def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
+def export_masked_path(tmp_path_factory: pytest.TempPathFactory, raw_headers_env: None) -> Path:  # noqa: ARG001
     """Fixture that generates temp directory for export tests."""
+    # Create path suffix based on current raw headers environment variable
+    # raw_headers_env dependency ensures the environment variable is set before this runs
+    raw_headers_enabled = os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on")
+    path_suffix = "with_raw_headers" if raw_headers_enabled else "without_raw_headers"
+
     if DEBUG_MODE:
-        return Path("TMP/export_masked")
-    return tmp_path_factory.getbasetemp() / "export_masked"
+        return Path(f"tmp/export_masked_{path_suffix}")
+    return tmp_path_factory.getbasetemp() / f"export_masked_{path_suffix}"
+
+
+@pytest.fixture
+def raw_headers_env(request: pytest.FixtureRequest) -> None:
+    """Fixture to set/unset MDIO__IMPORT__RAW_HEADERS environment variable."""
+    env_value = request.param
+    if env_value is not None:
+        os.environ["MDIO__IMPORT__RAW_HEADERS"] = env_value
+    else:
+        os.environ.pop("MDIO__IMPORT__RAW_HEADERS", None)
+
+    yield
+
+    # Cleanup after test - both environment variable and template state
+    os.environ.pop("MDIO__IMPORT__RAW_HEADERS", None)
+
+    # Clean up any template modifications to ensure test isolation
+    registry = TemplateRegistry.get_instance()
+
+    # Reset any templates that might have been modified with raw headers
+    template_names = [
+        "PostStack2DTime",
+        "PostStack3DTime",
+        "PreStackCdpOffsetGathers2DTime",
+        "PreStackCdpOffsetGathers3DTime",
+        "PreStackShotGathers2DTime",
+        "PreStackShotGathers3DTime",
+        "PreStackCocaGathers3DTime",
+    ]
+
+    for template_name in template_names:
+        try:
+            template = registry.get(template_name)
+            # Remove raw headers enhancement if present
+            if hasattr(template, "_mdio_raw_headers_enhanced"):
+                delattr(template, "_mdio_raw_headers_enhanced")
+                # The enhancement is applied by monkey-patching _add_variables
+                # We need to restore it to the original method from the class
+                # Since we can't easily restore the exact original, we'll get a fresh instance
+                template_class = type(template)
+                if hasattr(template_class, "_add_variables"):
+                    template._add_variables = template_class._add_variables.__get__(template, template_class)
+        except KeyError:
+            # Template not found, skip
+            continue
 
 
 @pytest.mark.parametrize(
@@ -294,10 +344,16 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
     [STACK_2D_CONF, STACK_3D_CONF, GATHER_2D_CONF, GATHER_3D_CONF, STREAMER_2D_CONF, STREAMER_3D_CONF, COCA_3D_CONF],
     ids=["2d_stack", "3d_stack", "2d_gather", "3d_gather", "2d_streamer", "3d_streamer", "3d_coca"],
 )
+@pytest.mark.parametrize(
+    "raw_headers_env",
+    ["1", None],
+    ids=["with_raw_headers", "without_raw_headers"],
+    indirect=True,
+)
 class TestNdImportExport:
     """Test import/export of n-D SEG-Ys to MDIO, with and without selection mask."""
 
-    def test_import(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+    def test_import(self, test_conf: MaskedExportConfig, export_masked_path: Path, raw_headers_env: None) -> None:  # noqa: ARG002
         """Test import of an n-D SEG-Y file to MDIO.
 
         NOTE: This test must be executed before running 'test_ingested_mdio', 'test_export', and
@@ -319,7 +375,12 @@ class TestNdImportExport:
             overwrite=True,
         )
 
-    def test_ingested_mdio(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+    def test_ingested_mdio(
+        self,
+        test_conf: MaskedExportConfig,
+        export_masked_path: Path,
+        raw_headers_env: None,  # noqa: ARG002
+    ) -> None:
         """Verify if ingested data is correct.
 
         NOTE: This test must be executed after the 'test_import' successfully completes
@@ -374,7 +435,7 @@ class TestNdImportExport:
         expected = np.arange(1, num_traces + 1, dtype=np.float32).reshape(live_mask.shape)
         assert np.array_equal(actual, expected)
 
-    def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+    def test_export(self, test_conf: MaskedExportConfig, export_masked_path: Path, raw_headers_env: None) -> None:  # noqa: ARG002
         """Test export of an n-D MDIO file back to SEG-Y.
 
         NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio'
@@ -411,7 +472,12 @@ class TestNdImportExport:
         assert_array_equal(desired=expected_traces.header, actual=actual_traces.header)
         assert_array_equal(desired=expected_traces.sample, actual=actual_traces.sample)
 
-    def test_export_masked(self, test_conf: MaskedExportConfig, export_masked_path: Path) -> None:
+    def test_export_masked(
+        self,
+        test_conf: MaskedExportConfig,
+        export_masked_path: Path,
+        raw_headers_env: None,  # noqa: ARG002
+    ) -> None:
         """Test export of an n-D MDIO file back to SEG-Y with masked export.
 
         NOTE: This test must be executed after the 'test_import' and 'test_ingested_mdio'
@@ -440,3 +506,71 @@ class TestNdImportExport:
         # https://github.com/TGSAI/mdio-python/issues/610
         assert_array_equal(actual_sgy.trace[:].header, expected_sgy.trace[expected_trc_idx].header)
         assert_array_equal(actual_sgy.trace[:].sample, expected_sgy.trace[expected_trc_idx].sample)
+
+    def test_raw_headers_byte_preservation(
+        self,
+        test_conf: MaskedExportConfig,
+        export_masked_path: Path,
+        raw_headers_env: None,  # noqa: ARG002
+    ) -> None:
+        """Test that raw headers are preserved byte-for-byte when MDIO__IMPORT__RAW_HEADERS=1."""
+        grid_conf, segy_factory_conf, _, _ = test_conf
+        segy_path = export_masked_path / f"{grid_conf.name}.sgy"
+        mdio_path = export_masked_path / f"{grid_conf.name}.mdio"
+
+        # Open MDIO dataset
+        ds = open_mdio(mdio_path)
+
+        # Check if raw_headers should exist based on environment variable
+        has_raw_headers = "raw_headers" in ds.data_vars
+        if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
+            assert has_raw_headers, "raw_headers should be present when MDIO__IMPORT__RAW_HEADERS=1"
+        else:
+            assert not has_raw_headers, (
+                f"raw_headers should not be present when MDIO__IMPORT__RAW_HEADERS is not set\n {ds}"
+            )
+            return  # Exit early if raw_headers are not expected
+
+        # Get data (only if raw_headers exist)
+        raw_headers_data = ds.raw_headers.values
+        trace_mask = ds.trace_mask.values
+
+        # Verify 240-byte headers
+        assert raw_headers_data.dtype.itemsize == 240, (
+            f"Expected 240-byte headers, got {raw_headers_data.dtype.itemsize}"
+        )
+
+        # Read raw bytes directly from SEG-Y file
+        def read_segy_trace_header(trace_index: int) -> bytes:
+            """Read 240-byte trace header directly from SEG-Y file."""
+            # with open(segy_path, "rb") as f:
+            with Path.open(segy_path, "rb") as f:
+                # Skip text (3200) + binary (400) headers = 3600 bytes
+                f.seek(3600)
+                # Each trace: 240 byte header + (num_samples * 4) byte samples
+                trace_size = 240 + (segy_factory_conf.num_samples * 4)
+                trace_offset = trace_index * trace_size
+                f.seek(trace_offset, 1)  # Seek relative to current position
+                return f.read(240)
+
+        # Compare all valid traces byte-by-byte
+        segy_trace_idx = 0
+        flat_mask = trace_mask.ravel()
+        flat_raw_headers = raw_headers_data.ravel()  # Flatten to 1D array of 240-byte header records
+
+        for grid_idx in range(flat_mask.size):
+            if not flat_mask[grid_idx]:
+                print(f"Skipping trace {grid_idx} because it is masked")
+                continue
+
+            # Get MDIO header as bytes - convert single header record to bytes
+            header_record = flat_raw_headers[grid_idx]
+            mdio_header_bytes = np.frombuffer(header_record.tobytes(), dtype=np.uint8)
+
+            # Get SEG-Y header as raw bytes directly from file
+            segy_raw_header_bytes = read_segy_trace_header(segy_trace_idx)
+            segy_header_bytes = np.frombuffer(segy_raw_header_bytes, dtype=np.uint8)
+
+            assert_array_equal(mdio_header_bytes, segy_header_bytes)
+
+            segy_trace_idx += 1

@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
+import zarr
 from segy import SegyFile
 from segy.config import SegySettings
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
@@ -14,14 +17,24 @@ from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
+from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.xarray_builder import to_xarray_dataset
+from mdio.constants import ZarrFormat
 from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
+from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -115,6 +128,35 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
+@dataclass
+class SegyFileHeaderDump:
+    """Segy metadata information."""
+
+    text_header: str
+    binary_header_dict: dict
+    raw_binary_headers: bytes
+
+
+def _get_segy_file_header_dump(segy_file: SegyFile) -> SegyFileHeaderDump:
+    """Reads information from a SEG-Y file."""
+    text_header = segy_file.text_header
+
+    raw_binary_headers: bytes = segy_file.fs.read_block(
+        fn=segy_file.url,
+        offset=segy_file.spec.binary_header.offset,
+        length=segy_file.spec.binary_header.itemsize,
+    )
+
+    # We read here twice, but it's ok for now. Only 400-bytes.
+    binary_header_dict = segy_file.binary_header.to_dict()
+
+    return SegyFileHeaderDump(
+        text_header=text_header,
+        binary_header_dict=binary_header_dict,
+        raw_binary_headers=raw_binary_headers,
+    )
+
+
 def _scan_for_headers(
     segy_file: SegyFile,
     template: AbstractDatasetTemplate,
@@ -143,12 +185,12 @@ def _scan_for_headers(
     return segy_dimensions, segy_headers
 
 
-def _build_and_check_grid(segy_dimensions: list[Dimension], segy_file: SegyFile, segy_headers: SegyHeaderArray) -> Grid:
+def _build_and_check_grid(segy_dimensions: list[Dimension], num_traces: int, segy_headers: SegyHeaderArray) -> Grid:
     """Build and check the grid from the SEG-Y headers and dimensions.
 
     Args:
         segy_dimensions: List of of all SEG-Y dimensions to build grid from.
-        segy_file: Instance of SegyFile to check for trace count.
+        num_traces: Number of traces in the SEG-Y file.
         segy_headers: Headers read in from SEG-Y file for building the trace map.
 
     Returns:
@@ -158,15 +200,15 @@ def _build_and_check_grid(segy_dimensions: list[Dimension], segy_file: SegyFile,
         GridTraceCountError: If number of traces in SEG-Y file does not match the parsed grid
     """
     grid = Grid(dims=segy_dimensions)
-    grid_density_qc(grid, segy_file.num_traces)
+    grid_density_qc(grid, num_traces)
     grid.build_map(segy_headers)
     # Check grid validity by comparing trace numbers
-    if np.sum(grid.live_mask) != segy_file.num_traces:
+    if np.sum(grid.live_mask) != num_traces:
         for dim_name in grid.dim_names:
             dim_min, dim_max = grid.get_min(dim_name), grid.get_max(dim_name)
             logger.warning("%s min: %s max: %s", dim_name, dim_min, dim_max)
         logger.warning("Ingestion grid shape: %s.", grid.shape)
-        raise GridTraceCountError(np.sum(grid.live_mask), segy_file.num_traces)
+        raise GridTraceCountError(np.sum(grid.live_mask), num_traces)
     return grid
 
 
@@ -293,7 +335,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file: SegyFile) -> xr_Dataset:
+def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_header_dump: SegyFileHeaderDump) -> xr_Dataset:
     save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
     if not save_file_header:
         return xr_dataset
@@ -301,12 +343,11 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file: SegyFile) -> xr_Da
     expected_rows = 40
     expected_cols = 80
 
-    text_header = segy_file.text_header
-    text_header_rows = text_header.splitlines()
+    text_header_rows = segy_file_header_dump.text_header.splitlines()
     text_header_cols_bad = [len(row) != expected_cols for row in text_header_rows]
 
     if len(text_header_rows) != expected_rows:
-        err = f"Invalid text header count: expected {expected_rows}, got {len(text_header)}"
+        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_file_header_dump.text_header)}"
         raise ValueError(err)
 
     if any(text_header_cols_bad):
@@ -316,10 +357,13 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file: SegyFile) -> xr_Da
     xr_dataset["segy_file_header"] = ((), "")
     xr_dataset["segy_file_header"].attrs.update(
         {
-            "textHeader": text_header,
-            "binaryHeader": segy_file.binary_header.to_dict(),
+            "textHeader": segy_file_header_dump.text_header,
+            "binaryHeader": segy_file_header_dump.binary_header_dict,
         }
     )
+    if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
+        raw_binary_base64 = base64.b64encode(segy_file_header_dump.raw_binary_headers).decode("ascii")
+        xr_dataset["segy_file_header"].attrs.update({"rawBinaryHeader": raw_binary_base64})
 
     return xr_dataset
 
@@ -331,6 +375,87 @@ def _add_grid_override_to_metadata(dataset: Dataset, grid_overrides: dict[str, A
 
     if grid_overrides is not None:
         dataset.metadata.attributes["gridOverrides"] = grid_overrides
+
+
+def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> AbstractDatasetTemplate:
+    """Add raw headers capability to the MDIO template by monkey-patching its _add_variables method.
+
+    This function modifies the template's _add_variables method to also add a raw headers variable
+    with the following characteristics:
+    - Same rank as the Headers variable (all dimensions except vertical)
+    - Name: "RawHeaders"
+    - Type: ScalarType.HEADERS
+    - No coordinates
+    - zstd compressor
+    - No additional metadata
+    - Chunked the same as the Headers variable
+
+    Args:
+        mdio_template: The MDIO template to mutate
+    Returns:
+        The mutated MDIO template
+    """
+    # Check if raw headers enhancement has already been applied to avoid duplicate additions
+    if hasattr(mdio_template, "_mdio_raw_headers_enhanced"):
+        return mdio_template
+
+    # Store the original _add_variables method
+    original_add_variables = mdio_template._add_variables
+
+    def enhanced_add_variables() -> None:
+        # Call the original method first
+        original_add_variables()
+
+        # Now add the raw headers variable
+        chunk_shape = mdio_template._var_chunk_shape[:-1]
+
+        # Create chunk grid metadata
+        chunk_metadata = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
+
+        # Add the raw headers variable using the builder's add_variable method
+        mdio_template._builder.add_variable(
+            name="raw_headers",
+            long_name="Raw Headers",
+            dimensions=mdio_template._dim_names[:-1],  # All dimensions except vertical
+            data_type=ScalarType.BYTES240,
+            compressor=Blosc(cname=BloscCname.zstd),
+            coordinates=None,  # No coordinates as specified
+            metadata=VariableMetadata(chunk_grid=chunk_metadata),
+        )
+
+    # Replace the template's _add_variables method
+    mdio_template._add_variables = enhanced_add_variables
+
+    # Mark the template as enhanced to prevent duplicate monkey-patching
+    mdio_template._mdio_raw_headers_enhanced = True
+
+    return mdio_template
+
+
+def _chunk_variable(ds: Dataset, target_variable_name: str) -> None:
+    """Determines and sets the chunking for a specific Variable in the Dataset."""
+    # Find variable index by name
+    index = next((i for i, obj in enumerate(ds.variables) if obj.name == target_variable_name), None)
+
+    def determine_target_size(var_type: str) -> int:
+        """Determines the target size (in bytes) for a Variable based on its type."""
+        if var_type == "bool":
+            return MAX_SIZE_LIVE_MASK
+        return MAX_COORDINATES_BYTES
+
+    # Create the chunk grid metadata
+    var_type = ds.variables[index].data_type
+    full_shape = tuple(dim.size for dim in ds.variables[index].dimensions)
+    target_size = determine_target_size(var_type)
+
+    chunk_shape = get_constrained_chunksize(full_shape, var_type, target_size)
+    chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
+
+    # Create variable metadata if it doesn't exist
+    if ds.variables[index].metadata is None:
+        ds.variables[index].metadata = VariableMetadata()
+
+    ds.variables[index].metadata.chunk_grid = chunk_grid
 
 
 def segy_to_mdio(  # noqa PLR0913
@@ -365,13 +490,22 @@ def segy_to_mdio(  # noqa PLR0913
 
     segy_settings = SegySettings(storage_options=input_path.storage_options)
     segy_file = SegyFile(url=input_path.as_posix(), spec=segy_spec, settings=segy_settings)
+    segy_info: SegyFileHeaderDump = _get_segy_file_header_dump(segy_file)
 
     segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
 
-    grid = _build_and_check_grid(segy_dimensions, segy_file, segy_headers)
+    grid = _build_and_check_grid(segy_dimensions, segy_file.num_traces, segy_headers)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
+
+    if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
+        if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
+            logger.warning("Raw headers are only supported for Zarr v3. Skipping raw headers.")
+        else:
+            logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
+            mdio_template = _add_raw_headers_to_template(mdio_template)
+
     horizontal_unit = get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
@@ -382,6 +516,11 @@ def segy_to_mdio(  # noqa PLR0913
 
     _add_grid_override_to_metadata(dataset=mdio_ds, grid_overrides=grid_overrides)
 
+    # Dynamically chunk the variables based on their type
+    _chunk_variable(ds=mdio_ds, target_variable_name="trace_mask")  # trace_mask is a Variable and not a Coordinate
+    for coord in mdio_template.coordinate_names:
+        _chunk_variable(ds=mdio_ds, target_variable_name=coord)
+
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
     xr_dataset, drop_vars_delayed = _populate_coordinates(
@@ -390,7 +529,7 @@ def segy_to_mdio(  # noqa PLR0913
         coords=non_dim_coords,
     )
 
-    xr_dataset = _add_segy_file_headers(xr_dataset, segy_file)
+    xr_dataset = _add_segy_file_headers(xr_dataset, segy_info)
 
     xr_dataset.trace_mask.data[:] = grid.live_mask
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in

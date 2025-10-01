@@ -32,6 +32,7 @@ class ScalarType(StrEnum):
     COMPLEX64 = "complex64"
     COMPLEX128 = "complex128"
     COMPLEX256 = "complex256"
+    BYTES240 = "V240"  # fixed-width 240-byte string, used for raw v0/1/2 trace headers
 
 
 class StructuredField(CamelCaseStrictModel):
