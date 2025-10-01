@@ -9,9 +9,8 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike
 
 
-MAX_SIZE_LIVE_MASK = 512 * 1024**2
-
-JsonSerializable = str | int | float | bool | None | dict[str, "JsonSerializable"] | list["JsonSerializable"]
+MAX_SIZE_LIVE_MASK = 256 * 1024**2
+MAX_COORDINATES_BYTES = 32 * 1024**2
 
 
 def get_constrained_chunksize(

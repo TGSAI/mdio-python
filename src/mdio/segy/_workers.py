@@ -12,6 +12,7 @@ from segy import SegyFile
 
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.dtype import ScalarType
+from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
@@ -121,17 +122,37 @@ def trace_worker(  # noqa: PLR0913
     zarr_config.set({"threading.max_workers": 1})
 
     live_trace_indexes = local_grid_map[not_null].tolist()
-    traces = segy_file.trace[live_trace_indexes]
 
     header_key = "headers"
+    raw_header_key = "raw_headers"
 
     # Get subset of the dataset that has not yet been saved
     # The headers might not be present in the dataset
     worker_variables = [data_variable_name]
     if header_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
         worker_variables.append(header_key)
+    if raw_header_key in dataset.data_vars:
+        worker_variables.append(raw_header_key)
+
+    # traces = segy_file.trace[live_trace_indexes]
+    # Raw headers are not intended to remain as a feature of the SEGY ingestion.
+    # For that reason, we have wrapped the accessors to provide an interface that can be removed
+    # and not require additional changes to the below code.
+    # NOTE: The `raw_header_key` code block should be removed in full as it will become dead code.
+    traces = SegyFileRawTraceWrapper(segy_file, live_trace_indexes)
 
     ds_to_write = dataset[worker_variables]
+
+    if raw_header_key in worker_variables:
+        tmp_raw_headers = np.zeros_like(dataset[raw_header_key])
+        tmp_raw_headers[not_null] = traces.raw_header
+
+        ds_to_write[raw_header_key] = Variable(
+            ds_to_write[raw_header_key].dims,
+            tmp_raw_headers,
+            attrs=ds_to_write[raw_header_key].attrs,
+            encoding=ds_to_write[raw_header_key].encoding,  # Not strictly necessary, but safer than not doing it.
+        )
 
     if header_key in worker_variables:
         # TODO(BrianMichell): Implement this better so that we can enable fill values without changing the code
