@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from mdio.builder.schemas import compressors
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
@@ -32,32 +33,38 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
             self._builder.add_coordinate(name, dimensions=(name,), data_type=ScalarType.INT32)
 
         # Add non-dimension coordinates
+        compressor = compressors.Blosc(cname=compressors.BloscCname.zstd)
         self._builder.add_coordinate(
             "gun",
             dimensions=("shot_point",),
             data_type=ScalarType.UINT8,
+            compressor=compressor,
         )
         self._builder.add_coordinate(
             "source_coord_x",
             dimensions=("shot_point",),
             data_type=ScalarType.FLOAT64,
+            compressor=compressor,
             metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
         )
         self._builder.add_coordinate(
             "source_coord_y",
             dimensions=("shot_point",),
             data_type=ScalarType.FLOAT64,
+            compressor=compressor,
             metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
         )
         self._builder.add_coordinate(
             "group_coord_x",
             dimensions=("shot_point", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
+            compressor=compressor,
             metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
         )
         self._builder.add_coordinate(
             "group_coord_y",
             dimensions=("shot_point", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
+            compressor=compressor,
             metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
         )

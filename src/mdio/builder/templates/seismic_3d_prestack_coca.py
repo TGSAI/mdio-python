@@ -2,6 +2,7 @@
 
 from typing import Any
 
+from mdio.builder.schemas import compressors
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.units import AngleUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
@@ -59,15 +60,18 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
         )
 
         # Add non-dimension coordinates
+        compressor = compressors.Blosc(cname=compressors.BloscCname.zstd)
         self._builder.add_coordinate(
             "cdp_x",
             dimensions=("inline", "crossline"),
             data_type=ScalarType.FLOAT64,
+            compressor=compressor,
             metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
         )
         self._builder.add_coordinate(
             "cdp_y",
             dimensions=("inline", "crossline"),
             data_type=ScalarType.FLOAT64,
+            compressor=compressor,
             metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
         )
