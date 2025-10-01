@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.lib import recfunctions as rfn
 
-from mdio.segy.exceptions import GridOverrideIncompatibleError
 from mdio.segy.exceptions import GridOverrideKeysError
 from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError

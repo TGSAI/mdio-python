@@ -14,8 +14,6 @@ from numpy import unique
 from numpy.testing import assert_array_equal
 
 from mdio.core import Dimension
-from mdio.segy.exceptions import GridOverrideIncompatibleError
-from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError
 from mdio.segy.geometry import GridOverrider
 
@@ -130,21 +128,6 @@ class TestAutoGridOverrides:
 
 class TestStreamerGridOverrides:
     """Check grid overrides for shot data with streamer acquisition."""
-
-    def test_missing_param(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
-        """Test missing parameters for the commands."""
-        index_names = ("shot_point", "cable", "channel")
-        chunksize = None
-        overrider = GridOverrider()
-
-    def test_incompatible_overrides(
-        self,
-        mock_streamer_headers: dict[str, npt.NDArray],
-    ) -> None:
-        """Test commands that can't be run together."""
-        index_names = ("shot_point", "cable", "channel")
-        chunksize = None
-        overrider = GridOverrider()
 
     def test_unknown_override(
         self,
