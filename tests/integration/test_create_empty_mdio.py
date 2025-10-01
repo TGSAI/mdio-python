@@ -18,7 +18,6 @@ from tests.integration.testing_helpers import validate_variable
 
 from mdio import __version__
 from mdio.api.io import open_mdio
-from mdio.builder.template_registry import get_template
 from mdio.core import Dimension
 from mdio.creators.mdio import create_empty_mdio
 
