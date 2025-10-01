@@ -257,7 +257,6 @@ def segy_import(  # noqa: PLR0913
         --header-names shot,cable,chan
         --header-types int32,None,int32
         --chunk-size 8,2,256,512
-        --grid-overrides '{"CalculateCable": True}'
 
         \b
         No grid overrides are necessary for shot gathers with channel numbers and wrapped channels.

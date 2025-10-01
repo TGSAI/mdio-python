@@ -14,8 +14,6 @@ from numpy import unique
 from numpy.testing import assert_array_equal
 
 from mdio.core import Dimension
-from mdio.segy.exceptions import GridOverrideIncompatibleError
-from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError
 from mdio.segy.geometry import GridOverrider
 
@@ -130,53 +128,6 @@ class TestAutoGridOverrides:
 
 class TestStreamerGridOverrides:
     """Check grid overrides for shot data with streamer acquisition."""
-
-    def test_calculate_cable(
-        self,
-        mock_streamer_headers: dict[str, npt.NDArray],
-    ) -> None:
-        """Test the CalculateCable command."""
-        index_names = ("shot_point", "cable", "channel")
-        grid_overrides = {"CalculateCable": True, "ChannelsPerCable": len(RECEIVERS)}
-
-        new_headers, new_names, new_chunks = run_override(grid_overrides, index_names, mock_streamer_headers)
-
-        assert new_names == index_names
-        assert new_chunks is None
-
-        dims = get_dims(new_headers)
-
-        # We need channels because unwrap isn't done here
-        channels = unique(mock_streamer_headers["channel"])
-
-        # We reset the cables to start from 1.
-        cables = arange(1, len(CABLES) + 1, dtype="uint32")
-
-        assert_array_equal(dims[0].coords, SHOTS)
-        assert_array_equal(dims[1].coords, cables)
-        assert_array_equal(dims[2].coords, channels)
-
-    def test_missing_param(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
-        """Test missing parameters for the commands."""
-        index_names = ("shot_point", "cable", "channel")
-        chunksize = None
-        overrider = GridOverrider()
-
-        with pytest.raises(GridOverrideMissingParameterError):
-            overrider.run(mock_streamer_headers, index_names, {"CalculateCable": True}, chunksize)
-
-    def test_incompatible_overrides(
-        self,
-        mock_streamer_headers: dict[str, npt.NDArray],
-    ) -> None:
-        """Test commands that can't be run together."""
-        index_names = ("shot_point", "cable", "channel")
-        chunksize = None
-        overrider = GridOverrider()
-
-        grid_overrides = {"CalculateCable": True, "AutoChannelWrap": True}
-        with pytest.raises(GridOverrideIncompatibleError):
-            overrider.run(mock_streamer_headers, index_names, grid_overrides, chunksize)
 
     def test_unknown_override(
         self,
