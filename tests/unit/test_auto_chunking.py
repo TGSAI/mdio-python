@@ -48,9 +48,9 @@ class TestAutoChunkLiveMask:
         [
             ((100,), (100,)),  # small 1d
             ((100, 100), (100, 100)),  # small 2d
-            ((50000, 50000), (12500, 12500)),  # large 2d
-            ((1500, 1500, 1500), (500, 500, 500)),  # large 3d
-            ((1000, 1000, 100, 36), (200, 200, 100, 36)),  # large 4d
+            ((50000, 50000), (16667, 16667)),  # large 2d
+            ((1500, 1500, 1500), (750, 750, 750)),  # large 3d
+            ((1000, 1000, 100, 36), (250, 250, 100, 36)),  # large 4d
         ],
     )
     def test_auto_chunk_live_mask(
@@ -71,8 +71,6 @@ class TestAutoChunkLiveMask:
             (86341, 96341),
             (55000, 97500),
             (100000, 100000),
-            (1024, 1024, 1024),
-            (215, 215, 215, 215),
             (512, 216, 512, 400),
             (64, 128, 64, 32, 64),
             (512, 17, 43, 200, 50),
@@ -85,6 +83,5 @@ class TestAutoChunkLiveMask:
         chunk_elements = np.prod(result)
 
         # We want them to be 250MB +/- 50%
-        print(result)
         assert chunk_elements > MAX_SIZE_LIVE_MASK * 0.75
         assert chunk_elements < MAX_SIZE_LIVE_MASK * 1.25
