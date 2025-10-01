@@ -260,14 +260,6 @@ def segy_import(  # noqa: PLR0913
         --grid-overrides '{"ChannelWrap": True, "ChannelsPerCable": 800}'
 
         \b
-        If we do have cable numbers in the headers, but channels are still sequential (aka.
-        unwrapped), we can still ingest it like this.
-        --header-locations 9,213,13
-        --header-names shot,cable,chan
-        --header-types int32,int16,int32
-        --chunk-size 8,2,256,512
-        --grid-overrides '{"ChannelWrap":True, "ChannelsPerCable": 800}'
-        \b
         No grid overrides are necessary for shot gathers with channel numbers and wrapped channels.
 
         In cases where the user does not know if the input has unwrapped channels but desires to

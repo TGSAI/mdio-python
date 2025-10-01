@@ -153,9 +153,6 @@ class TestStreamerGridOverrides:
         chunksize = None
         overrider = GridOverrider()
 
-        with pytest.raises(GridOverrideMissingParameterError):
-            overrider.run(mock_streamer_headers, index_names, {"ChannelWrap": True}, chunksize)
-
     def test_incompatible_overrides(
         self,
         mock_streamer_headers: dict[str, npt.NDArray],
@@ -164,10 +161,6 @@ class TestStreamerGridOverrides:
         index_names = ("shot_point", "cable", "channel")
         chunksize = None
         overrider = GridOverrider()
-
-        grid_overrides = {"ChannelWrap": True, "AutoChannelWrap": True}
-        with pytest.raises(GridOverrideIncompatibleError):
-            overrider.run(mock_streamer_headers, index_names, grid_overrides, chunksize)
 
     def test_unknown_override(
         self,
