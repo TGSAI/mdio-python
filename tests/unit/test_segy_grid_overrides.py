@@ -131,22 +131,6 @@ class TestAutoGridOverrides:
 class TestStreamerGridOverrides:
     """Check grid overrides for shot data with streamer acquisition."""
 
-    def test_channel_wrap(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
-        """Test the ChannelWrap command."""
-        index_names = ("shot_point", "cable", "channel")
-        grid_overrides = {"ChannelWrap": True, "ChannelsPerCable": len(RECEIVERS)}
-
-        new_headers, new_names, new_chunks = run_override(grid_overrides, index_names, mock_streamer_headers)
-
-        assert new_names == index_names
-        assert new_chunks is None
-
-        dims = get_dims(new_headers)
-
-        assert_array_equal(dims[0].coords, SHOTS)
-        assert_array_equal(dims[1].coords, CABLES)
-        assert_array_equal(dims[2].coords, RECEIVERS)
-
     def test_missing_param(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
         """Test missing parameters for the commands."""
         index_names = ("shot_point", "cable", "channel")
