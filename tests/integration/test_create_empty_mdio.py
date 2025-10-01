@@ -67,11 +67,9 @@ class TestCreateEmptyPostStack3DTimeMdio:
             Dimension(name="time", coords=range(0, 3000, 4)),  # 0-3 seconds 4ms sample rate
         ]
 
-        mdio_template = get_template("PostStack3DTime")
-
         # Call create_empty_mdio
         create_empty_mdio(
-            mdio_template=mdio_template,
+            mdio_template_name="PostStack3DTime",
             dimensions=dims,
             output_path=output_path,
             create_headers=create_headers,

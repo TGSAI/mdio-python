@@ -8,6 +8,7 @@ from segy.standards import get_segy_standard
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
+from mdio.builder.template_registry import TemplateRegistry
 from mdio.builder.xarray_builder import to_xarray_dataset
 from mdio.converters.segy import get_horizontal_coordinate_unit
 from mdio.converters.segy import populate_dim_coordinates
@@ -21,12 +22,11 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
     from mdio.builder.schemas import Dataset
-    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
     from mdio.core.dimension import Dimension
 
 
 def create_empty_mdio(  # noqa PLR0913
-    mdio_template: AbstractDatasetTemplate,
+    mdio_template_name: str,
     dimensions: list[Dimension],
     output_path: UPath | Path | str,
     create_headers: bool = False,
@@ -35,7 +35,7 @@ def create_empty_mdio(  # noqa PLR0913
     """A function that creates an empty MDIO v1 file with known dimensions.
 
     Args:
-        mdio_template: The MDIO template to use to define the dataset structure.
+        mdio_template_name: The MDIO template to use to define the dataset structure.
         dimensions: The dimensions of the MDIO file.
         output_path: The universal path for the output MDIO v1 file.
         create_headers: Whether to create a full set of SEG-Y v1.0 trace headers. Defaults to False.
@@ -53,8 +53,9 @@ def create_empty_mdio(  # noqa PLR0913
     header_dtype = to_structured_type(get_segy_standard(1.0).trace.header.dtype) if create_headers else None
     grid = Grid(dims=dimensions)
     horizontal_unit = get_horizontal_coordinate_unit(grid.dims)
+    mdio_template = TemplateRegistry().get(mdio_template_name)
     mdio_ds: Dataset = mdio_template.build_dataset(
-        name=mdio_template.name,
+        name=mdio_template_name,
         sizes=grid.shape,
         horizontal_coord_unit=horizontal_unit,
         header_dtype=header_dtype,
