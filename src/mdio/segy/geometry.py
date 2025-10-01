@@ -13,7 +13,6 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.lib import recfunctions as rfn
 
-from mdio.segy.exceptions import GridOverrideIncompatibleError
 from mdio.segy.exceptions import GridOverrideKeysError
 from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError
@@ -371,12 +370,6 @@ class DuplicateIndex(GridOverrideCommand):
 
     def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
         """Validate if this transform should run on the type of data."""
-        if "ChannelWrap" in grid_overrides:
-            raise GridOverrideIncompatibleError(self.name, "ChannelWrap")
-
-        if "CalculateCable" in grid_overrides:
-            raise GridOverrideIncompatibleError(self.name, "CalculateCable")
-
         if self.required_keys is not None:
             self.check_required_keys(index_headers)
         self.check_required_params(grid_overrides)
@@ -434,12 +427,6 @@ class AutoChannelWrap(GridOverrideCommand):
 
     def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
         """Validate if this transform should run on the type of data."""
-        if "ChannelWrap" in grid_overrides:
-            raise GridOverrideIncompatibleError(self.name, "ChannelWrap")
-
-        if "CalculateCable" in grid_overrides:
-            raise GridOverrideIncompatibleError(self.name, "CalculateCable")
-
         self.check_required_keys(index_headers)
         self.check_required_params(grid_overrides)
 
@@ -465,58 +452,6 @@ class AutoChannelWrap(GridOverrideCommand):
                 cc_min = cable_chan_min[idx]
 
                 index_headers["channel"][cable_idxs] = index_headers["channel"][cable_idxs] - cc_min + 1
-
-        return index_headers
-
-
-class ChannelWrap(GridOverrideCommand):
-    """Wrap channels to start from one at cable boundaries."""
-
-    required_keys = {"shot_point", "cable", "channel"}
-    required_parameters = {"ChannelsPerCable"}
-
-    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
-        """Validate if this transform should run on the type of data."""
-        if "AutoChannelWrap" in grid_overrides:
-            raise GridOverrideIncompatibleError(self.name, "AutoCableChannel")
-
-        self.check_required_keys(index_headers)
-        self.check_required_params(grid_overrides)
-
-    def transform(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> NDArray:
-        """Perform the grid transform."""
-        self.validate(index_headers, grid_overrides)
-
-        channels_per_cable = grid_overrides["ChannelsPerCable"]
-        index_headers["channel"] = (index_headers["channel"] - 1) % channels_per_cable + 1
-
-        return index_headers
-
-
-class CalculateCable(GridOverrideCommand):
-    """Calculate cable numbers from unwrapped channels."""
-
-    required_keys = {"shot_point", "cable", "channel"}
-    required_parameters = {"ChannelsPerCable"}
-
-    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
-        """Validate if this transform should run on the type of data."""
-        if "AutoChannelWrap" in grid_overrides:
-            raise GridOverrideIncompatibleError(self.name, "AutoCableChannel")
-
-        self.check_required_keys(index_headers)
-        self.check_required_params(grid_overrides)
-
-    def transform(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-    ) -> NDArray:
-        """Perform the grid transform."""
-        self.validate(index_headers, grid_overrides)
-
-        channels_per_cable = grid_overrides["ChannelsPerCable"]
-        index_headers["cable"] = (index_headers["channel"] - 1) // channels_per_cable + 1
 
         return index_headers
 
@@ -574,8 +509,6 @@ class GridOverrider:
         self.commands = {
             "AutoChannelWrap": AutoChannelWrap(),
             "AutoShotWrap": AutoShotWrap(),
-            "CalculateCable": CalculateCable(),
-            "ChannelWrap": ChannelWrap(),
             "NonBinned": NonBinned(),
             "HasDuplicates": DuplicateIndex(),
         }
