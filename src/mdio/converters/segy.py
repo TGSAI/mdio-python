@@ -32,6 +32,9 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
+from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
 from mdio.segy.utilities import get_grid_plan
 
@@ -429,6 +432,32 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
     return mdio_template
 
 
+def _chunk_variable(ds: Dataset, target_variable_name: str) -> None:
+    """Determines and sets the chunking for a specific Variable in the Dataset."""
+    # Find variable index by name
+    index = next((i for i, obj in enumerate(ds.variables) if obj.name == target_variable_name), None)
+
+    def determine_target_size(var_type: str) -> int:
+        """Determines the target size (in bytes) for a Variable based on its type."""
+        if var_type == "bool":
+            return MAX_SIZE_LIVE_MASK
+        return MAX_COORDINATES_BYTES
+
+    # Create the chunk grid metadata
+    var_type = ds.variables[index].data_type
+    full_shape = tuple(dim.size for dim in ds.variables[index].dimensions)
+    target_size = determine_target_size(var_type)
+
+    chunk_shape = get_constrained_chunksize(full_shape, var_type, target_size)
+    chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
+
+    # Create variable metadata if it doesn't exist
+    if ds.variables[index].metadata is None:
+        ds.variables[index].metadata = VariableMetadata()
+
+    ds.variables[index].metadata.chunk_grid = chunk_grid
+
+
 def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
@@ -486,6 +515,11 @@ def segy_to_mdio(  # noqa PLR0913
     )
 
     _add_grid_override_to_metadata(dataset=mdio_ds, grid_overrides=grid_overrides)
+
+    # Dynamically chunk the variables based on their type
+    _chunk_variable(ds=mdio_ds, target_variable_name="trace_mask")  # trace_mask is a Variable and not a Coordinate
+    for coord in mdio_template.coordinate_names:
+        _chunk_variable(ds=mdio_ds, target_variable_name=coord)
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
