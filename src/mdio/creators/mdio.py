@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from segy.standards import get_segy_standard
-
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
 from mdio.builder.template_registry import TemplateRegistry
@@ -17,6 +15,7 @@ from mdio.core.grid import Grid
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from segy.schema import HeaderSpec
     from upath import UPath
     from xarray import Dataset as xr_Dataset
 
@@ -28,7 +27,7 @@ def create_empty(  # noqa PLR0913
     mdio_template_name: str,
     dimensions: list[Dimension],
     output_path: UPath | Path | str,
-    create_headers: bool = False,
+    headers: HeaderSpec | None = None,
     overwrite: bool = False,
 ) -> None:
     """A function that creates an empty MDIO v1 file with known dimensions.
@@ -37,7 +36,7 @@ def create_empty(  # noqa PLR0913
         mdio_template_name: The MDIO template to use to define the dataset structure.
         dimensions: The dimensions of the MDIO file.
         output_path: The universal path for the output MDIO v1 file.
-        create_headers: Whether to create a full set of SEG-Y v1.0 trace headers. Defaults to False.
+        headers: SEG-Y v1.0 trace headers. Defaults to None.
         overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
 
     Raises:
@@ -49,7 +48,7 @@ def create_empty(  # noqa PLR0913
         err = f"Output location '{output_path.as_posix()}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)
 
-    header_dtype = to_structured_type(get_segy_standard(1.0).trace.header.dtype) if create_headers else None
+    header_dtype = to_structured_type(headers.dtype) if headers else None
     grid = Grid(dims=dimensions)
     mdio_template = TemplateRegistry().get(mdio_template_name)
     mdio_ds: Dataset = mdio_template.build_dataset(
