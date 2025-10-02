@@ -2,24 +2,30 @@
 
 from __future__ import annotations
 
+import math
+from turtle import speed
 from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
 from segy.standards import get_segy_standard
 
+from mdio.builder.schemas.v1.units import LengthUnitEnum, LengthUnitModel, SpeedUnitEnum, SpeedUnitModel, TimeUnitEnum, TimeUnitModel
+
 if TYPE_CHECKING:
     from pathlib import Path
 
     from xarray import Dataset as xr_Dataset
 
+from mdio.builder.schemas.v1.stats import CenteredBinHistogram, SummaryStatistics
+from tests.integration.test_segy_roundtrip_teapot import text_header_teapot_dome
 from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_variable
 
 from mdio import __version__
-from mdio.api.io import open_mdio
+from mdio.api.io import open_mdio, to_mdio
 from mdio.core import Dimension
-from mdio.creators.mdio import create_empty_mdio
+from mdio.creators.mdio import create_empty
 
 
 class TestCreateEmptyPostStack3DTimeMdio:
@@ -51,7 +57,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
         # Validate the trace mask (should be all True for empty dataset)
         validate_variable(ds, "trace_mask", (200, 300), ("inline", "crossline"), np.bool_, None, None)
         trace_mask = ds["trace_mask"].values
-        assert np.all(trace_mask), "All traces should be marked as live in empty dataset"
+        assert not np.any(trace_mask), "All traces should be marked as dead in empty dataset"
 
         # Validate the amplitude data (should be empty)
         validate_variable(ds, "amplitude", (200, 300, 750), ("inline", "crossline", "time"), np.float32, None, None)
@@ -67,7 +73,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
         ]
 
         # Call create_empty_mdio
-        create_empty_mdio(
+        create_empty(
             mdio_template_name="PostStack3DTime",
             dimensions=dims,
             output_path=output_path,
@@ -166,3 +172,73 @@ class TestCreateEmptyPostStack3DTimeMdio:
         # Verify the garbage data was overwritten (should not exist)
         assert not garbage_file.exists(), "Garbage file should have been overwritten"
         assert not garbage_dir.exists(), "Garbage directory should have been overwritten"
+
+
+    def test_populate_empty_dataset(self, mdio_with_headers: Path) -> None:
+        """Test showing how to populate empty dataset."""
+
+        # Open an empty PostStack3DTime dataset with SEG-Y 1.0 headers
+        # NOTES:
+        # When this empty dataset was created from the 'PostStack3DTime' template and dimensions, 
+        # * 'inline', 'crossline', and 'time' dimension coordinate variables were created and pre-populated
+        # * 'cdp_x', 'cdp_y' non-dimensional coordinate variables were created
+        # * 'amplitude' variable was created (the name of this variable is specified in the template)
+        #   HACK: in this example, we will use this variable to store the velocity data
+        # * 'trace_mask' variable was created and pre-populated with 'False' fill values 
+        #   (all traces are marked as dead)
+        # * 'headers' segy trace headers variable was created (if the dataset was created with create_headers=true)
+        # * dataset attribute called 'attributes' was created
+        ds = open_mdio(mdio_with_headers) 
+
+        # 1.A) Populate dataset's velocity
+        var_name = ds.attrs["attributes"]["defaultVariableName"]
+        velocity = ds[var_name]
+        velocity[:5,:,:] = 1
+        velocity[5:10,:,:] = 2
+        velocity[50:100,:,:] = 3
+        velocity[150:175,:,:] = -1
+
+        # 1.B) Populate dataset's velocity statistics (optional)
+        nonzero_samples = np.ma.masked_invalid(velocity, copy=False) 
+        stats = SummaryStatistics(
+            count=nonzero_samples.count(),
+            min=nonzero_samples.min(),
+            max=nonzero_samples.max(),
+            sum=nonzero_samples.sum(dtype="float64"),
+            sum_squares=(np.ma.power(nonzero_samples, 2).sum(dtype="float64")),
+            histogram=CenteredBinHistogram(bin_centers=[], counts=[]),
+        )
+        velocity.attrs["statsV1"] = stats.model_dump_json()
+
+        # 1.C) Set coordinate and data variable units (optional)
+        ds.time["unitsV1"] = TimeUnitModel(time=TimeUnitEnum.MILLISECOND).model_dump_json()
+
+        ds.cdp_x.attrs["unitsV1"] = LengthUnitModel(length=LengthUnitEnum.FOOT).model_dump_json()
+        ds.cdp_x.attrs["unitsV1"] = LengthUnitModel(length=LengthUnitEnum.FOOT).model_dump_json()
+
+        velocity.attrs["unitsV1"] = SpeedUnitModel(speed=SpeedUnitEnum.FEET_PER_SECOND).model_dump_json()
+
+        # 3) Populate the non-dimensional coordinate variables 'cdp_x' and 'cdp_y' (optional)
+        origin = [270000, 3290000]      # survey x, y origin
+        inline_azimuth_rad = 0.523599   # survey orientation, in radians, from the north to the east (30 degrees)
+        spacing = [50, 50]              # survey inline, crossline spacing
+        inline_grid, xline_grid = np.meshgrid(ds.inline.values, ds.crossline.values, indexing='ij')
+        sin_azimuth = math.sin(inline_azimuth_rad)
+        cos_azimuth = math.cos(inline_azimuth_rad)
+        ds.cdp_x[:] = origin[0] + inline_grid * spacing[0] * sin_azimuth + xline_grid * spacing[1] * cos_azimuth
+        ds.cdp_y[:] = origin[1] + inline_grid * spacing[0] * cos_azimuth - xline_grid * spacing[1] * sin_azimuth
+
+        # 4) Populate dataset's trace mask (optional)
+        ds.trace_mask[:] = ~np.isnan(velocity[:,:,0])
+
+        # 5) Populate dataset's segy trace headers, if those were created (optional)
+        if "headers" in ds.variables:
+            ds.headers["cdp_x"][:] = ds.cdp_x
+            ds.headers["cdp_y"][:] = ds.cdp_y
+
+        # 5) Create dataset's custom attributes (optional)
+        ds.attrs["attributes"]["createdBy"] = "John Doe"
+
+        output_path = mdio_with_headers.parent / "populated_empty.mdio"
+        to_mdio(ds, output_path=output_path, mode="w", compute=True)
+

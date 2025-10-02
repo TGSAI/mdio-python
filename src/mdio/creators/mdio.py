@@ -10,7 +10,6 @@ from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.builder.xarray_builder import to_xarray_dataset
-from mdio.converters.segy import get_horizontal_coordinate_unit
 from mdio.converters.segy import populate_dim_coordinates
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
@@ -25,7 +24,7 @@ if TYPE_CHECKING:
     from mdio.core.dimension import Dimension
 
 
-def create_empty_mdio(  # noqa PLR0913
+def create_empty(  # noqa PLR0913
     mdio_template_name: str,
     dimensions: list[Dimension],
     output_path: UPath | Path | str,
@@ -52,12 +51,11 @@ def create_empty_mdio(  # noqa PLR0913
 
     header_dtype = to_structured_type(get_segy_standard(1.0).trace.header.dtype) if create_headers else None
     grid = Grid(dims=dimensions)
-    horizontal_unit = get_horizontal_coordinate_unit(grid.dims)
     mdio_template = TemplateRegistry().get(mdio_template_name)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template_name,
         sizes=grid.shape,
-        horizontal_coord_unit=horizontal_unit,
+        horizontal_coord_unit=None,
         header_dtype=header_dtype,
     )
 
@@ -68,9 +66,6 @@ def create_empty_mdio(  # noqa PLR0913
     # For empty datasets, we only populate dimension coordinates
     drop_vars_delayed = []
     dataset, drop_vars_delayed = populate_dim_coordinates(xr_dataset, grid, drop_vars_delayed=drop_vars_delayed)
-
-    # Set the trace mask to indicate all traces are live (since this is an empty dataset)
-    dataset.trace_mask.data[:] = True
 
     # Create the Zarr store with the correct structure but with empty arrays
     to_mdio(dataset, output_path=output_path, mode="w", compute=False)

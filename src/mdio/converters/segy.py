@@ -291,7 +291,7 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitModel | None:
+def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
     name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
     unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
@@ -506,7 +506,7 @@ def segy_to_mdio(  # noqa PLR0913
             logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
             mdio_template = _add_raw_headers_to_template(mdio_template)
 
-    horizontal_unit = get_horizontal_coordinate_unit(segy_dimensions)
+    horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
         sizes=grid.shape,
