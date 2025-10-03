@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import zarr
 from segy import SegyFile
-from segy.config import SegyFileSettings
+from segy.config import SegySettings, SegyHeaderOverrides
 from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
 from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
 
@@ -465,6 +465,7 @@ def segy_to_mdio(  # noqa PLR0913
     output_path: UPath | Path | str,
     overwrite: bool = False,
     grid_overrides: dict[str, Any] | None = None,
+    segy_header_overrides: SegyHeaderOverrides | None = None,
 ) -> None:
     """A function that converts a SEG-Y file to an MDIO v1 file.
 
@@ -477,6 +478,7 @@ def segy_to_mdio(  # noqa PLR0913
         output_path: The universal path for the output MDIO v1 file.
         overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
         grid_overrides: Option to add grid overrides.
+        segy_header_overrides: Option to override specific SEG-Y headers during ingestion.
 
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
@@ -488,6 +490,8 @@ def segy_to_mdio(  # noqa PLR0913
         err = f"Output location '{output_path.as_posix()}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)
 
+    segy_settings = SegyFileSettings(storage_options=input_path.storage_options)
+    segy_file = SegyFile(url=input_path.as_posix(), spec=segy_spec, settings=segy_settings, header_overrides=segy_header_overrides)
     segy_settings = SegyFileSettings(storage_options=input_path.storage_options)
     segy_file = SegyFile(url=input_path.as_posix(), spec=segy_spec, settings=segy_settings)
     segy_info: SegyFileHeaderDump = _get_segy_file_header_dump(segy_file)
