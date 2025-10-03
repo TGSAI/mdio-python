@@ -46,15 +46,7 @@ class MockDatasetTemplate(AbstractDatasetTemplate):
         return self.template_name
 
     def _load_dataset_attributes(self) -> None:
-        return None  # Mock implementation
-
-    def create_dataset(self) -> str:
-        """Create a mock dataset.
-
-        Returns:
-            str: A message indicating the dataset creation.
-        """
-        return f"Mock dataset created by {self.template_name}"
+        return None  # pragma: no cover - Mock implementation
 
 
 def _assert_default_templates(template_names: list[str]) -> None:
@@ -92,12 +84,9 @@ class TestTemplateRegistrySingleton:
         errors = []
 
         def create_instance() -> None:
-            try:
-                instance = TemplateRegistry()
-                instances.append(instance)
-                time.sleep(0.001)  # Small delay to increase contention
-            except Exception as e:
-                errors.append(e)
+            instance = TemplateRegistry()
+            instances.append(instance)
+            time.sleep(0.001)  # Small delay to increase contention
 
         # Create multiple threads trying to create instances
         threads = [threading.Thread(target=create_instance) for _ in range(10)]
@@ -311,13 +300,10 @@ class TestConcurrentAccess:
         errors = []
 
         def register_template_worker(template_id: int) -> None:
-            try:
-                template = MockDatasetTemplate(f"template_{template_id}")
-                name = registry.register(template)
-                results.append((template_id, name))
-                time.sleep(0.001)  # Small delay
-            except Exception as e:
-                errors.append((template_id, e))
+            template = MockDatasetTemplate(f"template_{template_id}")
+            name = registry.register(template)
+            results.append((template_id, name))
+            time.sleep(0.001)  # Small delay
 
         # Create multiple threads registering different templates
         threads = [threading.Thread(target=register_template_worker, args=(i,)) for i in range(10)]
@@ -351,28 +337,24 @@ class TestConcurrentAccess:
         errors = []
 
         def mixed_operations_worker(worker_id: int) -> None:
-            try:
-                operations_results = []
+            operations_results = []
 
-                # Get existing template
-                if worker_id % 2 == 0:
-                    template = registry.get("initial_0")
-                    operations_results.append(("get", template.template_name))
+            # Get existing template
+            if worker_id % 2 == 0:
+                template = registry.get("initial_0")
+                operations_results.append(("get", template.template_name))
 
-                # Register new template
-                if worker_id % 3 == 0:
-                    new_template = MockDatasetTemplate(f"worker_{worker_id}")
-                    name = registry.register(new_template)
-                    operations_results.append(("register", name))
+            # Register new template
+            if worker_id % 3 == 0:
+                new_template = MockDatasetTemplate(f"worker_{worker_id}")
+                name = registry.register(new_template)
+                operations_results.append(("register", name))
 
-                # List templates
-                templates = registry.list_all_templates()
-                operations_results.append(("list", len(templates)))
+            # List templates
+            templates = registry.list_all_templates()
+            operations_results.append(("list", len(templates)))
 
-                results.append((worker_id, operations_results))
-
-            except Exception as e:
-                errors.append((worker_id, e))
+            results.append((worker_id, operations_results))
 
         # Run concurrent operations
         threads = [threading.Thread(target=mixed_operations_worker, args=(i,)) for i in range(15)]

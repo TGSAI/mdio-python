@@ -21,7 +21,6 @@ from segy.factory import SegyFactory
 from segy.schema import HeaderField
 from segy.schema import SegySpec
 from segy.standards import get_segy_standard
-from tests.conftest import DEBUG_MODE
 
 from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
@@ -241,17 +240,6 @@ def mock_nd_segy(path: str, grid_conf: GridConfig, segy_factory_conf: SegyFactor
         headers["group_coord_y"] = (y_origin + dim_grids["shot_point"] * y_step + dim_grids[cable_key] * y_step).ravel()
         headers["gun"] = np.tile((1, 2, 3), num_traces // 3)
 
-    # for field in ["cdp_x", "source_coord_x", "group_coord_x"]:
-    #     start = 700000
-    #     step = 100
-    #     stop = start + step * (trace_numbers.size - 0)
-    #     headers[field] = np.arange(start=start, stop=stop, step=step)
-    # for field in ["cdp_y", "source_coord_y", "group_coord_y"]:
-    #     start = 4000000
-    #     step = 100
-    #     stop = start + step * (trace_numbers.size - 0)
-    #     headers[field] = np.arange(start=start, stop=stop, step=step)
-
     samples[:] = trace_numbers[..., None]
 
     with fsspec.open(path, mode="wb") as fp:
@@ -289,8 +277,6 @@ def export_masked_path(tmp_path_factory: pytest.TempPathFactory, raw_headers_env
     raw_headers_enabled = os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on")
     path_suffix = "with_raw_headers" if raw_headers_enabled else "without_raw_headers"
 
-    if DEBUG_MODE:
-        return Path(f"tmp/export_masked_{path_suffix}")
     return tmp_path_factory.getbasetemp() / f"export_masked_{path_suffix}"
 
 
