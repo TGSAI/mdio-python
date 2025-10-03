@@ -91,6 +91,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
         "url": segy_file.fs.unstrip_protocol(segy_file.url),
         "spec": segy_file.spec,
         "settings": segy_file.settings,
+        "header_overrides": segy_file.header_overrides,
     }
     with executor:
         futures = []

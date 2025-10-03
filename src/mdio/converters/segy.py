@@ -15,7 +15,6 @@ from segy.config import SegyFileSettings
 from segy.config import SegyHeaderOverrides
 from segy.standards.codes import MeasurementSystem as SegyMeasurementSystem
 from segy.standards.fields import binary as binary_header_fields
-from segy.standards.fields import trace as trace_header_fields
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
@@ -38,6 +37,9 @@ from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
+from mdio.segy.scalar import SCALE_COORDINATE_KEYS
+from mdio.segy.scalar import _apply_coordinate_scalar
+from mdio.segy.scalar import _get_coordinate_scalar
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
@@ -56,15 +58,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-COORD_SCALAR_KEY = trace_header_fields.Rev0.COORDINATE_SCALAR.name.lower()
-SCALE_COORDINATE_KEYS = [
-    "cdp_x",
-    "cdp_y_",
-    "source_coord_x",
-    "source_coord_y",
-    "group_coord_x",
-    "group_coord_y",
-]
+MEASUREMENT_SYSTEM_KEY = binary_header_fields.Rev0.MEASUREMENT_SYSTEM_CODE.model.name
 
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
@@ -282,6 +276,7 @@ def populate_non_dim_coordinates(
     grid: Grid,
     coordinates: dict[str, SegyHeaderArray],
     drop_vars_delayed: list[str],
+    horizontal_coordinate_scalar: int,
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate the xarray dataset with coordinate variables."""
     non_data_domain_dims = grid.dim_names[:-1]  # minus the data domain dimension
@@ -295,6 +290,10 @@ def populate_non_dim_coordinates(
 
         not_null = coord_trace_indices != grid.map.fill_value
         tmp_coord_values[not_null] = coord_values[coord_trace_indices[not_null]]
+
+        if coord_name in SCALE_COORDINATE_KEYS:
+            tmp_coord_values = _apply_coordinate_scalar(tmp_coord_values, horizontal_coordinate_scalar)
+
         dataset[coord_name][:] = tmp_coord_values
         drop_vars_delayed.append(coord_name)
 
@@ -306,8 +305,7 @@ def populate_non_dim_coordinates(
 
 def _get_horizontal_coordinate_unit(segy_info: SegyFileHeaderDump) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
-    measurement_code_key = binary_header_fields.Rev0.MEASUREMENT_SYSTEM_CODE.model.name
-    measurement_system_code = segy_info.binary_header_dict[measurement_code_key]
+    measurement_system_code = segy_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY]
 
     if int(measurement_system_code) not in (1, 2):
         logger.warning("Measurement system header is empty or corrupt. Can't extract coordinate unit.")
@@ -325,6 +323,7 @@ def _populate_coordinates(
     dataset: xr_Dataset,
     grid: Grid,
     coords: dict[str, SegyHeaderArray],
+    horizontal_coordinate_scalar: int,
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
 
@@ -334,6 +333,7 @@ def _populate_coordinates(
         dataset: The xarray dataset to populate.
         grid: The grid object containing the grid map.
         coords: The non-dim coordinates to populate.
+        horizontal_coordinate_scalar: The X/Y coordinate scalar from the SEG-Y file.
 
     Returns:
         Xarray dataset with filled coordinates and updated variables to drop after writing
@@ -344,7 +344,11 @@ def _populate_coordinates(
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
     dataset, vars_to_drop_later = populate_non_dim_coordinates(
-        dataset, grid, coordinates=coords, drop_vars_delayed=drop_vars_delayed
+        dataset,
+        grid,
+        coordinates=coords,
+        drop_vars_delayed=drop_vars_delayed,
+        horizontal_coordinate_scalar=horizontal_coordinate_scalar,
     )
 
     return dataset, drop_vars_delayed
@@ -545,10 +549,12 @@ def segy_to_mdio(  # noqa PLR0913
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
+    coordinate_scalar = _get_coordinate_scalar(segy_file)
     xr_dataset, drop_vars_delayed = _populate_coordinates(
         dataset=xr_dataset,
         grid=grid,
         coords=non_dim_coords,
+        horizontal_coordinate_scalar=coordinate_scalar,
     )
 
     xr_dataset = _add_segy_file_headers(xr_dataset, segy_info)
