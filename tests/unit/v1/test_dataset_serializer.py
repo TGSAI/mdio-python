@@ -30,9 +30,8 @@ from mdio.builder.xarray_builder import to_xarray_dataset
 from mdio.constants import fill_value_map
 
 from .helpers import make_seismic_poststack_3d_acceptance_dataset
-from .helpers import output_path
 
-try:
+try:  # pragma: no cover
     from zfpy import ZFPY
 
     HAS_ZFPY = True
@@ -246,7 +245,7 @@ def test_convert_compressor() -> None:
     # Test 3: mdio_ZFP compressor - should return zfpy_ZFPY if available
     zfp_compressor = MDIO_ZFP(mode=mdio_ZFPMode.FIXED_RATE, tolerance=0.01, rate=8.0, precision=16)
 
-    if HAS_ZFPY:
+    if HAS_ZFPY:  # pragma: no cover
         result_zfp = _convert_compressor(zfp_compressor)
         assert isinstance(result_zfp, ZFPY)
         assert result_zfp.mode == 1  # ZFPMode.FIXED_RATE.value = "fixed_rate"
@@ -292,7 +291,7 @@ def test_to_xarray_dataset(tmp_path: Path) -> None:
 
     xr_ds = to_xarray_dataset(dataset)
 
-    file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
+    file_path = f"{tmp_path}/{xr_ds.attrs['name']}.zarr"
     to_mdio(dataset=xr_ds, output_path=file_path, mode="w", compute=False)
 
 
@@ -302,5 +301,5 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
 
     xr_ds = to_xarray_dataset(dataset)
 
-    file_path = output_path(tmp_path, f"{xr_ds.attrs['name']}", debugging=False)
+    file_path = f"{tmp_path}/{xr_ds.attrs['name']}.zarr"
     to_mdio(xr_ds, output_path=file_path, mode="w-", compute=False)
