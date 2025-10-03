@@ -16,7 +16,7 @@ from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
-    from segy.config import SegySettings
+    from segy.config import SegyFileSettings
     from segy.schema import SegySpec
     from upath import UPath
     from xarray import Dataset as xr_Dataset
@@ -36,7 +36,7 @@ class SegyFileArguments(TypedDict):
 
     url: str
     spec: SegySpec | None
-    settings: SegySettings | None
+    settings: SegyFileSettings | None
 
 
 def header_scan_worker(
