@@ -23,7 +23,7 @@ COORD_SCALAR_KEY = trace_header_fields.Rev0.COORDINATE_SCALAR.model.name
 VALID_COORD_SCALAR = {1, 10, 100, 1000, 10000}
 SCALE_COORDINATE_KEYS = [
     "cdp_x",
-    "cdp_y_",
+    "cdp_y",
     "source_coord_x",
     "source_coord_y",
     "group_coord_x",
