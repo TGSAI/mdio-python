@@ -13,8 +13,9 @@ import zarr
 from segy import SegyFile
 from segy.config import SegyFileSettings
 from segy.config import SegyHeaderOverrides
-from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
-from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
+from segy.standards.codes import MeasurementSystem as SegyMeasurementSystem
+from segy.standards.fields import binary as binary_header_fields
+from segy.standards.fields import trace as trace_header_fields
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
@@ -53,6 +54,17 @@ if TYPE_CHECKING:
     from mdio.core.dimension import Dimension
 
 logger = logging.getLogger(__name__)
+
+
+COORD_SCALAR_KEY = trace_header_fields.Rev0.COORDINATE_SCALAR.name.lower()
+SCALE_COORDINATE_KEYS = [
+    "cdp_x",
+    "cdp_y_",
+    "source_coord_x",
+    "source_coord_y",
+    "group_coord_x",
+    "group_coord_y",
+]
 
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
@@ -292,16 +304,18 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitModel | None:
+def _get_horizontal_coordinate_unit(segy_info: SegyFileHeaderDump) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
-    name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
-    unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
-    if unit_hdr is None or len(unit_hdr.coords) == 0:
+    measurement_code_key = binary_header_fields.Rev0.MEASUREMENT_SYSTEM_CODE.model.name
+    measurement_system_code = segy_info.binary_header_dict[measurement_code_key]
+
+    if int(measurement_system_code) not in (1, 2):
+        logger.warning("Measurement system header is empty or corrupt. Can't extract coordinate unit.")
         return None
 
-    if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.METERS:
+    if measurement_system_code == SegyMeasurementSystem.METERS:
         unit = LengthUnitEnum.METER
-    if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.FEET:
+    if measurement_system_code == SegyMeasurementSystem.FEET:
         unit = LengthUnitEnum.FOOT
 
     return LengthUnitModel(length=unit)
@@ -514,7 +528,7 @@ def segy_to_mdio(  # noqa PLR0913
             logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
             mdio_template = _add_raw_headers_to_template(mdio_template)
 
-    horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
+    horizontal_unit = _get_horizontal_coordinate_unit(segy_info)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
         sizes=grid.shape,
