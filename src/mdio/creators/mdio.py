@@ -66,6 +66,11 @@ def create_empty(  # noqa PLR0913
     drop_vars_delayed = []
     dataset, drop_vars_delayed = populate_dim_coordinates(xr_dataset, grid, drop_vars_delayed=drop_vars_delayed)
 
+    if headers:
+        # Since the headers were provided, the user wants to export to SEG-Y
+        # Add a dummy segy_file_header variable used to export to SEG-Y
+        dataset["segy_file_header"] = ((), "")
+
     # Create the Zarr store with the correct structure but with empty arrays
     to_mdio(dataset, output_path=output_path, mode="w", compute=False)
 
