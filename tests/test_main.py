@@ -19,7 +19,9 @@ def runner() -> CliRunner:
 # https://github.com/TGSAI/mdio-python/issues/646
 @pytest.mark.skip(reason="CLI hasn't been updated to work with v1 yet.")
 @pytest.mark.dependency
-def test_main_succeeds(runner: CliRunner, segy_input: Path, zarr_tmp: Path) -> None:
+def test_main_succeeds(
+    runner: CliRunner, segy_input: Path, zarr_tmp: Path
+) -> None:  # pragma: no cover - test is skipped
     """It exits with a status code of zero."""
     cli_args = ["segy", "import", str(segy_input), str(zarr_tmp)]
     cli_args.extend(["--header-locations", "181,185"])
@@ -29,8 +31,11 @@ def test_main_succeeds(runner: CliRunner, segy_input: Path, zarr_tmp: Path) -> N
     assert result.exit_code == 0
 
 
+@pytest.mark.skip(reason="CLI hasn't been updated to work with v1 yet.")
 @pytest.mark.dependency(depends=["test_main_succeeds"])
-def test_main_cloud(runner: CliRunner, segy_input_uri: str, zarr_tmp: Path) -> None:
+def test_main_cloud(
+    runner: CliRunner, segy_input_uri: str, zarr_tmp: Path
+) -> None:  # pragma: no cover - tests is skipped
     """It exits with a status code of zero."""
     os.environ["MDIO__IMPORT__CLOUD_NATIVE"] = "true"
     cli_args = ["segy", "import", segy_input_uri, str(zarr_tmp)]
@@ -42,8 +47,9 @@ def test_main_cloud(runner: CliRunner, segy_input_uri: str, zarr_tmp: Path) -> N
     assert result.exit_code == 0
 
 
+@pytest.mark.skip(reason="CLI hasn't been updated to work with v1 yet.")
 @pytest.mark.dependency(depends=["test_main_succeeds"])
-def test_main_info_succeeds(runner: CliRunner, zarr_tmp: Path) -> None:
+def test_main_info_succeeds(runner: CliRunner, zarr_tmp: Path) -> None:  # pragma: no cover - tests is skipped
     """It exits with a status code of zero."""
     cli_args = ["info"]
     cli_args.extend([str(zarr_tmp)])
@@ -52,8 +58,9 @@ def test_main_info_succeeds(runner: CliRunner, zarr_tmp: Path) -> None:
     assert result.exit_code == 0
 
 
+@pytest.mark.skip(reason="CLI hasn't been updated to work with v1 yet.")
 @pytest.mark.dependency(depends=["test_main_succeeds"])
-def test_main_copy(runner: CliRunner, zarr_tmp: Path, zarr_tmp2: Path) -> None:
+def test_main_copy(runner: CliRunner, zarr_tmp: Path, zarr_tmp2: Path) -> None:  # pragma: no cover - tests is skipped
     """It exits with a status code of zero."""
     cli_args = ["copy", str(zarr_tmp), str(zarr_tmp2), "-headers", "-traces"]
 
