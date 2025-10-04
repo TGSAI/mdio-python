@@ -18,7 +18,7 @@ class Seismic3DPreStackShotTemplate(AbstractDatasetTemplate):
         self._coord_dim_names = ("shot_point", "cable", "channel")
         self._dim_names = (*self._coord_dim_names, self._data_domain)
         self._coord_names = ("gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
-        self._var_chunk_shape = (8, 2, 128, 1024)
+        self._var_chunk_shape = (8, 1, 128, 2048)
 
     @property
     def _name(self) -> str:
