@@ -1860,7 +1860,7 @@ wheels = [
 
 [[package]]
 name = "multidimio"
-version = "1.0.4"
+version = "1.0.5"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
@@ -2635,7 +2635,7 @@ wheels = [
 
 [[package]]
 name = "pydantic"
-version = "2.11.9"
+version = "2.11.10"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-types" },
@@ -2643,9 +2643,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ff/5d/09a551ba512d7ca404d785072700d3f6727a02f6f3c24ecfd081c7cf0aa8/pydantic-2.11.9.tar.gz", hash = "sha256:6b8ffda597a14812a7975c90b82a8a2e777d9257aba3453f973acd3c032a18e2", size = 788495, upload-time = "2025-09-13T11:26:39.325Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ae/54/ecab642b3bed45f7d5f59b38443dcb36ef50f85af192e6ece103dbfe9587/pydantic-2.11.10.tar.gz", hash = "sha256:dc280f0982fbda6c38fada4e476dc0a4f3aeaf9c6ad4c28df68a666ec3c61423", size = 788494, upload-time = "2025-10-04T10:40:41.338Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3e/d3/108f2006987c58e76691d5ae5d200dd3e0f532cb4e5fa3560751c3a1feba/pydantic-2.11.9-py3-none-any.whl", hash = "sha256:c42dd626f5cfc1c6950ce6205ea58c93efa406da65f479dcb4029d5934857da2", size = 444855, upload-time = "2025-09-13T11:26:36.909Z" },
+    { url = "https://files.pythonhosted.org/packages/bd/1f/73c53fcbfb0b5a78f91176df41945ca466e71e9d9d836e5c522abda39ee7/pydantic-2.11.10-py3-none-any.whl", hash = "sha256:802a655709d49bd004c31e865ef37da30b540786a46bfce02333e0e24b5fe29a", size = 444823, upload-time = "2025-10-04T10:40:39.055Z" },
 ]
 
 [[package]]
@@ -3691,15 +3691,15 @@ wheels = [
 
 [[package]]
 name = "universal-pathlib"
-version = "0.3.0"
+version = "0.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fsspec" },
     { name = "pathlib-abc" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d4/d1/13a5104c7c58ace4f1fc09a4e7358deb9be4b67a9151475b51d877771a99/universal_pathlib-0.3.0.tar.gz", hash = "sha256:4f997ffc5210a4bfba1a7deeab40b836a2fa53b8e32fc7e6aef84592ee9ded59", size = 172486, upload-time = "2025-09-29T22:07:55.716Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/d5/4c/bd1b8b91a78f786a8e8b5acc3b2fceb5766770234aea0f51468a1af9c1ed/universal_pathlib-0.3.1.tar.gz", hash = "sha256:b5db6ad8f23549b1071d58e87319d77c1a1ce592d46cefcb7ee49baa138ca9dc", size = 188920, upload-time = "2025-10-03T18:23:09.318Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/98/0d/0f991e576e886022e100fe6a0d6966c041fac5c8322bb34fea8dfd66399d/universal_pathlib-0.3.0-py3-none-any.whl", hash = "sha256:5643d62584254457473f30b4f02127a7d40d7a7d902cefd8838a7350c99e41a4", size = 56958, upload-time = "2025-09-29T22:07:53.962Z" },
+    { url = "https://files.pythonhosted.org/packages/29/24/3ea90d322d3316d843c368ca1834d8c4953188faca2d7012583dd19633e7/universal_pathlib-0.3.1-py3-none-any.whl", hash = "sha256:9c83f84bd8e81f738500bfa298b874ec5c0936ba2c3d563c39a1fdb1a3d860d4", size = 60578, upload-time = "2025-10-03T18:23:07.322Z" },
 ]
 
 [[package]]
