@@ -125,7 +125,7 @@ class TestSeismic2DPreStackShotTemplate:
         assert t._coord_dim_names == ("shot_point", "channel")
         assert t._dim_names == ("shot_point", "channel", "time")
         assert t._coord_names == ("gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
-        assert t._var_chunk_shape == (16, 64, 1024)
+        assert t._var_chunk_shape == (16, 32, 2048)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
@@ -167,7 +167,7 @@ class TestSeismic2DPreStackShotTemplate:
         assert isinstance(seismic.compressor, Blosc)
         assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (16, 64, 1024)
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (16, 32, 2048)
         assert seismic.metadata.stats_v1 is None
 
 
