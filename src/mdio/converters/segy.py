@@ -305,10 +305,15 @@ def populate_non_dim_coordinates(
 
 def _get_horizontal_coordinate_unit(segy_info: SegyFileHeaderDump) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
-    measurement_system_code = segy_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY]
+    measurement_system_code = int(segy_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
 
-    if int(measurement_system_code) not in (1, 2):
-        logger.warning("Measurement system header is empty or corrupt. Can't extract coordinate unit.")
+    if measurement_system_code not in (1, 2):
+        logger.warning(
+            "Unexpected value in coordinate unit (%s) header: %s. Can't extract coordinate unit and will "
+            "ingest without coordinate units.",
+            MEASUREMENT_SYSTEM_KEY,
+            measurement_system_code,
+        )
         return None
 
     if measurement_system_code == SegyMeasurementSystem.METERS:
