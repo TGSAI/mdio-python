@@ -8,9 +8,6 @@ from typing import TYPE_CHECKING
 from segy.standards import SegyStandard
 from segy.standards.fields import trace as trace_header_fields
 
-from mdio.constants import INT16_MAX
-from mdio.constants import INT16_MIN
-
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFile
@@ -44,12 +41,7 @@ def _get_coordinate_scalar(segy_file: SegyFile) -> int:
 
     def validate_segy_scalar(scalar: int) -> bool:
         """Validate if coord scalar matches the seg-y standard."""
-        if not INT16_MIN <= scalar <= INT16_MAX:  # 16-bit signed int range
-            logger.debug("Coordinate scalar is larger than int16")
-            return False
-        if scalar == 0:
-            logger.debug("Coordinate scalar is zero")
-            return False
+        logger.debug("Coordinate scalar is %s", scalar)
         return abs(scalar) in VALID_COORD_SCALAR  # valid values
 
     is_valid = validate_segy_scalar(coord_scalar)
