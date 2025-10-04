@@ -7,4 +7,5 @@ quickstart
 creation
 compression
 rechunking
+corrupt_files
 ```
