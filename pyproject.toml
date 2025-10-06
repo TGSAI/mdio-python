@@ -1,6 +1,6 @@
 [project]
 name = "multidimio"
-version = "1.0.4"
+version = "1.0.5"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = [{ name = "Altay Sansal", email = "altay.sansal@tgs.com" }]
 requires-python = ">=3.11,<3.14"
@@ -26,7 +26,7 @@ dependencies = [
     "psutil>=7.0.0",
     "pydantic>=2.11.9",
     "rich>=14.1.0",
-    "segy>=0.5.1",
+    "segy>=0.5.2",
     "tqdm>=4.67.1",
     "universal-pathlib>=0.2.6",
     "xarray>=2025.9.1",
@@ -181,7 +181,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [tool.bumpversion]
-current_version = "1.0.4"
+current_version = "1.0.5"
 allow_dirty = true
 commit = false
 tag = false

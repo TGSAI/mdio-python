@@ -5,18 +5,17 @@ from __future__ import annotations
 import os
 from typing import TYPE_CHECKING
 from typing import TypedDict
-from typing import cast
 
 import numpy as np
 from segy import SegyFile
+from segy.arrays import HeaderArray
 
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 
 if TYPE_CHECKING:
-    from segy.arrays import HeaderArray
-    from segy.config import SegySettings
+    from segy.config import SegyFileSettings
     from segy.schema import SegySpec
     from upath import UPath
     from xarray import Dataset as xr_Dataset
@@ -36,7 +35,7 @@ class SegyFileArguments(TypedDict):
 
     url: str
     spec: SegySpec | None
-    settings: SegySettings | None
+    settings: SegyFileSettings | None
 
 
 def header_scan_worker(
@@ -79,7 +78,7 @@ def header_scan_worker(
     # (singleton) so we can concat and assign stuff later.
     trace_header = np.array(trace_header, dtype=new_dtype, ndmin=1)
 
-    return cast("HeaderArray", trace_header)
+    return HeaderArray(trace_header)  # wrap back so we can use aliases
 
 
 def trace_worker(  # noqa: PLR0913

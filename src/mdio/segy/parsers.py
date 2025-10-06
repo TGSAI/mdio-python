@@ -24,7 +24,7 @@ default_cpus = cpu_count(logical=True)
 
 def parse_headers(
     segy_file: SegyFile,
-    subset: list[str] | None = None,
+    subset: tuple[str, ...] | None = None,
     block_size: int = 10000,
     progress_bar: bool = True,
 ) -> HeaderArray:

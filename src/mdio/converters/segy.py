@@ -11,9 +11,10 @@ from typing import TYPE_CHECKING
 import numpy as np
 import zarr
 from segy import SegyFile
-from segy.config import SegySettings
-from segy.standards.codes import MeasurementSystem as segy_MeasurementSystem
-from segy.standards.fields.trace import Rev0 as TraceHeaderFieldsRev0
+from segy.config import SegyFileSettings
+from segy.config import SegyHeaderOverrides
+from segy.standards.codes import MeasurementSystem as SegyMeasurementSystem
+from segy.standards.fields import binary as binary_header_fields
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
@@ -36,6 +37,9 @@ from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
+from mdio.segy.scalar import SCALE_COORDINATE_KEYS
+from mdio.segy.scalar import _apply_coordinate_scalar
+from mdio.segy.scalar import _get_coordinate_scalar
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
@@ -52,6 +56,9 @@ if TYPE_CHECKING:
     from mdio.core.dimension import Dimension
 
 logger = logging.getLogger(__name__)
+
+
+MEASUREMENT_SYSTEM_KEY = binary_header_fields.Rev0.MEASUREMENT_SYSTEM_CODE.model.name
 
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
@@ -269,6 +276,7 @@ def populate_non_dim_coordinates(
     grid: Grid,
     coordinates: dict[str, SegyHeaderArray],
     drop_vars_delayed: list[str],
+    horizontal_coordinate_scalar: int,
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate the xarray dataset with coordinate variables."""
     non_data_domain_dims = grid.dim_names[:-1]  # minus the data domain dimension
@@ -282,6 +290,10 @@ def populate_non_dim_coordinates(
 
         not_null = coord_trace_indices != grid.map.fill_value
         tmp_coord_values[not_null] = coord_values[coord_trace_indices[not_null]]
+
+        if coord_name in SCALE_COORDINATE_KEYS:
+            tmp_coord_values = _apply_coordinate_scalar(tmp_coord_values, horizontal_coordinate_scalar)
+
         dataset[coord_name][:] = tmp_coord_values
         drop_vars_delayed.append(coord_name)
 
@@ -291,16 +303,22 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(segy_headers: list[Dimension]) -> LengthUnitModel | None:
+def _get_horizontal_coordinate_unit(segy_info: SegyFileHeaderDump) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
-    name = TraceHeaderFieldsRev0.COORDINATE_UNIT.name.upper()
-    unit_hdr = next((c for c in segy_headers if c.name.upper() == name), None)
-    if unit_hdr is None or len(unit_hdr.coords) == 0:
+    measurement_system_code = int(segy_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
+
+    if measurement_system_code not in (1, 2):
+        logger.warning(
+            "Unexpected value in coordinate unit (%s) header: %s. Can't extract coordinate unit and will "
+            "ingest without coordinate units.",
+            MEASUREMENT_SYSTEM_KEY,
+            measurement_system_code,
+        )
         return None
 
-    if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.METERS:
+    if measurement_system_code == SegyMeasurementSystem.METERS:
         unit = LengthUnitEnum.METER
-    if segy_MeasurementSystem(unit_hdr.coords[0]) == segy_MeasurementSystem.FEET:
+    if measurement_system_code == SegyMeasurementSystem.FEET:
         unit = LengthUnitEnum.FOOT
 
     return LengthUnitModel(length=unit)
@@ -310,6 +328,7 @@ def _populate_coordinates(
     dataset: xr_Dataset,
     grid: Grid,
     coords: dict[str, SegyHeaderArray],
+    horizontal_coordinate_scalar: int,
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
 
@@ -319,6 +338,7 @@ def _populate_coordinates(
         dataset: The xarray dataset to populate.
         grid: The grid object containing the grid map.
         coords: The non-dim coordinates to populate.
+        horizontal_coordinate_scalar: The X/Y coordinate scalar from the SEG-Y file.
 
     Returns:
         Xarray dataset with filled coordinates and updated variables to drop after writing
@@ -329,7 +349,11 @@ def _populate_coordinates(
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
     dataset, vars_to_drop_later = populate_non_dim_coordinates(
-        dataset, grid, coordinates=coords, drop_vars_delayed=drop_vars_delayed
+        dataset,
+        grid,
+        coordinates=coords,
+        drop_vars_delayed=drop_vars_delayed,
+        horizontal_coordinate_scalar=horizontal_coordinate_scalar,
     )
 
     return dataset, drop_vars_delayed
@@ -465,6 +489,7 @@ def segy_to_mdio(  # noqa PLR0913
     output_path: UPath | Path | str,
     overwrite: bool = False,
     grid_overrides: dict[str, Any] | None = None,
+    segy_header_overrides: SegyHeaderOverrides | None = None,
 ) -> None:
     """A function that converts a SEG-Y file to an MDIO v1 file.
 
@@ -477,6 +502,7 @@ def segy_to_mdio(  # noqa PLR0913
         output_path: The universal path for the output MDIO v1 file.
         overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
         grid_overrides: Option to add grid overrides.
+        segy_header_overrides: Option to override specific SEG-Y headers during ingestion.
 
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
@@ -488,8 +514,13 @@ def segy_to_mdio(  # noqa PLR0913
         err = f"Output location '{output_path.as_posix()}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)
 
-    segy_settings = SegySettings(storage_options=input_path.storage_options)
-    segy_file = SegyFile(url=input_path.as_posix(), spec=segy_spec, settings=segy_settings)
+    segy_settings = SegyFileSettings(storage_options=input_path.storage_options)
+    segy_file = SegyFile(
+        url=input_path.as_posix(),
+        spec=segy_spec,
+        settings=segy_settings,
+        header_overrides=segy_header_overrides,
+    )
     segy_info: SegyFileHeaderDump = _get_segy_file_header_dump(segy_file)
 
     segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
@@ -506,7 +537,7 @@ def segy_to_mdio(  # noqa PLR0913
             logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
             mdio_template = _add_raw_headers_to_template(mdio_template)
 
-    horizontal_unit = _get_horizontal_coordinate_unit(segy_dimensions)
+    horizontal_unit = _get_horizontal_coordinate_unit(segy_info)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
         sizes=grid.shape,
@@ -523,10 +554,12 @@ def segy_to_mdio(  # noqa PLR0913
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
+    coordinate_scalar = _get_coordinate_scalar(segy_file)
     xr_dataset, drop_vars_delayed = _populate_coordinates(
         dataset=xr_dataset,
         grid=grid,
         coords=non_dim_coords,
+        horizontal_coordinate_scalar=coordinate_scalar,
     )
 
     xr_dataset = _add_segy_file_headers(xr_dataset, segy_info)
