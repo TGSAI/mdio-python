@@ -31,10 +31,11 @@ from mdio.segy.utilities import find_trailing_ones_index
 if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy import SegyFactory
-    from segy import SegyFile
     from upath import UPath
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
+
+    from mdio.segy._workers import SegyFileArguments
 
 default_cpus = cpu_count(logical=True)
 
@@ -53,7 +54,7 @@ def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatisti
 
 
 def to_zarr(  # noqa: PLR0913, PLR0915
-    segy_file: SegyFile,
+    segy_kw: SegyFileArguments,
     output_path: UPath,
     grid_map: zarr_Array,
     dataset: xr_Dataset,
@@ -62,7 +63,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     """Blocked I/O from SEG-Y to chunked `xarray.Dataset`.
 
     Args:
-        segy_file: SEG-Y file instance.
+        segy_kw: SEG-Y file arguments.
         output_path: Output universal path for the output MDIO dataset.
         grid_map: Zarr array with grid map for the traces.
         dataset: Handle for xarray.Dataset we are writing trace data
@@ -87,12 +88,6 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     context = mp.get_context("spawn")
     executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
 
-    segy_kw = {
-        "url": segy_file.fs.unstrip_protocol(segy_file.url),
-        "spec": segy_file.spec,
-        "settings": segy_file.settings,
-        "header_overrides": segy_file.header_overrides,
-    }
     with executor:
         futures = []
         common_args = (segy_kw, output_path, data_variable_name)
