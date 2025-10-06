@@ -197,7 +197,9 @@ class TestTeapotRoundtrip:
     @requires_cloud
     @pytest.mark.dependency
     @pytest.mark.usefixtures("set_env_vars")  # This is needed to capture the SEG-Y info required to mdio_to_segy
-    def test_teapot_import_cloud_to_cloud(self, teapot_segy_spec: SegySpec) -> None:
+    def test_teapot_import_cloud_to_cloud(
+        self, teapot_segy_spec: SegySpec
+    ) -> None:  # pragma: no cover - coverage does not apply to tests
         """Test importing a SEG-Y file from cloud to cloud MDIO."""
         os.environ["MDIO__IMPORT__CLOUD_NATIVE"] = "true"
         segy_to_mdio(
@@ -361,7 +363,9 @@ class TestTeapotRoundtrip:
 
     @requires_cloud
     @pytest.mark.dependency("test_teapot_import_cloud")
-    def test_3d_export_from_cloud(self, teapot_segy_spec: SegySpec, segy_export_tmp2: Path, segy_input: Path) -> None:
+    def test_3d_export_from_cloud(
+        self, teapot_segy_spec: SegySpec, segy_export_tmp2: Path, segy_input: Path
+    ) -> None:  # pragma: no cover - coverage does not apply to tests
         """Test 3D export."""
         mdio_to_segy(segy_spec=teapot_segy_spec, input_path=teapot_mdio_cloud, output_path=segy_export_tmp2)
         self._validate_3d_export(segy_input, segy_export_tmp2, teapot_segy_spec)
