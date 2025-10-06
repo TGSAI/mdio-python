@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import base64
 import logging
+import multiprocessing as mp
 import os
-from dataclasses import dataclass
+from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING
 
 import numpy as np
 import zarr
-from segy import SegyFile
 from segy.config import SegyFileSettings
 from segy.config import SegyHeaderOverrides
 from segy.standards.codes import MeasurementSystem as SegyMeasurementSystem
@@ -37,9 +37,10 @@ from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
+from mdio.segy._workers import SegyFileHeaderDump
+from mdio.segy._workers import info_worker
 from mdio.segy.scalar import SCALE_COORDINATE_KEYS
 from mdio.segy.scalar import _apply_coordinate_scalar
-from mdio.segy.scalar import _get_coordinate_scalar
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
@@ -54,6 +55,7 @@ if TYPE_CHECKING:
     from mdio.builder.schemas import Dataset
     from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
     from mdio.core.dimension import Dimension
+    from mdio.segy._workers import SegyFileArguments
 
 logger = logging.getLogger(__name__)
 
@@ -135,37 +137,10 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
-@dataclass
-class SegyFileHeaderDump:
-    """Segy metadata information."""
-
-    text_header: str
-    binary_header_dict: dict
-    raw_binary_headers: bytes
-
-
-def _get_segy_file_header_dump(segy_file: SegyFile) -> SegyFileHeaderDump:
-    """Reads information from a SEG-Y file."""
-    text_header = segy_file.text_header
-
-    raw_binary_headers: bytes = segy_file.fs.read_block(
-        fn=segy_file.url,
-        offset=segy_file.spec.binary_header.offset,
-        length=segy_file.spec.binary_header.itemsize,
-    )
-
-    # We read here twice, but it's ok for now. Only 400-bytes.
-    binary_header_dict = segy_file.binary_header.to_dict()
-
-    return SegyFileHeaderDump(
-        text_header=text_header,
-        binary_header_dict=binary_header_dict,
-        raw_binary_headers=raw_binary_headers,
-    )
-
-
 def _scan_for_headers(
-    segy_file: SegyFile,
+    segy_kw: SegyFileArguments,
+    num_traces: int,
+    sample_labels: np.ndarray,
     template: AbstractDatasetTemplate,
     grid_overrides: dict[str, Any] | None = None,
 ) -> tuple[list[Dimension], SegyHeaderArray]:
@@ -176,7 +151,9 @@ def _scan_for_headers(
     """
     full_chunk_size = template.full_chunk_size
     segy_dimensions, chunk_size, segy_headers = get_grid_plan(
-        segy_file=segy_file,
+        segy_kw=segy_kw,
+        num_traces=num_traces,
+        sample_labels=sample_labels,
         return_headers=True,
         template=template,
         chunksize=full_chunk_size,
@@ -190,6 +167,19 @@ def _scan_for_headers(
         err = "Support for changing full_chunk_size in grid overrides is not yet implemented"
         raise NotImplementedError(err)
     return segy_dimensions, segy_headers
+
+
+def _read_segy_file_pp(segy_kw: SegyFileArguments) -> tuple[int, np.NDArray[np.int32], SegyFileHeaderDump]:
+    """Read SEG-Y file in a separate process.
+
+    This is an ugly workaround for Zarr issues 3487 'Explicitly using fsspec and zarr FsspecStore causes
+    RuntimeError "Task attached to a different loop"'
+    """
+    # TODO (Dmitriy Repin): when Zarr issue 3487 is resolved, we can remove this workaround
+    # https://github.com/zarr-developers/zarr-python/issues/3487
+    with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
+        future = executor.submit(info_worker, segy_kw)
+        return future.result()
 
 
 def _build_and_check_grid(segy_dimensions: list[Dimension], num_traces: int, segy_headers: SegyHeaderArray) -> Grid:
@@ -515,17 +505,22 @@ def segy_to_mdio(  # noqa PLR0913
         raise FileExistsError(err)
 
     segy_settings = SegyFileSettings(storage_options=input_path.storage_options)
-    segy_file = SegyFile(
-        url=input_path.as_posix(),
-        spec=segy_spec,
-        settings=segy_settings,
-        header_overrides=segy_header_overrides,
+    segy_kw: SegyFileArguments = {
+        "url": input_path.as_posix(),
+        "spec": segy_spec,
+        "settings": segy_settings,
+        "header_overrides": segy_header_overrides,
+    }
+    num_traces, sample_labels, segy_info = _read_segy_file_pp(segy_kw)
+
+    segy_dimensions, segy_headers = _scan_for_headers(
+        segy_kw,
+        num_traces=num_traces,
+        sample_labels=sample_labels,
+        template=mdio_template,
+        grid_overrides=grid_overrides,
     )
-    segy_info: SegyFileHeaderDump = _get_segy_file_header_dump(segy_file)
-
-    segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
-
-    grid = _build_and_check_grid(segy_dimensions, segy_file.num_traces, segy_headers)
+    grid = _build_and_check_grid(segy_dimensions, num_traces, segy_headers)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
@@ -554,12 +549,11 @@ def segy_to_mdio(  # noqa PLR0913
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
-    coordinate_scalar = _get_coordinate_scalar(segy_file)
     xr_dataset, drop_vars_delayed = _populate_coordinates(
         dataset=xr_dataset,
         grid=grid,
         coords=non_dim_coords,
-        horizontal_coordinate_scalar=coordinate_scalar,
+        horizontal_coordinate_scalar=segy_info.coordinate_scalar,
     )
 
     xr_dataset = _add_segy_file_headers(xr_dataset, segy_info)
@@ -583,7 +577,7 @@ def segy_to_mdio(  # noqa PLR0913
     # This is an memory-expensive and time-consuming read-write operation
     # performed in chunks to save the memory
     blocked_io.to_zarr(
-        segy_file=segy_file,
+        segy_kw=segy_kw,
         output_path=output_path,
         grid_map=grid.map,
         dataset=xr_dataset,

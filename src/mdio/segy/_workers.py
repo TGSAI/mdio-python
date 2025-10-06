@@ -2,20 +2,28 @@
 
 from __future__ import annotations
 
+import logging
 import os
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import TypedDict
 
 import numpy as np
 from segy import SegyFile
 from segy.arrays import HeaderArray
+from segy.schema import SegyStandard
 
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
+from mdio.segy.scalar import COORD_SCALAR_KEY
+from mdio.segy.scalar import VALID_COORD_SCALAR
 
 if TYPE_CHECKING:
+    from collections.abc import Iterable
+
     from segy.config import SegyFileSettings
+    from segy.config import SegyHeaderOverrides
     from segy.schema import SegySpec
     from upath import UPath
     from xarray import Dataset as xr_Dataset
@@ -29,6 +37,8 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.xarray_builder import _get_fill_value
 from mdio.constants import fill_value_map
 
+logger = logging.getLogger(__name__)
+
 
 class SegyFileArguments(TypedDict):
     """Arguments to open SegyFile instance creation."""
@@ -36,6 +46,7 @@ class SegyFileArguments(TypedDict):
     url: str
     spec: SegySpec | None
     settings: SegyFileSettings | None
+    header_overrides: SegyHeaderOverrides | None
 
 
 def header_scan_worker(
@@ -196,3 +207,84 @@ def trace_worker(  # noqa: PLR0913
         sum_squares=(np.ma.power(nonzero_samples, 2).sum(dtype="float64")),
         histogram=histogram,
     )
+
+
+@dataclass
+class SegyFileHeaderDump:
+    """Segy metadata information."""
+
+    text_header: str
+    binary_header_dict: dict
+    raw_binary_headers: bytes
+    coordinate_scalar: int
+
+
+def _get_coordinate_scalar(segy_file: SegyFile) -> int:
+    """Get and parse the coordinate scalar from the first SEG-Y trace header."""
+    file_revision = segy_file.spec.segy_standard
+    first_header = segy_file.header[0]
+    coord_scalar = int(first_header[COORD_SCALAR_KEY])
+
+    # Per Rev2, standardize 0 to 1 if a file is 2+.
+    if coord_scalar == 0 and file_revision >= SegyStandard.REV2:
+        logger.warning("Coordinate scalar is 0 and file is %s. Setting to 1.", file_revision)
+        return 1
+
+    def validate_segy_scalar(scalar: int) -> bool:
+        """Validate if coord scalar matches the seg-y standard."""
+        logger.debug("Coordinate scalar is %s", scalar)
+        return abs(scalar) in VALID_COORD_SCALAR  # valid values
+
+    is_valid = validate_segy_scalar(coord_scalar)
+    if not is_valid:
+        msg = f"Invalid coordinate scalar: {coord_scalar} for file revision {file_revision}."
+        raise ValueError(msg)
+
+    logger.info("Coordinate scalar is parsed as %s", coord_scalar)
+    return coord_scalar
+
+
+def _get_segy_file_info(segy_file: SegyFile) -> SegyFileHeaderDump:
+    """Reads information from a SEG-Y file."""
+    text_header = segy_file.text_header
+
+    raw_binary_headers: bytes = segy_file.fs.read_block(
+        fn=segy_file.url,
+        offset=segy_file.spec.binary_header.offset,
+        length=segy_file.spec.binary_header.itemsize,
+    )
+
+    # We read here twice, but it's ok for now. Only 400-bytes.
+    binary_header_dict = segy_file.binary_header.to_dict()
+
+    coordinate_scalar = _get_coordinate_scalar(segy_file)
+
+    return SegyFileHeaderDump(
+        text_header=text_header,
+        binary_header_dict=binary_header_dict,
+        raw_binary_headers=raw_binary_headers,
+        coordinate_scalar=coordinate_scalar,
+    )
+
+
+def info_worker(
+    segy_kw: SegyFileArguments, trace_indices: Iterable[int] | None = None
+) -> tuple[int, np.NDArray[np.int32], SegyFileHeaderDump]:
+    """Reads information fomr a SEG-Y file.
+
+    Args:
+        segy_kw: Arguments to open SegyFile instance.
+        trace_indices: Optional iterable of trace indices to read. If None, none of the traces are read.
+
+    Returns:
+        Tuple consisting of number of traces, sample labels, SegyFileHeaderDump, and, optionally, traces.
+    """
+    segy_file = SegyFile(**segy_kw)
+    num_traces: int = segy_file.num_traces
+    sample_labels: np.NDArray[np.int32] = segy_file.sample_labels
+    segy_info = _get_segy_file_info(segy_file)
+
+    if trace_indices is not None:
+        traces = segy_file.trace[list(trace_indices)]
+        return num_traces, sample_labels, segy_info, traces
+    return num_traces, sample_labels, segy_info
