@@ -7,7 +7,7 @@ import zarr
 
 
 @pytest.mark.skip("Do not need to run issue reproducer regularly")
-class TestBug613HandlesNotClosed: # pragma: no cover - coverage does not apply to tests
+class TestBug613HandlesNotClosed:  # pragma: no cover - coverage does not apply to tests
     """Reproducer for bug 613: open file handles not closed when creating zarr arrays in cloud storage.
 
     To run this test,
