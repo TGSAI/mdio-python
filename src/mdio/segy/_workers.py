@@ -208,19 +208,37 @@ def trace_worker(  # noqa: PLR0913
 
 
 @dataclass
-class SegyFileHeaderDump:
-    """Segy metadata information."""
+class SegyFileInfo:
+    """SEG-Y file header information."""
 
+    num_traces: int
+    sample_labels: np.NDArray[np.int32]
     text_header: str
     binary_header_dict: dict
     raw_binary_headers: bytes
     coordinate_scalar: int
 
 
-def _get_segy_file_info(segy_file: SegyFile) -> SegyFileHeaderDump:
-    """Reads information from a SEG-Y file."""
+def info_worker(
+    segy_kw: SegyFileArguments, trace_indices: Iterable[int] | None = None
+) -> SegyFileInfo | tuple[SegyFileInfo, np.NDArray]:
+    """Reads information from a SEG-Y file.
+
+    Args:
+        segy_kw: Arguments to open SegyFile instance.
+        trace_indices: Optional iterable of trace indices to read. If None, none of the traces are read.
+
+    Returns:
+        SegyFileInfo containing number of traces, sample labels, and header info.
+        If trace_indices is provided, also returns traces as a tuple.
+    """
+    segy_file = SegyFile(**segy_kw)
+    num_traces: int = segy_file.num_traces
+    sample_labels: np.NDArray[np.int32] = segy_file.sample_labels
+
     text_header = segy_file.text_header
 
+    # Get header information directly
     raw_binary_headers: bytes = segy_file.fs.read_block(
         fn=segy_file.url,
         offset=segy_file.spec.binary_header.offset,
@@ -232,32 +250,16 @@ def _get_segy_file_info(segy_file: SegyFile) -> SegyFileHeaderDump:
 
     coordinate_scalar = _get_coordinate_scalar(segy_file)
 
-    return SegyFileHeaderDump(
+    segy_file_info = SegyFileInfo(
+        num_traces=num_traces,
+        sample_labels=sample_labels,
         text_header=text_header,
         binary_header_dict=binary_header_dict,
         raw_binary_headers=raw_binary_headers,
         coordinate_scalar=coordinate_scalar,
     )
 
-
-def info_worker(
-    segy_kw: SegyFileArguments, trace_indices: Iterable[int] | None = None
-) -> tuple[int, np.NDArray[np.int32], SegyFileHeaderDump]:
-    """Reads information fomr a SEG-Y file.
-
-    Args:
-        segy_kw: Arguments to open SegyFile instance.
-        trace_indices: Optional iterable of trace indices to read. If None, none of the traces are read.
-
-    Returns:
-        Tuple consisting of number of traces, sample labels, SegyFileHeaderDump, and, optionally, traces.
-    """
-    segy_file = SegyFile(**segy_kw)
-    num_traces: int = segy_file.num_traces
-    sample_labels: np.NDArray[np.int32] = segy_file.sample_labels
-    segy_info = _get_segy_file_info(segy_file)
-
     if trace_indices is not None:
         traces = segy_file.trace[list(trace_indices)]
-        return num_traces, sample_labels, segy_info, traces
-    return num_traces, sample_labels, segy_info
+        return segy_file_info, traces
+    return segy_file_info

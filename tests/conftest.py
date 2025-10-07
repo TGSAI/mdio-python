@@ -58,15 +58,3 @@ def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the round-trip IBM SEG-Y."""
     tmp_dir = tmp_path_factory.mktemp("segy")
     return tmp_dir / "teapot_roundtrip.segy"
-
-
-@pytest.fixture(scope="session")
-def segy_export_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Make a temp file for the round-trip IBM SEG-Y."""
-    tmp_dir = tmp_path_factory.mktemp("segy")
-    return tmp_dir / "teapot_roundtrip_2.segy"
-
-
-def pytest_configure() -> None:
-    """Configure pytest."""
-    warnings.filterwarnings("ignore", message="Your application has authenticated using end user credentials")

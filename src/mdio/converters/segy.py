@@ -37,7 +37,7 @@ from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
-from mdio.segy._workers import SegyFileHeaderDump
+from mdio.segy._workers import SegyFileInfo
 from mdio.segy._workers import info_worker
 from mdio.segy.scalar import SCALE_COORDINATE_KEYS
 from mdio.segy.scalar import _apply_coordinate_scalar
@@ -169,7 +169,7 @@ def _scan_for_headers(
     return segy_dimensions, segy_headers
 
 
-def _read_segy_file_pp(segy_kw: SegyFileArguments) -> tuple[int, np.NDArray[np.int32], SegyFileHeaderDump]:
+def _read_segy_file_info(segy_kw: SegyFileArguments) -> SegyFileInfo:
     """Read SEG-Y file in a separate process.
 
     This is an ugly workaround for Zarr issues 3487 'Explicitly using fsspec and zarr FsspecStore causes
@@ -293,9 +293,9 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(segy_info: SegyFileHeaderDump) -> LengthUnitModel | None:
+def _get_horizontal_coordinate_unit(info: SegyFileInfo) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
-    measurement_system_code = int(segy_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
+    measurement_system_code = int(info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
 
     if measurement_system_code not in (1, 2):
         logger.warning(
@@ -349,7 +349,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_header_dump: SegyFileHeaderDump) -> xr_Dataset:
+def _add_segy_file_headers(xr_dataset: xr_Dataset, info: SegyFileInfo) -> xr_Dataset:
     save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
     if not save_file_header:
         return xr_dataset
@@ -357,11 +357,11 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_header_dump: SegyFi
     expected_rows = 40
     expected_cols = 80
 
-    text_header_rows = segy_file_header_dump.text_header.splitlines()
+    text_header_rows = info.text_header.splitlines()
     text_header_cols_bad = [len(row) != expected_cols for row in text_header_rows]
 
     if len(text_header_rows) != expected_rows:
-        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_file_header_dump.text_header)}"
+        err = f"Invalid text header count: expected {expected_rows}, got {len(info.text_header)}"
         raise ValueError(err)
 
     if any(text_header_cols_bad):
@@ -371,12 +371,12 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_header_dump: SegyFi
     xr_dataset["segy_file_header"] = ((), "")
     xr_dataset["segy_file_header"].attrs.update(
         {
-            "textHeader": segy_file_header_dump.text_header,
-            "binaryHeader": segy_file_header_dump.binary_header_dict,
+            "textHeader": info.text_header,
+            "binaryHeader": info.binary_header_dict,
         }
     )
     if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
-        raw_binary_base64 = base64.b64encode(segy_file_header_dump.raw_binary_headers).decode("ascii")
+        raw_binary_base64 = base64.b64encode(info.raw_binary_headers).decode("ascii")
         xr_dataset["segy_file_header"].attrs.update({"rawBinaryHeader": raw_binary_base64})
 
     return xr_dataset
@@ -528,16 +528,16 @@ def segy_to_mdio(  # noqa PLR0913
         "settings": segy_settings,
         "header_overrides": segy_header_overrides,
     }
-    num_traces, sample_labels, segy_info = _read_segy_file_pp(segy_kw)
+    info = _read_segy_file_info(segy_kw)
 
     segy_dimensions, segy_headers = _scan_for_headers(
         segy_kw,
-        num_traces=num_traces,
-        sample_labels=sample_labels,
+        num_traces=info.num_traces,
+        sample_labels=info.sample_labels,
         template=mdio_template,
         grid_overrides=grid_overrides,
     )
-    grid = _build_and_check_grid(segy_dimensions, num_traces, segy_headers)
+    grid = _build_and_check_grid(segy_dimensions, info.num_traces, segy_headers)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
@@ -549,7 +549,7 @@ def segy_to_mdio(  # noqa PLR0913
             logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
             mdio_template = _add_raw_headers_to_template(mdio_template)
 
-    horizontal_unit = _get_horizontal_coordinate_unit(segy_info)
+    horizontal_unit = _get_horizontal_coordinate_unit(info)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
         sizes=grid.shape,
@@ -570,10 +570,10 @@ def segy_to_mdio(  # noqa PLR0913
         dataset=xr_dataset,
         grid=grid,
         coords=non_dim_coords,
-        horizontal_coordinate_scalar=segy_info.coordinate_scalar,
+        horizontal_coordinate_scalar=info.coordinate_scalar,
     )
 
-    xr_dataset = _add_segy_file_headers(xr_dataset, segy_info)
+    xr_dataset = _add_segy_file_headers(xr_dataset, info)
 
     xr_dataset.trace_mask.data[:] = grid.live_mask
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
