@@ -11,8 +11,8 @@ from segy import SegyFile
 from segy.standards import SegyStandard
 from segy.standards.fields import trace as trace_header_fields
 
-from mdio.segy._workers import _get_coordinate_scalar
 from mdio.segy.scalar import _apply_coordinate_scalar
+from mdio.segy.scalar import _get_coordinate_scalar
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
