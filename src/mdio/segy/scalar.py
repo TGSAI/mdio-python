@@ -5,12 +5,12 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from segy import SegyFile  # noqa: TC002
 from segy.schema import SegyStandard
 from segy.standards.fields import trace as trace_header_fields
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
+    from segy import SegyFile
 
 
 logger = logging.getLogger(__name__)
