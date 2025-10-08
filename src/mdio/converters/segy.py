@@ -167,7 +167,7 @@ def _scan_for_headers(
     return segy_dimensions, segy_headers
 
 
-def _read_segy_file_info(segy_kw: SegyFileArguments) -> SegyFileInfo:
+def _read_segy_file_info(segy_file_kwargs: SegyFileArguments) -> SegyFileInfo:
     """Read SEG-Y file in a separate process.
 
     This is an ugly workaround for Zarr issues 3487 'Explicitly using fsspec and zarr FsspecStore causes
@@ -176,7 +176,7 @@ def _read_segy_file_info(segy_kw: SegyFileArguments) -> SegyFileInfo:
     # TODO (Dmitriy Repin): when Zarr issue 3487 is resolved, we can remove this workaround
     # https://github.com/zarr-developers/zarr-python/issues/3487
     with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
-        future = executor.submit(info_worker, segy_kw)
+        future = executor.submit(info_worker, segy_file_kwargs)
         return future.result()
 
 
@@ -525,16 +525,16 @@ def segy_to_mdio(  # noqa PLR0913
         raise FileExistsError(err)
 
     segy_settings = SegyFileSettings(storage_options=input_path.storage_options)
-    segy_kw: SegyFileArguments = {
+    segy_file_kwargs: SegyFileArguments = {
         "url": input_path.as_posix(),
         "spec": segy_spec,
         "settings": segy_settings,
         "header_overrides": segy_header_overrides,
     }
-    segy_file_info = _read_segy_file_info(segy_kw)
+    segy_file_info = _read_segy_file_info(segy_file_kwargs)
 
     segy_dimensions, segy_headers = _scan_for_headers(
-        segy_kw,
+        segy_file_kwargs,
         segy_file_info,
         template=mdio_template,
         grid_overrides=grid_overrides,
@@ -596,7 +596,7 @@ def segy_to_mdio(  # noqa PLR0913
     # This is an memory-expensive and time-consuming read-write operation
     # performed in chunks to save the memory
     blocked_io.to_zarr(
-        segy_kw=segy_kw,
+        segy_kw=segy_file_kwargs,
         output_path=output_path,
         grid_map=grid.map,
         dataset=xr_dataset,
