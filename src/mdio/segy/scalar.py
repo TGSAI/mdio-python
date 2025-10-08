@@ -31,6 +31,10 @@ SCALE_COORDINATE_KEYS = [
 def _get_coordinate_scalar(segy_file: SegyFile) -> int:
     """Get and parse the coordinate scalar from the first SEG-Y trace header."""
     file_revision = segy_file.spec.segy_standard
+    if file_revision is None:
+        logger.debug("File revision is None. Will be treated as Rev0.")
+        file_revision = SegyStandard.REV0
+
     first_header = segy_file.header[0]
     coord_scalar = int(first_header[COORD_SCALAR_KEY])
 
