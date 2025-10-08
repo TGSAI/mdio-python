@@ -486,15 +486,14 @@ def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatas
     """Validate that the SegySpec has all required fields in the MDIO template."""
     # TODO(BrianMichell): Implement a simple test for this
     # https://github.com/TGSAI/mdio-python/issues/703
-    header_fields = [field.name for field in segy_spec.trace.header.fields]
-    for i in range(len(mdio_template._dim_names) - 1):
-        if mdio_template._dim_names[i] not in header_fields:
-            err = f"Dimension '{mdio_template._dim_names[i]}' not found in SegySpec.trace.header.fields."
-            raise ValueError(err)
-    for coord in mdio_template._coord_names:
-        if coord not in header_fields:
-            err = f"Coordinate '{coord}' not found in SegySpec.trace.header.fields."
-            raise ValueError(err)
+    header_fields = {field.name for field in segy_spec.trace.header.fields}
+
+    required_fields = set(mdio_template._dim_names[:-1]) | set(mdio_template._coord_names)
+    missing_fields = required_fields - header_fields
+
+    if missing_fields:
+        err = f"Required fields {sorted(missing_fields)} not found in the provided segy_spec"
+        raise ValueError(err)
 
 
 def segy_to_mdio(  # noqa PLR0913
