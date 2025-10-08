@@ -18,8 +18,6 @@ from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 from mdio.segy.scalar import _get_coordinate_scalar
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
-
     from segy.config import SegyFileSettings
     from segy.config import SegyHeaderOverrides
     from segy.schema import SegySpec
@@ -221,18 +219,14 @@ class SegyFileInfo:
     coordinate_scalar: int
 
 
-def info_worker(
-    segy_file_kwargs: SegyFileArguments, trace_indices: Iterable[int] | None = None
-) -> SegyFileInfo | tuple[SegyFileInfo, np.NDArray]:
+def info_worker(segy_file_kwargs: SegyFileArguments) -> SegyFileInfo:
     """Reads information from a SEG-Y file.
 
     Args:
         segy_file_kwargs: Arguments to open SegyFile instance.
-        trace_indices: Optional iterable of trace indices to read. If None, none of the traces are read.
 
     Returns:
         SegyFileInfo containing number of traces, sample labels, and header info.
-        If trace_indices is provided, also returns traces as a tuple.
     """
     segy_file = SegyFile(**segy_file_kwargs)
     num_traces: int = segy_file.num_traces
@@ -252,7 +246,7 @@ def info_worker(
 
     coordinate_scalar = _get_coordinate_scalar(segy_file)
 
-    segy_file_info = SegyFileInfo(
+    return SegyFileInfo(
         num_traces=num_traces,
         sample_labels=sample_labels,
         text_header=text_header,
@@ -260,8 +254,3 @@ def info_worker(
         raw_binary_headers=raw_binary_headers,
         coordinate_scalar=coordinate_scalar,
     )
-
-    if trace_indices is not None:
-        traces = segy_file.trace[list(trace_indices)]
-        return segy_file_info, traces
-    return segy_file_info
