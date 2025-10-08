@@ -2,39 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
 from segy.schema import HeaderField
 from segy.standards import get_segy_standard
 
-from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
 from mdio.converters.segy import _validate_spec_in_template
-
-if TYPE_CHECKING:
-    from mdio.builder.templates.types import SeismicDataDomain
-
-
-class MockTemplate(AbstractDatasetTemplate):
-    """Mock template for testing validation."""
-
-    def __init__(
-        self,
-        data_domain: SeismicDataDomain,
-        dim_names: tuple[str, ...],
-        coord_names: tuple[str, ...],
-    ) -> None:
-        super().__init__(data_domain=data_domain)
-        self._dim_names = dim_names
-        self._coord_names = coord_names
-
-    @property
-    def _name(self) -> str:
-        return "MockTemplate"
-
-    def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {}
 
 
 class TestValidateSpecInTemplate:
@@ -42,12 +16,9 @@ class TestValidateSpecInTemplate:
 
     def test_validation_passes_with_all_required_fields(self) -> None:
         """Test that validation passes when all required fields are present."""
-        # Template requiring standard SEG-Y fields
-        template = MockTemplate(
-            data_domain="time",
-            dim_names=("inline", "crossline", "time"),
-            coord_names=("cdp_x", "cdp_y"),
-        )
+        template = MagicMock()
+        template._dim_names = ("inline", "crossline", "time")
+        template._coord_names = ("cdp_x", "cdp_y")
 
         # SegySpec with all required fields
         spec = get_segy_standard(1.0)
@@ -65,11 +36,9 @@ class TestValidateSpecInTemplate:
     def test_validation_fails_with_missing_fields(self) -> None:
         """Test that validation fails when required fields are missing."""
         # Template requiring custom fields not in standard spec
-        template = MockTemplate(
-            data_domain="time",
-            dim_names=("custom_dim1", "custom_dim2", "time"),
-            coord_names=("custom_coord_x", "custom_coord_y"),
-        )
+        template = MagicMock()
+        template._dim_names = ("custom_dim1", "custom_dim2", "time")
+        template._coord_names = ("custom_coord_x", "custom_coord_y")
 
         # SegySpec with only one of the required custom fields
         spec = get_segy_standard(1.0)
