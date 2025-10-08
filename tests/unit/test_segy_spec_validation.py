@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
 from typing import Any
 
 import pytest
@@ -9,8 +10,10 @@ from segy.schema import HeaderField
 from segy.standards import get_segy_standard
 
 from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
-from mdio.builder.templates.types import SeismicDataDomain
 from mdio.converters.segy import _validate_spec_in_template
+
+if TYPE_CHECKING:
+    from mdio.builder.templates.types import SeismicDataDomain
 
 
 class MockTemplate(AbstractDatasetTemplate):
@@ -83,4 +86,3 @@ class TestValidateSpecInTemplate:
         assert "custom_dim2" in error_message
         assert "custom_coord_x" in error_message
         assert "custom_coord_y" in error_message
-
