@@ -33,6 +33,10 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.xarray_builder import _get_fill_value
 from mdio.constants import fill_value_map
 
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -212,7 +216,7 @@ class SegyFileInfo:
     """SEG-Y file header information."""
 
     num_traces: int
-    sample_labels: np.NDArray[np.int32]
+    sample_labels: NDArray[np.int32]
     text_header: str
     binary_header_dict: dict
     raw_binary_headers: bytes
@@ -229,13 +233,13 @@ def info_worker(segy_file_kwargs: SegyFileArguments) -> SegyFileInfo:
         SegyFileInfo containing number of traces, sample labels, and header info.
     """
     segy_file = SegyFile(**segy_file_kwargs)
-    num_traces: int = segy_file.num_traces
-    sample_labels: np.NDArray[np.int32] = segy_file.sample_labels
+    num_traces = segy_file.num_traces
+    sample_labels = segy_file.sample_labels
 
     text_header = segy_file.text_header
 
     # Get header information directly
-    raw_binary_headers: bytes = segy_file.fs.read_block(
+    raw_binary_headers = segy_file.fs.read_block(
         fn=segy_file.url,
         offset=segy_file.spec.binary_header.offset,
         length=segy_file.spec.binary_header.itemsize,
