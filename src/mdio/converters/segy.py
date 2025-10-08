@@ -482,6 +482,21 @@ def _chunk_variable(ds: Dataset, target_variable_name: str) -> None:
     ds.variables[index].metadata.chunk_grid = chunk_grid
 
 
+def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatasetTemplate) -> None:
+    """Validate that the SegySpec has all required fields in the MDIO template."""
+    # TODO(BrianMichell): Implement a simple test for this
+    # https://github.com/TGSAI/mdio-python/issues/703
+    header_fields = [field.name for field in segy_spec.trace.header.fields]
+    for i in range(len(mdio_template._dim_names) - 1):
+        if mdio_template._dim_names[i] not in header_fields:
+            err = f"Dimension '{mdio_template._dim_names[i]}' not found in SegySpec.trace.header.fields."
+            raise ValueError(err)
+    for coord in mdio_template._coord_names:
+        if coord not in header_fields:
+            err = f"Coordinate '{coord}' not found in SegySpec.trace.header.fields."
+            raise ValueError(err)
+
+
 def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
@@ -507,6 +522,8 @@ def segy_to_mdio(  # noqa PLR0913
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
     """
+    _validate_spec_in_template(segy_spec, mdio_template)
+
     input_path = _normalize_path(input_path)
     output_path = _normalize_path(output_path)
 
