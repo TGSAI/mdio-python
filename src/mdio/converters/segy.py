@@ -490,7 +490,10 @@ def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatas
     missing_fields = required_fields - header_fields
 
     if missing_fields:
-        err = f"Required fields {sorted(missing_fields)} not found in the provided segy_spec"
+        err = (
+            f"Required fields {sorted(missing_fields)} for template {mdio_template.name} "
+            f"not found in the provided segy_spec"
+        )
         raise ValueError(err)
 
 

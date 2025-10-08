@@ -37,6 +37,7 @@ class TestValidateSpecInTemplate:
         """Test that validation fails when required fields are missing."""
         # Template requiring custom fields not in standard spec
         template = MagicMock()
+        template.name = "CustomTemplate"
         template._dim_names = ("custom_dim1", "custom_dim2", "time")
         template._coord_names = ("custom_coord_x", "custom_coord_y")
 
@@ -48,10 +49,11 @@ class TestValidateSpecInTemplate:
         segy_spec = spec.customize(trace_header_fields=header_fields)
 
         # Should raise ValueError listing the missing fields
-        with pytest.raises(ValueError, match=r"Required fields.*not found in the provided segy_spec") as exc_info:
+        with pytest.raises(ValueError, match=r"Required fields.*not found in.*segy_spec") as exc_info:
             _validate_spec_in_template(segy_spec, template)
 
         error_message = str(exc_info.value)
         assert "custom_dim2" in error_message
         assert "custom_coord_x" in error_message
         assert "custom_coord_y" in error_message
+        assert "CustomTemplate" in error_message
