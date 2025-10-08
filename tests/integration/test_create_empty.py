@@ -59,43 +59,43 @@ class TestCreateEmptyPostStack3DTimeMdio:
     def _validate_empty_mdio_dataset(cls, ds: xr_Dataset, has_headers: bool) -> None:
         """Validate an empty MDIO dataset structure and content."""
         # Check that the dataset has the expected shape
-        assert ds.sizes == {"inline": 200, "crossline": 300, "time": 750}
+        assert ds.sizes == {"inline": 345, "crossline": 188, "time": 1501}
 
         # Validate the dimension coordinate variables
-        validate_variable(ds, "inline", (200,), ("inline",), np.int32, range(100, 300), get_values)
-        validate_variable(ds, "crossline", (300,), ("crossline",), np.int32, range(1000, 1600, 2), get_values)
-        validate_variable(ds, "time", (750,), ("time",), np.int32, range(0, 3000, 4), get_values)
+        validate_variable(ds, "inline", (345,), ("inline",), np.int32, range(1, 346), get_values)
+        validate_variable(ds, "crossline", (188,), ("crossline",), np.int32, range(1, 189), get_values)
+        validate_variable(ds, "time", (1501,), ("time",), np.int32, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables (should be empty for empty dataset)
-        validate_variable(ds, "cdp_x", (200, 300), ("inline", "crossline"), np.float64, None, None)
-        validate_variable(ds, "cdp_y", (200, 300), ("inline", "crossline"), np.float64, None, None)
+        validate_variable(ds, "cdp_x", (345, 188), ("inline", "crossline"), np.float64, None, None)
+        validate_variable(ds, "cdp_y", (345, 188), ("inline", "crossline"), np.float64, None, None)
 
         if has_headers:
             # Validate the headers (should be empty for empty dataset)
             # Infer the dtype from segy_spec and ignore endianness
             header_dtype = cls._get_customized_v10_trace_header_spec().dtype.newbyteorder("native")
-            validate_variable(ds, "headers", (200, 300), ("inline", "crossline"), header_dtype, None, None)
+            validate_variable(ds, "headers", (345, 188), ("inline", "crossline"), header_dtype, None, None)
             validate_variable(ds, "segy_file_header", (), (), np.dtype("U1"), None, None)
         else:
             assert "headers" not in ds.variables
             assert "segy_file_header" not in ds.variables
 
         # Validate the trace mask (should be all True for empty dataset)
-        validate_variable(ds, "trace_mask", (200, 300), ("inline", "crossline"), np.bool_, None, None)
+        validate_variable(ds, "trace_mask", (345, 188), ("inline", "crossline"), np.bool_, None, None)
         trace_mask = ds["trace_mask"].values
         assert not np.any(trace_mask), "All traces should be marked as dead in empty dataset"
 
         # Validate the amplitude data (should be empty)
-        validate_variable(ds, "amplitude", (200, 300, 750), ("inline", "crossline", "time"), np.float32, None, None)
+        validate_variable(ds, "amplitude", (345, 188, 1501), ("inline", "crossline", "time"), np.float32, None, None)
 
     @classmethod
     def _create_empty_mdio(cls, create_headers: bool, output_path: Path, overwrite: bool = True) -> None:
         """Create a temporary empty MDIO file for testing."""
         # Create the grid with the specified dimensions
         dims = [
-            Dimension(name="inline", coords=range(100, 300, 1)),  # 100-300 with step 1
-            Dimension(name="crossline", coords=range(1000, 1600, 2)),  # 1000-1600 with step 2
-            Dimension(name="time", coords=range(0, 3000, 4)),  # 0-3 seconds 4ms sample rate
+            Dimension(name="inline", coords=range(1, 346, 1)),  # 100-300 with step 1
+            Dimension(name="crossline", coords=range(1, 189, 1)),  # 1000-1600 with step 2
+            Dimension(name="time", coords=range(0, 3002, 2)),  # 0-3 seconds 4ms sample rate
         ]
 
         # If later on, we want to export to SEG-Y, we need to provide the trace header spec.
