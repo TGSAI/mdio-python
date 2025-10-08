@@ -352,7 +352,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _add_segy_file_headers(xr_dataset: xr_Dataset, info: SegyFileInfo) -> xr_Dataset:
+def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_info: SegyFileInfo) -> xr_Dataset:
     save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
     if not save_file_header:
         return xr_dataset
@@ -360,11 +360,11 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, info: SegyFileInfo) -> xr_Dat
     expected_rows = 40
     expected_cols = 80
 
-    text_header_rows = info.text_header.splitlines()
+    text_header_rows = segy_file_info.text_header.splitlines()
     text_header_cols_bad = [len(row) != expected_cols for row in text_header_rows]
 
     if len(text_header_rows) != expected_rows:
-        err = f"Invalid text header count: expected {expected_rows}, got {len(info.text_header)}"
+        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_file_info.text_header)}"
         raise ValueError(err)
 
     if any(text_header_cols_bad):
@@ -374,12 +374,12 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, info: SegyFileInfo) -> xr_Dat
     xr_dataset["segy_file_header"] = ((), "")
     xr_dataset["segy_file_header"].attrs.update(
         {
-            "textHeader": info.text_header,
-            "binaryHeader": info.binary_header_dict,
+            "textHeader": segy_file_info.text_header,
+            "binaryHeader": segy_file_info.binary_header_dict,
         }
     )
     if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
-        raw_binary_base64 = base64.b64encode(info.raw_binary_headers).decode("ascii")
+        raw_binary_base64 = base64.b64encode(segy_file_info.raw_binary_headers).decode("ascii")
         xr_dataset["segy_file_header"].attrs.update({"rawBinaryHeader": raw_binary_base64})
 
     return xr_dataset
