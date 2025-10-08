@@ -296,9 +296,9 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(info: SegyFileInfo) -> LengthUnitModel | None:
+def _get_horizontal_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
-    measurement_system_code = int(info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
+    measurement_system_code = int(segy_file_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
 
     if measurement_system_code not in (1, 2):
         logger.warning(
