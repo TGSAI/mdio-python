@@ -138,9 +138,8 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
 
 
 def _scan_for_headers(
-    segy_kw: SegyFileArguments,
-    num_traces: int,
-    sample_labels: np.ndarray,
+    segy_file_kwargs: SegyFileArguments,
+    segy_file_info: SegyFileInfo,
     template: AbstractDatasetTemplate,
     grid_overrides: dict[str, Any] | None = None,
 ) -> tuple[list[Dimension], SegyHeaderArray]:
@@ -151,9 +150,8 @@ def _scan_for_headers(
     """
     full_chunk_size = template.full_chunk_size
     segy_dimensions, chunk_size, segy_headers = get_grid_plan(
-        segy_kw=segy_kw,
-        num_traces=num_traces,
-        sample_labels=sample_labels,
+        segy_file_kwargs=segy_file_kwargs,
+        segy_file_info=segy_file_info,
         return_headers=True,
         template=template,
         chunksize=full_chunk_size,
@@ -182,12 +180,16 @@ def _read_segy_file_info(segy_kw: SegyFileArguments) -> SegyFileInfo:
         return future.result()
 
 
-def _build_and_check_grid(segy_dimensions: list[Dimension], num_traces: int, segy_headers: SegyHeaderArray) -> Grid:
+def _build_and_check_grid(
+    segy_dimensions: list[Dimension],
+    segy_file_info: SegyFileInfo,
+    segy_headers: SegyHeaderArray,
+) -> Grid:
     """Build and check the grid from the SEG-Y headers and dimensions.
 
     Args:
         segy_dimensions: List of of all SEG-Y dimensions to build grid from.
-        num_traces: Number of traces in the SEG-Y file.
+        segy_file_info: SegyFileInfo instance containing the SEG-Y file information.
         segy_headers: Headers read in from SEG-Y file for building the trace map.
 
     Returns:
@@ -197,6 +199,7 @@ def _build_and_check_grid(segy_dimensions: list[Dimension], num_traces: int, seg
         GridTraceCountError: If number of traces in SEG-Y file does not match the parsed grid
     """
     grid = Grid(dims=segy_dimensions)
+    num_traces = segy_file_info.num_traces
     grid_density_qc(grid, num_traces)
     grid.build_map(segy_headers)
     # Check grid validity by comparing trace numbers
@@ -528,16 +531,15 @@ def segy_to_mdio(  # noqa PLR0913
         "settings": segy_settings,
         "header_overrides": segy_header_overrides,
     }
-    info = _read_segy_file_info(segy_kw)
+    segy_file_info = _read_segy_file_info(segy_kw)
 
     segy_dimensions, segy_headers = _scan_for_headers(
         segy_kw,
-        num_traces=info.num_traces,
-        sample_labels=info.sample_labels,
+        segy_file_info,
         template=mdio_template,
         grid_overrides=grid_overrides,
     )
-    grid = _build_and_check_grid(segy_dimensions, info.num_traces, segy_headers)
+    grid = _build_and_check_grid(segy_dimensions, segy_file_info, segy_headers)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
@@ -549,7 +551,7 @@ def segy_to_mdio(  # noqa PLR0913
             logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
             mdio_template = _add_raw_headers_to_template(mdio_template)
 
-    horizontal_unit = _get_horizontal_coordinate_unit(info)
+    horizontal_unit = _get_horizontal_coordinate_unit(segy_file_info)
     mdio_ds: Dataset = mdio_template.build_dataset(
         name=mdio_template.name,
         sizes=grid.shape,
@@ -570,10 +572,10 @@ def segy_to_mdio(  # noqa PLR0913
         dataset=xr_dataset,
         grid=grid,
         coords=non_dim_coords,
-        horizontal_coordinate_scalar=info.coordinate_scalar,
+        horizontal_coordinate_scalar=segy_file_info.coordinate_scalar,
     )
 
-    xr_dataset = _add_segy_file_headers(xr_dataset, info)
+    xr_dataset = _add_segy_file_headers(xr_dataset, segy_file_info)
 
     xr_dataset.trace_mask.data[:] = grid.live_mask
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in

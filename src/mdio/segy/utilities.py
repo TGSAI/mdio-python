@@ -20,15 +20,14 @@ if TYPE_CHECKING:
 
     from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
     from mdio.segy._workers import SegyFileArguments
-
+    from mdio.segy._workers import SegyFileInfo
 
 logger = logging.getLogger(__name__)
 
 
 def get_grid_plan(  # noqa:  C901, PLR0913
-    segy_kw: SegyFileArguments,
-    num_traces: int,
-    sample_labels: np.ndarray,
+    segy_file_kwargs: SegyFileArguments,
+    segy_file_info: SegyFileInfo,
     chunksize: tuple[int, ...] | None,
     template: AbstractDatasetTemplate,
     return_headers: bool = False,
@@ -43,9 +42,8 @@ def get_grid_plan(  # noqa:  C901, PLR0913
     4. Create `Dimension` for sample axis using binary header.
 
     Args:
-        segy_kw: SEG-Y file arguments.
-        num_traces: Total number of traces in the SEG-Y file.
-        sample_labels: Sample labels from binary header.
+        segy_file_kwargs: SEG-Y file arguments.
+        segy_file_info: SegyFileInfo instance containing the num_traces and sample_labels.
         chunksize:  Chunk sizes to be used in grid plan.
         template: MDIO template where coordinate names and domain will be taken.
         return_headers: Option to return parsed headers with `Dimension` objects. Default is False.
@@ -60,7 +58,11 @@ def get_grid_plan(  # noqa:  C901, PLR0913
     # Keep only dimension and non-dimension coordinates excluding the vertical axis
     horizontal_dimensions = template.dimension_names[:-1]
     horizontal_coordinates = horizontal_dimensions + template.coordinate_names
-    headers_subset = parse_headers(segy_kw=segy_kw, num_traces=num_traces, subset=horizontal_coordinates)
+    headers_subset = parse_headers(
+        segy_kw=segy_file_kwargs,
+        num_traces=segy_file_info.num_traces,
+        subset=horizontal_coordinates,
+    )
 
     # Handle grid overrides.
     override_handler = GridOverrider()
@@ -76,7 +78,7 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         dim_unique = np.unique(headers_subset[dim_name])
         dimensions.append(Dimension(coords=dim_unique, name=dim_name))
 
-    sample_labels = sample_labels / 1000  # normalize
+    sample_labels = segy_file_info.sample_labels / 1000  # normalize
 
     if all(sample_labels.astype("int64") == sample_labels):
         sample_labels = sample_labels.astype("int64")
