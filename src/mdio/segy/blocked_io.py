@@ -54,7 +54,7 @@ def _update_stats(final_stats: SummaryStatistics, partial_stats: SummaryStatisti
 
 
 def to_zarr(  # noqa: PLR0913, PLR0915
-    segy_kw: SegyFileArguments,
+    segy_file_kwargs: SegyFileArguments,
     output_path: UPath,
     grid_map: zarr_Array,
     dataset: xr_Dataset,
@@ -63,7 +63,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     """Blocked I/O from SEG-Y to chunked `xarray.Dataset`.
 
     Args:
-        segy_kw: SEG-Y file arguments.
+        segy_file_kwargs: SEG-Y file arguments.
         output_path: Output universal path for the output MDIO dataset.
         grid_map: Zarr array with grid map for the traces.
         dataset: Handle for xarray.Dataset we are writing trace data
@@ -90,7 +90,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
 
     with executor:
         futures = []
-        common_args = (segy_kw, output_path, data_variable_name)
+        common_args = (segy_file_kwargs, output_path, data_variable_name)
         for region in chunk_iter:
             subset_args = (region, grid_map, dataset.isel(region))
             future = executor.submit(trace_worker, *common_args, *subset_args)

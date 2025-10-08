@@ -48,7 +48,9 @@ class SegyFileArguments(TypedDict):
 
 
 def header_scan_worker(
-    segy_kw: SegyFileArguments, trace_range: tuple[int, int], subset: list[str] | None = None
+    segy_file_kwargs: SegyFileArguments,
+    trace_range: tuple[int, int],
+    subset: list[str] | None = None,
 ) -> HeaderArray:
     """Header scan worker.
 
@@ -56,14 +58,14 @@ def header_scan_worker(
     a different context manager.
 
     Args:
-        segy_kw: Arguments to open SegyFile instance.
+        segy_file_kwargs: Arguments to open SegyFile instance.
         trace_range: Tuple consisting of the trace ranges to read.
         subset: List of header names to filter and keep.
 
     Returns:
         HeaderArray parsed from SEG-Y library.
     """
-    segy_file = SegyFile(**segy_kw)
+    segy_file = SegyFile(**segy_file_kwargs)
 
     slice_ = slice(*trace_range)
 
@@ -91,7 +93,7 @@ def header_scan_worker(
 
 
 def trace_worker(  # noqa: PLR0913
-    segy_kw: SegyFileArguments,
+    segy_file_kwargs: SegyFileArguments,
     output_path: UPath,
     data_variable_name: str,
     region: dict[str, slice],
@@ -101,7 +103,7 @@ def trace_worker(  # noqa: PLR0913
     """Writes a subset of traces from a region of the dataset of Zarr file.
 
     Args:
-        segy_kw: Arguments to open SegyFile instance.
+        segy_file_kwargs: Arguments to open SegyFile instance.
         output_path: Universal Path for the output Zarr dataset
             (e.g. local file path or cloud storage URI) the location
             also includes storage options for cloud storage.
@@ -123,7 +125,7 @@ def trace_worker(  # noqa: PLR0913
         return None
 
     # Open the SEG-Y file in this process since the open file handles cannot be shared across processes.
-    segy_file = SegyFile(**segy_kw)
+    segy_file = SegyFile(**segy_file_kwargs)
 
     # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
     # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
@@ -220,19 +222,19 @@ class SegyFileInfo:
 
 
 def info_worker(
-    segy_kw: SegyFileArguments, trace_indices: Iterable[int] | None = None
+    segy_file_kwargs: SegyFileArguments, trace_indices: Iterable[int] | None = None
 ) -> SegyFileInfo | tuple[SegyFileInfo, np.NDArray]:
     """Reads information from a SEG-Y file.
 
     Args:
-        segy_kw: Arguments to open SegyFile instance.
+        segy_file_kwargs: Arguments to open SegyFile instance.
         trace_indices: Optional iterable of trace indices to read. If None, none of the traces are read.
 
     Returns:
         SegyFileInfo containing number of traces, sample labels, and header info.
         If trace_indices is provided, also returns traces as a tuple.
     """
-    segy_file = SegyFile(**segy_kw)
+    segy_file = SegyFile(**segy_file_kwargs)
     num_traces: int = segy_file.num_traces
     sample_labels: np.NDArray[np.int32] = segy_file.sample_labels
 

@@ -59,7 +59,7 @@ def get_grid_plan(  # noqa:  C901, PLR0913
     horizontal_dimensions = template.dimension_names[:-1]
     horizontal_coordinates = horizontal_dimensions + template.coordinate_names
     headers_subset = parse_headers(
-        segy_kw=segy_file_kwargs,
+        segy_file_kwargs=segy_file_kwargs,
         num_traces=segy_file_info.num_traces,
         subset=horizontal_coordinates,
     )

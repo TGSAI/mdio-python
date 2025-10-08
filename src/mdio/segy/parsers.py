@@ -24,7 +24,7 @@ default_cpus = cpu_count(logical=True)
 
 
 def parse_headers(
-    segy_kw: SegyFileArguments,
+    segy_file_kwargs: SegyFileArguments,
     num_traces: int,
     subset: list[str] | None = None,
     block_size: int = 10000,
@@ -33,7 +33,7 @@ def parse_headers(
     """Read and parse given `byte_locations` from SEG-Y file.
 
     Args:
-        segy_kw: SEG-Y file arguments.
+        segy_file_kwargs: SEG-Y file arguments.
         num_traces: Total number of traces in the SEG-Y file.
         subset: List of header names to filter and keep.
         block_size: Number of traces to read for each block.
@@ -61,7 +61,7 @@ def parse_headers(
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     context = mp.get_context("spawn")
     with ProcessPoolExecutor(num_workers, mp_context=context) as executor:
-        lazy_work = executor.map(header_scan_worker, repeat(segy_kw), trace_ranges, repeat(subset))
+        lazy_work = executor.map(header_scan_worker, repeat(segy_file_kwargs), trace_ranges, repeat(subset))
 
         if progress_bar is True:
             lazy_work = tqdm(

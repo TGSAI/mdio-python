@@ -596,7 +596,7 @@ def segy_to_mdio(  # noqa PLR0913
     # This is an memory-expensive and time-consuming read-write operation
     # performed in chunks to save the memory
     blocked_io.to_zarr(
-        segy_kw=segy_file_kwargs,
+        segy_file_kwargs=segy_file_kwargs,
         output_path=output_path,
         grid_map=grid.map,
         dataset=xr_dataset,
