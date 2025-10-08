@@ -484,8 +484,6 @@ def _chunk_variable(ds: Dataset, target_variable_name: str) -> None:
 
 def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatasetTemplate) -> None:
     """Validate that the SegySpec has all required fields in the MDIO template."""
-    # TODO(BrianMichell): Implement a simple test for this
-    # https://github.com/TGSAI/mdio-python/issues/703
     header_fields = {field.name for field in segy_spec.trace.header.fields}
 
     required_fields = set(mdio_template._dim_names[:-1]) | set(mdio_template._coord_names)
