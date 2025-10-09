@@ -132,9 +132,7 @@ def trace_worker(  # noqa: PLR0913
 
     # Open the zarr group to write directly
     storage_options = _normalize_storage_options(output_path)
-    zarr_group = zarr_open_group(
-        output_path.as_posix(), mode="r+", storage_options=storage_options
-    )
+    zarr_group = zarr_open_group(output_path.as_posix(), mode="r+", storage_options=storage_options)
 
     header_key = "headers"
     raw_header_key = "raw_headers"
