@@ -13,7 +13,6 @@ from segy import SegyFile
 from segy.arrays import HeaderArray
 
 from mdio.api.io import _normalize_storage_options
-from mdio.builder.schemas.dtype import ScalarType
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 from mdio.segy.scalar import _get_coordinate_scalar
 
@@ -29,7 +28,6 @@ from zarr.core.config import config as zarr_config
 
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
-from mdio.builder.xarray_builder import _get_fill_value
 from mdio.constants import fill_value_map
 
 if TYPE_CHECKING:
@@ -151,47 +149,33 @@ def trace_worker(  # noqa: PLR0913
     # NOTE: The `raw_header_key` code block should be removed in full as it will become dead code.
     traces = SegyFileRawTraceWrapper(segy_file, live_trace_indexes)
 
+    # Compute slices once (headers exclude sample dimension)
+    header_region_slices = region_slices[:-1]  # Exclude sample dimension
+
     # Write raw headers if they exist
     # Headers only have spatial dimensions (no sample dimension)
     if raw_header_key in available_arrays:
         zarr_array = zarr_group[raw_header_key]
-        # Get the shape from the region - headers don't have sample dimension
-        header_region_slices = region_slices[:-1]  # Exclude sample dimension
-        region_shape = tuple(
-            (s.stop - s.start) if isinstance(s, slice) else 1
-            for s in header_region_slices
-        )
-        tmp_raw_headers = np.zeros(region_shape, dtype=zarr_array.dtype)
+        # Read existing data, modify live traces, write back
+        # This avoids allocating a new array and is memory efficient
+        tmp_raw_headers = zarr_array[header_region_slices]
         tmp_raw_headers[not_null] = traces.raw_header
-        # Write directly to zarr
         zarr_array[header_region_slices] = tmp_raw_headers
 
     # Write headers if they exist
     # Headers only have spatial dimensions (no sample dimension)
     if header_key in available_arrays:
         zarr_array = zarr_group[header_key]
-        # Get the shape from the region - headers don't have sample dimension
-        header_region_slices = region_slices[:-1]  # Exclude sample dimension
-        region_shape = tuple(
-            (s.stop - s.start) if isinstance(s, slice) else 1
-            for s in header_region_slices
-        )
-        tmp_headers = np.zeros(region_shape, dtype=zarr_array.dtype)
+        # Read existing data, modify live traces, write back
+        tmp_headers = zarr_array[header_region_slices]
         tmp_headers[not_null] = traces.header
-        # Write directly to zarr
         zarr_array[header_region_slices] = tmp_headers
 
     # Write the data variable
     zarr_array = zarr_group[data_variable_name]
-    # Get the shape from the region
-    region_shape = tuple(
-        (s.stop - s.start) if isinstance(s, slice) else 1
-        for s in region_slices
-    )
-    fill_value = _get_fill_value(ScalarType(zarr_array.dtype.name))
-    tmp_samples = np.full(region_shape, fill_value=fill_value, dtype=zarr_array.dtype)
+    # Read existing data, modify live traces, write back
+    tmp_samples = zarr_array[region_slices]
     tmp_samples[not_null] = traces.sample
-    # Write directly to zarr
     zarr_array[region_slices] = tmp_samples
 
     nonzero_samples = np.ma.masked_values(traces.sample, 0, copy=False)
