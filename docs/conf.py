@@ -41,6 +41,7 @@ intersphinx_mapping = {
     "numpy": ("https://numpy.org/doc/stable/", None),
     "pydantic": ("https://docs.pydantic.dev/latest/", None),
     "zarr": ("https://zarr.readthedocs.io/en/stable/", None),
+    "segy": ("https://segy.readthedocs.io/en/stable/", None),
 }
 
 pygments_style = "vs"
