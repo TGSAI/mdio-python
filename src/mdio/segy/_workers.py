@@ -150,13 +150,14 @@ def trace_worker(  # noqa: PLR0913
     # Compute slices once (headers exclude sample dimension)
     header_region_slices = region_slices[:-1]  # Exclude sample dimension
 
+    full_shape = tuple(s.stop - s.start for s in region_slices)
+    header_shape = tuple(s.stop - s.start for s in header_region_slices)
+
     # Write raw headers if they exist
     # Headers only have spatial dimensions (no sample dimension)
     if raw_header_key in available_arrays:
         raw_header_array = zarr_group[raw_header_key]
-        # Read existing data, modify live traces, write back
-        # This avoids allocating a new array and is memory efficient
-        tmp_raw_headers = raw_header_array[header_region_slices]
+        tmp_raw_headers = np.full(header_shape, raw_header_array.fill_value)
         tmp_raw_headers[not_null] = traces.raw_header
         raw_header_array[header_region_slices] = tmp_raw_headers
 
@@ -164,15 +165,13 @@ def trace_worker(  # noqa: PLR0913
     # Headers only have spatial dimensions (no sample dimension)
     if header_key in available_arrays:
         header_array = zarr_group[header_key]
-        # Read existing data, modify live traces, write back
-        tmp_headers = header_array[header_region_slices]
+        tmp_headers = np.full(header_shape, header_array.fill_value)
         tmp_headers[not_null] = traces.header
         header_array[header_region_slices] = tmp_headers
 
     # Write the data variable
     data_array = zarr_group[data_variable_name]
-    # Read existing data, modify live traces, write back
-    tmp_samples = data_array[region_slices]
+    tmp_samples = np.full(full_shape, data_array.fill_value)
     tmp_samples[not_null] = traces.sample
     data_array[region_slices] = tmp_samples
 
