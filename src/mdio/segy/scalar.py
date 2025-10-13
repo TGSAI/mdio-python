@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from segy.standards import SegyStandard
+from segy.schema import SegyStandard
 from segy.standards.fields import trace as trace_header_fields
 
 if TYPE_CHECKING:

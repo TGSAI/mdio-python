@@ -74,11 +74,13 @@ class ChunkIterator:
             # We build slices here. It is dimension agnostic
             current_start = next(self._ranges)
 
-            # TODO (Dmitriy Repin): Enhance ChunkIterator to make the last slice, if needed, smaller
-            # https://github.com/TGSAI/mdio-python/issues/586
             start_indices = tuple(dim * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True))
 
-            stop_indices = tuple((dim + 1) * chunk for dim, chunk in zip(current_start, self.len_chunks, strict=True))
+            # Calculate stop indices, making the last slice fit the data exactly
+            stop_indices = tuple(
+                min((dim + 1) * chunk, self.arr_shape[i])
+                for i, (dim, chunk) in enumerate(zip(current_start, self.len_chunks, strict=True))
+            )
 
             slices = tuple(slice(start, stop) for start, stop in zip(start_indices, stop_indices, strict=True))
 

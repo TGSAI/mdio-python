@@ -1,6 +1,6 @@
 [project]
 name = "multidimio"
-version = "1.0.5"
+version = "1.0.6"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = [{ name = "Altay Sansal", email = "altay.sansal@tgs.com" }]
 requires-python = ">=3.11,<3.14"
@@ -18,24 +18,24 @@ classifiers = [
 ]
 
 dependencies = [
-    "click>=8.2.1",
+    "click>=8.3.0",
     "click-params>=0.5.0",
-    "dask>=2025.9.0",
+    "dask>=2025.9.1",
     "fsspec>=2025.9.0",
     "pint>=0.25.0",
-    "psutil>=7.0.0",
-    "pydantic>=2.11.9",
+    "psutil>=7.1.0",
+    "pydantic>=2.12.0",
     "rich>=14.1.0",
-    "segy>=0.5.2",
+    "segy>=0.5.3",
     "tqdm>=4.67.1",
-    "universal-pathlib>=0.2.6",
-    "xarray>=2025.9.1",
+    "universal-pathlib>=0.3.3",
+    "xarray>=2025.10.1",
     "zarr>=3.1.3",
 ]
 
 [project.optional-dependencies]
 cloud = ["s3fs>=2025.9.0", "gcsfs>=2025.9.0", "adlfs>=2025.8.0"]
-distributed = ["distributed>=2025.9.0", "bokeh>=3.8.0"]
+distributed = ["distributed>=2025.9.1", "bokeh>=3.8.0"]
 lossy = ["zfpy>=1.0.1"]
 
 [project.urls]
@@ -48,9 +48,9 @@ mdio = "mdio.__main__:main"
 
 [dependency-groups]
 dev = [
-    "ruff>=0.13.0",
-    "coverage[toml]>=7.10.6",
-    "mypy>=1.18.1",
+    "ruff>=0.14.0",
+    "coverage[toml]>=7.10.7",
+    "mypy>=1.18.2",
     "pre-commit>=4.3.0",
     "pre-commit-hooks>=6.0.0",
     "pytest>=8.4.2",
@@ -61,9 +61,9 @@ dev = [
 ]
 
 docs = [
-    "aiohttp>=3.12.15",
+    "aiohttp>=3.13.0",
     "autodoc-pydantic>=2.2.0",
-    "furo>=2025.7.19",
+    "furo>=2025.9.25",
     "linkify-it-py>=2.0.3",
     "matplotlib>=3.10.6",
     "myst-nb>=1.3.0",
@@ -181,7 +181,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [tool.bumpversion]
-current_version = "1.0.5"
+current_version = "1.0.6"
 allow_dirty = true
 commit = false
 tag = false

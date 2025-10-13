@@ -25,8 +25,8 @@ def test_chunk_iterator_returning_dict() -> None:
     assert iter2.dim_chunks == (2, 3, 4)
     assert iter2.num_chunks == 24
 
-    # Its purpose is to confirm that all slices are created of the same size,
-    # even if the last slice should have been smaller.
+    # Its purpose is to confirm that the last slice is adjusted to fit the data exactly
+    # when the array size doesn't align perfectly with chunk boundaries.
     for _ in range(13):  # element index 12
         region = iter1.__next__()
     assert region == {
@@ -38,7 +38,7 @@ def test_chunk_iterator_returning_dict() -> None:
     for _ in range(13):  # element index 12
         region = iter2.__next__()
     assert region == {
-        "inline": slice(3, 6, None),
+        "inline": slice(3, 5, None),
         "crossline": slice(0, 4, None),
         "depth": slice(0, 5, None),
     }
@@ -61,15 +61,15 @@ def test_chunk_iterator_returning_tuple() -> None:
     assert iter2.dim_chunks == (2, 3, 4)
     assert iter2.num_chunks == 24
 
-    # Its purpose is to confirm that all slices are created of the same size,
-    # even if the last slice should have been smaller.
+    # Its purpose is to confirm that the last slice is adjusted to fit the data exactly
+    # when the array size doesn't align perfectly with chunk boundaries.
     for _ in range(13):  # element index 12
         region = iter1.__next__()
     assert region == (slice(3, 6, None), slice(0, 4, None), slice(0, 5, None))
 
     for _ in range(13):  # element index 12
         region = iter2.__next__()
-    assert region == (slice(3, 6, None), slice(0, 4, None), slice(0, 5, None))
+    assert region == (slice(3, 5, None), slice(0, 4, None), slice(0, 5, None))
 
 
 def val(shape: tuple[int, int, int], i: int, j: int, k: int) -> int:

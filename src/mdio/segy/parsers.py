@@ -16,22 +16,25 @@ from tqdm.auto import tqdm
 from mdio.segy._workers import header_scan_worker
 
 if TYPE_CHECKING:
-    from segy import SegyFile
     from segy.arrays import HeaderArray
+
+    from mdio.segy._workers import SegyFileArguments
 
 default_cpus = cpu_count(logical=True)
 
 
 def parse_headers(
-    segy_file: SegyFile,
-    subset: tuple[str, ...] | None = None,
+    segy_file_kwargs: SegyFileArguments,
+    num_traces: int,
+    subset: list[str] | None = None,
     block_size: int = 10000,
     progress_bar: bool = True,
 ) -> HeaderArray:
     """Read and parse given `byte_locations` from SEG-Y file.
 
     Args:
-        segy_file: SegyFile instance.
+        segy_file_kwargs: SEG-Y file arguments.
+        num_traces: Total number of traces in the SEG-Y file.
         subset: List of header names to filter and keep.
         block_size: Number of traces to read for each block.
         progress_bar: Enable or disable progress bar. Default is True.
@@ -40,7 +43,7 @@ def parse_headers(
         HeaderArray. Keys are the index names, values are numpy arrays of parsed headers for the
         current block. Array is of type byte_type except IBM32 which is mapped to FLOAT32.
     """
-    trace_count = segy_file.num_traces
+    trace_count = num_traces
     n_blocks = int(ceil(trace_count / block_size))
 
     trace_ranges = []
@@ -53,17 +56,12 @@ def parse_headers(
     num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
     num_workers = min(n_blocks, num_cpus)
 
-    segy_kw = {
-        "url": segy_file.fs.unstrip_protocol(segy_file.url),
-        "spec": segy_file.spec,
-        "settings": segy_file.settings,
-    }
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     context = mp.get_context("spawn")
     with ProcessPoolExecutor(num_workers, mp_context=context) as executor:
-        lazy_work = executor.map(header_scan_worker, repeat(segy_kw), trace_ranges, repeat(subset))
+        lazy_work = executor.map(header_scan_worker, repeat(segy_file_kwargs), trace_ranges, repeat(subset))
 
         if progress_bar is True:
             lazy_work = tqdm(
