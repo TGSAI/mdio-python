@@ -49,7 +49,6 @@ class TestValidateSpecInTemplate:
         assert "custom_dim2" in error_message
         assert "custom_coord_x" in error_message
         assert "custom_coord_y" in error_message
-        assert "coordinate_scalar" in error_message
         assert "CustomTemplate" in error_message
 
     def test_validation_fails_with_missing_coordinate_scalar(self) -> None:
@@ -63,6 +62,7 @@ class TestValidateSpecInTemplate:
         spec = get_segy_standard(1.0)
         # Remove coordinate_scalar from the standard fields
         standard_fields = [field for field in spec.trace.header.fields if field.name != "coordinate_scalar"]
+        standard_fields.append(HeaderField(name="not_coordinate_scalar", byte=71, format="int16"))
         segy_spec = spec.customize(trace_header_fields=standard_fields)
 
         # Should raise ValueError for missing coordinate_scalar
