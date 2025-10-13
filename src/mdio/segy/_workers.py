@@ -153,28 +153,28 @@ def trace_worker(  # noqa: PLR0913
     # Write raw headers if they exist
     # Headers only have spatial dimensions (no sample dimension)
     if raw_header_key in available_arrays:
-        zarr_array = zarr_group[raw_header_key]
+        raw_header_array = zarr_group[raw_header_key]
         # Read existing data, modify live traces, write back
         # This avoids allocating a new array and is memory efficient
-        tmp_raw_headers = zarr_array[header_region_slices]
+        tmp_raw_headers = raw_header_array[header_region_slices]
         tmp_raw_headers[not_null] = traces.raw_header
-        zarr_array[header_region_slices] = tmp_raw_headers
+        raw_header_array[header_region_slices] = tmp_raw_headers
 
     # Write headers if they exist
     # Headers only have spatial dimensions (no sample dimension)
     if header_key in available_arrays:
-        zarr_array = zarr_group[header_key]
+        header_array = zarr_group[header_key]
         # Read existing data, modify live traces, write back
-        tmp_headers = zarr_array[header_region_slices]
+        tmp_headers = header_array[header_region_slices]
         tmp_headers[not_null] = traces.header
-        zarr_array[header_region_slices] = tmp_headers
+        header_array[header_region_slices] = tmp_headers
 
     # Write the data variable
-    zarr_array = zarr_group[data_variable_name]
+    data_array = zarr_group[data_variable_name]
     # Read existing data, modify live traces, write back
-    tmp_samples = zarr_array[region_slices]
+    tmp_samples = data_array[region_slices]
     tmp_samples[not_null] = traces.sample
-    zarr_array[region_slices] = tmp_samples
+    data_array[region_slices] = tmp_samples
 
     nonzero_samples = np.ma.masked_values(traces.sample, 0, copy=False)
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
