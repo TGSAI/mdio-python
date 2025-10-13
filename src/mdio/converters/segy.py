@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import base64
 import logging
-import multiprocessing as mp
 import os
-from concurrent.futures import ProcessPoolExecutor
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -55,7 +53,7 @@ if TYPE_CHECKING:
     from mdio.builder.schemas import Dataset
     from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
     from mdio.core.dimension import Dimension
-    from mdio.segy._workers import SegyFileArguments
+    from mdio.segy.segy_file_async import SegyFileArguments
 
 logger = logging.getLogger(__name__)
 
@@ -165,19 +163,6 @@ def _scan_for_headers(
         err = "Support for changing full_chunk_size in grid overrides is not yet implemented"
         raise NotImplementedError(err)
     return segy_dimensions, segy_headers
-
-
-def _read_segy_file_info(segy_file_kwargs: SegyFileArguments) -> SegyFileInfo:
-    """Read SEG-Y file in a separate process.
-
-    This is an ugly workaround for Zarr issues 3487 'Explicitly using fsspec and zarr FsspecStore causes
-    RuntimeError "Task attached to a different loop"'
-    """
-    # TODO (Dmitriy Repin): when Zarr issue 3487 is resolved, we can remove this workaround
-    # https://github.com/zarr-developers/zarr-python/issues/3487
-    with ProcessPoolExecutor(max_workers=1, mp_context=mp.get_context("spawn")) as executor:
-        future = executor.submit(info_worker, segy_file_kwargs)
-        return future.result()
 
 
 def _build_and_check_grid(
@@ -531,7 +516,7 @@ def segy_to_mdio(  # noqa PLR0913
         "settings": segy_settings,
         "header_overrides": segy_header_overrides,
     }
-    segy_file_info = _read_segy_file_info(segy_file_kwargs)
+    segy_file_info = info_worker(segy_file_kwargs)
 
     segy_dimensions, segy_headers = _scan_for_headers(
         segy_file_kwargs,

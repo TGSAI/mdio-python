@@ -6,21 +6,18 @@ import logging
 import os
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
-from typing import TypedDict
 
 import numpy as np
-from segy import SegyFile
 from segy.arrays import HeaderArray
 
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 from mdio.segy.scalar import _get_coordinate_scalar
+from mdio.segy.segy_file_async import SegyFileArguments
+from mdio.segy.segy_file_async import SegyFileAsync
 
 if TYPE_CHECKING:
-    from segy.config import SegyFileSettings
-    from segy.config import SegyHeaderOverrides
-    from segy.schema import SegySpec
     from upath import UPath
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
@@ -38,15 +35,6 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
-
-
-class SegyFileArguments(TypedDict):
-    """Arguments to open SegyFile instance creation."""
-
-    url: str
-    spec: SegySpec | None
-    settings: SegyFileSettings | None
-    header_overrides: SegyHeaderOverrides | None
 
 
 def header_scan_worker(
@@ -67,7 +55,7 @@ def header_scan_worker(
     Returns:
         HeaderArray parsed from SEG-Y library.
     """
-    segy_file = SegyFile(**segy_file_kwargs)
+    segy_file = SegyFileAsync(**segy_file_kwargs)
 
     slice_ = slice(*trace_range)
 
@@ -127,7 +115,7 @@ def trace_worker(  # noqa: PLR0913
         return None
 
     # Open the SEG-Y file in this process since the open file handles cannot be shared across processes.
-    segy_file = SegyFile(**segy_file_kwargs)
+    segy_file = SegyFileAsync(**segy_file_kwargs)
 
     # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
     # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
@@ -232,7 +220,7 @@ def info_worker(segy_file_kwargs: SegyFileArguments) -> SegyFileInfo:
     Returns:
         SegyFileInfo containing number of traces, sample labels, and header info.
     """
-    segy_file = SegyFile(**segy_file_kwargs)
+    segy_file = SegyFileAsync(**segy_file_kwargs)
     num_traces = segy_file.num_traces
     sample_labels = segy_file.sample_labels
 
