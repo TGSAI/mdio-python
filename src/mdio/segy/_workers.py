@@ -11,8 +11,8 @@ from segy.arrays import HeaderArray
 
 from mdio.api.io import _normalize_storage_options
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
-from mdio.segy.segy_file_async import SegyFileArguments
-from mdio.segy.segy_file_async import SegyFileAsync
+from mdio.segy.file import SegyFileArguments
+from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
     from upath import UPath
@@ -46,7 +46,7 @@ def header_scan_worker(
     Returns:
         HeaderArray parsed from SEG-Y library.
     """
-    segy_file = SegyFileAsync(**segy_file_kwargs)
+    segy_file = SegyFileWrapper(**segy_file_kwargs)
 
     slice_ = slice(*trace_range)
 
@@ -104,7 +104,7 @@ def trace_worker(  # noqa: PLR0913
         return None
 
     # Open the SEG-Y file in this process since the open file handles cannot be shared across processes.
-    segy_file = SegyFileAsync(**segy_file_kwargs)
+    segy_file = SegyFileWrapper(**segy_file_kwargs)
 
     # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
     # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.

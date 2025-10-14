@@ -35,10 +35,9 @@ from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
+from mdio.segy.file import get_segy_file_info
 from mdio.segy.scalar import SCALE_COORDINATE_KEYS
 from mdio.segy.scalar import _apply_coordinate_scalar
-from mdio.segy.segy_file_info import SegyFileInfo
-from mdio.segy.segy_file_info import get_segy_file_info
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
@@ -53,7 +52,8 @@ if TYPE_CHECKING:
     from mdio.builder.schemas import Dataset
     from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
     from mdio.core.dimension import Dimension
-    from mdio.segy.segy_file_async import SegyFileArguments
+    from mdio.segy.file import SegyFileArguments
+    from mdio.segy.file import SegyFileInfo
 
 logger = logging.getLogger(__name__)
 

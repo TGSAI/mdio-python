@@ -7,6 +7,7 @@ import atexit
 import logging
 import os
 import threading
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 from typing import TypedDict
 
@@ -16,19 +17,42 @@ from fsspec.utils import get_protocol
 from segy import SegyFile
 from segy.config import SegyFileSettings
 
+from mdio.segy.scalar import _get_coordinate_scalar
+
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from numpy import int32
+    from numpy.typing import NDArray
     from segy.config import SegyHeaderOverrides
     from segy.schema.segy import SegySpec
 
-
-__all__ = ["SegyFileArguments", "SegyFileAsync", "MDIO_ASYNCIO_THREAD_STOP_TIMEOUT"]
 
 logger = logging.getLogger(__name__)
 
 # Timeout in seconds for stopping async event loop threads during cleanup
 MDIO_ASYNCIO_THREAD_STOP_TIMEOUT = 5.0
+
+
+class SegyFileArguments(TypedDict):
+    """Arguments to open SegyFile instance creation."""
+
+    url: Path | str
+    spec: SegySpec | None
+    settings: SegyFileSettings | None
+    header_overrides: SegyHeaderOverrides | None
+
+
+@dataclass
+class SegyFileInfo:
+    """SEG-Y file header information."""
+
+    num_traces: int
+    sample_labels: NDArray[int32]
+    text_header: str
+    binary_header_dict: dict
+    raw_binary_headers: bytes
+    coordinate_scalar: int
 
 
 def _start_asyncio_loop(segy_file_kwargs: SegyFileArguments) -> None:
@@ -92,16 +116,7 @@ def _stop_asyncio_loop(loop_asyncio: asyncio.AbstractEventLoop, th_asyncio: thre
         )
 
 
-class SegyFileArguments(TypedDict):
-    """Arguments to open SegyFile instance creation."""
-
-    url: Path | str
-    spec: SegySpec | None
-    settings: SegyFileSettings | None
-    header_overrides: SegyHeaderOverrides | None
-
-
-class SegyFileAsync(SegyFile):
+class SegyFileWrapper(SegyFile):
     """SEG-Y file that can be instantiated side by side with Zarr for cloud access.
 
     This is a workaround for Zarr issues 3487 'Explicitly using fsspec and zarr FsspecStore causes
@@ -132,3 +147,40 @@ class SegyFileAsync(SegyFile):
         )
         _start_asyncio_loop(args)
         super().__init__(**args)
+
+
+def get_segy_file_info(segy_file_kwargs: SegyFileArguments) -> SegyFileInfo:
+    """Reads information from a SEG-Y file.
+
+    Args:
+        segy_file_kwargs: Arguments to open SegyFile instance.
+
+    Returns:
+        SegyFileInfo containing number of traces, sample labels, and header info.
+    """
+    segy_file = SegyFileWrapper(**segy_file_kwargs)
+    num_traces = segy_file.num_traces
+    sample_labels = segy_file.sample_labels
+
+    text_header = segy_file.text_header
+
+    # Get header information directly
+    raw_binary_headers = segy_file.fs.read_block(
+        fn=segy_file.url,
+        offset=segy_file.spec.binary_header.offset,
+        length=segy_file.spec.binary_header.itemsize,
+    )
+
+    # We read here twice, but it's ok for now. Only 400-bytes.
+    binary_header_dict = segy_file.binary_header.to_dict()
+
+    coordinate_scalar = _get_coordinate_scalar(segy_file)
+
+    return SegyFileInfo(
+        num_traces=num_traces,
+        sample_labels=sample_labels,
+        text_header=text_header,
+        binary_header_dict=binary_header_dict,
+        raw_binary_headers=raw_binary_headers,
+        coordinate_scalar=coordinate_scalar,
+    )
