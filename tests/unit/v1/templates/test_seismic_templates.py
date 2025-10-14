@@ -2,7 +2,6 @@
 
 # Import all concrete template classes
 from tests.unit.v1.helpers import validate_variable
-from tests.unit.v1.templates.test_seismic_2d_poststack import UNITS_METER
 
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.template_registry import TemplateRegistry
@@ -36,7 +35,7 @@ class TestSeismicTemplates:
         assert t.name == "Velocity2DDepth"
         assert t.default_variable_name == "velocity"
 
-        dataset = t.build_dataset("Velocity 2D Depth Line 001", sizes=(2048, 4096), horizontal_coord_unit=UNITS_METER)
+        dataset = t.build_dataset("Velocity 2D Depth Line 001", sizes=(2048, 4096))
 
         # Verify velocity variable
         validate_variable(

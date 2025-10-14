@@ -9,6 +9,8 @@ from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.dtype import StructuredType
 from mdio.builder.schemas.v1.dataset import Dataset
+from mdio.builder.schemas.v1.units import AngleUnitEnum
+from mdio.builder.schemas.v1.units import AngleUnitModel
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
@@ -18,6 +20,7 @@ from mdio.builder.templates.types import CdpGatherDomain
 from mdio.builder.templates.types import SeismicDataDomain
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
+UNITS_DEGREE = AngleUnitModel(angle=AngleUnitEnum.DEGREES)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
 
 
@@ -50,14 +53,13 @@ def validate_coordinates_headers_trace_mask(
     )
 
     # Verify dimension coordinate variables
-    cdp = validate_variable(
+    validate_variable(
         dataset,
         name="cdp",
         dims=[("cdp", 512)],
         coords=["cdp"],
         dtype=ScalarType.INT32,
     )
-    assert cdp.metadata is None
 
     domain = validate_variable(
         dataset,
@@ -66,7 +68,7 @@ def validate_coordinates_headers_trace_mask(
         coords=[gather_domain],
         dtype=ScalarType.INT32,
     )
-    assert domain.metadata is None
+    assert domain.metadata.units_v1 in (UNITS_METER, UNITS_DEGREE)
 
     domain = validate_variable(
         dataset,
@@ -75,7 +77,7 @@ def validate_coordinates_headers_trace_mask(
         coords=[data_domain],
         dtype=ScalarType.INT32,
     )
-    assert domain.metadata is None
+    assert domain.metadata.units_v1 in (UNITS_METER, UNITS_SECOND)
 
     # Verify non-dimension coordinate variables
     cdp_x = validate_variable(
@@ -85,7 +87,7 @@ def validate_coordinates_headers_trace_mask(
         coords=["cdp_x"],
         dtype=ScalarType.FLOAT64,
     )
-    assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
+    assert cdp_x.metadata.units_v1 == UNITS_METER
 
     cdp_y = validate_variable(
         dataset,
@@ -94,7 +96,7 @@ def validate_coordinates_headers_trace_mask(
         coords=["cdp_y"],
         dtype=ScalarType.FLOAT64,
     )
-    assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
+    assert cdp_y.metadata.units_v1 == UNITS_METER
 
 
 @pytest.mark.parametrize("data_domain", ["depth", "time"])
@@ -107,15 +109,14 @@ class TestSeismic2DPreStackCDPTemplate:
         t = Seismic2DPreStackCDPTemplate(data_domain, gather_domain)
 
         # Template attributes for prestack CDP
-        assert t._coord_dim_names == ("cdp", gather_domain)
+        assert t._spatial_dim_names == ("cdp", gather_domain)
         assert t._dim_names == ("cdp", gather_domain, data_domain)
-        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._physical_coord_names == ("cdp_x", "cdp_y")
         assert t._var_chunk_shape == (16, 64, 1024)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == ()
-        assert t._horizontal_coord_unit is None
 
         # Verify prestack CDP attributes
         attrs = t._load_dataset_attributes()
@@ -130,16 +131,14 @@ class TestSeismic2DPreStackCDPTemplate:
     ) -> None:
         """Unit tests for Seismic2DPreStackCDPDepthTemplate build."""
         t = Seismic2DPreStackCDPTemplate(data_domain, gather_domain)
+        t.add_units({"cdp_x": UNITS_METER, "cdp_y": UNITS_METER})  # spatial domain units
+        t.add_units({"offset": UNITS_METER, "angle": UNITS_DEGREE})  # gather domain units
+        t.add_units({"time": UNITS_SECOND, "depth": UNITS_METER})  # data domain units
 
         gather_domain_suffix = gather_domain.capitalize()
         data_domain_suffix = data_domain.capitalize()
         assert t.name == f"PreStackCdp{gather_domain_suffix}Gathers2D{data_domain_suffix}"
-        dataset = t.build_dataset(
-            "North Sea 2D Prestack",
-            sizes=(512, 36, 1536),
-            horizontal_coord_unit=UNITS_METER,
-            header_dtype=structured_headers,
-        )
+        dataset = t.build_dataset("North Sea 2D Prestack", sizes=(512, 36, 1536), header_dtype=structured_headers)
 
         assert dataset.metadata.name == "North Sea 2D Prestack"
         assert dataset.metadata.attributes["surveyType"] == "2D"
