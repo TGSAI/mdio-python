@@ -35,10 +35,10 @@ from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
-from mdio.segy._workers import SegyFileInfo
-from mdio.segy._workers import info_worker
 from mdio.segy.scalar import SCALE_COORDINATE_KEYS
 from mdio.segy.scalar import _apply_coordinate_scalar
+from mdio.segy.segy_file_info import SegyFileInfo
+from mdio.segy.segy_file_info import get_segy_file_info
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
@@ -516,7 +516,7 @@ def segy_to_mdio(  # noqa PLR0913
         "settings": segy_settings,
         "header_overrides": segy_header_overrides,
     }
-    segy_file_info = info_worker(segy_file_kwargs)
+    segy_file_info = get_segy_file_info(segy_file_kwargs)
 
     segy_dimensions, segy_headers = _scan_for_headers(
         segy_file_kwargs,
