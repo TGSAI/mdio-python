@@ -8,7 +8,6 @@ uv tool install bump-my-version
 
 # Sync the environment, installing the project editable and including dev dependencies
 uv sync
-uv sync --extra cloud
 
 # Set Git safe directory to avoid ownership issues
 git config --global --add safe.directory "$PWD"
