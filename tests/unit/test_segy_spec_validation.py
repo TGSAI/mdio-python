@@ -20,15 +20,8 @@ class TestValidateSpecInTemplate:
         template._dim_names = ("inline", "crossline", "time")
         template._coord_names = ("cdp_x", "cdp_y")
 
-        # SegySpec with all required fields
-        spec = get_segy_standard(1.0)
-        header_fields = [
-            HeaderField(name="inline", byte=189, format="int32"),
-            HeaderField(name="crossline", byte=193, format="int32"),
-            HeaderField(name="cdp_x", byte=181, format="int32"),
-            HeaderField(name="cdp_y", byte=185, format="int32"),
-        ]
-        segy_spec = spec.customize(trace_header_fields=header_fields)
+        # Use base SEG-Y standard which includes coordinate_scalar at byte 71
+        segy_spec = get_segy_standard(1.0)
 
         # Should not raise any exception
         _validate_spec_in_template(segy_spec, template)
@@ -57,3 +50,25 @@ class TestValidateSpecInTemplate:
         assert "custom_coord_x" in error_message
         assert "custom_coord_y" in error_message
         assert "CustomTemplate" in error_message
+
+    def test_validation_fails_with_missing_coordinate_scalar(self) -> None:
+        """Test that validation fails when coordinate_scalar is missing, even with all other fields."""
+        template = MagicMock()
+        template.name = "TestTemplate"
+        template._dim_names = ("inline", "crossline", "time")
+        template._coord_names = ("cdp_x", "cdp_y")
+
+        # Create SegySpec with all standard fields except coordinate_scalar
+        spec = get_segy_standard(1.0)
+        # Remove coordinate_scalar from the standard fields
+        standard_fields = [field for field in spec.trace.header.fields if field.name != "coordinate_scalar"]
+        standard_fields.append(HeaderField(name="not_coordinate_scalar", byte=71, format="int16"))
+        segy_spec = spec.customize(trace_header_fields=standard_fields)
+
+        # Should raise ValueError for missing coordinate_scalar
+        with pytest.raises(ValueError, match=r"Required fields.*not found in.*segy_spec") as exc_info:
+            _validate_spec_in_template(segy_spec, template)
+
+        error_message = str(exc_info.value)
+        assert "coordinate_scalar" in error_message
+        assert "TestTemplate" in error_message

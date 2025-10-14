@@ -92,7 +92,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
         futures = []
         common_args = (segy_file_kwargs, output_path, data_variable_name)
         for region in chunk_iter:
-            subset_args = (region, grid_map, dataset.isel(region))
+            subset_args = (region, grid_map)
             future = executor.submit(trace_worker, *common_args, *subset_args)
             futures.append(future)
 
