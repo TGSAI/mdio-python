@@ -4,14 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import atexit
+import logging
 import os
 import threading
 from typing import TYPE_CHECKING
 from typing import TypedDict
-from urllib.parse import urlparse
 
 import fsspec
 from fsspec.asyn import AsyncFileSystem
+from fsspec.utils import get_protocol
 from segy import SegyFile
 from segy.config import SegyFileSettings
 
@@ -22,40 +23,51 @@ if TYPE_CHECKING:
     from segy.schema.segy import SegySpec
 
 
-__all__ = ["SegyFileArguments", "SegyFileAsync"]
+__all__ = ["SegyFileArguments", "SegyFileAsync", "MDIO_ASYNCIO_THREAD_STOP_TIMEOUT"]
+
+logger = logging.getLogger(__name__)
+
+# Timeout in seconds for stopping async event loop threads during cleanup
+MDIO_ASYNCIO_THREAD_STOP_TIMEOUT = 5.0
 
 
 def _start_asyncio_loop(segy_file_kwargs: SegyFileArguments) -> None:
     """Start asyncio event loop for async filesystems.
 
-    If the filesystem is async (e.g., S3, GCS), creates a new event loop
+    If the filesystem is async (e.g., S3, GCS, Azure), creates a new event loop
     in a daemon thread and injects it into the storage options.
 
     Args:
         segy_file_kwargs: SEG-Y file arguments that will be modified to include the loop.
     """
+    protocol = get_protocol(str(segy_file_kwargs["url"]))
     # Get the filesystem class without instantiating it
-
-    fs_class = fsspec.get_filesystem_class(urlparse(str(segy_file_kwargs["url"])).scheme)
+    fs_class = fsspec.get_filesystem_class(protocol)
+    # Only create event loop for async filesystems
     is_async = issubclass(fs_class, AsyncFileSystem)
-    if is_async:
-        # Create a new event loop and thread to run it in a daemon thread.
-        loop_asyncio = asyncio.new_event_loop()
-        th_asyncio = threading.Thread(target=loop_asyncio.run_forever, name=f"mdio-{os.getpid()}")
-        th_asyncio.daemon = True
-        th_asyncio.start()
+    if not is_async:
+        return
 
-        # Add the loop to the storage options to pass as a parameter to AsyncFileSystem.
-        # Create a new settings object to avoid modifying the original (which may be shared).
-        old_settings = segy_file_kwargs.get("settings") or SegyFileSettings()
-        storage_options = {**(old_settings.storage_options or {}), "loop": loop_asyncio}
-        segy_file_kwargs["settings"] = SegyFileSettings(
-            endianness=old_settings.endianness,
-            storage_options=storage_options,
-        )
+    # Create a new event loop and thread to run it in a daemon thread.
+    loop_asyncio = asyncio.new_event_loop()
+    th_asyncio = threading.Thread(
+        target=loop_asyncio.run_forever,
+        name=f"mdio-{os.getpid()}",
+        daemon=True,
+    )
+    th_asyncio.start()
 
-        # Register a function to stop the event loop and join the thread.
-        atexit.register(_stop_asyncio_loop, loop_asyncio, th_asyncio)
+    # Add the loop to the storage options to pass as a parameter to AsyncFileSystem.
+    # Create a new settings object to avoid modifying the original (which may be shared).
+    old_settings = segy_file_kwargs.get("settings") or SegyFileSettings()
+    storage_options = {**(old_settings.storage_options or {}), "loop": loop_asyncio}
+    segy_file_kwargs["settings"] = SegyFileSettings(
+        endianness=old_settings.endianness,
+        storage_options=storage_options,
+    )
+
+    # Register a function to stop the event loop and join the thread.
+    atexit.register(_stop_asyncio_loop, loop_asyncio, th_asyncio)
 
 
 def _stop_asyncio_loop(loop_asyncio: asyncio.AbstractEventLoop, th_asyncio: threading.Thread) -> None:
@@ -65,8 +77,19 @@ def _stop_asyncio_loop(loop_asyncio: asyncio.AbstractEventLoop, th_asyncio: thre
         loop_asyncio: The asyncio event loop to stop.
         th_asyncio: The thread running the event loop.
     """
-    loop_asyncio.stop()
-    th_asyncio.join()
+    if loop_asyncio.is_running():
+        loop_asyncio.call_soon_threadsafe(loop_asyncio.stop)
+
+    th_asyncio.join(timeout=MDIO_ASYNCIO_THREAD_STOP_TIMEOUT)
+
+    if th_asyncio.is_alive():
+        # Thread did not terminate within timeout, but daemon threads will be
+        # terminated by Python interpreter on exit anyway
+        logger.warning(
+            "Async event loop thread '%s' did not terminate within %s seconds",
+            th_asyncio.name,
+            MDIO_ASYNCIO_THREAD_STOP_TIMEOUT,
+        )
 
 
 class SegyFileArguments(TypedDict):
