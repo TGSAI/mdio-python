@@ -18,7 +18,7 @@ from mdio.segy._workers import header_scan_worker
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
 
-    from mdio.segy._workers import SegyFileArguments
+    from mdio.segy.file import SegyFileArguments
 
 default_cpus = cpu_count(logical=True)
 

@@ -19,8 +19,8 @@ if TYPE_CHECKING:
     from segy.arrays import HeaderArray
 
     from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
-    from mdio.segy._workers import SegyFileArguments
-    from mdio.segy._workers import SegyFileInfo
+    from mdio.segy.file import SegyFileArguments
+    from mdio.segy.file import SegyFileInfo
 
 logger = logging.getLogger(__name__)
 

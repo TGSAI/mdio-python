@@ -14,7 +14,6 @@ from typing import Any
 
 import numpy as np
 import pytest
-from segy import SegyFile
 from segy.factory import SegyFactory
 from segy.schema import Endianness
 from segy.schema import HeaderField
@@ -22,6 +21,7 @@ from segy.schema import SegySpec
 from segy.standards import get_segy_standard
 
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
+from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -141,7 +141,7 @@ class TestDisasterRecoveryWrapper:
         )
 
         # Load the SEGY file
-        segy_file = SegyFile(segy_path, spec=spec)
+        segy_file = SegyFileWrapper(segy_path, spec=spec)
 
         # Test single trace
         trace_idx = 3
@@ -185,7 +185,7 @@ class TestDisasterRecoveryWrapper:
         )
 
         # Load the SEGY file
-        segy_file = SegyFile(segy_path, spec=spec)
+        segy_file = SegyFileWrapper(segy_path, spec=spec)
 
         # Test with list of indices
         trace_indices = [0, 2, 4]
@@ -224,7 +224,7 @@ class TestDisasterRecoveryWrapper:
         )
 
         # Load the SEGY file
-        segy_file = SegyFile(segy_path, spec=spec)
+        segy_file = SegyFileWrapper(segy_path, spec=spec)
 
         # Test with slice
         wrapper = SegyFileRawTraceWrapper(segy_file, slice(5, 15))
@@ -271,7 +271,7 @@ class TestDisasterRecoveryWrapper:
         )
 
         # Load the SEGY file
-        segy_file = SegyFile(segy_path, spec=spec)
+        segy_file = SegyFileWrapper(segy_path, spec=spec)
 
         # Create wrapper with different index types
         wrapper = SegyFileRawTraceWrapper(segy_file, trace_indices)

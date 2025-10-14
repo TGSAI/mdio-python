@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
 
-    from mdio.segy._workers import SegyFileArguments
+    from mdio.segy.file import SegyFileArguments
 
 default_cpus = cpu_count(logical=True)
 
