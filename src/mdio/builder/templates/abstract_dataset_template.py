@@ -98,6 +98,11 @@ class AbstractDatasetTemplate(ABC):
         return self._data_domain
 
     @property
+    def spatial_dimension_names(self) -> tuple[str, ...]:
+        """Returns the names of only the spatial dimensions."""
+        return copy.deepcopy(self._spatial_dim_names)
+
+    @property
     def dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions."""
         return copy.deepcopy(self._dim_names)
@@ -208,7 +213,7 @@ class AbstractDatasetTemplate(ABC):
         chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",
-            dimensions=self._spatial_dim_names,
+            dimensions=self.spatial_dimension_names,
             data_type=header_dtype,
             compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self.coordinate_names,
