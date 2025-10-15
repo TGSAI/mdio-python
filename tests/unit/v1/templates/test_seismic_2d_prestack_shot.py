@@ -11,9 +11,12 @@ from mdio.builder.schemas.dtype import StructuredType
 from mdio.builder.schemas.v1.dataset import Dataset
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.units import TimeUnitEnum
+from mdio.builder.schemas.v1.units import TimeUnitModel
 from mdio.builder.templates.seismic_2d_prestack_shot import Seismic2DPreStackShotTemplate
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
+UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
 
 
 def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
@@ -40,23 +43,21 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     )
 
     # Verify dimension coordinate variables
-    shot_point = validate_variable(
+    validate_variable(
         dataset,
         name="shot_point",
         dims=[("shot_point", 256)],
         coords=["shot_point"],
         dtype=ScalarType.INT32,
     )
-    assert shot_point.metadata is None
 
-    channel = validate_variable(
+    validate_variable(
         dataset,
         name="channel",
         dims=[("channel", 24)],
         coords=["channel"],
         dtype=ScalarType.INT32,
     )
-    assert channel.metadata is None
 
     domain = validate_variable(
         dataset,
@@ -65,7 +66,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=[domain],
         dtype=ScalarType.INT32,
     )
-    assert domain.metadata is None
+    assert domain.metadata.units_v1 == UNITS_SECOND
 
     # Verify non-dimension coordinate variables
     validate_variable(
@@ -83,7 +84,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=["source_coord_x"],
         dtype=ScalarType.FLOAT64,
     )
-    assert source_coord_x.metadata.units_v1.length == LengthUnitEnum.METER
+    assert source_coord_x.metadata.units_v1 == UNITS_METER
 
     source_coord_y = validate_variable(
         dataset,
@@ -92,7 +93,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=["source_coord_y"],
         dtype=ScalarType.FLOAT64,
     )
-    assert source_coord_y.metadata.units_v1.length == LengthUnitEnum.METER
+    assert source_coord_y.metadata.units_v1 == UNITS_METER
 
     group_coord_x = validate_variable(
         dataset,
@@ -101,7 +102,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=["group_coord_x"],
         dtype=ScalarType.FLOAT64,
     )
-    assert group_coord_x.metadata.units_v1.length == LengthUnitEnum.METER
+    assert group_coord_x.metadata.units_v1 == UNITS_METER
 
     group_coord_y = validate_variable(
         dataset,
@@ -110,7 +111,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=["group_coord_y"],
         dtype=ScalarType.FLOAT64,
     )
-    assert group_coord_y.metadata.units_v1.length == LengthUnitEnum.METER
+    assert group_coord_y.metadata.units_v1 == UNITS_METER
 
 
 class TestSeismic2DPreStackShotTemplate:
@@ -122,15 +123,15 @@ class TestSeismic2DPreStackShotTemplate:
 
         # Template attributes for prestack shot
         assert t._data_domain == "time"
-        assert t._coord_dim_names == ("shot_point", "channel")
+        assert t._spatial_dim_names == ("shot_point", "channel")
         assert t._dim_names == ("shot_point", "channel", "time")
-        assert t._coord_names == ("gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
+        assert t._physical_coord_names == ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
+        assert t._logical_coord_names == ("gun",)
         assert t._var_chunk_shape == (16, 32, 2048)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == ()
-        assert t._horizontal_coord_unit is None
 
         # Verify prestack shot attributes
         attrs = t._load_dataset_attributes()
@@ -141,14 +142,12 @@ class TestSeismic2DPreStackShotTemplate:
     def test_build_dataset(self, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic2DPreStackShotTemplate build in time domain."""
         t = Seismic2DPreStackShotTemplate(data_domain="time")
+        t.add_units({"source_coord_x": UNITS_METER, "source_coord_y": UNITS_METER})  # spatial domain units
+        t.add_units({"group_coord_x": UNITS_METER, "group_coord_y": UNITS_METER})  # spatial domain units
+        t.add_units({"time": UNITS_SECOND})  # data domain units
 
         assert t.name == "PreStackShotGathers2DTime"
-        dataset = t.build_dataset(
-            "North Sea 2D Shot Time",
-            sizes=(256, 24, 2048),
-            horizontal_coord_unit=UNITS_METER,
-            header_dtype=structured_headers,
-        )
+        dataset = t.build_dataset("North Sea 2D Shot Time", sizes=(256, 24, 2048), header_dtype=structured_headers)
 
         assert dataset.metadata.name == "North Sea 2D Shot Time"
         assert dataset.metadata.attributes["surveyType"] == "2D"

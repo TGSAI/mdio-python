@@ -4,10 +4,9 @@ from typing import Any
 
 from mdio.builder.schemas import compressors
 from mdio.builder.schemas.dtype import ScalarType
-from mdio.builder.schemas.v1.units import AngleUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
-from mdio.builder.templates.abstract_dataset_template import SeismicDataDomain
+from mdio.builder.templates.types import SeismicDataDomain
 
 
 class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
@@ -16,9 +15,9 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
     def __init__(self, data_domain: SeismicDataDomain):
         super().__init__(data_domain=data_domain)
 
-        self._coord_dim_names = ("inline", "crossline", "offset", "azimuth")
-        self._dim_names = (*self._coord_dim_names, self._data_domain)
-        self._coord_names = ("cdp_x", "cdp_y")
+        self._spatial_dim_names = ("inline", "crossline", "offset", "azimuth")
+        self._dim_names = (*self._spatial_dim_names, self._data_domain)
+        self._physical_coord_names = ("cdp_x", "cdp_y")
         self._var_chunk_shape = (8, 8, 32, 1, 1024)
 
     @property
@@ -44,19 +43,19 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
             "offset",
             dimensions=("offset",),
             data_type=ScalarType.INT32,
-            metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("offset")),  # same unit as X/Y
         )
-        angle_unit = AngleUnitModel(angle="deg")
         self._builder.add_coordinate(
             "azimuth",
             dimensions=("azimuth",),
             data_type=ScalarType.FLOAT32,
-            metadata=CoordinateMetadata(units_v1=angle_unit),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("azimuth")),
         )
         self._builder.add_coordinate(
             self.trace_domain,
             dimensions=(self.trace_domain,),
             data_type=ScalarType.INT32,
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
         )
 
         # Add non-dimension coordinates
@@ -66,12 +65,12 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
             dimensions=("inline", "crossline"),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("cdp_x")),
         )
         self._builder.add_coordinate(
             "cdp_y",
             dimensions=("inline", "crossline"),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("cdp_y")),
         )

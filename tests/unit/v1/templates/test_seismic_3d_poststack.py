@@ -44,23 +44,21 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     )
 
     # Verify dimension coordinate variables
-    inline = validate_variable(
+    validate_variable(
         dataset,
         name="inline",
         dims=[("inline", 256)],
         coords=["inline"],
         dtype=ScalarType.INT32,
     )
-    assert inline.metadata is None
 
-    crossline = validate_variable(
+    validate_variable(
         dataset,
         name="crossline",
         dims=[("crossline", 512)],
         coords=["crossline"],
         dtype=ScalarType.INT32,
     )
-    assert crossline.metadata is None
 
     domain = validate_variable(
         dataset,
@@ -69,7 +67,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=[domain],
         dtype=ScalarType.INT32,
     )
-    assert domain.metadata is None
+    assert domain.metadata.units_v1 in (UNITS_METER, UNITS_SECOND)
 
     # Verify non-dimension coordinate variables
     cdp_x = validate_variable(
@@ -79,7 +77,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=["cdp_x"],
         dtype=ScalarType.FLOAT64,
     )
-    assert cdp_x.metadata.units_v1.length == LengthUnitEnum.METER
+    assert cdp_x.metadata.units_v1 == UNITS_METER
 
     cdp_y = validate_variable(
         dataset,
@@ -88,7 +86,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=["cdp_y"],
         dtype=ScalarType.FLOAT64,
     )
-    assert cdp_y.metadata.units_v1.length == LengthUnitEnum.METER
+    assert cdp_y.metadata.units_v1 == UNITS_METER
 
 
 @pytest.mark.parametrize("data_domain", ["depth", "time"])
@@ -101,15 +99,14 @@ class TestSeismic3DPostStackTemplate:
 
         # Template attributes to be overridden by subclasses
         assert t._data_domain == data_domain  # Domain should be lowercased
-        assert t._coord_dim_names == ("inline", "crossline")
+        assert t._spatial_dim_names == ("inline", "crossline")
         assert t._dim_names == ("inline", "crossline", data_domain)
-        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._physical_coord_names == ("cdp_x", "cdp_y")
         assert t._var_chunk_shape == (128, 128, 128)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == ()
-        assert t._horizontal_coord_unit is None
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
@@ -119,15 +116,12 @@ class TestSeismic3DPostStackTemplate:
     def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic3DPostStackTemplate build."""
         t = Seismic3DPostStackTemplate(data_domain=data_domain)
+        t.add_units({"cdp_x": UNITS_METER, "cdp_y": UNITS_METER})  # spatial domain units
+        t.add_units({"time": UNITS_SECOND, "depth": UNITS_METER})  # data domain units
 
         data_domain_suffix = data_domain.capitalize()
         assert t.name == f"PostStack3D{data_domain_suffix}"
-        dataset = t.build_dataset(
-            "Seismic 3D",
-            sizes=(256, 512, 1024),
-            horizontal_coord_unit=UNITS_METER,
-            header_dtype=structured_headers,
-        )
+        dataset = t.build_dataset("Seismic 3D", sizes=(256, 512, 1024), header_dtype=structured_headers)
 
         assert dataset.metadata.name == "Seismic 3D"
         assert dataset.metadata.attributes["surveyType"] == "3D"

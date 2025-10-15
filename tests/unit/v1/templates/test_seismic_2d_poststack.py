@@ -36,14 +36,13 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     )
 
     # Verify dimension coordinate variables
-    cdp = validate_variable(
+    validate_variable(
         dataset,
         name="cdp",
         dims=[("cdp", 2048)],
         coords=["cdp"],
         dtype=ScalarType.INT32,
     )
-    assert cdp.metadata is None
 
     domain = validate_variable(
         dataset,
@@ -52,7 +51,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         coords=[domain],
         dtype=ScalarType.INT32,
     )
-    assert domain.metadata is None
+    assert domain.metadata.units_v1 in (UNITS_METER, UNITS_SECOND)
 
     # Verify non-dimension coordinate variables
     cdp_x = validate_variable(
@@ -84,15 +83,14 @@ class TestSeismic2DPostStackTemplate:
 
         # Template attributes
         assert t._data_domain == data_domain
-        assert t._coord_dim_names == ("cdp",)
+        assert t._spatial_dim_names == ("cdp",)
         assert t._dim_names == ("cdp", data_domain)
-        assert t._coord_names == ("cdp_x", "cdp_y")
+        assert t._physical_coord_names == ("cdp_x", "cdp_y")
         assert t._var_chunk_shape == (1024, 1024)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == ()
-        assert t._horizontal_coord_unit is None
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
@@ -103,13 +101,10 @@ class TestSeismic2DPostStackTemplate:
     def test_build_dataset_time(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
         """Test building a complete 2D time dataset."""
         t = Seismic2DPostStackTemplate(data_domain=data_domain)
+        t.add_units({"cdp_x": UNITS_METER, "cdp_y": UNITS_METER})  # spatial domain units
+        t.add_units({"time": UNITS_SECOND, "depth": UNITS_METER})  # data domain units
 
-        dataset = t.build_dataset(
-            "Seismic 2D Time Line 001",
-            sizes=(2048, 4096),
-            horizontal_coord_unit=UNITS_METER,
-            header_dtype=structured_headers,
-        )
+        dataset = t.build_dataset("Seismic 2D Time Line 001", sizes=(2048, 4096), header_dtype=structured_headers)
 
         # Verify dataset metadata
         assert dataset.metadata.name == "Seismic 2D Time Line 001"
