@@ -43,19 +43,19 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
             "offset",
             dimensions=("offset",),
             data_type=ScalarType.INT32,
-            metadata=CoordinateMetadata(units_v1=self._get_unit("offset")),  # same unit as X/Y
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("offset")),  # same unit as X/Y
         )
         self._builder.add_coordinate(
             "azimuth",
             dimensions=("azimuth",),
             data_type=ScalarType.FLOAT32,
-            metadata=CoordinateMetadata(units_v1=self._get_unit("azimuth")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("azimuth")),
         )
         self._builder.add_coordinate(
             self.trace_domain,
             dimensions=(self.trace_domain,),
             data_type=ScalarType.INT32,
-            metadata=CoordinateMetadata(units_v1=self._get_unit(self.trace_domain)),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
         )
 
         # Add non-dimension coordinates
@@ -65,12 +65,12 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
             dimensions=("inline", "crossline"),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self._get_unit("cdp_x")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("cdp_x")),
         )
         self._builder.add_coordinate(
             "cdp_y",
             dimensions=("inline", "crossline"),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self._get_unit("cdp_y")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("cdp_y")),
         )

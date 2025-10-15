@@ -35,7 +35,7 @@ class Seismic2DPreStackShotTemplate(AbstractDatasetTemplate):
                 name,
                 dimensions=(name,),
                 data_type=ScalarType.INT32,
-                metadata=CoordinateMetadata(units_v1=self._get_unit(name)),
+                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
             )
 
         # Add non-dimension coordinates
@@ -51,26 +51,26 @@ class Seismic2DPreStackShotTemplate(AbstractDatasetTemplate):
             dimensions=("shot_point",),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self._get_unit("source_coord_x")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_x")),
         )
         self._builder.add_coordinate(
             "source_coord_y",
             dimensions=("shot_point",),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self._get_unit("source_coord_y")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_y")),
         )
         self._builder.add_coordinate(
             "group_coord_x",
             dimensions=("shot_point", "channel"),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self._get_unit("group_coord_x")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_x")),
         )
         self._builder.add_coordinate(
             "group_coord_y",
             dimensions=("shot_point", "channel"),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self._get_unit("group_coord_y")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_y")),
         )

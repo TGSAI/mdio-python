@@ -160,7 +160,7 @@ class AbstractDatasetTemplate(ABC):
             The dataset attributes as a dictionary
         """
 
-    def _get_unit(self, key: str) -> AllUnitModel:
+    def get_unit_by_key(self, key: str) -> AllUnitModel:
         """Get units by variable/dimension/coordinate name. Returns None if not found."""
         return self._units.get(key, None)
 
@@ -185,7 +185,7 @@ class AbstractDatasetTemplate(ABC):
                 name,
                 dimensions=(name,),
                 data_type=ScalarType.INT32,
-                metadata=CoordinateMetadata(units_v1=self._get_unit(name)),
+                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
             )
 
         # Add non-dimension coordinates
@@ -195,7 +195,7 @@ class AbstractDatasetTemplate(ABC):
                 dimensions=self._spatial_dim_names,
                 data_type=ScalarType.FLOAT64,
                 compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
-                metadata=CoordinateMetadata(units_v1=self._get_unit(name)),
+                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
             )
 
     def _add_trace_mask(self) -> None:
@@ -227,7 +227,7 @@ class AbstractDatasetTemplate(ABC):
         Uses the class field 'builder' to add variables to the dataset.
         """
         chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape))
-        unit = self._get_unit(self._default_variable_name)
+        unit = self.get_unit_by_key(self._default_variable_name)
         self._builder.add_variable(
             name=self.default_variable_name,
             dimensions=self._dim_names,
