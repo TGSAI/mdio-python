@@ -108,6 +108,7 @@ template3 = get_template("PostStack3DTime")
 ```
 
 This design ensures:
+
 - **Thread Safety**: Multiple threads can retrieve and modify templates independently
 - **Isolation**: Changes to one template instance don't affect others
 - **Reusability**: You can always get a fresh, unmodified template from the registry
