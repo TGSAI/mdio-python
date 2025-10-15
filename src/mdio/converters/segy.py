@@ -561,7 +561,6 @@ def segy_to_mdio(  # noqa PLR0913
 
     horizontal_unit = _get_spatial_coordinate_unit(segy_file_info)
     mdio_template = _update_template_units(mdio_template, horizontal_unit)
-    print(mdio_template)
     mdio_ds: Dataset = mdio_template.build_dataset(name=mdio_template.name, sizes=grid.shape, header_dtype=header_dtype)
 
     _add_grid_override_to_metadata(dataset=mdio_ds, grid_overrides=grid_overrides)
