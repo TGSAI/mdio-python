@@ -8,6 +8,7 @@ import pytest
 from segy.schema import HeaderField
 from segy.standards import get_segy_standard
 
+from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
 from mdio.converters.segy import _validate_spec_in_template
 
 
@@ -16,9 +17,9 @@ class TestValidateSpecInTemplate:
 
     def test_validation_passes_with_all_required_fields(self) -> None:
         """Test that validation passes when all required fields are present."""
-        template = MagicMock()
-        template._dim_names = ("inline", "crossline", "time")
-        template._coord_names = ("cdp_x", "cdp_y")
+        template = MagicMock(spec=AbstractDatasetTemplate)
+        template.spatial_dimension_names = ("inline", "crossline")
+        template.coordinate_names = ("cdp_x", "cdp_y")
 
         # Use base SEG-Y standard which includes coordinate_scalar at byte 71
         segy_spec = get_segy_standard(1.0)
@@ -29,10 +30,10 @@ class TestValidateSpecInTemplate:
     def test_validation_fails_with_missing_fields(self) -> None:
         """Test that validation fails when required fields are missing."""
         # Template requiring custom fields not in standard spec
-        template = MagicMock()
+        template = MagicMock(spec=AbstractDatasetTemplate)
         template.name = "CustomTemplate"
-        template._dim_names = ("custom_dim1", "custom_dim2", "time")
-        template._coord_names = ("custom_coord_x", "custom_coord_y")
+        template.spatial_dimension_names = ("custom_dim1", "custom_dim2")
+        template.coordinate_names = ("custom_coord_x", "custom_coord_y")
 
         # SegySpec with only one of the required custom fields
         spec = get_segy_standard(1.0)
@@ -53,10 +54,10 @@ class TestValidateSpecInTemplate:
 
     def test_validation_fails_with_missing_coordinate_scalar(self) -> None:
         """Test that validation fails when coordinate_scalar is missing, even with all other fields."""
-        template = MagicMock()
+        template = MagicMock(spec=AbstractDatasetTemplate)
         template.name = "TestTemplate"
-        template._dim_names = ("inline", "crossline", "time")
-        template._coord_names = ("cdp_x", "cdp_y")
+        template.spatial_dimension_names = ("inline", "crossline")
+        template.coordinate_names = ("cdp_x", "cdp_y")
 
         # Create SegySpec with all standard fields except coordinate_scalar
         spec = get_segy_standard(1.0)
