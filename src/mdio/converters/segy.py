@@ -21,6 +21,8 @@ from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.compressors import Blosc
 from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.v1.units import AngleUnitEnum
+from mdio.builder.schemas.v1.units import AngleUnitModel
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.variable import VariableMetadata
@@ -59,6 +61,16 @@ logger = logging.getLogger(__name__)
 
 
 MEASUREMENT_SYSTEM_KEY = binary_header_fields.Rev0.MEASUREMENT_SYSTEM_CODE.model.name
+ANGLE_UNIT_KEYS = ["angle", "azimuth"]
+SPATIAL_UNIT_KEYS = [
+    "cdp_x",
+    "cdp_y",
+    "source_coord_x",
+    "source_coord_y",
+    "group_coord_x",
+    "group_coord_y",
+    "offset",
+]
 
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
@@ -281,7 +293,7 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitModel | None:
+def _get_spatial_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
     measurement_system_code = int(segy_file_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
 
@@ -300,6 +312,16 @@ def _get_horizontal_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitM
         unit = LengthUnitEnum.FOOT
 
     return LengthUnitModel(length=unit)
+
+
+def _update_template_units(template: AbstractDatasetTemplate, unit: LengthUnitModel | None) -> AbstractDatasetTemplate:
+    """Update the template with dynamic and somepre-defined units."""
+    # Dynamic from the current file
+    units = dict.fromkeys(SPATIAL_UNIT_KEYS, unit)
+    # Predefined
+    units |= {key: AngleUnitModel(angle=AngleUnitEnum.DEGREES) for key in ANGLE_UNIT_KEYS}
+    template.add_units(units)
+    return template
 
 
 def _populate_coordinates(
@@ -464,7 +486,8 @@ def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatas
     """Validate that the SegySpec has all required fields in the MDIO template."""
     header_fields = {field.name for field in segy_spec.trace.header.fields}
 
-    required_fields = set(mdio_template._dim_names[:-1]) | set(mdio_template._coord_names) | {"coordinate_scalar"}
+    required_fields = set(mdio_template.spatial_dimension_names) | set(mdio_template.coordinate_names)
+    required_fields = required_fields | {"coordinate_scalar"}  # ensure coordinate scalar is always present
     missing_fields = required_fields - header_fields
 
     if missing_fields:
@@ -536,13 +559,10 @@ def segy_to_mdio(  # noqa PLR0913
             logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
             mdio_template = _add_raw_headers_to_template(mdio_template)
 
-    horizontal_unit = _get_horizontal_coordinate_unit(segy_file_info)
-    mdio_ds: Dataset = mdio_template.build_dataset(
-        name=mdio_template.name,
-        sizes=grid.shape,
-        horizontal_coord_unit=horizontal_unit,
-        header_dtype=header_dtype,
-    )
+    horizontal_unit = _get_spatial_coordinate_unit(segy_file_info)
+    mdio_template = _update_template_units(mdio_template, horizontal_unit)
+    print(mdio_template)
+    mdio_ds: Dataset = mdio_template.build_dataset(name=mdio_template.name, sizes=grid.shape, header_dtype=header_dtype)
 
     _add_grid_override_to_metadata(dataset=mdio_ds, grid_overrides=grid_overrides)
 
