@@ -325,7 +325,8 @@ class TestTemplateRegistrySingleton:
 
         # Pickle and unpickle it
         pickled = pickle.dumps(retrieved)
-        unpickled = pickle.loads(pickled)
+        # You should only ever unpickle with trusted data!
+        unpickled = pickle.loads(pickled)  # noqa: S301
 
         # Should be different objects
         assert unpickled is not retrieved
