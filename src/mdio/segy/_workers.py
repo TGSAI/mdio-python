@@ -158,9 +158,15 @@ def trace_worker(  # noqa: PLR0913
     data_array[region_slices] = tmp_samples
 
     nonzero_samples = np.ma.masked_values(traces.sample, 0, copy=False)
+
+    nonzero_count = nonzero_samples.count()
+    if nonzero_count == 0:
+        # Return None to avoid calculating a NaN in sum_squares
+        return None
+
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
     return SummaryStatistics(
-        count=nonzero_samples.count(),
+        count=nonzero_count,
         min=nonzero_samples.min(),
         max=nonzero_samples.max(),
         sum=nonzero_samples.sum(dtype="float64"),
