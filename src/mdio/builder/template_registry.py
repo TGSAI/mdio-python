@@ -1,5 +1,6 @@
 """Template registry for MDIO v1 dataset templates."""
 
+import copy
 import threading
 from typing import Optional
 
@@ -89,13 +90,16 @@ class TemplateRegistry:
         self.register(Seismic3DPreStackShotTemplate("time"))
 
     def get(self, template_name: str) -> AbstractDatasetTemplate:
-        """Get a template from the registry by its name.
+        """Get an instance of a template from the registry by its name.
+
+        Each call returns a fresh, independent copy of the template that can be
+        modified without affecting the original template or other copies.
 
         Args:
             template_name: The name of the template to retrieve.
 
         Returns:
-            The template instance if found.
+            An instance of the template if found.
 
         Raises:
             KeyError: If the template is not registered.
@@ -105,7 +109,7 @@ class TemplateRegistry:
             if name not in self._templates:
                 err = f"Template '{name}' is not registered."
                 raise KeyError(err)
-            return self._templates[name]
+            return copy.deepcopy(self._templates[name])
 
     def unregister(self, template_name: str) -> None:
         """Unregister a template from the registry.
@@ -190,13 +194,16 @@ def register_template(template: AbstractDatasetTemplate) -> str:
 
 
 def get_template(name: str) -> AbstractDatasetTemplate:
-    """Get a template from the global registry.
+    """Get an instance of a template from the global registry.
+
+    Each call returns a fresh, independent instance of the template that can be
+    modified without affecting the original template or other copies.
 
     Args:
         name: The name of the template to retrieve.
 
     Returns:
-        The template instance if found.
+        An instance of the template if found.
     """
     return get_template_registry().get(name)
 

@@ -6,12 +6,16 @@ A thread-safe singleton registry for managing dataset templates in MDIO applicat
 
 The `TemplateRegistry` implements the singleton pattern to ensure there's only one instance managing all dataset templates throughout the application lifecycle. This provides a centralized registry for template management with thread-safe operations.
 
+**Important:** When you retrieve a template from the registry using `get()`, you receive a **deep copy** of the template. This means each retrieved template is an independent, modifiable instance that can be customized for your specific use case without affecting the original template or other retrieved copies.
+
 ## Features
 
 - **Singleton Pattern**: Ensures only one registry instance exists
 - **Thread Safety**: All operations are thread-safe using locks
 - **Global Access**: Convenient global functions for common operations
-- **Advanced Support**: Reset functionality for environment re-usability.
+- **Deep Copy on Retrieval**: Each `get()` call returns an independent copy that can be modified without side effects
+- **Advanced Support**: Reset functionality for environment re-usability
+- **Pickleable & Deepcopyable**: Retrieved templates are fully pickleable and deepcopyable
 - **Default Templates**: The registry is instantiated with the default set of templates:
   - PostStack2DTime
   - PostStack3DTime
@@ -79,9 +83,39 @@ if is_template_registered("seismic_3d"):
 templates = list_templates()
 ```
 
+### Template Independence and Modification
+
+Each call to `get()` returns an independent deep copy of the template, allowing you to customize templates without affecting other instances:
+
+```python
+from mdio.builder.template_registry import get_template
+
+# Get two instances of the same template
+template1 = get_template("PostStack3DTime")
+template2 = get_template("PostStack3DTime")
+
+# They are different objects
+assert template1 is not template2
+
+# Modify the first template
+template1.add_units({"amplitude": "meters"})
+
+# The second template is unaffected
+# template2 does not have the custom units from template1
+
+# Get a fresh copy - also unaffected by previous modifications
+template3 = get_template("PostStack3DTime")
+```
+
+This design ensures:
+- **Thread Safety**: Multiple threads can retrieve and modify templates independently
+- **Isolation**: Changes to one template instance don't affect others
+- **Reusability**: You can always get a fresh, unmodified template from the registry
+- **Pickling Support**: Each template instance can be pickled for distributed computing
+
 ### Multiple Instantiation
 
-The singleton pattern ensures all instantiations return the same object:
+The singleton pattern ensures all instantiations of the registry return the same object:
 
 ```python
 registry1 = TemplateRegistry()
