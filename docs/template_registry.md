@@ -15,6 +15,7 @@ The `TemplateRegistry` implements the singleton pattern to ensure there's only o
 - **Default Templates**: The registry is instantiated with the default set of templates:
   - PostStack2DTime
   - PostStack3DTime
+  - SeismicPreStack
   - PreStackCdpGathers3DTime
   - PreStackShotGathers3DTime
   - PostStack2DDepth
