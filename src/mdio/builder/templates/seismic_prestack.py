@@ -20,22 +20,17 @@ class SeismicPreStackTemplate(AbstractDatasetTemplate):
     def __init__(self, data_domain: SeismicDataDomain):
         super().__init__(data_domain=data_domain)
 
-        self._coord_dim_names = [
-            "shot_line",
-            "gun",
-            "shot_point",
-            "cable",
-            "channel",
-        ]  # Custom coordinates for shot gathers
-        self._dim_names = [*self._coord_dim_names, self._data_domain]
-        self._coord_names = [
-            "energy_source_point_number",
-            "source_coord_x",
-            "source_coord_y",
-            "group_coord_x",
-            "group_coord_y",
-        ]
-        self._var_chunk_shape = [1, 1, 16, 1, 32, -1]
+        self._spatial_dim_names = ("shot_line", "gun", "shot_point", "cable", "channel")
+        self._dim_names = (*self._spatial_dim_names, self._data_domain)
+        self._physical_coord_names = ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
+        self._logical_coord_names = ("orig_field_record_num",)
+        # TODO(Dmitriy Repin): Allow specifying full-dimension-extent chunk size in templates.
+        # https://github.com/TGSAI/mdio-python/issues/720
+        # When implemented, the following will be requesting the chunk size of the last dimension
+        # to be equal to the size of the dimension.
+        # self._var_chunk_shape = (1, 1, 16, 1, 32, -1)
+        # For now, we are hardcoding the chunk size to 1024.
+        self._var_chunk_shape = (1, 1, 16, 1, 32, 1024)
 
     @property
     def _name(self) -> str:
@@ -55,7 +50,7 @@ class SeismicPreStackTemplate(AbstractDatasetTemplate):
 
         # Add non-dimension coordinates
         self._builder.add_coordinate(
-            "energy_source_point_number",
+            "orig_field_record_num",
             dimensions=("shot_line", "gun", "shot_point"),
             data_type=ScalarType.INT32,
         )
@@ -63,23 +58,23 @@ class SeismicPreStackTemplate(AbstractDatasetTemplate):
             "source_coord_x",
             dimensions=("shot_line", "gun", "shot_point"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_x")),
         )
         self._builder.add_coordinate(
             "source_coord_y",
             dimensions=("shot_line", "gun", "shot_point"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_y")),
         )
         self._builder.add_coordinate(
             "group_coord_x",
             dimensions=("shot_line", "gun", "shot_point", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_x")),
         )
         self._builder.add_coordinate(
             "group_coord_y",
             dimensions=("shot_line", "gun", "shot_point", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self._horizontal_coord_unit),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_y")),
         )
