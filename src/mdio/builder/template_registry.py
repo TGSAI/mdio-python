@@ -60,8 +60,8 @@ class TemplateRegistry:
         with self._registry_lock:
             name = instance.name
             if name in self._templates:
-                err = f"Template '{name}' is already registered."
-                raise ValueError(err)
+                msg = f"Template '{name}' is already registered."
+                raise ValueError(msg)
             self._templates[name] = instance
         return name
 
@@ -105,11 +105,9 @@ class TemplateRegistry:
             KeyError: If the template is not registered.
         """
         with self._registry_lock:
-            name = template_name
-            if name not in self._templates:
-                err = f"Template '{name}' is not registered."
-                raise KeyError(err)
-            return copy.deepcopy(self._templates[name])
+            if template_name not in self._templates:
+                msg = f"Template '{template_name}' is not registered."
+                raise KeyError(msg)
 
     def unregister(self, template_name: str) -> None:
         """Unregister a template from the registry.
@@ -121,11 +119,10 @@ class TemplateRegistry:
             KeyError: If the template is not registered.
         """
         with self._registry_lock:
-            name = template_name
-            if name not in self._templates:
-                err_msg = f"Template '{name}' is not registered."
-                raise KeyError(err_msg)
-            del self._templates[name]
+            if template_name not in self._templates:
+                msg = f"Template '{template_name}' is not registered."
+                raise KeyError(msg)
+            del self._templates[template_name]
 
     def is_registered(self, template_name: str) -> bool:
         """Check if a template is registered in the registry.
@@ -137,8 +134,7 @@ class TemplateRegistry:
             True if the template is registered, False otherwise.
         """
         with self._registry_lock:
-            name = template_name
-            return name in self._templates
+            return template_name in self._templates
 
     def list_all_templates(self) -> list[str]:
         """Get all registered template names.
