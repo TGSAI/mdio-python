@@ -14,7 +14,6 @@ The `TemplateRegistry` implements the singleton pattern to ensure there's only o
 - **Thread Safety**: All operations are thread-safe using locks
 - **Global Access**: Convenient global functions for common operations
 - **Deep Copy on Retrieval**: Each `get()` call returns an independent copy that can be modified without side effects
-- **Advanced Support**: Reset functionality for environment re-usability
 - **Pickleable & Deepcopyable**: Retrieved templates are fully pickleable and deepcopyable
 - **Default Templates**: The registry is instantiated with the default set of templates:
   - PostStack2DTime
