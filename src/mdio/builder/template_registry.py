@@ -62,7 +62,7 @@ class TemplateRegistry:
             if name in self._templates:
                 msg = f"Template '{name}' is already registered."
                 raise ValueError(msg)
-            self._templates[name] = instance
+            self._templates[name] = copy.deepcopy(instance)
         return name
 
     def _register_default_templates(self) -> None:
@@ -108,6 +108,7 @@ class TemplateRegistry:
             if template_name not in self._templates:
                 msg = f"Template '{template_name}' is not registered."
                 raise KeyError(msg)
+            return copy.deepcopy(self._templates[template_name])
 
     def unregister(self, template_name: str) -> None:
         """Unregister a template from the registry.
