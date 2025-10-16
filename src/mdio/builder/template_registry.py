@@ -214,6 +214,11 @@ class TemplateRegistry:
             cls._instance = None
             cls._initialized = False
 
+    def __repr__(self) -> str:
+        """Return a string representation of the registry."""
+        template_names = sorted(self._templates.keys())
+        return f"TemplateRegistry(templates={template_names})"
+
 
 # Global convenience functions
 def get_template_registry() -> TemplateRegistry:

@@ -295,3 +295,17 @@ class MDIODatasetBuilder:
             raise ValueError(msg)
 
         return Dataset(variables=self._variables, metadata=self._metadata)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the builder."""
+        dim_names = [d.name for d in self._dimensions]
+        coord_names = [c.name for c in self._coordinates]
+        var_names = [v.name for v in self._variables]
+        return (
+            f"MDIODatasetBuilder("
+            f"name={self._metadata.name!r}, "
+            f"state={self._state.name}, "
+            f"dimensions={dim_names}, "
+            f"coordinates={coord_names}, "
+            f"variables={var_names})"
+        )

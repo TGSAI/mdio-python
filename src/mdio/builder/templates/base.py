@@ -46,6 +46,21 @@ class AbstractDatasetTemplate(ABC):
         self._dim_sizes: tuple[int, ...] = ()
         self._units: dict[str, AllUnitModel] = {}
 
+    def __repr__(self) -> str:
+        """Return a string representation of the template."""
+        return (
+            f"AbstractDatasetTemplate("
+            f"name={self.name!r}, "
+            f"data_domain={self._data_domain!r}, "
+            f"spatial_dim_names={self._spatial_dim_names}, "
+            f"dim_names={self._dim_names}, "
+            f"physical_coord_names={self._physical_coord_names}, "
+            f"logical_coord_names={self._logical_coord_names}, "
+            f"var_chunk_shape={self._var_chunk_shape}, "
+            f"dim_sizes={self._dim_sizes}, "
+            f"units={self._units})"
+        )
+
     def build_dataset(
         self,
         name: str,
