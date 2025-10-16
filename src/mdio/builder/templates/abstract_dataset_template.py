@@ -160,7 +160,7 @@ class AbstractDatasetTemplate(ABC):
             The dataset attributes as a dictionary
         """
 
-    def get_unit_by_key(self, key: str) -> AllUnitModel:
+    def get_unit_by_key(self, key: str) -> AllUnitModel | None:
         """Get units by variable/dimension/coordinate name. Returns None if not found."""
         return self._units.get(key, None)
 
