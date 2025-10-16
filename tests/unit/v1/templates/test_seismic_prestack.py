@@ -11,9 +11,12 @@ from mdio.builder.schemas.dtype import StructuredType
 from mdio.builder.schemas.v1.dataset import Dataset
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.units import TimeUnitEnum
+from mdio.builder.schemas.v1.units import TimeUnitModel
 from mdio.builder.templates.seismic_prestack import SeismicPreStackTemplate
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
+UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
 
 
 def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
@@ -27,7 +30,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         dataset,
         name="headers",
         dims=[("shot_line", 1), ("gun", 3), ("shot_point", 256), ("cable", 512), ("channel", 24)],
-        coords=["energy_source_point_number", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
+        coords=["orig_field_record_num", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
         dtype=headers,
     )
 
@@ -35,7 +38,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         dataset,
         name="trace_mask",
         dims=[("shot_line", 1), ("gun", 3), ("shot_point", 256), ("cable", 512), ("channel", 24)],
-        coords=["energy_source_point_number", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
+        coords=["orig_field_record_num", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
         dtype=ScalarType.BOOL,
     )
 
@@ -97,9 +100,9 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     # Verify non-dimension coordinate variables
     validate_variable(
         dataset,
-        name="energy_source_point_number",
+        name="orig_field_record_num",
         dims=[("shot_line", 1), ("gun", 3), ("shot_point", 256)],
-        coords=["energy_source_point_number"],
+        coords=["orig_field_record_num"],
         dtype=ScalarType.INT32,
     )
 
@@ -148,39 +151,43 @@ class TestSeismic3DPreStackShotTemplate:
         t = SeismicPreStackTemplate(data_domain="time")
 
         # Template attributes for prestack shot
-        assert t._data_domain == "time"
-        assert t._coord_dim_names == ["shot_line", "gun", "shot_point", "cable", "channel"]
-        assert t._dim_names == ["shot_line", "gun", "shot_point", "cable", "channel", "time"]
-        assert t._coord_names == [
-            "energy_source_point_number",
+        assert t.name == "PreStackGathers3DTime"
+        assert t.default_variable_name == "amplitude"
+        assert t.trace_domain == "time"
+        assert t.spatial_dimension_names == ("shot_line", "gun", "shot_point", "cable", "channel")
+        assert t.dimension_names == ("shot_line", "gun", "shot_point", "cable", "channel", "time")
+        assert t.physical_coordinate_names == ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
+        assert t.logical_coordinate_names == ("orig_field_record_num",)
+        assert t.coordinate_names == (
             "source_coord_x",
             "source_coord_y",
             "group_coord_x",
             "group_coord_y",
-        ]
-        assert t._var_chunk_shape == [1, 1, 16, 1, 32, -1]
+            "orig_field_record_num",
+        )
+        assert t.full_chunk_size == (1, 1, 16, 1, 32, -1)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
         assert t._dim_sizes == ()
-        assert t._horizontal_coord_unit is None
+        assert t._units == {}
 
         # Verify prestack shot attributes
         attrs = t._load_dataset_attributes()
         assert attrs == {"surveyDimensionality": "3D", "ensembleType": "shot_point", "processingStage": "pre-stack"}
+        assert t.default_variable_name == "amplitude"
 
         assert t.name == "PreStackGathers3DTime"
 
     def test_build_dataset(self, structured_headers: StructuredType) -> None:
         """Unit tests for SeismicPreStackTemplate build in time domain."""
         t = SeismicPreStackTemplate(data_domain="time")
+        t.add_units({"source_coord_x": UNITS_METER, "source_coord_y": UNITS_METER})  # spatial domain units
+        t.add_units({"group_coord_x": UNITS_METER, "group_coord_y": UNITS_METER})  # spatial domain units
+        t.add_units({"time": UNITS_SECOND})  # data domain units
 
-        assert t.name == "PreStackGathers3DTime"
         dataset = t.build_dataset(
-            "North Sea 3D Shot Time",
-            sizes=(1, 3, 256, 512, 24, 2048),
-            horizontal_coord_unit=UNITS_METER,
-            header_dtype=structured_headers,
+            "North Sea 3D Shot Time", sizes=(1, 3, 256, 512, 24, 2048), header_dtype=structured_headers
         )
 
         assert dataset.metadata.name == "North Sea 3D Shot Time"
@@ -195,7 +202,7 @@ class TestSeismic3DPreStackShotTemplate:
             dataset,
             name="amplitude",
             dims=[("shot_line", 1), ("gun", 3), ("shot_point", 256), ("cable", 512), ("channel", 24), ("time", 2048)],
-            coords=["energy_source_point_number", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
+            coords=["orig_field_record_num", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)

@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 def get_segy_mock_4d_spec() -> SegySpec:
     """Create a mock 4D SEG-Y specification."""
     trace_header_fields = [
-        HeaderField(name="field_rec_no", byte=9, format="int32"),
+        HeaderField(name="orig_field_record_num", byte=9, format="int32"),
         HeaderField(name="channel", byte=13, format="int32"),
         HeaderField(name="shot_point", byte=17, format="int32"),
         HeaderField(name="offset", byte=37, format="int32"),
@@ -118,7 +118,7 @@ def create_segy_mock_4d(  # noqa: PLR0913
                 channel, gun, shot_line = 0, 0, 0
 
             # Assign dimension coordinate fields with calculated mock data
-            header_fields = ["field_rec_no", "channel", "shot_point", "offset", "shot_line", "cable", "gun"]
+            header_fields = ["orig_field_record_num", "channel", "shot_point", "offset", "shot_line", "cable", "gun"]
             headers[header_fields][trc_idx] = (shot, channel, shot, offset, shot_line, cable, gun)
 
             # Assign coordinate fields with mock data
