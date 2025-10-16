@@ -174,35 +174,35 @@ for thread in threads:
 ## Example: Complete Template Management
 
 ```python
-from mdio.builder.template_registry import TemplateRegistry
+from mdio.builder.template_registry import TemplateRegistry, register_template, list_templates
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
-from mdio.builder.schemas.v1 import Seismic3DPostStackTimeTemplate
-from mdio.builder.schemas.v1 import Seismic3DPreStackTemplate
+from mdio.builder.templates.seismic_3d_prestack_cdp import Seismic3DPreStackCDPTemplate
 
 
 def setup_templates():
-    """Register MDIO templates runtime.
+    """Register MDIO templates at runtime.
     Custom templates can be created in external projects and added without modifying the MDIO library code
     """
-    # Use strongly-typed template
-    template_name = TemplateRegistry.register(Seismic3DPostStackTimeTemplate())
+    # Use parametrized templates
+    template_name = register_template(Seismic3DPostStackTemplate("time"))
     print(f"Registered template named {template_name}")
-    # Use parametrized template
-    template_name = TemplateRegistry.register(Seismic3DPostStackTemplate("Depth"))
+
+    template_name = register_template(Seismic3DPostStackTemplate("depth"))
     print(f"Registered template named {template_name}")
-    template_name = TemplateRegistry.register(Seismic3DPreStackTemplate())
+
+    template_name = register_template(Seismic3DPreStackCDPTemplate("time", "offset"))
     print(f"Registered template named {template_name}")
 
     print(f"Registered templates: {list_templates()}")
 
 
 # Application startup
-setup_standard_templates()
+setup_templates()
 
 # Later in the application
-template = TemplateRegistry().get_template("PostStack3DDepth")
-dataset = template.create_dataset(name="Seismic 3d m/m/ft",
-                                  sizes=[256, 512, 384])
+template = TemplateRegistry().get("PostStack3DDepth")
+dataset = template.build_dataset(name="Seismic 3d m/m/ft",
+                                  sizes=(256, 512, 384))
 ```
 
 ## Error Handling
@@ -218,8 +218,20 @@ except KeyError as e:
 
 # Duplicate registration
 try:
-    register_template("duplicate", template1)
-    register_template("duplicate", template2)
+    # Create two templates with the same name
+    class DuplicateTemplate(Seismic3DPostStackTemplate):
+        def __init__(self):
+            super().__init__("time")
+
+        @property
+        def _name(self) -> str:
+            return "duplicate"
+
+    template1 = DuplicateTemplate()
+    template2 = DuplicateTemplate()
+
+    register_template(template1)
+    register_template(template2)  # This will raise ValueError
 except ValueError as e:
     print(f"Error: {e}")  # "Template 'duplicate' is already registered."
 ```
