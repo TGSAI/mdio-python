@@ -16,14 +16,24 @@ The `TemplateRegistry` implements the singleton pattern to ensure there's only o
 - **Deep Copy on Retrieval**: Each `get()` call returns an independent copy that can be modified without side effects
 - **Pickleable & Deepcopyable**: Retrieved templates are fully pickleable and deepcopyable
 - **Default Templates**: The registry is instantiated with the default set of templates:
-  - PostStack2DTime
-  - PostStack3DTime
-  - PreStackCdpGathers3DTime
-  - PreStackShotGathers3DTime
-  - PostStack2DDepth
-  - PostStack3DDepth
-  - PreStackCdpGathers3DDepth
-  - PreStackShotGathers3DDepth
+  - **Time Domain Templates**:
+    - PostStack2DTime
+    - PostStack3DTime
+    - PreStackCdpOffsetGathers2DTime
+    - PreStackCdpAngleGathers2DTime
+    - PreStackCdpOffsetGathers3DTime
+    - PreStackCdpAngleGathers3DTime
+    - PreStackCocaGathers3DTime
+    - PreStackShotGathers2DTime
+    - PreStackShotGathers3DTime
+  - **Depth Domain Templates**:
+    - PostStack2DDepth
+    - PostStack3DDepth
+    - PreStackCdpOffsetGathers2DDepth
+    - PreStackCdpAngleGathers2DDepth
+    - PreStackCdpOffsetGathers3DDepth
+    - PreStackCdpAngleGathers3DDepth
+    - PreStackCocaGathers3DDepth
 
 ## Usage
 
