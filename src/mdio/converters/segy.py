@@ -494,7 +494,8 @@ def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatas
     """Validate that the SegySpec has all required fields in the MDIO template."""
     header_fields = {field.name for field in segy_spec.trace.header.fields}
 
-    required_fields = set(mdio_template.spatial_dimension_names) | set(mdio_template.coordinate_names)
+    # Exclude the data domain dimension from the required fields
+    required_fields = set(mdio_template.dimension_names[:-1]) | set(mdio_template.coordinate_names)
     required_fields = required_fields | {"coordinate_scalar"}  # ensure coordinate scalar is always present
     missing_fields = required_fields - header_fields
 
