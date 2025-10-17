@@ -212,7 +212,7 @@ class AbstractDatasetTemplate(ABC):
 
     def _add_trace_headers(self, header_dtype: StructuredType) -> None:
         """Add trace mask variables."""
-        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.chunk_shape[:-1]))
+        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.full_chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",
             dimensions=self._dim_names[:-1],  # exclude the last dimension (trace domain)
@@ -228,7 +228,7 @@ class AbstractDatasetTemplate(ABC):
         A virtual method that can be overwritten by subclasses to add custom variables.
         Uses the class field 'builder' to add variables to the dataset.
         """
-        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.chunk_shape))
+        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.full_chunk_shape))
         unit = self.get_unit_by_key(self._default_variable_name)
         self._builder.add_variable(
             name=self.default_variable_name,
