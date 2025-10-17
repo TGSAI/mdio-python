@@ -1,0 +1,105 @@
+"""Creating MDIO v1 datasets."""
+
+from __future__ import annotations
+
+from datetime import UTC
+from datetime import datetime
+from typing import TYPE_CHECKING
+
+from mdio.api.io import _normalize_path
+from mdio.api.io import open_mdio
+from mdio.api.io import to_mdio
+from mdio.builder.template_registry import TemplateRegistry
+from mdio.builder.xarray_builder import to_xarray_dataset
+from mdio.converters.segy import populate_dim_coordinates
+from mdio.converters.type_converter import to_structured_type
+from mdio.core.grid import Grid
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from segy.schema import HeaderSpec
+    from upath import UPath
+    from xarray import Dataset as xr_Dataset
+
+    from mdio.builder.schemas import Dataset
+    from mdio.core.dimension import Dimension
+
+
+def create_empty_like(  # noqa PLR0913
+    input_path: UPath | Path | str,
+    output_path: UPath | Path | str,
+    keep_coordinates: bool = False,
+    overwrite: bool = False,
+) -> xr_Dataset:
+    """A function that creates an empty MDIO v1 file with the same structure as an existing one.
+
+    Args:
+        input_path: The path of the input MDIO file.
+        output_path: The path of the output MDIO file.
+                     If None, the output will not be written to disk.
+        keep_coordinates: Whether to keep the coordinates in the output file.
+        overwrite: Whether to overwrite the output file if it exists.
+
+    Returns:
+        The output MDIO dataset.
+
+    Raises:
+        FileExistsError: If the output location already exists and overwrite is False.
+    """
+    input_path = _normalize_path(input_path)
+    output_path = _normalize_path(output_path) if output_path is not None else None
+
+    if not overwrite and output_path is not None and output_path.exists():
+        err = f"Output location '{output_path.as_posix()}' exists. Set `overwrite=True` if intended."
+        raise FileExistsError(err)
+
+    ds = open_mdio(input_path)
+
+    # Create a copy with the same structure but no data or,
+    # optionally, coordinates
+    ds_output = ds.copy(data=None).reset_coords(drop=not keep_coordinates)
+
+    # Dataset
+    # Keep the name (which is the same as the used template name) and the original API version
+    # ds_output.attrs["name"]
+    # ds_output.attrs["apiVersion"]
+    ds_output.attrs["createdOn"] = datetime.now(UTC)
+
+    # Coordinates
+    if not keep_coordinates:
+        for coord_name in ds_output.coords:
+            ds_output[coord_name].attrs["unitsV1"] = None
+
+    # MDIO attributes
+    attr = ds_output.attrs["attributes"]
+    if attr is not None:
+        attr.pop("gridOverrides", None)  # Empty dataset should not have gridOverrides
+        # Keep the original values for the following attributes
+        # attr["defaultVariableName"]
+        # attr["surveyType"]
+        # attr["gatherType"]
+
+    # "All traces should be marked as dead in empty dataset"
+    if "trace_mask" in ds_output.variables:
+        ds_output["trace_mask"][:] = False
+
+    # Data variable
+    var_name = attr["defaultVariableName"]
+    var = ds_output[var_name]
+    var.attrs["statsV1"] = None
+    if not keep_coordinates:
+        var.attrs["unitsV1"] = None
+
+    # SEG-Y file header
+    if "segy_file_header" in ds_output.variables:
+        segy_file_header = ds_output["segy_file_header"]
+        if segy_file_header is not None:
+            segy_file_header.attrs["textHeader"] = None
+            segy_file_header.attrs["binaryHeader"] = None
+            segy_file_header.attrs["rawBinaryHeader"] = None
+
+    if output_path is not None:
+        to_mdio(ds_output, output_path=output_path, mode="w", compute=True)
+
+    return ds_output
