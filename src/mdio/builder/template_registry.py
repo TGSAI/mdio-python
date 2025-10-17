@@ -4,6 +4,7 @@ This module provides a tiny, thread-safe singleton registry to discover and fetc
 templates used by the MDIO builder.
 
 Key points
+
 - Global, thread-safe singleton (safe to use across threads)
 - Fetching a template returns a deep-copied instance you can modify freely
 - Comes pre-populated with common seismic templates
@@ -49,12 +50,14 @@ class TemplateRegistry:
     or other callers.
 
     Thread-safety
+
     - Creation uses double-checked locking to guarantee a single instance.
     - Registry operations are protected by an internal re-entrant lock.
 
     Typical usage
+
     - Use the module helpers: ``get_template``, ``list_templates``, ``register_template``,
-        and ``is_template_registered``.
+      and ``is_template_registered``.
     - Alternatively, use ``TemplateRegistry.get_instance()`` for direct access.
     """
 
