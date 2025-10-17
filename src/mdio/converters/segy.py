@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
     from mdio.builder.schemas import Dataset
-    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.builder.templates.base import AbstractDatasetTemplate
     from mdio.core.dimension import Dimension
     from mdio.segy.file import SegyFileArguments
     from mdio.segy.file import SegyFileInfo
@@ -158,21 +158,21 @@ def _scan_for_headers(
     This is an expensive operation.
     It scans the SEG-Y file in chunks by using ProcessPoolExecutor
     """
-    full_chunk_size = template.full_chunk_size
+    full_chunk_shape = template.full_chunk_shape
     segy_dimensions, chunk_size, segy_headers = get_grid_plan(
         segy_file_kwargs=segy_file_kwargs,
         segy_file_info=segy_file_info,
         return_headers=True,
         template=template,
-        chunksize=full_chunk_size,
+        chunksize=full_chunk_shape,
         grid_overrides=grid_overrides,
     )
-    if full_chunk_size != chunk_size:
+    if full_chunk_shape != chunk_size:
         # TODO(Dmitriy): implement grid overrides
         # https://github.com/TGSAI/mdio-python/issues/585
         # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
         # support for grid overrides is implemented
-        err = "Support for changing full_chunk_size in grid overrides is not yet implemented"
+        err = "Support for changing full_chunk_shape in grid overrides is not yet implemented"
         raise NotImplementedError(err)
     return segy_dimensions, segy_headers
 
@@ -439,7 +439,7 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
         original_add_variables()
 
         # Now add the raw headers variable
-        chunk_shape = mdio_template._var_chunk_shape[:-1]
+        chunk_shape = mdio_template.full_chunk_shape[:-1]
 
         # Create chunk grid metadata
         chunk_metadata = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
@@ -448,7 +448,7 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
         mdio_template._builder.add_variable(
             name="raw_headers",
             long_name="Raw Headers",
-            dimensions=mdio_template._dim_names[:-1],  # All dimensions except vertical
+            dimensions=mdio_template.spatial_dimension_names,
             data_type=ScalarType.BYTES240,
             compressor=Blosc(cname=BloscCname.zstd),
             coordinates=None,  # No coordinates as specified

@@ -83,10 +83,9 @@ class TestSeismic2DPostStackTemplate:
 
         # Template attributes
         assert t._data_domain == data_domain
-        assert t._spatial_dim_names == ("cdp",)
         assert t._dim_names == ("cdp", data_domain)
         assert t._physical_coord_names == ("cdp_x", "cdp_y")
-        assert t._var_chunk_shape == (1024, 1024)
+        assert t.full_chunk_shape == (1024, 1024)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None

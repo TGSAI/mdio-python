@@ -99,10 +99,9 @@ class TestSeismic3DPostStackTemplate:
 
         # Template attributes to be overridden by subclasses
         assert t._data_domain == data_domain  # Domain should be lowercased
-        assert t._spatial_dim_names == ("inline", "crossline")
         assert t._dim_names == ("inline", "crossline", data_domain)
         assert t._physical_coord_names == ("cdp_x", "cdp_y")
-        assert t._var_chunk_shape == (128, 128, 128)
+        assert t.full_chunk_shape == (128, 128, 128)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None

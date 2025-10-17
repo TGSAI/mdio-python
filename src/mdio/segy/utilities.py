@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike
     from segy.arrays import HeaderArray
 
-    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.builder.templates.base import AbstractDatasetTemplate
     from mdio.segy.file import SegyFileArguments
     from mdio.segy.file import SegyFileInfo
 
@@ -56,7 +56,7 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         grid_overrides = {}
 
     # Keep only dimension and non-dimension coordinates excluding the vertical axis
-    horizontal_dimensions = template.dimension_names[:-1]
+    horizontal_dimensions = template.spatial_dimension_names
     horizontal_coordinates = horizontal_dimensions + template.coordinate_names
     headers_subset = parse_headers(
         segy_file_kwargs=segy_file_kwargs,

@@ -37,7 +37,6 @@ class AbstractDatasetTemplate(ABC):
             msg = "domain must be 'depth' or 'time'"
             raise ValueError(msg)
 
-        self._spatial_dim_names: tuple[str, ...] = ()
         self._dim_names: tuple[str, ...] = ()
         self._physical_coord_names: tuple[str, ...] = ()
         self._logical_coord_names: tuple[str, ...] = ()
@@ -99,8 +98,8 @@ class AbstractDatasetTemplate(ABC):
 
     @property
     def spatial_dimension_names(self) -> tuple[str, ...]:
-        """Returns the names of only the spatial dimensions."""
-        return copy.deepcopy(self._spatial_dim_names)
+        """Returns the names of the dimensions excluding the last axis."""
+        return copy.deepcopy(self._dim_names[:-1])
 
     @property
     def dimension_names(self) -> tuple[str, ...]:
@@ -123,9 +122,17 @@ class AbstractDatasetTemplate(ABC):
         return copy.deepcopy(self._physical_coord_names + self._logical_coord_names)
 
     @property
-    def full_chunk_size(self) -> tuple[int, ...]:
-        """Returns the chunk size for the variables."""
+    def full_chunk_shape(self) -> tuple[int, ...]:
+        """Returns the chunk shape for the variables."""
         return copy.deepcopy(self._var_chunk_shape)
+
+    @full_chunk_shape.setter
+    def full_chunk_shape(self, shape: tuple[int, ...]) -> None:
+        """Sets the chunk shape for the variables."""
+        if len(shape) != len(self._dim_sizes):
+            msg = f"Chunk shape {shape} does not match dimension sizes {self._dim_sizes}"
+            raise ValueError(msg)
+        self._var_chunk_shape = shape
 
     @property
     @abstractmethod
@@ -192,7 +199,7 @@ class AbstractDatasetTemplate(ABC):
         for name in self.coordinate_names:
             self._builder.add_coordinate(
                 name=name,
-                dimensions=self._spatial_dim_names,
+                dimensions=self.spatial_dimension_names,
                 data_type=ScalarType.FLOAT64,
                 compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
                 metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
@@ -202,7 +209,7 @@ class AbstractDatasetTemplate(ABC):
         """Add trace mask variables."""
         self._builder.add_variable(
             name="trace_mask",
-            dimensions=self._spatial_dim_names,
+            dimensions=self.spatial_dimension_names,
             data_type=ScalarType.BOOL,
             compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self.coordinate_names,
@@ -210,7 +217,7 @@ class AbstractDatasetTemplate(ABC):
 
     def _add_trace_headers(self, header_dtype: StructuredType) -> None:
         """Add trace mask variables."""
-        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape[:-1]))
+        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.full_chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",
             dimensions=self.spatial_dimension_names,
@@ -226,7 +233,7 @@ class AbstractDatasetTemplate(ABC):
         A virtual method that can be overwritten by subclasses to add custom variables.
         Uses the class field 'builder' to add variables to the dataset.
         """
-        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape))
+        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.full_chunk_shape))
         unit = self.get_unit_by_key(self._default_variable_name)
         self._builder.add_variable(
             name=self.default_variable_name,

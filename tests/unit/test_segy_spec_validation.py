@@ -8,7 +8,7 @@ import pytest
 from segy.schema import HeaderField
 from segy.standards import get_segy_standard
 
-from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.converters.segy import _validate_spec_in_template
 
 
