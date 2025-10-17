@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mdio.builder.dataset_builder import MDIODatasetBuilder
+    from mdio.builder.template_registry import TemplateRegistry
     from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
 
 
@@ -259,5 +260,59 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
                 </table>
             </div>
         </details>
+    </div>
+    """
+
+
+
+def template_registry_repr_html(registry: "TemplateRegistry") -> str:
+    """Return an HTML representation of the template registry for Jupyter notebooks."""
+    template_rows = ""
+    td_style = (
+        "padding: 10px 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2); "
+        "font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; "
+        "font-size: 14px; line-height: 1.4;"
+    )
+    for name in sorted(registry._templates.keys()):
+        template = registry._templates[name]
+        template_class = template.__class__.__name__
+        data_domain = getattr(template, "_data_domain", "—")
+        template_rows += (
+            f"<tr><td style='{td_style}'>{html.escape(str(name))}</td>"
+            f"<td style='{td_style}'>{html.escape(str(template_class))}</td>"
+            f"<td style='{td_style}'>{html.escape(str(data_domain))}</td></tr>"
+        )
+
+    box_style = (
+        "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; "
+        "border: 1px solid rgba(128, 128, 128, 0.3); "
+        "border-radius: 8px; padding: 16px; max-width: 100%; box-sizing: border-box; "
+        "background: rgba(255, 255, 255, 0.02);"
+    )
+    header_style = (
+        "padding: 12px 16px; margin: -16px -16px 16px -16px; "
+        "border-bottom: 2px solid rgba(128, 128, 128, 0.3); "
+        "background: rgba(128, 128, 128, 0.05); border-radius: 8px 8px 0 0;"
+    )
+    no_templates = '<tr><td colspan="3" style="padding: 10px; opacity: 0.5; text-align: center;">No templates registered</td></tr>'  # noqa: E501
+
+    return f"""
+    <div style="{box_style}" role="region" aria-labelledby="registry-header">
+        <header style="{header_style}" id="registry-header">
+            <h3 style="font-size: 1.1em; margin: 0;">TemplateRegistry</h3>
+            <span style="margin-left: 15px; opacity: 0.7;">({len(registry._templates)} templates)</span>
+        </header>
+        <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="registry-header">
+            <thead>
+                <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
+                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader" scope="col">Template Name</th>
+                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader" scope="col">Class</th>
+                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader" scope="col">Domain</th>
+                </tr>
+            </thead>
+            <tbody role="rowgroup">
+                {template_rows if template_rows else no_templates}
+            </tbody>
+        </table>
     </div>
     """
