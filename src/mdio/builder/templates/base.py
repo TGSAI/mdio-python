@@ -97,14 +97,14 @@ class AbstractDatasetTemplate(ABC):
         return self._data_domain
 
     @property
-    def dimension_names(self) -> tuple[str, ...]:
-        """Returns the names of the dimensions."""
-        return copy.deepcopy(self._dim_names)
-
-    @property
     def spatial_dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions without data domain (last axis)."""
         return copy.deepcopy(self._dim_names[:-1])
+
+    @property
+    def dimension_names(self) -> tuple[str, ...]:
+        """Returns the names of the dimensions."""
+        return copy.deepcopy(self._dim_names)
 
     @property
     def physical_coordinate_names(self) -> tuple[str, ...]:
