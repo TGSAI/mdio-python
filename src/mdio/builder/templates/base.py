@@ -15,12 +15,12 @@ from mdio.builder.schemas.chunk_grid import RegularChunkGrid
 from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.v1.units import AllUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
 
 if TYPE_CHECKING:
     from mdio.builder.schemas.v1.dataset import Dataset
-    from mdio.builder.schemas.v1.units import AllUnitModel
     from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -99,6 +99,10 @@ class AbstractDatasetTemplate(ABC):
 
     def add_units(self, units: dict[str, AllUnitModel]) -> None:
         """Add an arbitrary number of units to the template, extending the existing ones."""
+        for unit in units.values():
+            if not isinstance(unit, AllUnitModel):
+                msg = f"Unit {unit} is not an instance of `AllUnitModel`"
+                raise ValueError(msg)
         self._units |= units
 
     @property
