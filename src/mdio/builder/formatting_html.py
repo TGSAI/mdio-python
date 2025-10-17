@@ -36,21 +36,15 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
         "font-family: monospace; border: 1px solid rgba(128, 128, 128, 0.3); "
         "border-radius: 5px; padding: 15px; max-width: 1000px;"
     )
-    header_style = (
-        "padding: 10px; margin: -15px -15px 15px -15px; border-bottom: 2px solid rgba(128, 128, 128, 0.3);"
-    )
+    header_style = "padding: 10px; margin: -15px -15px 15px -15px; border-bottom: 2px solid rgba(128, 128, 128, 0.3);"
     summary_style = "cursor: pointer; font-weight: bold; margin-bottom: 8px;"
     summary_style_2 = "cursor: pointer; font-weight: bold; margin: 15px 0 8px 0;"
 
-    no_dims = (
-        '<tr><td colspan="2" style="padding: 8px; opacity: 0.5; text-align: left;">No dimensions added</td></tr>'  # noqa: E501
-    )
+    no_dims = '<tr><td colspan="2" style="padding: 8px; opacity: 0.5; text-align: left;">No dimensions added</td></tr>'  # noqa: E501
     no_coords = (
         '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No coordinates added</td></tr>'  # noqa: E501
     )
-    no_vars = (
-        '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No variables added</td></tr>'  # noqa: E501
-    )
+    no_vars = '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No variables added</td></tr>'  # noqa: E501
 
     return f"""
     <div style="{box_style}">
@@ -155,9 +149,7 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
         "font-family: monospace; border: 1px solid rgba(128, 128, 128, 0.3); "
         "border-radius: 5px; padding: 15px; max-width: 1000px;"
     )
-    header_style = (
-        "padding: 10px; margin: -15px -15px 15px -15px; border-bottom: 2px solid rgba(128, 128, 128, 0.3);"
-    )
+    header_style = "padding: 10px; margin: -15px -15px 15px -15px; border-bottom: 2px solid rgba(128, 128, 128, 0.3);"
     summary_style = "cursor: pointer; font-weight: bold; margin-bottom: 8px;"
     summary_style_2 = "cursor: pointer; font-weight: bold; margin: 15px 0 8px 0;"
 
@@ -167,9 +159,7 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
     no_coords = (
         '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No coordinates defined</td></tr>'  # noqa: E501
     )
-    no_units = (
-        '<tr><td colspan="2" style="padding: 8px; opacity: 0.5; text-align: left;">No units defined</td></tr>'  # noqa: E501
-    )
+    no_units = '<tr><td colspan="2" style="padding: 8px; opacity: 0.5; text-align: left;">No units defined</td></tr>'  # noqa: E501
 
     return f"""
     <div style="{box_style}">
