@@ -2,6 +2,7 @@
 
 import html
 from typing import TYPE_CHECKING
+from typing import Any
 
 if TYPE_CHECKING:
     from mdio.builder.dataset_builder import MDIODatasetBuilder
@@ -46,7 +47,7 @@ SUMMARY_STYLE_2 = (
 )
 
 
-def _make_table_row(*cells):
+def _make_table_row(*cells: Any) -> str:
     """Create an HTML table row from cell values."""
     cell_html = "".join(f"<td style='{TD_STYLE_LEFT}'>{html.escape(str(cell))}</td>" for cell in cells)
     return f"<tr>{cell_html}</tr>"
@@ -86,13 +87,17 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
             <strong>Created:</strong> {html.escape(str(builder._metadata.created_on.strftime("%Y-%m-%d %H:%M:%S UTC")))}
         </div>
         <details open aria-expanded="true">
-            <summary style="{SUMMARY_STYLE}" aria-controls="builder-dimensions-table" id="builder-dimensions-summary">▸ Dimensions ({len(builder._dimensions)})</summary>
+            <summary style="{SUMMARY_STYLE}" aria-controls="builder-dimensions-table"
+                     id="builder-dimensions-summary">▸ Dimensions ({len(builder._dimensions)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="builder-dimensions-summary">
+                <table style="width: 100%; border-collapse: collapse;" role="table"
+                       aria-labelledby="builder-dimensions-summary">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Size</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Size</th>
                         </tr>
                     </thead>
                     <tbody role="rowgroup">
@@ -102,14 +107,19 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
             </div>
         </details>
         <details open aria-expanded="true">
-            <summary style="{SUMMARY_STYLE_2}" aria-controls="builder-coordinates-table" id="builder-coordinates-summary">▸ Coordinates ({len(builder._coordinates)})</summary>
+            <summary style="{SUMMARY_STYLE_2}" aria-controls="builder-coordinates-table"
+                     id="builder-coordinates-summary">▸ Coordinates ({len(builder._coordinates)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="builder-coordinates-summary">
+                <table style="width: 100%; border-collapse: collapse;" role="table"
+                       aria-labelledby="builder-coordinates-summary">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Dimensions</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Type</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Dimensions</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Type</th>
                         </tr>
                     </thead>
                     <tbody role="rowgroup">
@@ -119,14 +129,19 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
             </div>
         </details>
         <details open aria-expanded="true">
-            <summary style="{SUMMARY_STYLE_2}" aria-controls="builder-variables-table" id="builder-variables-summary">▸ Variables ({len(builder._variables)})</summary>
+            <summary style="{SUMMARY_STYLE_2}" aria-controls="builder-variables-table"
+                     id="builder-variables-summary">▸ Variables ({len(builder._variables)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="builder-variables-summary">
+                <table style="width: 100%; border-collapse: collapse;" role="table"
+                       aria-labelledby="builder-variables-summary">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Dimensions</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Type</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Dimensions</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Type</th>
                         </tr>
                     </thead>
                     <tbody role="rowgroup">
@@ -147,7 +162,11 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
         for i, name in enumerate(template._dim_names):
             size = template._dim_sizes[i] if i < len(template._dim_sizes) else "Not set"
             is_spatial = "✓" if name in template._spatial_dim_names else ""
-            dim_rows += f"<tr><td style='{TD_STYLE_LEFT}'>{html.escape(str(name))}</td><td style='{TD_STYLE_LEFT}'>{html.escape(str(size))}</td><td style='{TD_STYLE_CENTER}'>{html.escape(is_spatial)}</td></tr>"
+            dim_rows += (
+                f"<tr><td style='{TD_STYLE_LEFT}'>{html.escape(str(name))}</td>"
+                f"<td style='{TD_STYLE_LEFT}'>{html.escape(str(size))}</td>"
+                f"<td style='{TD_STYLE_CENTER}'>{html.escape(is_spatial)}</td></tr>"
+            )
 
     # Format coordinates
     coord_rows = ""
@@ -180,17 +199,24 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
             <strong>Template Name:</strong> {html.escape(str(template.name))}<br>
             <strong>Data Domain:</strong> {html.escape(str(template._data_domain))}<br>
             <strong>Default Variable:</strong> {html.escape(str(template._default_variable_name))}<br>
-            <strong>Chunk Shape:</strong> {html.escape(str(template._var_chunk_shape)) if template._var_chunk_shape else "Not set"}
+            <strong>Chunk Shape:</strong> {
+        html.escape(str(template._var_chunk_shape)) if template._var_chunk_shape else "Not set"
+    }
         </div>
         <details open aria-expanded="true">
-            <summary style="{SUMMARY_STYLE}" aria-controls="dimensions-table" id="dimensions-summary">▸ Dimensions ({len(template._dim_names)})</summary>
+            <summary style="{SUMMARY_STYLE}" aria-controls="dimensions-table"
+                     id="dimensions-summary">▸ Dimensions ({len(template._dim_names)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="dimensions-summary">
+                <table style="width: 100%; border-collapse: collapse;" role="table"
+                       aria-labelledby="dimensions-summary">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Size</th>
-                            <th style="text-align: center; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Spatial</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Size</th>
+                            <th style="text-align: center; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Spatial</th>
                         </tr>
                     </thead>
                     <tbody role="rowgroup">
@@ -200,14 +226,19 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
             </div>
         </details>
         <details open aria-expanded="true">
-            <summary style="{SUMMARY_STYLE_2}" aria-controls="coordinates-table" id="coordinates-summary">▸ Coordinates ({len(all_coords)})</summary>
+            <summary style="{SUMMARY_STYLE_2}" aria-controls="coordinates-table"
+                     id="coordinates-summary">▸ Coordinates ({len(all_coords)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="coordinates-summary">
+                <table style="width: 100%; border-collapse: collapse;" role="table"
+                       aria-labelledby="coordinates-summary">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Type</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Units</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Type</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Units</th>
                         </tr>
                     </thead>
                     <tbody role="rowgroup">
@@ -217,13 +248,17 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
             </div>
         </details>
         <details aria-expanded="false">
-            <summary style="{SUMMARY_STYLE_2}" aria-controls="units-table" id="units-summary">▸ Units ({len(template._units)})</summary>
+            <summary style="{SUMMARY_STYLE_2}" aria-controls="units-table"
+                     id="units-summary">▸ Units ({len(template._units)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="units-summary">
+                <table style="width: 100%; border-collapse: collapse;" role="table"
+                       aria-labelledby="units-summary">
                     <thead>
                         <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Key</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Unit</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Key</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
+                                scope="col">Unit</th>
                         </tr>
                     </thead>
                     <tbody role="rowgroup">
@@ -236,7 +271,6 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
     """
 
 
-
 def template_registry_repr_html(registry: "TemplateRegistry") -> str:
     """Return an HTML representation of the template registry for Jupyter notebooks."""
     template_rows = ""
@@ -246,7 +280,9 @@ def template_registry_repr_html(registry: "TemplateRegistry") -> str:
         data_domain = getattr(template, "_data_domain", "—")
         template_rows += _make_table_row(name, template_class, data_domain)
 
-    no_templates = '<tr><td colspan="3" style="padding: 10px; opacity: 0.5; text-align: center;">No templates registered</td></tr>'  # noqa: E501
+    no_templates = (
+        '<tr><td colspan="3" style="padding: 10px; opacity: 0.5; text-align: center;">No templates registered</td></tr>'  # noqa: E501
+    )
 
     return f"""
     <div style="{BOX_STYLE}" role="region" aria-labelledby="registry-header">
@@ -257,9 +293,12 @@ def template_registry_repr_html(registry: "TemplateRegistry") -> str:
         <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="registry-header">
             <thead>
                 <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
-                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader" scope="col">Template Name</th>
-                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader" scope="col">Class</th>
-                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader" scope="col">Domain</th>
+                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader"
+                        scope="col">Template Name</th>
+                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader"
+                        scope="col">Class</th>
+                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader"
+                        scope="col">Domain</th>
                 </tr>
             </thead>
             <tbody role="rowgroup">
