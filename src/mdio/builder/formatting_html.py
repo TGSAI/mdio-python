@@ -2,7 +2,6 @@
 
 import html
 from typing import TYPE_CHECKING
-from typing import Any
 
 if TYPE_CHECKING:
     from mdio.builder.dataset_builder import MDIODatasetBuilder
@@ -47,7 +46,7 @@ SUMMARY_STYLE_2 = (
 )
 
 
-def _make_table_row(*cells: Any) -> str:
+def _make_table_row(*cells: object) -> str:
     """Create an HTML table row from cell values."""
     cell_html = "".join(f"<td style='{TD_STYLE_LEFT}'>{html.escape(str(cell))}</td>" for cell in cells)
     return f"<tr>{cell_html}</tr>"
