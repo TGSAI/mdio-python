@@ -12,19 +12,19 @@ class TestSeismicTemplates:
 
     def test_chunk_shape_assignment(self) -> None:
         """Test that chunk shape is assigned correctly."""
-        tpl = Seismic2DPostStackTemplate("time")
-        tpl.build_dataset("test", (50, 50))
-        tpl.full_chunk_shape = (32, 32)
+        template = Seismic2DPostStackTemplate("time")
+        template.build_dataset("test", (50, 50))
+        template.full_chunk_shape = (32, 32)
 
-        assert tpl._var_chunk_shape == (32, 32)
+        assert template._var_chunk_shape == (32, 32)
 
     def test_chunk_shape_assignment_exception(self) -> None:
         """Test that chunk shape assignment raises exception for invalid dimensions."""
-        tpl = Seismic2DPostStackTemplate("time")
-        tpl.build_dataset("test", (50, 50))
+        template = Seismic2DPostStackTemplate("time")
+        template.build_dataset("test", (50, 50))
 
         with pytest.raises(ValueError, match="Chunk shape.*does not match dimension sizes"):
-            tpl.full_chunk_shape = (32, 32, 32)
+            template.full_chunk_shape = (32, 32, 32)
 
     def test_all_templates_inherit_from_abstract(self) -> None:
         """Test that all concrete templates inherit from AbstractDatasetTemplate."""
