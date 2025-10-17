@@ -7,6 +7,7 @@ from enum import auto
 from typing import Any
 
 from mdio import __version__
+from mdio.builder.formatting_html import dataset_builder_repr_html
 from mdio.builder.schemas.compressors import ZFP
 from mdio.builder.schemas.compressors import Blosc
 from mdio.builder.schemas.dimension import NamedDimension
@@ -295,3 +296,21 @@ class MDIODatasetBuilder:
             raise ValueError(msg)
 
         return Dataset(variables=self._variables, metadata=self._metadata)
+
+    def __repr__(self) -> str:
+        """Return a string representation of the builder."""
+        dim_names = [d.name for d in self._dimensions]
+        coord_names = [c.name for c in self._coordinates]
+        var_names = [v.name for v in self._variables]
+        return (
+            f"MDIODatasetBuilder("
+            f"name={self._metadata.name!r}, "
+            f"state={self._state.name}, "
+            f"dimensions={dim_names}, "
+            f"coordinates={coord_names}, "
+            f"variables={var_names})"
+        )
+
+    def _repr_html_(self) -> str:
+        """Return an HTML representation of the builder for Jupyter notebooks."""
+        return dataset_builder_repr_html(self)

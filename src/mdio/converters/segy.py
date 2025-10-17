@@ -319,6 +319,11 @@ def _update_template_units(template: AbstractDatasetTemplate, unit: LengthUnitMo
     # Add units for pre-defined: angle and azimuth etc.
     new_units = {key: AngleUnitModel(angle=AngleUnitEnum.DEGREES) for key in ANGLE_UNIT_KEYS}
 
+    # If a spatial unit is not provided, we return as is
+    if unit is None:
+        template.add_units(new_units)
+        return template
+
     # Dynamically add units based on the spatial coordinate unit
     for key in SPATIAL_UNIT_KEYS:
         current_value = template.get_unit_by_key(key)
