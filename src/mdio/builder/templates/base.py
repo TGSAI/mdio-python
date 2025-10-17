@@ -117,6 +117,19 @@ class AbstractDatasetTemplate(ABC):
         return copy.deepcopy(self._physical_coord_names + self._logical_coord_names)
 
     @property
+    def chunk_shape(self) -> tuple[int, ...]:
+        """Returns the chunk shape for the variables."""
+        return copy.deepcopy(self._var_chunk_shape)
+
+    @chunk_shape.setter
+    def chunk_shape(self, shape: tuple[int, ...]) -> None:
+        """Sets the chunk shape for the variables."""
+        if len(shape) != len(self._dim_sizes):
+            msg = f"Chunk shape {shape} does not match dimension sizes {self._dim_sizes}"
+            raise ValueError(msg)
+        self._var_chunk_shape = shape
+
+    @property
     def full_chunk_size(self) -> tuple[int, ...]:
         """Returns the chunk size for the variables."""
         return copy.deepcopy(self._var_chunk_shape)
@@ -204,7 +217,7 @@ class AbstractDatasetTemplate(ABC):
 
     def _add_trace_headers(self, header_dtype: StructuredType) -> None:
         """Add trace mask variables."""
-        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape[:-1]))
+        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",
             dimensions=self._dim_names[:-1],  # exclude the last dimension (trace domain)
@@ -220,7 +233,7 @@ class AbstractDatasetTemplate(ABC):
         A virtual method that can be overwritten by subclasses to add custom variables.
         Uses the class field 'builder' to add variables to the dataset.
         """
-        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape))
+        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.chunk_shape))
         unit = self.get_unit_by_key(self._default_variable_name)
         self._builder.add_variable(
             name=self.default_variable_name,
