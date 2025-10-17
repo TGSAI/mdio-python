@@ -42,7 +42,9 @@ def set_env_vars(monkeypatch: Generator[pytest.MonkeyPatch]) -> None:
 
 @pytest.fixture
 def teapot_segy_spec() -> SegySpec:
+    """Return the customized SEG-Y specification for the teapot dome dataset."""
     return get_teapot_segy_spec()
+
 
 def get_teapot_segy_spec() -> SegySpec:
     """Return the customized SEG-Y specification for the teapot dome dataset."""

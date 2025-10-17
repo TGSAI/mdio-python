@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -11,13 +10,6 @@ from segy.schema import HeaderField
 from segy.schema import HeaderSpec
 from segy.schema import ScalarType
 from segy.standards import get_segy_standard
-
-from mdio.builder.schemas.v1.units import LengthUnitEnum
-from mdio.builder.schemas.v1.units import LengthUnitModel
-from mdio.builder.schemas.v1.units import SpeedUnitEnum
-from mdio.builder.schemas.v1.units import SpeedUnitModel
-from mdio.builder.schemas.v1.units import TimeUnitEnum
-from mdio.builder.schemas.v1.units import TimeUnitModel
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -30,12 +22,6 @@ from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_variable
 
 from mdio import __version__
-from mdio.api.io import open_mdio
-from mdio.api.io import to_mdio
-from mdio.builder.schemas.v1.stats import CenteredBinHistogram
-from mdio.builder.schemas.v1.stats import SummaryStatistics
-from mdio.converters.mdio import mdio_to_segy
-from mdio.core import Dimension
 from mdio.creators.mdio import create_empty_like
 
 

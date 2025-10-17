@@ -9,21 +9,12 @@ from typing import TYPE_CHECKING
 from mdio.api.io import _normalize_path
 from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
-from mdio.builder.template_registry import TemplateRegistry
-from mdio.builder.xarray_builder import to_xarray_dataset
-from mdio.converters.segy import populate_dim_coordinates
-from mdio.converters.type_converter import to_structured_type
-from mdio.core.grid import Grid
 
 if TYPE_CHECKING:
     from pathlib import Path
 
-    from segy.schema import HeaderSpec
     from upath import UPath
     from xarray import Dataset as xr_Dataset
-
-    from mdio.builder.schemas import Dataset
-    from mdio.core.dimension import Dimension
 
 
 def create_empty_like(  # noqa PLR0913

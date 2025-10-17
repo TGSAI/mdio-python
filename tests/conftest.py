@@ -46,6 +46,7 @@ def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
     return tmp_path_factory.mktemp(r"mdio")
 
+
 @pytest.fixture(scope="session")
 def teapot_mdio_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the output MDIO."""
@@ -74,8 +75,7 @@ def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.fixture(scope="class")
 def empty_mdio_with_headers(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for empty MDIO testing."""
-    path = tmp_path_factory.mktemp(r"empty_with_headers.mdio")
-    return path
+    return tmp_path_factory.mktemp(r"empty_with_headers.mdio")
 
 
 # @pytest.fixture(scope="session")
