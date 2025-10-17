@@ -117,22 +117,17 @@ class AbstractDatasetTemplate(ABC):
         return copy.deepcopy(self._physical_coord_names + self._logical_coord_names)
 
     @property
-    def chunk_shape(self) -> tuple[int, ...]:
+    def full_chunk_shape(self) -> tuple[int, ...]:
         """Returns the chunk shape for the variables."""
         return copy.deepcopy(self._var_chunk_shape)
 
-    @chunk_shape.setter
-    def chunk_shape(self, shape: tuple[int, ...]) -> None:
+    @full_chunk_shape.setter
+    def full_chunk_shape(self, shape: tuple[int, ...]) -> None:
         """Sets the chunk shape for the variables."""
         if len(shape) != len(self._dim_sizes):
             msg = f"Chunk shape {shape} does not match dimension sizes {self._dim_sizes}"
             raise ValueError(msg)
         self._var_chunk_shape = shape
-
-    @property
-    def full_chunk_size(self) -> tuple[int, ...]:
-        """Returns the chunk size for the variables."""
-        return copy.deepcopy(self._var_chunk_shape)
 
     @property
     @abstractmethod
