@@ -39,7 +39,7 @@ class TestImport4DNonReg:  # pragma: no cover - tests is skipped
     def test_import_4d_segy(  # noqa: PLR0913
         self,
         segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
-        zarr_tmp: Path,
+        mdio_4d_tmp: Path,
         grid_override: dict[str, Any],
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
@@ -51,7 +51,7 @@ class TestImport4DNonReg:  # pragma: no cover - tests is skipped
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
             input_path=segy_path,
-            output_path=zarr_tmp,
+            output_path=mdio_4d_tmp,
             overwrite=True,
             grid_overrides=grid_override,
         )
@@ -62,7 +62,7 @@ class TestImport4DNonReg:  # pragma: no cover - tests is skipped
         cables = [0, 101, 201, 301]
         receivers_per_cable = [1, 5, 7, 5]
 
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(mdio_4d_tmp)
 
         assert ds["segy_file_header"].attrs["binaryHeader"]["samples_per_trace"] == num_samples
         assert ds.attrs["attributes"]["gridOverrides"] == grid_override
@@ -86,7 +86,7 @@ class TestImport4D:
     def test_import_4d_segy(  # noqa: PLR0913
         self,
         segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
-        zarr_tmp: Path,
+        mdio_4d_tmp: Path,
         grid_override: dict[str, Any],
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
@@ -98,7 +98,7 @@ class TestImport4D:
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
             input_path=segy_path,
-            output_path=zarr_tmp,
+            output_path=mdio_4d_tmp,
             overwrite=True,
             grid_overrides=grid_override,
         )
@@ -109,7 +109,7 @@ class TestImport4D:
         cables = [0, 101, 201, 301]
         receivers_per_cable = [1, 5, 7, 5]
 
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(mdio_4d_tmp)
 
         assert ds["segy_file_header"].attrs["binaryHeader"]["samples_per_trace"] == num_samples
         assert ds.attrs["attributes"].get("gridOverrides", None) == grid_override  # may not exist, so default=None
@@ -134,7 +134,7 @@ class TestImport4DSparse:
     def test_import_4d_segy(  # noqa: PLR0913
         self,
         segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
-        zarr_tmp: Path,
+        mdio_4d_tmp: Path,
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
         """Test importing a SEG-Y file to MDIO."""
@@ -148,7 +148,7 @@ class TestImport4DSparse:
                 segy_spec=segy_spec,
                 mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
                 input_path=segy_path,
-                output_path=zarr_tmp,
+                output_path=mdio_4d_tmp,
                 overwrite=True,
             )
 
@@ -167,7 +167,7 @@ class TestImport6D:  # pragma: no cover - tests is skipped
     def test_import_6d_segy(  # noqa: PLR0913
         self,
         segy_mock_4d_shots: dict[StreamerShotGeometryType, Path],
-        zarr_tmp: Path,
+        mdio_4d_tmp: Path,
         grid_override: dict[str, Any],
         chan_header_type: StreamerShotGeometryType,
     ) -> None:
@@ -179,7 +179,7 @@ class TestImport6D:  # pragma: no cover - tests is skipped
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get("XYZ"),  # Placeholder for the template
             input_path=segy_path,
-            output_path=zarr_tmp,
+            output_path=mdio_4d_tmp,
             overwrite=True,
             grid_overrides=grid_override,
         )
@@ -195,7 +195,7 @@ class TestImport6D:  # pragma: no cover - tests is skipped
         guns = [1, 2]
         receivers_per_cable = [1, 5, 7, 5]
 
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(mdio_4d_tmp)
 
         xrt.assert_duckarray_equal(ds["gun"], guns)
         xrt.assert_duckarray_equal(ds["shot_point"], shots)
