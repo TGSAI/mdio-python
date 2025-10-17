@@ -11,7 +11,7 @@ from mdio.builder.schemas.v1.units import AllUnitModel
 if TYPE_CHECKING:
     from mdio.builder.dataset_builder import MDIODatasetBuilder
     from mdio.builder.template_registry import TemplateRegistry
-    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.builder.templates.base import AbstractDatasetTemplate
 
 
 @dataclass(frozen=True)
