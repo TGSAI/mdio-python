@@ -102,6 +102,11 @@ class AbstractDatasetTemplate(ABC):
         return copy.deepcopy(self._dim_names)
 
     @property
+    def spatial_dimension_names(self) -> tuple[str, ...]:
+        """Returns the names of the dimensions without data domain (last axis)."""
+        return copy.deepcopy(self._dim_names[:-1])
+
+    @property
     def physical_coordinate_names(self) -> tuple[str, ...]:
         """Returns the names of the physical (world) coordinates."""
         return copy.deepcopy(self._physical_coord_names)
@@ -194,7 +199,7 @@ class AbstractDatasetTemplate(ABC):
         for name in self.coordinate_names:
             self._builder.add_coordinate(
                 name=name,
-                dimensions=self._dim_names[:-1],  # exclude the last dimension (trace domain)
+                dimensions=self.spatial_dimension_names,
                 data_type=ScalarType.FLOAT64,
                 compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
                 metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
@@ -204,7 +209,7 @@ class AbstractDatasetTemplate(ABC):
         """Add trace mask variables."""
         self._builder.add_variable(
             name="trace_mask",
-            dimensions=self._dim_names[:-1],  # exclude the last dimension (trace domain)
+            dimensions=self.spatial_dimension_names,
             data_type=ScalarType.BOOL,
             compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self.coordinate_names,
@@ -215,7 +220,7 @@ class AbstractDatasetTemplate(ABC):
         chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.full_chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",
-            dimensions=self._dim_names[:-1],  # exclude the last dimension (trace domain)
+            dimensions=self.spatial_dimension_names,
             data_type=header_dtype,
             compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self.coordinate_names,

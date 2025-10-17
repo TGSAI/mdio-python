@@ -439,7 +439,7 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
         original_add_variables()
 
         # Now add the raw headers variable
-        chunk_shape = mdio_template._var_chunk_shape[:-1]
+        chunk_shape = mdio_template.full_chunk_shape[:-1]
 
         # Create chunk grid metadata
         chunk_metadata = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
@@ -448,7 +448,7 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
         mdio_template._builder.add_variable(
             name="raw_headers",
             long_name="Raw Headers",
-            dimensions=mdio_template._dim_names[:-1],  # All dimensions except vertical
+            dimensions=mdio_template.spatial_dimension_names,
             data_type=ScalarType.BYTES240,
             compressor=Blosc(cname=BloscCname.zstd),
             coordinates=None,  # No coordinates as specified
@@ -494,8 +494,7 @@ def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatas
     """Validate that the SegySpec has all required fields in the MDIO template."""
     header_fields = {field.name for field in segy_spec.trace.header.fields}
 
-    # Exclude the data domain dimension from the required fields
-    required_fields = set(mdio_template.dimension_names[:-1]) | set(mdio_template.coordinate_names)
+    required_fields = set(mdio_template.spatial_dimension_names) | set(mdio_template.coordinate_names)
     required_fields = required_fields | {"coordinate_scalar"}  # ensure coordinate scalar is always present
     missing_fields = required_fields - header_fields
 

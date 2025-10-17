@@ -56,7 +56,7 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         grid_overrides = {}
 
     # Keep only dimension and non-dimension coordinates excluding the vertical axis
-    horizontal_dimensions = template.dimension_names[:-1]
+    horizontal_dimensions = template.spatial_dimension_names
     horizontal_coordinates = horizontal_dimensions + template.coordinate_names
     headers_subset = parse_headers(
         segy_file_kwargs=segy_file_kwargs,
