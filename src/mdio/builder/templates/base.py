@@ -98,7 +98,7 @@ class AbstractDatasetTemplate(ABC):
 
     @property
     def spatial_dimension_names(self) -> tuple[str, ...]:
-        """Returns the names of the dimensions without data domain (last axis)."""
+        """Returns the names of the dimensions excluding the last axis."""
         return copy.deepcopy(self._dim_names[:-1])
 
     @property
