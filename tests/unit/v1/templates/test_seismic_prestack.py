@@ -165,7 +165,7 @@ class TestSeismic3DPreStackShotTemplate:
             "group_coord_y",
             "orig_field_record_num",
         )
-        assert t.full_chunk_size == (1, 1, 16, 1, 32, -1)
+        assert t.full_chunk_size == (1, 1, 16, 1, 32, 1024)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
@@ -208,7 +208,7 @@ class TestSeismic3DPreStackShotTemplate:
         assert isinstance(seismic.compressor, Blosc)
         assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1, 1, 16, 1, 32, -1)
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1, 1, 16, 1, 32, 1024)
         assert seismic.metadata.stats_v1 is None
 
 
