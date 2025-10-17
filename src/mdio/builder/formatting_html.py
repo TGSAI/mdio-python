@@ -1,5 +1,7 @@
 """HTML formatting utilities for MDIO builder classes."""
 
+from __future__ import annotations
+
 import html
 from typing import TYPE_CHECKING
 
@@ -133,7 +135,7 @@ def _make_table(headers: list[tuple[str, str]], rows: str, empty_row: str, table
                 """
 
 
-def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
+def dataset_builder_repr_html(builder: MDIODatasetBuilder) -> str:
     """Return an HTML representation of the builder for Jupyter notebooks."""
     # Generate table rows
     dim_rows = "".join(_make_table_row(dim.name, dim.size) for dim in builder._dimensions)
@@ -210,7 +212,7 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
     return _make_html_container("MDIODatasetBuilder", content, "builder-header")
 
 
-def template_repr_html(template: "AbstractDatasetTemplate") -> str:
+def template_repr_html(template: AbstractDatasetTemplate) -> str:
     """Return an HTML representation of the template for Jupyter notebooks."""
     # Generate dimension rows with special center alignment for last column
     dim_rows = ""
@@ -295,7 +297,7 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
     return _make_html_container(template.__class__.__name__, content, "template-header")
 
 
-def template_registry_repr_html(registry: "TemplateRegistry") -> str:
+def template_registry_repr_html(registry: TemplateRegistry) -> str:
     """Return an HTML representation of the template registry for Jupyter notebooks."""
     # Generate table rows
     template_rows = "".join(
