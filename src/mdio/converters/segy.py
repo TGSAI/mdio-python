@@ -321,6 +321,7 @@ def _update_template_units(template: AbstractDatasetTemplate, unit: LengthUnitMo
 
     # If a spatial unit is not provided, we return as is
     if unit is None:
+        template.add_units(new_units)
         return template
 
     # Dynamically add units based on the spatial coordinate unit
