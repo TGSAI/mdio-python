@@ -232,15 +232,6 @@ class MDIODatasetBuilder:
             raise ValueError(msg)
         if dimensions is None or not dimensions:
             msg = "'dimensions' must be a non-empty list"
-            if name == "trace_mask":  # coverage: exclude
-                msg += (
-                    "Error occurred while adding special case variable `trace_mask`."
-                    "This is likely an issue with how a custom template has been defined."
-                    "Please check the documentation https://github.com/TGSAI/mdio-python/issues/718 "
-                    "for more information."
-                    # TODO(Anybody): Update the link to point to the appropriate documentation when it is available.
-                    # https://github.com/TGSAI/mdio-python/issues/718
-                )
             raise ValueError(msg)
 
         # Validate that the variable is not already defined
