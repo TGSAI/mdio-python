@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -12,8 +12,7 @@ class Seismic2DPostStackTemplate(AbstractDatasetTemplate):
     def __init__(self, data_domain: SeismicDataDomain):
         super().__init__(data_domain=data_domain)
 
-        self._spatial_dim_names = ("cdp",)
-        self._dim_names = (*self._spatial_dim_names, self._data_domain)
+        self._dim_names = ("cdp", self._data_domain)
         self._physical_coord_names = ("cdp_x", "cdp_y")
         self._var_chunk_shape = (1024, 1024)
 

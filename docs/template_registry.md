@@ -67,8 +67,9 @@ If you have a custom template class, register an instance so others can fetch it
 ```python
 from typing import Any
 from mdio.builder.template_registry import register_template
-from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
+
 
 class MyTemplate(AbstractDatasetTemplate):
     def __init__(self, domain: SeismicDataDomain = "time"):
@@ -81,6 +82,7 @@ class MyTemplate(AbstractDatasetTemplate):
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
         return {"surveyType": "2D", "gatherType": "custom"}
+
 
 # Make it available globally
 registered_name = register_template(MyTemplate("time"))

@@ -5,7 +5,7 @@ from typing import Any
 from mdio.builder.schemas import compressors
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
-from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -15,8 +15,7 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
     def __init__(self, data_domain: SeismicDataDomain):
         super().__init__(data_domain=data_domain)
 
-        self._spatial_dim_names = ("inline", "crossline", "offset", "azimuth")
-        self._dim_names = (*self._spatial_dim_names, self._data_domain)
+        self._dim_names = ("inline", "crossline", "offset", "azimuth", self._data_domain)
         self._physical_coord_names = ("cdp_x", "cdp_y")
         self._var_chunk_shape = (8, 8, 32, 1, 1024)
 

@@ -19,7 +19,7 @@ import copy
 import threading
 from typing import TYPE_CHECKING
 
-from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
 from mdio.builder.templates.seismic_2d_prestack_cdp import Seismic2DPreStackCDPTemplate
 from mdio.builder.templates.seismic_2d_prestack_shot import Seismic2DPreStackShotTemplate
@@ -29,7 +29,7 @@ from mdio.builder.templates.seismic_3d_prestack_coca import Seismic3DPreStackCoc
 from mdio.builder.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
 
 if TYPE_CHECKING:
-    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.builder.templates.base import AbstractDatasetTemplate
 
 
 __all__ = [

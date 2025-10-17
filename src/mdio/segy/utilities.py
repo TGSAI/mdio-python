@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from numpy.typing import DTypeLike
     from segy.arrays import HeaderArray
 
-    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.builder.templates.base import AbstractDatasetTemplate
     from mdio.segy.file import SegyFileArguments
     from mdio.segy.file import SegyFileInfo
 

@@ -2,7 +2,7 @@
 
 from typing import Any
 
-from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import CdpGatherDomain
 from mdio.builder.templates.types import SeismicDataDomain
 
@@ -18,8 +18,7 @@ class Seismic2DPreStackCDPTemplate(AbstractDatasetTemplate):
             msg = "gather_type must be 'offset' or 'angle'"
             raise ValueError(msg)
 
-        self._spatial_dim_names = ("cdp", self._gather_domain)
-        self._dim_names = (*self._spatial_dim_names, self._data_domain)
+        self._dim_names = ("cdp", self._gather_domain, self._data_domain)
         self._physical_coord_names = ("cdp_x", "cdp_y")
         self._var_chunk_shape = (16, 64, 1024)
 

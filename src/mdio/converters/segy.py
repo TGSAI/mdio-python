@@ -52,7 +52,7 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
     from mdio.builder.schemas import Dataset
-    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.builder.templates.base import AbstractDatasetTemplate
     from mdio.core.dimension import Dimension
     from mdio.segy.file import SegyFileArguments
     from mdio.segy.file import SegyFileInfo

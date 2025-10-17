@@ -37,7 +37,6 @@ class AbstractDatasetTemplate(ABC):
             msg = "domain must be 'depth' or 'time'"
             raise ValueError(msg)
 
-        self._spatial_dim_names: tuple[str, ...] = ()
         self._dim_names: tuple[str, ...] = ()
         self._physical_coord_names: tuple[str, ...] = ()
         self._logical_coord_names: tuple[str, ...] = ()
@@ -96,11 +95,6 @@ class AbstractDatasetTemplate(ABC):
     def trace_domain(self) -> str:
         """Returns the name of the trace domain."""
         return self._data_domain
-
-    @property
-    def spatial_dimension_names(self) -> tuple[str, ...]:
-        """Returns the names of only the spatial dimensions."""
-        return copy.deepcopy(self._spatial_dim_names)
 
     @property
     def dimension_names(self) -> tuple[str, ...]:
@@ -192,7 +186,7 @@ class AbstractDatasetTemplate(ABC):
         for name in self.coordinate_names:
             self._builder.add_coordinate(
                 name=name,
-                dimensions=self._spatial_dim_names,
+                dimensions=self._dim_names[:-1],  # exclude the last dimension (trace domain)
                 data_type=ScalarType.FLOAT64,
                 compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
                 metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
@@ -202,7 +196,7 @@ class AbstractDatasetTemplate(ABC):
         """Add trace mask variables."""
         self._builder.add_variable(
             name="trace_mask",
-            dimensions=self._spatial_dim_names,
+            dimensions=self._dim_names[:-1],  # exclude the last dimension (trace domain)
             data_type=ScalarType.BOOL,
             compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self.coordinate_names,
@@ -213,7 +207,7 @@ class AbstractDatasetTemplate(ABC):
         chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self._var_chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",
-            dimensions=self.spatial_dimension_names,
+            dimensions=self._dim_names[:-1],  # exclude the last dimension (trace domain)
             data_type=header_dtype,
             compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self.coordinate_names,
