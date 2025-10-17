@@ -1,181 +1,112 @@
 # Template Registry
 
-A thread-safe singleton registry for managing dataset templates in MDIO applications.
+A simple, thread-safe place to discover and fetch dataset templates for MDIO.
 
-## Overview
+## Why use it
 
-The `TemplateRegistry` implements the singleton pattern to ensure there's only one instance managing all dataset templates throughout the application lifecycle. This provides a centralized registry for template management with thread-safe operations.
+- One place to find all available templates
+- Safe to use across threads and the whole app (singleton)
+- Every fetch gives you your own editable copy (no side effects)
+- Comes preloaded with common seismic templates
 
-## Features
-
-- **Singleton Pattern**: Ensures only one registry instance exists
-- **Thread Safety**: All operations are thread-safe using locks
-- **Global Access**: Convenient global functions for common operations
-- **Advanced Support**: Reset functionality for environment re-usability.
-- **Default Templates**: The registry is instantiated with the default set of templates:
-  - PostStack2DTime
-  - PostStack3DTime
-  - PreStackCdpGathers3DTime
-  - PreStackShotGathers3DTime
-  - PostStack2DDepth
-  - PostStack3DDepth
-  - PreStackCdpGathers3DDepth
-  - PreStackShotGathers3DDepth
-
-## Usage
-
-### Basic Usage
-
-```python
-from mdio.builder.template_registry import TemplateRegistry
-
-# Get the singleton instance
-registry = TemplateRegistry()
-
-# Or use the class method
-registry = TemplateRegistry.get_instance()
-
-# Register a template
-template = MyDatasetTemplate()
-template_name = registry.register(template)
-print(f"Registered template named {template_name}")
-
-# Retrieve a template using a well-known name
-template = registry.get("my_template")
-# Retrieve a template using the name returned when the template was registered
-template = registry.get(template_name)
-
-# Check if template exists
-if registry.is_registered("my_template"):
-    print("Template is registered")
-
-# List all templates
-template_names = registry.list_all_templates()
+```{note}
+Fetching a template with `get_template()` returns a deep copy. Editing it will not change the
+registry or anyone else’s copy.
 ```
 
-### Global Functions
-
-For convenience, you can use global functions that operate on the singleton instance:
+## Quick start
 
 ```python
-from mdio.builder.template_registry import (
-    register_template,
-    get_template,
-    is_template_registered,
-    list_templates
-)
+from mdio.builder.template_registry import get_template, list_templates
 
-# Register a template globally
-register_template(Seismic3DTemplate())
+# See what's available
+print(list_templates())
+# e.g. ["Seismic2DPostStackTime", "Seismic3DPostStackDepth", ...]
 
-# Get a template
-template = get_template("seismic_3d")
+# Grab a template by name
+tpl = get_template("Seismic3DPostStackTime")
 
-# Check registration
-if is_template_registered("seismic_3d"):
-    print("Template available")
-
-# List all registered templates
-templates = list_templates()
+# Customize your copy (safe)
+tpl.add_units({"amplitude": "unitless"})
 ```
 
-### Multiple Instantiation
+## Common tasks
 
-The singleton pattern ensures all instantiations return the same object:
+### Fetch a template you can edit
 
 ```python
-registry1 = TemplateRegistry()
-registry2 = TemplateRegistry()
-registry3 = TemplateRegistry.get_instance()
+from mdio.builder.template_registry import get_template
 
-# All variables point to the same instance
-assert registry1 is registry2 is registry3
+tpl = get_template("Seismic2DPostStackDepth")
+# Use/modify tpl freely — it’s your copy
 ```
 
-## API Reference
+### List available templates
+
+```python
+from mdio.builder.template_registry import list_templates
+
+names = list_templates()
+for name in names:
+    print(name)
+```
+
+### Check if a template exists
+
+```python
+from mdio.builder.template_registry import is_template_registered
+
+if is_template_registered("Seismic3DPostStackTime"):
+    ...  # safe to fetch
+```
+
+### Register your own template (optional)
+
+If you have a custom template class, register an instance so others can fetch it by name:
+
+```python
+from typing import Any
+from mdio.builder.template_registry import register_template
+from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.types import SeismicDataDomain
+
+class MyTemplate(AbstractDatasetTemplate):
+    def __init__(self, domain: SeismicDataDomain = "time"):
+        super().__init__(domain)
+
+    @property
+    def _name(self) -> str:
+        # The public name becomes something like "MyTemplateTime"
+        return f"MyTemplate{self._data_domain.capitalize()}"
+
+    def _load_dataset_attributes(self) -> dict[str, Any]:
+        return {"surveyType": "2D", "gatherType": "custom"}
+
+# Make it available globally
+registered_name = register_template(MyTemplate("time"))
+print(registered_name)  # "MyTemplateTime"
+```
+
+```{tip}
+Use `list_templates()` to discover the exact names to pass to `get_template()`.
+```
+
+## Troubleshooting
+
+- KeyError: “Template 'XYZ' is not registered.”
+  - The name is wrong or not registered yet.
+  - Call `list_templates()` to see valid names, or `is_template_registered(name)` to check first.
+
+## FAQ
+
+- Do I need to create a TemplateRegistry instance?
+  No. Use the global helpers: `get_template`, `list_templates`, `register_template`, and `is_template_registered`.
+- Are templates shared between callers or threads?
+  No. Each `get_template()` call returns a deep-copied instance that is safe to modify independently.
+
+## API reference
 
 ```{eval-rst}
 .. automodule:: mdio.builder.template_registry
    :members:
-```
-
-## Thread Safety
-
-All operations on the registry are thread-safe:
-
-```python
-import threading
-
-def register_templates():
-    registry = TemplateRegistry()
-    for i in range(10):
-        template = MyTemplate(f"template_{i}")
-        registry.register(template)
-
-# Multiple threads can safely access the registry
-threads = [threading.Thread(target=register_templates) for _ in range(5)]
-for thread in threads:
-    thread.start()
-for thread in threads:
-    thread.join()
-```
-
-## Best Practices
-
-1. **Use Global Functions**: For simple operations, prefer the global convenience functions
-2. **Register Early**: Register all templates during application startup
-3. **Thread Safety**: The registry is thread-safe, but individual templates may not be
-4. **Testing Isolation**: Always reset the singleton in test setup/teardown
-
-## Example: Complete Template Management
-
-```python
-from mdio.builder.template_registry import TemplateRegistry
-from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
-from mdio.builder.schemas.v1 import Seismic3DPostStackTimeTemplate
-from mdio.builder.schemas.v1 import Seismic3DPreStackTemplate
-
-
-def setup_templates():
-    """Register MDIO templates runtime.
-    Custom templates can be created in external projects and added without modifying the MDIO library code
-    """
-    # Use strongly-typed template
-    template_name = TemplateRegistry.register(Seismic3DPostStackTimeTemplate())
-    print(f"Registered template named {template_name}")
-    # Use parametrized template
-    template_name = TemplateRegistry.register(Seismic3DPostStackTemplate("Depth"))
-    print(f"Registered template named {template_name}")
-    template_name = TemplateRegistry.register(Seismic3DPreStackTemplate())
-    print(f"Registered template named {template_name}")
-
-    print(f"Registered templates: {list_templates()}")
-
-
-# Application startup
-setup_standard_templates()
-
-# Later in the application
-template = TemplateRegistry().get_template("PostStack3DDepth")
-dataset = template.create_dataset(name="Seismic 3d m/m/ft",
-                                  sizes=[256, 512, 384])
-```
-
-## Error Handling
-
-The registry provides clear error messages:
-
-```python
-# Template not registered
-try:
-    template = get_template("nonexistent")
-except KeyError as e:
-    print(f"Error: {e}")  # "Template 'nonexistent' is not registered."
-
-# Duplicate registration
-try:
-    register_template("duplicate", template1)
-    register_template("duplicate", template2)
-except ValueError as e:
-    print(f"Error: {e}")  # "Template 'duplicate' is already registered."
 ```

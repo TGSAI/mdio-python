@@ -10,7 +10,7 @@ from mdio.builder.templates.types import SeismicDataDomain
 
 
 class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
-    """Seismic Shot pre-stack 3D time or depth Dataset template."""
+    """Seismic CoCA (common offset, common azimuth) pre-stack 3D Dataset template."""
 
     def __init__(self, data_domain: SeismicDataDomain):
         super().__init__(data_domain=data_domain)
