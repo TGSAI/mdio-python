@@ -316,6 +316,9 @@ def _get_spatial_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitMode
 
 def _update_template_units(template: AbstractDatasetTemplate, unit: LengthUnitModel | None) -> AbstractDatasetTemplate:
     """Update the template with dynamic and some pre-defined units."""
+    if unit is None:
+        return template
+
     # Add units for pre-defined: angle and azimuth etc.
     new_units = {key: AngleUnitModel(angle=AngleUnitEnum.DEGREES) for key in ANGLE_UNIT_KEYS}
 
