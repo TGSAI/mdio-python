@@ -23,41 +23,49 @@ HEADER_STYLE = (
     "background: rgba(128, 128, 128, 0.05); border-radius: 8px 8px 0 0;"
 )
 
-TD_STYLE_LEFT = (
-    "padding: 10px 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2); "
-    "font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; "
-    "font-size: 14px; line-height: 1.4;"
+TD_STYLE_BASE = (
+    "padding: 10px 8px; border-bottom: 1px solid rgba(128, 128, 128, 0.2); "
+    "font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', "
+    "Consolas, 'Courier New', monospace; font-size: 14px; line-height: 1.4;"
 )
 
-TD_STYLE_CENTER = (
-    "padding: 10px 8px; text-align: center; border-bottom: 1px solid rgba(128, 128, 128, 0.2); "
-    "font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; "
-    "font-size: 14px; line-height: 1.4;"
+TD_STYLE_LEFT = f"{TD_STYLE_BASE} text-align: left;"
+TD_STYLE_CENTER = f"{TD_STYLE_BASE} text-align: center;"
+
+SUMMARY_STYLE_BASE = (
+    "cursor: pointer; font-weight: 600; padding: 8px 12px; border-radius: 4px; transition: background-color 0.2s;"
 )
 
-SUMMARY_STYLE = (
-    "cursor: pointer; font-weight: 600; margin-bottom: 8px; "
-    "padding: 8px 12px; border-radius: 4px; transition: background-color 0.2s;"
-)
-
-SUMMARY_STYLE_2 = (
-    "cursor: pointer; font-weight: 600; margin: 16px 0 8px 0; "
-    "padding: 8px 12px; border-radius: 4px; transition: background-color 0.2s;"
-)
+SUMMARY_STYLE_FIRST = f"{SUMMARY_STYLE_BASE} margin-bottom: 8px;"
+SUMMARY_STYLE_SUBSEQUENT = f"{SUMMARY_STYLE_BASE} margin: 16px 0 8px 0;"
 
 
-def _make_table_row(*cells: object) -> str:
+def _make_empty_row(colspan: int, message: str) -> str:
+    """Create an empty data row for tables."""
+    return f'<tr><td colspan="{colspan}" style="padding: 8px; opacity: 0.5; text-align: left;">{message}</td></tr>'
+
+
+def _make_table_row(*cells: object, center_last: bool = False) -> str:
     """Create an HTML table row from cell values."""
-    cell_html = "".join(f"<td style='{TD_STYLE_LEFT}'>{html.escape(str(cell))}</td>" for cell in cells)
+    if not cells:
+        return ""
+
+    cell_html = "".join(f'<td style="{TD_STYLE_LEFT}">{html.escape(str(cell))}</td>' for cell in cells[:-1])
+
+    # Last cell can be centered if needed
+    last_style = TD_STYLE_CENTER if center_last else TD_STYLE_LEFT
+    cell_html += f'<td style="{last_style}">{html.escape(str(cells[-1]))}</td>'
+
     return f"<tr>{cell_html}</tr>"
 
 
 def _make_html_container(header_title: str, content: str, header_id: str = "header") -> str:
     """Create the outer HTML container with header."""
+    escaped_title = html.escape(str(header_title))
     return f"""
     <div style="{BOX_STYLE}" role="region" aria-labelledby="{header_id}">
         <header style="{HEADER_STYLE}" id="{header_id}">
-            <h3 style="font-size: 1.1em; margin: 0;">{html.escape(str(header_title))}</h3>
+            <h3 style="font-size: 1.1em; margin: 0;">{escaped_title}</h3>
         </header>
         {content}
     </div>
@@ -70,17 +78,19 @@ def _make_metadata_section(metadata_items: list[tuple[str, str]]) -> str:
     return f'<div style="margin-bottom: 15px;">{items_html}</div>'
 
 
-def _make_details_section(  # noqa: PLR0913
+def _make_details_section(
     summary_text: str,
     table_html: str,
-    summary_id: str,
-    table_id: str,
+    section_id: str,
     expanded: bool = True,
-    summary_style: str = "SUMMARY_STYLE",
+    is_first: bool = False,
 ) -> str:
     """Create a collapsible details section with a table."""
     expanded_attr = 'open aria-expanded="true"' if expanded else 'aria-expanded="false"'
-    style = SUMMARY_STYLE if summary_style == "SUMMARY_STYLE" else SUMMARY_STYLE_2
+    style = SUMMARY_STYLE_FIRST if is_first else SUMMARY_STYLE_SUBSEQUENT
+    summary_id = f"{section_id}-summary"
+    table_id = f"{section_id}-table"
+
     return f"""
         <details {expanded_attr}>
             <summary style="{style}" aria-controls="{table_id}"
@@ -92,22 +102,32 @@ def _make_details_section(  # noqa: PLR0913
         """
 
 
-def _make_table(headers: list[tuple[str, str]], rows: str, no_data_row: str, table_id: str) -> str:
-    """Create an HTML table with headers and rows."""
+def _make_table_header(headers: list[tuple[str, str]]) -> str:
+    """Create HTML table header from list of (name, alignment) tuples."""
     header_html = "".join(
         f'<th style="{align}; padding: 8px; font-weight: 600;" role="columnheader" scope="col">{name}</th>'
         for name, align in headers
     )
     return f"""
-                <table style="width: 100%; border-collapse: collapse;" role="table"
-                       aria-labelledby="{table_id}">
                     <thead>
-                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
+                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);"
+                            role="row">
                             {header_html}
                         </tr>
-                    </thead>
+                    </thead>"""
+
+
+def _make_table(headers: list[tuple[str, str]], rows: str, empty_row: str, table_id: str) -> str:
+    """Create an HTML table with headers and rows."""
+    header_html = _make_table_header(headers)
+    body_content = rows if rows else empty_row
+
+    return f"""
+                <table style="width: 100%; border-collapse: collapse;"
+                       role="table" aria-labelledby="{table_id}">
+                    {header_html}
                     <tbody role="rowgroup">
-                        {rows if rows else no_data_row}
+                        {body_content}
                     </tbody>
                 </table>
                 """
@@ -118,7 +138,11 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
     # Generate table rows
     dim_rows = "".join(_make_table_row(dim.name, dim.size) for dim in builder._dimensions)
     coord_rows = "".join(
-        _make_table_row(coord.name, ", ".join(d.name for d in coord.dimensions), coord.data_type)
+        _make_table_row(
+            coord.name,
+            ", ".join(d.name for d in coord.dimensions),
+            coord.data_type,
+        )
         for coord in builder._coordinates
     )
     var_rows = "".join(
@@ -126,36 +150,41 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
         for var in builder._variables
     )
 
-    # No data messages
-    no_dims = '<tr><td colspan="2" style="padding: 8px; opacity: 0.5; text-align: left;">No dimensions added</td></tr>'  # noqa: E501
-    no_coords = (
-        '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No coordinates added</td></tr>'  # noqa: E501
-    )
-    no_vars = '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No variables added</td></tr>'  # noqa: E501
-
     # Metadata section
+    created_str = builder._metadata.created_on.strftime("%Y-%m-%d %H:%M:%S UTC")
     metadata_items = [
         ("Name", html.escape(str(builder._metadata.name))),
         ("State", html.escape(str(builder._state.name))),
         ("API Version", html.escape(str(builder._metadata.api_version))),
-        ("Created", html.escape(str(builder._metadata.created_on.strftime("%Y-%m-%d %H:%M:%S UTC")))),
+        ("Created", html.escape(created_str)),
     ]
     metadata_html = _make_metadata_section(metadata_items)
 
     # Tables
     dim_table = _make_table(
-        [("Name", "text-align: left"), ("Size", "text-align: left")], dim_rows, no_dims, "builder-dimensions-summary"
+        [("Name", "text-align: left"), ("Size", "text-align: left")],
+        dim_rows,
+        _make_empty_row(2, "No dimensions added"),
+        "builder-dimensions-summary",
     )
     coord_table = _make_table(
-        [("Name", "text-align: left"), ("Dimensions", "text-align: left"), ("Type", "text-align: left")],
+        [
+            ("Name", "text-align: left"),
+            ("Dimensions", "text-align: left"),
+            ("Type", "text-align: left"),
+        ],
         coord_rows,
-        no_coords,
+        _make_empty_row(3, "No coordinates added"),
         "builder-coordinates-summary",
     )
     var_table = _make_table(
-        [("Name", "text-align: left"), ("Dimensions", "text-align: left"), ("Type", "text-align: left")],
+        [
+            ("Name", "text-align: left"),
+            ("Dimensions", "text-align: left"),
+            ("Type", "text-align: left"),
+        ],
         var_rows,
-        no_vars,
+        _make_empty_row(3, "No variables added"),
         "builder-variables-summary",
     )
 
@@ -163,25 +192,18 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
     dimensions_section = _make_details_section(
         f"▸ Dimensions ({len(builder._dimensions)})",
         dim_table,
-        "builder-dimensions-summary",
-        "builder-dimensions-table",
-        expanded=True,
+        "builder-dimensions",
+        is_first=True,
     )
     coordinates_section = _make_details_section(
         f"▸ Coordinates ({len(builder._coordinates)})",
         coord_table,
-        "builder-coordinates-summary",
-        "builder-coordinates-table",
-        expanded=True,
-        summary_style="SUMMARY_STYLE_2",
+        "builder-coordinates",
     )
     variables_section = _make_details_section(
         f"▸ Variables ({len(builder._variables)})",
         var_table,
-        "builder-variables-summary",
-        "builder-variables-table",
-        expanded=True,
-        summary_style="SUMMARY_STYLE_2",
+        "builder-variables",
     )
 
     content = metadata_html + dimensions_section + coordinates_section + variables_section
@@ -190,18 +212,15 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
 
 def template_repr_html(template: "AbstractDatasetTemplate") -> str:
     """Return an HTML representation of the template for Jupyter notebooks."""
-    # Generate table rows
+    # Generate dimension rows with special center alignment for last column
     dim_rows = ""
     if template._dim_names:
         for i, name in enumerate(template._dim_names):
             size = template._dim_sizes[i] if i < len(template._dim_sizes) else "Not set"
             is_spatial = "✓" if name in template._spatial_dim_names else ""
-            dim_rows += (
-                f"<tr><td style='{TD_STYLE_LEFT}'>{html.escape(str(name))}</td>"
-                f"<td style='{TD_STYLE_LEFT}'>{html.escape(str(size))}</td>"
-                f"<td style='{TD_STYLE_CENTER}'>{html.escape(is_spatial)}</td></tr>"
-            )
+            dim_rows += _make_table_row(name, size, is_spatial, center_last=True)
 
+    # Generate coordinate rows
     all_coords = list(template._physical_coord_names) + list(template._logical_coord_names)
     coord_rows = "".join(
         _make_table_row(
@@ -212,16 +231,8 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
         for coord in all_coords
     )
 
+    # Generate unit rows
     unit_rows = "".join(_make_table_row(key, unit.name) for key, unit in template._units.items())
-
-    # No data messages
-    no_dims = (
-        '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No dimensions defined</td></tr>'  # noqa: E501
-    )
-    no_coords = (
-        '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No coordinates defined</td></tr>'  # noqa: E501
-    )
-    no_units = '<tr><td colspan="2" style="padding: 8px; opacity: 0.5; text-align: left;">No units defined</td></tr>'  # noqa: E501
 
     # Metadata section
     chunk_shape = html.escape(str(template._var_chunk_shape)) if template._var_chunk_shape else "Not set"
@@ -233,59 +244,51 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
     ]
     metadata_html = _make_metadata_section(metadata_items)
 
-    # Tables - dimensions table needs special handling for center alignment
-    dim_table_html = f"""
-                <table style="width: 100%; border-collapse: collapse;" role="table"
-                       aria-labelledby="dimensions-summary">
-                    <thead>
-                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
-                                scope="col">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader"
-                                scope="col">Size</th>
-                            <th style="text-align: center; padding: 8px; font-weight: 600;" role="columnheader"
-                                scope="col">Spatial</th>
-                        </tr>
-                    </thead>
-                    <tbody role="rowgroup">
-                        {dim_rows if dim_rows else no_dims}
-                    </tbody>
-                </table>
-                """
-
+    # Tables
+    dim_table = _make_table(
+        [
+            ("Name", "text-align: left"),
+            ("Size", "text-align: left"),
+            ("Spatial", "text-align: center"),
+        ],
+        dim_rows,
+        _make_empty_row(3, "No dimensions defined"),
+        "dimensions-summary",
+    )
     coord_table = _make_table(
-        [("Name", "text-align: left"), ("Type", "text-align: left"), ("Units", "text-align: left")],
+        [
+            ("Name", "text-align: left"),
+            ("Type", "text-align: left"),
+            ("Units", "text-align: left"),
+        ],
         coord_rows,
-        no_coords,
+        _make_empty_row(3, "No coordinates defined"),
         "coordinates-summary",
     )
     units_table = _make_table(
-        [("Key", "text-align: left"), ("Unit", "text-align: left")], unit_rows, no_units, "units-summary"
+        [("Key", "text-align: left"), ("Unit", "text-align: left")],
+        unit_rows,
+        _make_empty_row(2, "No units defined"),
+        "units-summary",
     )
 
     # Details sections
     dimensions_section = _make_details_section(
         f"▸ Dimensions ({len(template._dim_names)})",
-        dim_table_html,
-        "dimensions-summary",
-        "dimensions-table",
-        expanded=True,
+        dim_table,
+        "dimensions",
+        is_first=True,
     )
     coordinates_section = _make_details_section(
         f"▸ Coordinates ({len(all_coords)})",
         coord_table,
-        "coordinates-summary",
-        "coordinates-table",
-        expanded=True,
-        summary_style="SUMMARY_STYLE_2",
+        "coordinates",
     )
     units_section = _make_details_section(
         f"▸ Units ({len(template._units)})",
         units_table,
-        "units-summary",
-        "units-table",
+        "units",
         expanded=False,
-        summary_style="SUMMARY_STYLE_2",
     )
 
     content = metadata_html + dimensions_section + coordinates_section + units_section
@@ -300,38 +303,23 @@ def template_registry_repr_html(registry: "TemplateRegistry") -> str:
         for name, template in sorted(registry._templates.items())
     )
 
-    # No data message
-    no_templates = (
-        '<tr><td colspan="3" style="padding: 10px; opacity: 0.5; text-align: center;">No templates registered</td></tr>'  # noqa: E501
+    # Create table
+    table_html = _make_table(
+        [
+            ("Template Name", "text-align: left"),
+            ("Class", "text-align: left"),
+            ("Domain", "text-align: left"),
+        ],
+        template_rows,
+        _make_empty_row(3, "No templates registered"),
+        "registry-header",
     )
 
-    # Special header with subtitle
-    header_html = f"""
-    <div style="{BOX_STYLE}" role="region" aria-labelledby="registry-header">
-        <header style="{HEADER_STYLE}" id="registry-header">
-            <h3 style="font-size: 1.1em; margin: 0;">TemplateRegistry</h3>
-            <span style="margin-left: 15px; opacity: 0.7;">({len(registry._templates)} templates)</span>
-        </header>
+    # Wrap in container with subtitle
+    escaped_count = html.escape(str(len(registry._templates)))
+    content = f"""
+        <span style="margin-left: 15px; opacity: 0.7;">({escaped_count} templates)</span>
+        {table_html}
     """
 
-    # Table
-    table_html = f"""
-        <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="registry-header">
-            <thead>
-                <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
-                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader"
-                        scope="col">Template Name</th>
-                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader"
-                        scope="col">Class</th>
-                    <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader"
-                        scope="col">Domain</th>
-                </tr>
-            </thead>
-            <tbody role="rowgroup">
-                {template_rows if template_rows else no_templates}
-            </tbody>
-        </table>
-    </div>
-    """
-
-    return header_html + table_html
+    return _make_html_container("TemplateRegistry", content, "registry-header")
