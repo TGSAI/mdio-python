@@ -119,7 +119,7 @@ class TestSeismic3DPreStackCDPTemplate:
         # Template attributes for prestack CDP
         assert t._dim_names == ("inline", "crossline", gather_domain, data_domain)
         assert t._physical_coord_names == ("cdp_x", "cdp_y")
-        assert t._var_chunk_shape == (8, 8, 32, 512)
+        assert t.full_chunk_shape == (8, 8, 32, 512)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None

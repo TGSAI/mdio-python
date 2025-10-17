@@ -126,7 +126,7 @@ class TestSeismic2DPreStackShotTemplate:
         assert t._dim_names == ("shot_point", "channel", "time")
         assert t._physical_coord_names == ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
         assert t._logical_coord_names == ("gun",)
-        assert t._var_chunk_shape == (16, 32, 2048)
+        assert t.full_chunk_shape == (16, 32, 2048)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
