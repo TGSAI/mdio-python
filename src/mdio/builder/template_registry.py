@@ -222,15 +222,29 @@ class TemplateRegistry:
     def _repr_html_(self) -> str:
         """Return an HTML representation of the registry for Jupyter notebooks."""
         template_rows = ""
+        td_style = "padding: 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2);"
         for name in sorted(self._templates.keys()):
             template = self._templates[name]
             template_class = template.__class__.__name__
-            data_domain = getattr(template, '_data_domain', '—')
-            template_rows += f"<tr><td style='padding: 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2);'>{name}</td><td style='padding: 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2);'>{template_class}</td><td style='padding: 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2);'>{data_domain}</td></tr>"
-        
-        html = f"""
-        <div style="font-family: monospace; border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 5px; padding: 15px; max-width: 1000px;">
-            <div style="padding: 10px; margin: -15px -15px 15px -15px; border-bottom: 2px solid rgba(128, 128, 128, 0.3);">
+            data_domain = getattr(template, "_data_domain", "—")
+            template_rows += (
+                f"<tr><td style='{td_style}'>{name}</td>"
+                f"<td style='{td_style}'>{template_class}</td>"
+                f"<td style='{td_style}'>{data_domain}</td></tr>"
+            )
+
+        box_style = (
+            "font-family: monospace; border: 1px solid rgba(128, 128, 128, 0.3); "
+            "border-radius: 5px; padding: 15px; max-width: 1000px;"
+        )
+        header_style = (
+            "padding: 10px; margin: -15px -15px 15px -15px; border-bottom: 2px solid rgba(128, 128, 128, 0.3);"
+        )
+        no_templates = '<tr><td colspan="3" style="padding: 10px; opacity: 0.5; text-align: center;">No templates registered</td></tr>'  # noqa: E501
+
+        return f"""
+        <div style="{box_style}">
+            <div style="{header_style}">
                 <strong style="font-size: 1.1em;">TemplateRegistry</strong>
                 <span style="margin-left: 15px; opacity: 0.7;">({len(self._templates)} templates)</span>
             </div>
@@ -243,12 +257,11 @@ class TemplateRegistry:
                     </tr>
                 </thead>
                 <tbody>
-                    {template_rows if template_rows else '<tr><td colspan="3" style="padding: 10px; opacity: 0.5; text-align: center;">No templates registered</td></tr>'}
+                    {template_rows if template_rows else no_templates}
                 </tbody>
             </table>
         </div>
         """
-        return html
 
 
 # Global convenience functions
