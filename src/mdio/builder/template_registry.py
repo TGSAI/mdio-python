@@ -19,7 +19,7 @@ import copy
 import threading
 from typing import TYPE_CHECKING
 
-from mdio.builder.templates.base import AbstractDatasetTemplate
+from mdio.builder.formatting_html import template_registry_repr_html
 from mdio.builder.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
 from mdio.builder.templates.seismic_2d_prestack_cdp import Seismic2DPreStackCDPTemplate
 from mdio.builder.templates.seismic_2d_prestack_shot import Seismic2DPreStackShotTemplate
@@ -213,6 +213,15 @@ class TemplateRegistry:
         with cls._lock:
             cls._instance = None
             cls._initialized = False
+
+    def __repr__(self) -> str:
+        """Return a string representation of the registry."""
+        template_names = sorted(self._templates.keys())
+        return f"TemplateRegistry(templates={template_names})"
+
+    def _repr_html_(self) -> str:
+        """Return an HTML representation of the registry for Jupyter notebooks."""
+        return template_registry_repr_html(self)
 
 
 # Global convenience functions

@@ -9,17 +9,18 @@ from typing import TYPE_CHECKING
 from typing import Any
 
 from mdio.builder.dataset_builder import MDIODatasetBuilder
+from mdio.builder.formatting_html import template_repr_html
 from mdio.builder.schemas import compressors
 from mdio.builder.schemas.chunk_grid import RegularChunkGrid
 from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.v1.units import AllUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
 
 if TYPE_CHECKING:
     from mdio.builder.schemas.v1.dataset import Dataset
-    from mdio.builder.schemas.v1.units import AllUnitModel
     from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -45,6 +46,25 @@ class AbstractDatasetTemplate(ABC):
         self._builder: MDIODatasetBuilder | None = None
         self._dim_sizes: tuple[int, ...] = ()
         self._units: dict[str, AllUnitModel] = {}
+
+    def __repr__(self) -> str:
+        """Return a string representation of the template."""
+        return (
+            f"AbstractDatasetTemplate("
+            f"name={self.name!r}, "
+            f"data_domain={self._data_domain!r}, "
+            f"spatial_dim_names={self._spatial_dim_names}, "
+            f"dim_names={self._dim_names}, "
+            f"physical_coord_names={self._physical_coord_names}, "
+            f"logical_coord_names={self._logical_coord_names}, "
+            f"var_chunk_shape={self._var_chunk_shape}, "
+            f"dim_sizes={self._dim_sizes}, "
+            f"units={self._units})"
+        )
+
+    def _repr_html_(self) -> str:
+        """Return an HTML representation of the template for Jupyter notebooks."""
+        return template_repr_html(self)
 
     def build_dataset(
         self,
@@ -79,6 +99,10 @@ class AbstractDatasetTemplate(ABC):
 
     def add_units(self, units: dict[str, AllUnitModel]) -> None:
         """Add an arbitrary number of units to the template, extending the existing ones."""
+        for unit in units.values():
+            if not isinstance(unit, AllUnitModel):
+                msg = f"Unit {unit} is not an instance of `AllUnitModel`"
+                raise ValueError(msg)
         self._units |= units
 
     @property
