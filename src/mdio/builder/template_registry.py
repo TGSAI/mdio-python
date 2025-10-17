@@ -16,6 +16,7 @@ Use the top-level helpers for convenience: ``get_template``, ``list_templates``,
 from __future__ import annotations
 
 import copy
+import html
 import threading
 from typing import TYPE_CHECKING
 
@@ -222,41 +223,49 @@ class TemplateRegistry:
     def _repr_html_(self) -> str:
         """Return an HTML representation of the registry for Jupyter notebooks."""
         template_rows = ""
-        td_style = "padding: 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2);"
+        td_style = (
+            "padding: 10px 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2); "
+            "font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; "
+            "font-size: 14px; line-height: 1.4;"
+        )
         for name in sorted(self._templates.keys()):
             template = self._templates[name]
             template_class = template.__class__.__name__
             data_domain = getattr(template, "_data_domain", "—")
             template_rows += (
-                f"<tr><td style='{td_style}'>{name}</td>"
-                f"<td style='{td_style}'>{template_class}</td>"
-                f"<td style='{td_style}'>{data_domain}</td></tr>"
+                f"<tr><td style='{td_style}'>{html.escape(str(name))}</td>"
+                f"<td style='{td_style}'>{html.escape(str(template_class))}</td>"
+                f"<td style='{td_style}'>{html.escape(str(data_domain))}</td></tr>"
             )
 
         box_style = (
-            "font-family: monospace; border: 1px solid rgba(128, 128, 128, 0.3); "
-            "border-radius: 5px; padding: 15px; max-width: 1000px;"
+            "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; "
+            "border: 1px solid rgba(128, 128, 128, 0.3); "
+            "border-radius: 8px; padding: 16px; max-width: 100%; box-sizing: border-box; "
+            "background: rgba(255, 255, 255, 0.02);"
         )
         header_style = (
-            "padding: 10px; margin: -15px -15px 15px -15px; border-bottom: 2px solid rgba(128, 128, 128, 0.3);"
+            "padding: 12px 16px; margin: -16px -16px 16px -16px; "
+            "border-bottom: 2px solid rgba(128, 128, 128, 0.3); "
+            "background: rgba(128, 128, 128, 0.05); border-radius: 8px 8px 0 0;"
         )
         no_templates = '<tr><td colspan="3" style="padding: 10px; opacity: 0.5; text-align: center;">No templates registered</td></tr>'  # noqa: E501
 
         return f"""
-        <div style="{box_style}">
-            <div style="{header_style}">
-                <strong style="font-size: 1.1em;">TemplateRegistry</strong>
+        <div style="{box_style}" role="region" aria-labelledby="registry-header">
+            <header style="{header_style}" id="registry-header">
+                <h3 style="font-size: 1.1em; margin: 0;">TemplateRegistry</h3>
                 <span style="margin-left: 15px; opacity: 0.7;">({len(self._templates)} templates)</span>
-            </div>
-            <table style="width: 100%; border-collapse: collapse;">
+            </header>
+            <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="registry-header">
                 <thead>
-                    <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);">
-                        <th style="text-align: left; padding: 10px; font-weight: 600;">Template Name</th>
-                        <th style="text-align: left; padding: 10px; font-weight: 600;">Class</th>
-                        <th style="text-align: left; padding: 10px; font-weight: 600;">Domain</th>
+                    <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
+                        <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader" scope="col">Template Name</th>
+                        <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader" scope="col">Class</th>
+                        <th style="text-align: left; padding: 10px; font-weight: 600;" role="columnheader" scope="col">Domain</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody role="rowgroup">
                     {template_rows if template_rows else no_templates}
                 </tbody>
             </table>

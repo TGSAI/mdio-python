@@ -1,5 +1,6 @@
 """HTML formatting utilities for MDIO builder classes."""
 
+import html
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -10,35 +11,51 @@ if TYPE_CHECKING:
 def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
     """Return an HTML representation of the builder for Jupyter notebooks."""
     dim_rows = ""
-    td_style = "padding: 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2);"
+    td_style = (
+        "padding: 10px 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2); "
+        "font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; "
+        "font-size: 14px; line-height: 1.4;"
+    )
     for dim in builder._dimensions:
-        dim_rows += f"<tr><td style='{td_style}'>{dim.name}</td><td style='{td_style}'>{dim.size}</td></tr>"
+        dim_rows += f"<tr><td style='{td_style}'>{html.escape(str(dim.name))}</td><td style='{td_style}'>{html.escape(str(dim.size))}</td></tr>"
 
     coord_rows = ""
     for coord in builder._coordinates:
-        dims_str = ", ".join(d.name for d in coord.dimensions)
+        dims_str = ", ".join(html.escape(str(d.name)) for d in coord.dimensions)
         coord_rows += (
-            f"<tr><td style='{td_style}'>{coord.name}</td>"
-            f"<td style='{td_style}'>{dims_str}</td>"
-            f"<td style='{td_style}'>{coord.data_type}</td></tr>"
+            f"<tr><td style='{td_style}'>{html.escape(str(coord.name))}</td>"
+            f"<td style='{td_style}'>{html.escape(dims_str)}</td>"
+            f"<td style='{td_style}'>{html.escape(str(coord.data_type))}</td></tr>"
         )
 
     var_rows = ""
     for var in builder._variables:
-        dims_str = ", ".join(d.name for d in var.dimensions)
+        dims_str = ", ".join(html.escape(str(d.name)) for d in var.dimensions)
         var_rows += (
-            f"<tr><td style='{td_style}'>{var.name}</td>"
-            f"<td style='{td_style}'>{dims_str}</td>"
-            f"<td style='{td_style}'>{var.data_type}</td></tr>"
+            f"<tr><td style='{td_style}'>{html.escape(str(var.name))}</td>"
+            f"<td style='{td_style}'>{html.escape(dims_str)}</td>"
+            f"<td style='{td_style}'>{html.escape(str(var.data_type))}</td></tr>"
         )
 
     box_style = (
-        "font-family: monospace; border: 1px solid rgba(128, 128, 128, 0.3); "
-        "border-radius: 5px; padding: 15px; max-width: 1000px;"
+        "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; "
+        "border: 1px solid rgba(128, 128, 128, 0.3); "
+        "border-radius: 8px; padding: 16px; max-width: 100%; box-sizing: border-box; "
+        "background: rgba(255, 255, 255, 0.02);"
     )
-    header_style = "padding: 10px; margin: -15px -15px 15px -15px; border-bottom: 2px solid rgba(128, 128, 128, 0.3);"
-    summary_style = "cursor: pointer; font-weight: bold; margin-bottom: 8px;"
-    summary_style_2 = "cursor: pointer; font-weight: bold; margin: 15px 0 8px 0;"
+    header_style = (
+        "padding: 12px 16px; margin: -16px -16px 16px -16px; "
+        "border-bottom: 2px solid rgba(128, 128, 128, 0.3); "
+        "background: rgba(128, 128, 128, 0.05); border-radius: 8px 8px 0 0;"
+    )
+    summary_style = (
+        "cursor: pointer; font-weight: 600; margin-bottom: 8px; "
+        "padding: 8px 12px; border-radius: 4px; transition: background-color 0.2s;"
+    )
+    summary_style_2 = (
+        "cursor: pointer; font-weight: 600; margin: 16px 0 8px 0; "
+        "padding: 8px 12px; border-radius: 4px; transition: background-color 0.2s;"
+    )
 
     no_dims = '<tr><td colspan="2" style="padding: 8px; opacity: 0.5; text-align: left;">No dimensions added</td></tr>'  # noqa: E501
     no_coords = (
@@ -47,61 +64,61 @@ def dataset_builder_repr_html(builder: "MDIODatasetBuilder") -> str:
     no_vars = '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No variables added</td></tr>'  # noqa: E501
 
     return f"""
-    <div style="{box_style}">
-        <div style="{header_style}">
-            <strong style="font-size: 1.1em;">MDIODatasetBuilder</strong>
-        </div>
+    <div style="{box_style}" role="region" aria-labelledby="builder-header">
+        <header style="{header_style}" id="builder-header">
+            <h3 style="font-size: 1.1em; margin: 0;">MDIODatasetBuilder</h3>
+        </header>
         <div style="margin-bottom: 15px;">
-            <strong>Name:</strong> {builder._metadata.name}<br>
-            <strong>State:</strong> {builder._state.name}<br>
-            <strong>API Version:</strong> {builder._metadata.api_version}<br>
-            <strong>Created:</strong> {builder._metadata.created_on.strftime("%Y-%m-%d %H:%M:%S UTC")}
+            <strong>Name:</strong> {html.escape(str(builder._metadata.name))}<br>
+            <strong>State:</strong> {html.escape(str(builder._state.name))}<br>
+            <strong>API Version:</strong> {html.escape(str(builder._metadata.api_version))}<br>
+            <strong>Created:</strong> {html.escape(str(builder._metadata.created_on.strftime("%Y-%m-%d %H:%M:%S UTC")))}
         </div>
-        <details open>
-            <summary style="{summary_style}">▸ Dimensions ({len(builder._dimensions)})</summary>
+        <details open aria-expanded="true">
+            <summary style="{summary_style}" aria-controls="builder-dimensions-table" id="builder-dimensions-summary">▸ Dimensions ({len(builder._dimensions)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;">
+                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="builder-dimensions-summary">
                     <thead>
-                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Size</th>
+                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Size</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         {dim_rows if dim_rows else no_dims}
                     </tbody>
                 </table>
             </div>
         </details>
-        <details open>
-            <summary style="{summary_style_2}">▸ Coordinates ({len(builder._coordinates)})</summary>
+        <details open aria-expanded="true">
+            <summary style="{summary_style_2}" aria-controls="builder-coordinates-table" id="builder-coordinates-summary">▸ Coordinates ({len(builder._coordinates)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;">
+                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="builder-coordinates-summary">
                     <thead>
-                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Dimensions</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Type</th>
+                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Dimensions</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Type</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         {coord_rows if coord_rows else no_coords}
                     </tbody>
                 </table>
             </div>
         </details>
-        <details open>
-            <summary style="{summary_style_2}">▸ Variables ({len(builder._variables)})</summary>
+        <details open aria-expanded="true">
+            <summary style="{summary_style_2}" aria-controls="builder-variables-table" id="builder-variables-summary">▸ Variables ({len(builder._variables)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;">
+                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="builder-variables-summary">
                     <thead>
-                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Dimensions</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Type</th>
+                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Dimensions</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Type</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         {var_rows if var_rows else no_vars}
                     </tbody>
                 </table>
@@ -115,16 +132,24 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
     """Return an HTML representation of the template for Jupyter notebooks."""
     # Format dimensions
     dim_rows = ""
-    td_style_left = "padding: 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2);"
-    td_style_center = "padding: 8px; text-align: center; border-bottom: 1px solid rgba(128, 128, 128, 0.2);"
+    td_style_left = (
+        "padding: 10px 8px; text-align: left; border-bottom: 1px solid rgba(128, 128, 128, 0.2); "
+        "font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; "
+        "font-size: 14px; line-height: 1.4;"
+    )
+    td_style_center = (
+        "padding: 10px 8px; text-align: center; border-bottom: 1px solid rgba(128, 128, 128, 0.2); "
+        "font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace; "
+        "font-size: 14px; line-height: 1.4;"
+    )
     if template._dim_names:
         for i, name in enumerate(template._dim_names):
             size = template._dim_sizes[i] if i < len(template._dim_sizes) else "Not set"
             is_spatial = "✓" if name in template._spatial_dim_names else ""
             dim_rows += (
-                f"<tr><td style='{td_style_left}'>{name}</td>"
-                f"<td style='{td_style_left}'>{size}</td>"
-                f"<td style='{td_style_center}'>{is_spatial}</td></tr>"
+                f"<tr><td style='{td_style_left}'>{html.escape(str(name))}</td>"
+                f"<td style='{td_style_left}'>{html.escape(str(size))}</td>"
+                f"<td style='{td_style_center}'>{html.escape(is_spatial)}</td></tr>"
             )
 
     # Format coordinates
@@ -133,25 +158,37 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
     for coord in all_coords:
         coord_type = "Physical" if coord in template._physical_coord_names else "Logical"
         unit = template._units.get(coord, None)
-        unit_str = f"{unit.name}" if unit else "—"
+        unit_str = html.escape(str(unit.name)) if unit else "—"
         coord_rows += (
-            f"<tr><td style='{td_style_left}'>{coord}</td>"
-            f"<td style='{td_style_left}'>{coord_type}</td>"
+            f"<tr><td style='{td_style_left}'>{html.escape(str(coord))}</td>"
+            f"<td style='{td_style_left}'>{html.escape(coord_type)}</td>"
             f"<td style='{td_style_left}'>{unit_str}</td></tr>"
         )
 
     # Format units
     unit_rows = ""
     for key, unit in template._units.items():
-        unit_rows += f"<tr><td style='{td_style_left}'>{key}</td><td style='{td_style_left}'>{unit.name}</td></tr>"
+        unit_rows += f"<tr><td style='{td_style_left}'>{html.escape(str(key))}</td><td style='{td_style_left}'>{html.escape(str(unit.name))}</td></tr>"
 
     box_style = (
-        "font-family: monospace; border: 1px solid rgba(128, 128, 128, 0.3); "
-        "border-radius: 5px; padding: 15px; max-width: 1000px;"
+        "font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; "
+        "border: 1px solid rgba(128, 128, 128, 0.3); "
+        "border-radius: 8px; padding: 16px; max-width: 100%; box-sizing: border-box; "
+        "background: rgba(255, 255, 255, 0.02);"
     )
-    header_style = "padding: 10px; margin: -15px -15px 15px -15px; border-bottom: 2px solid rgba(128, 128, 128, 0.3);"
-    summary_style = "cursor: pointer; font-weight: bold; margin-bottom: 8px;"
-    summary_style_2 = "cursor: pointer; font-weight: bold; margin: 15px 0 8px 0;"
+    header_style = (
+        "padding: 12px 16px; margin: -16px -16px 16px -16px; "
+        "border-bottom: 2px solid rgba(128, 128, 128, 0.3); "
+        "background: rgba(128, 128, 128, 0.05); border-radius: 8px 8px 0 0;"
+    )
+    summary_style = (
+        "cursor: pointer; font-weight: 600; margin-bottom: 8px; "
+        "padding: 8px 12px; border-radius: 4px; transition: background-color 0.2s;"
+    )
+    summary_style_2 = (
+        "cursor: pointer; font-weight: 600; margin: 16px 0 8px 0; "
+        "padding: 8px 12px; border-radius: 4px; transition: background-color 0.2s;"
+    )
 
     no_dims = (
         '<tr><td colspan="3" style="padding: 8px; opacity: 0.5; text-align: left;">No dimensions defined</td></tr>'  # noqa: E501
@@ -162,61 +199,61 @@ def template_repr_html(template: "AbstractDatasetTemplate") -> str:
     no_units = '<tr><td colspan="2" style="padding: 8px; opacity: 0.5; text-align: left;">No units defined</td></tr>'  # noqa: E501
 
     return f"""
-    <div style="{box_style}">
-        <div style="{header_style}">
-            <strong style="font-size: 1.1em;">{template.__class__.__name__}</strong>
-        </div>
+    <div style="{box_style}" role="region" aria-labelledby="template-header">
+        <header style="{header_style}" id="template-header">
+            <h3 style="font-size: 1.1em; margin: 0;">{html.escape(str(template.__class__.__name__))}</h3>
+        </header>
         <div style="margin-bottom: 15px;">
-            <strong>Template Name:</strong> {template.name}<br>
-            <strong>Data Domain:</strong> {template._data_domain}<br>
-            <strong>Default Variable:</strong> {template._default_variable_name}<br>
-            <strong>Chunk Shape:</strong> {template._var_chunk_shape if template._var_chunk_shape else "Not set"}
+            <strong>Template Name:</strong> {html.escape(str(template.name))}<br>
+            <strong>Data Domain:</strong> {html.escape(str(template._data_domain))}<br>
+            <strong>Default Variable:</strong> {html.escape(str(template._default_variable_name))}<br>
+            <strong>Chunk Shape:</strong> {html.escape(str(template._var_chunk_shape)) if template._var_chunk_shape else "Not set"}
         </div>
-        <details open>
-            <summary style="{summary_style}">▸ Dimensions ({len(template._dim_names)})</summary>
+        <details open aria-expanded="true">
+            <summary style="{summary_style}" aria-controls="dimensions-table" id="dimensions-summary">▸ Dimensions ({len(template._dim_names)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;">
+                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="dimensions-summary">
                     <thead>
-                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Size</th>
-                            <th style="text-align: center; padding: 8px; font-weight: 600;">Spatial</th>
+                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Size</th>
+                            <th style="text-align: center; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Spatial</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         {dim_rows if dim_rows else no_dims}
                     </tbody>
                 </table>
             </div>
         </details>
-        <details open>
-            <summary style="{summary_style_2}">▸ Coordinates ({len(all_coords)})</summary>
+        <details open aria-expanded="true">
+            <summary style="{summary_style_2}" aria-controls="coordinates-table" id="coordinates-summary">▸ Coordinates ({len(all_coords)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;">
+                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="coordinates-summary">
                     <thead>
-                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Name</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Type</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Units</th>
+                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Name</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Type</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Units</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         {coord_rows if coord_rows else no_coords}
                     </tbody>
                 </table>
             </div>
         </details>
-        <details>
-            <summary style="{summary_style_2}">▸ Units ({len(template._units)})</summary>
+        <details aria-expanded="false">
+            <summary style="{summary_style_2}" aria-controls="units-table" id="units-summary">▸ Units ({len(template._units)})</summary>
             <div style="margin-left: 20px;">
-                <table style="width: 100%; border-collapse: collapse;">
+                <table style="width: 100%; border-collapse: collapse;" role="table" aria-labelledby="units-summary">
                     <thead>
-                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);">
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Key</th>
-                            <th style="text-align: left; padding: 8px; font-weight: 600;">Unit</th>
+                        <tr style="border-bottom: 2px solid rgba(128, 128, 128, 0.4);" role="row">
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Key</th>
+                            <th style="text-align: left; padding: 8px; font-weight: 600;" role="columnheader" scope="col">Unit</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody role="rowgroup">
                         {unit_rows if unit_rows else no_units}
                     </tbody>
                 </table>
