@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 def header_scan_worker(
     segy_file_kwargs: SegyFileArguments,
     trace_range: tuple[int, int],
-    subset: list[str] | None = None,
+    subset: tuple[str, ...] | None = None,
 ) -> HeaderArray:
     """Header scan worker.
 
@@ -41,7 +41,7 @@ def header_scan_worker(
     Args:
         segy_file_kwargs: Arguments to open SegyFile instance.
         trace_range: Tuple consisting of the trace ranges to read.
-        subset: List of header names to filter and keep.
+        subset: Tuple of header names to filter and keep.
 
     Returns:
         HeaderArray parsed from SEG-Y library.

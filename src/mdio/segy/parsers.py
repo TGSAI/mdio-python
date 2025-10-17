@@ -35,7 +35,7 @@ def parse_headers(
     Args:
         segy_file_kwargs: SEG-Y file arguments.
         num_traces: Total number of traces in the SEG-Y file.
-        subset: List of header names to filter and keep.
+        subset: Tuple of header names to filter and keep.
         block_size: Number of traces to read for each block.
         progress_bar: Enable or disable progress bar. Default is True.
 
