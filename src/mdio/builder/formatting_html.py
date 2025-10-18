@@ -262,8 +262,9 @@ def template_repr_html(template: AbstractDatasetTemplate) -> str:
         table_id="dimensions-summary",
     )
     for i, name in enumerate(template.dimension_names):
-        size_val = template._dim_sizes[i]
-        chunk_val = template.full_chunk_size[i]
+        # Guard against templates not yet built (sizes/chunks may be empty)
+        size_val = template._dim_sizes[i] if i < len(template._dim_sizes) else "—"
+        chunk_val = template.full_chunk_shape[i] if i < len(template.full_chunk_shape) else "—"
         unit_str = format_unit_for_display(template.get_unit_by_key(name))
         is_spatial = "✓" if name in template.spatial_dimension_names else ""
         dim_table.add_row(
@@ -345,7 +346,7 @@ def template_registry_repr_html(registry: TemplateRegistry) -> str:
         default_var = template._default_variable_name
         dim_names_str = ", ".join(template.dimension_names)
         coords_names_str = ", ".join(template.coordinate_names)
-        chunk_str = "×".join(str(cs) for cs in template.full_chunk_size)
+        chunk_str = "×".join(str(cs) for cs in template.full_chunk_shape)
         table.add_row(
             name,
             default_var,
