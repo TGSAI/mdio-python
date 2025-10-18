@@ -13,4 +13,5 @@ creation
 compression
 rechunking
 corrupt_files
+custom_template
 ```
