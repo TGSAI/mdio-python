@@ -148,14 +148,29 @@ class AbstractDatasetTemplate(ABC):
     @property
     def full_chunk_shape(self) -> tuple[int, ...]:
         """Returns the chunk shape for the variables."""
-        return copy.deepcopy(self._var_chunk_shape)
+        # If dimension sizes are not set yet, return the stored shape as-is
+        if len(self._dim_sizes) != len(self._dim_names):
+            return self._var_chunk_shape
+
+        # Expand -1 values to full dimension sizes
+        return tuple(
+            dim_size if chunk_size == -1 else chunk_size
+            for chunk_size, dim_size in zip(self._var_chunk_shape, self._dim_sizes, strict=False)
+        )
 
     @full_chunk_shape.setter
     def full_chunk_shape(self, shape: tuple[int, ...]) -> None:
         """Sets the chunk shape for the variables."""
-        if len(shape) != len(self._dim_sizes):
-            msg = f"Chunk shape {shape} does not match dimension sizes {self._dim_sizes}"
+        if len(shape) != len(self._dim_names):
+            msg = f"Chunk shape {shape} has {len(shape)} dimensions, expected {len(self._dim_names)}"
             raise ValueError(msg)
+
+        # Validate that all values are positive integers or -1
+        for chunk_size in shape:
+            if chunk_size != -1 and chunk_size <= 0:
+                msg = f"Chunk size must be positive integer or -1, got {chunk_size}"
+                raise ValueError(msg)
+
         self._var_chunk_shape = shape
 
     @property
