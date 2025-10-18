@@ -32,7 +32,8 @@ class CSSStyles:
     td_base: str = (
         "padding: 6px 6px; border-bottom: 1px solid rgba(128, 128, 128, 0.2); "
         "font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', "
-        "Consolas, 'Courier New', monospace; font-size: 12px; line-height: 1.3;"
+        "Consolas, 'Courier New', monospace; font-size: 12px; line-height: 1.3; "
+        "color: var(--color-foreground-primary, currentColor);"
     )
     td_left: str = f"{td_base} text-align: left;"
     td_center: str = f"{td_base} text-align: center;"
@@ -86,8 +87,11 @@ class TableBuilder:
     def build(self) -> str:
         """Build the complete HTML table."""
         header_html = "\n".join(
-            f'                            <th style="{align}; padding: 6px; font-weight: 600;" '
-            f'role="columnheader" scope="col">{name}</th>'
+            (
+                f'                            <th style="{align}; padding: 6px; font-weight: 600; '
+                'color: var(--color-foreground-primary, currentColor);" '
+                f'role="columnheader" scope="col">{name}</th>'
+            )
             for name, align in self.headers
         )
         header_section = (
