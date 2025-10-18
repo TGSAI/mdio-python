@@ -24,10 +24,10 @@ print(list_templates())
 # e.g. ["Seismic2DPostStackTime", "Seismic3DPostStackDepth", ...]
 
 # Grab a template by name
-tpl = get_template("Seismic3DPostStackTime")
+template = get_template("Seismic3DPostStackTime")
 
 # Customize your copy (safe)
-tpl.add_units({"amplitude": "unitless"})
+template.add_units({"amplitude": "unitless"})
 ```
 
 ## Common tasks
@@ -37,8 +37,8 @@ tpl.add_units({"amplitude": "unitless"})
 ```python
 from mdio.builder.template_registry import get_template
 
-tpl = get_template("Seismic2DPostStackDepth")
-# Use/modify tpl freely — it’s your copy
+template = get_template("Seismic2DPostStackDepth")
+# Use/modify template freely — it’s your copy
 ```
 
 ### List available templates
