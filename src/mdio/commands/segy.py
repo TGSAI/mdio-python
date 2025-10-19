@@ -147,7 +147,7 @@ def load_mdio_template(mdio_template_name: str) -> AbstractDatasetTemplate:
     try:
         return registry.get(mdio_template_name)
     except KeyError:
-        print(f"MDIO template '{mdio_template_name}' not found.")
+        typer.secho(f"MDIO template '{mdio_template_name}' not found.", fg="red", err=True)
         raise typer.Abort from None
 
 
@@ -160,10 +160,10 @@ def load_segy_spec(segy_spec_path: UPath) -> SegySpec:
         with segy_spec_path.open("r") as f:
             return SegySpec.model_validate_json(f.read())
     except FileNotFoundError:
-        print(f"SEG-Y specification file '{segy_spec_path}' does not exist.")
+        typer.secho(f"SEG-Y specification file '{segy_spec_path}' does not exist.", fg="red", err=True)
         raise typer.Abort from None
     except ValidationError:
-        print(f"Invalid SEG-Y specification file '{segy_spec_path}'.")
+        typer.secho(f"Invalid SEG-Y specification file '{segy_spec_path}'.", fg="red", err=True)
         raise typer.Abort from None
 
 
@@ -173,6 +173,7 @@ MDIOTemplateType = Annotated[str | None, typer.Option(help="Name of the MDIO tem
 SegySpecType = Annotated[UPath | None, typer.Option(help="Path to the SEG-Y spec file.", click_type=UPathParamType())]
 StorageOptionType = Annotated[dict | None, typer.Option(help="Options for remote storage.", click_type=JSONParamType())]
 OverwriteType = Annotated[bool, typer.Option(help="Overwrite the MDIO file if it exists.")]
+InteractiveType = Annotated[bool, typer.Option(help="Enable interactive prompts when required inputs are missing.")]
 
 
 @app.command(name="import")
@@ -184,6 +185,7 @@ def segy_import(  # noqa: PLR0913
     storage_options_input: StorageOptionType = None,
     storage_options_output: StorageOptionType = None,
     overwrite: OverwriteType = False,
+    interactive: InteractiveType = False,
 ) -> None:
     """Import SEG-Y file to MDIO format."""
     if storage_options_input is not None:
@@ -193,13 +195,33 @@ def segy_import(  # noqa: PLR0913
         output_path = UPath(output_path, storage_options=storage_options_output)
 
     if not input_path.is_file():
-        print(f"Input file '{input_path}' does not exist.")
+        typer.secho(f"Input file '{input_path}' does not exist.", fg="red", err=True)
         raise typer.Abort from None
 
-    mdio_template_obj = load_mdio_template(mdio_template) if mdio_template else prompt_for_mdio_template()
+    if mdio_template:
+        mdio_template_obj = load_mdio_template(mdio_template)
+    elif interactive:
+        mdio_template_obj = prompt_for_mdio_template()
+    else:
+        typer.secho(
+            "MDIO template is required in non-interactive mode. Provide --mdio-template or use --interactive.",
+            fg="red",
+            err=True,
+        )
+        raise typer.Exit(2)
 
     # Load or create SEG-Y specification
-    segy_spec_obj = load_segy_spec(segy_spec) if segy_spec else create_segy_spec(input_path)
+    if segy_spec:
+        segy_spec_obj = load_segy_spec(segy_spec)
+    elif interactive:
+        segy_spec_obj = create_segy_spec(input_path)
+    else:
+        typer.secho(
+            "SEG-Y spec is required in non-interactive mode. Provide --segy-spec or use --interactive to build one.",
+            fg="red",
+            err=True,
+        )
+        raise typer.Exit(2)
 
     # Perform conversion
     from mdio.converters import segy_to_mdio
@@ -213,10 +235,10 @@ def segy_import(  # noqa: PLR0913
             overwrite=overwrite,
         )
     except FileExistsError:
-        print(f"Output location '{output_path}' exists. Use `--overwrite` flag to overwrite.")
+        typer.secho(f"Output location '{output_path}' exists. Use `--overwrite` flag to overwrite.", fg="red", err=True)
         raise typer.Abort from None
     except (MDIOMissingFieldError, GridTraceSparsityError) as err:
-        print(err)
+        typer.secho(str(err), fg="red", err=True)
         raise typer.Abort from None
 
     print(f"SEG-Y to MDIO conversion successful: {input_path} -> {output_path}")
