@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from click.core import Parameter
     from segy.schema.header import HeaderField
     from segy.schema.segy import SegySpec
+    from segy.schema.segy import SegyStandard
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
 
@@ -53,12 +54,14 @@ class JSONParamType(click.ParamType):
             self.fail(f"{value} is not a valid json string", param, ctx)
 
 
-def prompt_for_segy_standard() -> float:
+def prompt_for_segy_standard() -> SegyStandard:
     """Prompt user to select a SEG-Y standard."""
+    from segy.schema.segy import SegyStandard
     from segy.standards.registry import segy_standard_registry
 
     choices = [str(key) for key in segy_standard_registry]
-    return float(questionary.select("Select SEG-Y standard:", choices=choices, default="1.0").ask())
+    standard_str = questionary.select("Select SEG-Y standard:", choices=choices, default="1.0").ask()
+    return SegyStandard(float(standard_str))
 
 
 def prompt_for_text_encoding() -> str:
