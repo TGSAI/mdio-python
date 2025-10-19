@@ -182,17 +182,17 @@ def segy_import(  # noqa: PLR0913
     output_path: MdioOutType,
     mdio_template: MDIOTemplateType = None,
     segy_spec: SegySpecType = None,
-    storage_options_input: StorageOptionType = None,
-    storage_options_output: StorageOptionType = None,
+    storage_input: StorageOptionType = None,
+    storage_output: StorageOptionType = None,
     overwrite: OverwriteType = False,
     interactive: InteractiveType = False,
 ) -> None:
     """Import SEG-Y file to MDIO format."""
-    if storage_options_input is not None:
-        input_path = UPath(input_path, storage_options=storage_options_input)
+    if storage_input is not None:
+        input_path = UPath(input_path, storage_options=storage_input)
 
-    if storage_options_output is not None:
-        output_path = UPath(output_path, storage_options=storage_options_output)
+    if storage_output is not None:
+        output_path = UPath(output_path, storage_options=storage_output)
 
     if not input_path.is_file():
         typer.secho(f"Input file '{input_path}' does not exist.", fg="red", err=True)
