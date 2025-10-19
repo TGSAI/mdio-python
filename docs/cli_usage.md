@@ -222,4 +222,8 @@ get information about usage.
 ```{eval-rst}
 .. typer:: mdio.cli:app
     :prog: mdio
+    :theme: monokai
+    :width: 90
+    :show-nested:
+    :make-sections:
 ```
