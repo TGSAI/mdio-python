@@ -173,7 +173,7 @@ MDIOTemplateType = Annotated[str | None, typer.Option(help="Name of the MDIO tem
 SegySpecType = Annotated[UPath | None, typer.Option(help="Path to the SEG-Y spec file.", click_type=UPathParamType())]
 StorageOptionType = Annotated[dict | None, typer.Option(help="Options for remote storage.", click_type=JSONParamType())]
 OverwriteType = Annotated[bool, typer.Option(help="Overwrite the MDIO file if it exists.")]
-InteractiveType = Annotated[bool, typer.Option(help="Enable interactive prompts when required inputs are missing.")]
+InteractiveType = Annotated[bool, typer.Option(help="Enable interactive prompts when template and spec are missing.")]
 
 
 @app.command(name="import")
