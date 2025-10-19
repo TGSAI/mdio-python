@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from typing import TYPE_CHECKING
 from typing import Annotated
+from typing import Any
 
 import click
 import questionary
@@ -25,14 +27,30 @@ if TYPE_CHECKING:
 app = typer.Typer()
 
 
-class UPathParam(click.ParamType):
+class UPathParamType(click.ParamType):
     """Click parser for UPath."""
 
-    name = "UPath"
+    name = "Path"
 
     def convert(self, value: str, param: Parameter | None, ctx: Context | None) -> UPath:  # noqa: ARG002
-        """Convert CLI value to UPath."""
-        return UPath(value)
+        """Convert JSON-like string to dict."""
+        try:
+            return UPath(value)
+        except Exception:
+            self.fail(f"{value} can't be initialized as UPath", param, ctx)
+
+
+class JSONParamType(click.ParamType):
+    """Click parser for JSON."""
+
+    name = "JSON"
+
+    def convert(self, value: str, param: Parameter | None, ctx: Context | None) -> dict[str, Any]:  # noqa: ARG002
+        """Convert JSON-like string to dict."""
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            self.fail(f"{value} is not a valid json string", param, ctx)
 
 
 def prompt_for_segy_standard() -> float:
@@ -88,8 +106,6 @@ def create_segy_spec(input_path: UPath) -> SegySpec:
 
     should_save = questionary.confirm("Save SEG-Y specification?", default=True).ask()
     if should_save:
-        import json
-
         from segy import SegyFile
 
         out_segy_spec_path = input_path.with_name(f"{input_path.stem}_segy_spec.json")
@@ -148,25 +164,34 @@ def load_segy_spec(segy_spec_path: UPath) -> SegySpec:
         raise typer.Abort from None
 
 
-SegyInType = Annotated[UPath, typer.Argument(help="Path to the input SEG-Y file.", click_type=UPathParam())]
-MdioOutType = Annotated[UPath, typer.Argument(help="Path to the output MDIO file.", click_type=UPathParam())]
+SegyInType = Annotated[UPath, typer.Argument(help="Path to the input SEG-Y file.", click_type=UPathParamType())]
+MdioOutType = Annotated[UPath, typer.Argument(help="Path to the output MDIO file.", click_type=UPathParamType())]
 MDIOTemplateType = Annotated[str | None, typer.Option(help="Name of the MDIO template.")]
-SegySpecType = Annotated[UPath | None, typer.Option(help="Path to the SEG-Y spec file.", click_type=UPathParam())]
+SegySpecType = Annotated[UPath | None, typer.Option(help="Path to the SEG-Y spec file.", click_type=UPathParamType())]
+StorageOptionType = Annotated[dict | None, typer.Option(help="Options for remote storage.", click_type=JSONParamType())]
 OverwriteType = Annotated[bool, typer.Option(help="Overwrite the MDIO file if it exists.")]
 
 
 @app.command(name="import")
-def segy_import(
-    input_path: Annotated[UPath, typer.Argument(help="Path to the input SEG-Y file.", click_type=UPathParam())],
-    output_path: Annotated[UPath, typer.Argument(help="Path to the output MDIO file.", click_type=UPathParam())],
+def segy_import(  # noqa: PLR0913
+    input_path: SegyInType,
+    output_path: MdioOutType,
     mdio_template: MDIOTemplateType = None,
     segy_spec: SegySpecType = None,
+    storage_options_input: StorageOptionType = None,
+    storage_options_output: StorageOptionType = None,
     overwrite: OverwriteType = False,
 ) -> None:
     """Import SEG-Y file to MDIO format."""
     if not input_path.is_file():
         print(f"Input file '{input_path}' does not exist.")
         raise typer.Abort from None
+
+    if storage_options_input is not None:
+        input_path = UPath(input_path, storage_options=storage_options_input)
+
+    if storage_options_output is not None:
+        output_path = UPath(output_path, storage_options=storage_options_output)
 
     mdio_template_obj = load_mdio_template(mdio_template) if mdio_template else prompt_for_mdio_template()
 
