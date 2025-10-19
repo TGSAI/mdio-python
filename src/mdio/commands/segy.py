@@ -33,7 +33,7 @@ class UPathParamType(click.ParamType):
     name = "Path"
 
     def convert(self, value: str, param: Parameter | None, ctx: Context | None) -> UPath:  # noqa: ARG002
-        """Convert JSON-like string to dict."""
+        """Convert string path to UPath."""
         try:
             return UPath(value)
         except Exception:
