@@ -15,6 +15,7 @@ import click
 import questionary
 import typer
 from rich import print  # noqa: A004
+from segy.schema.segy import SegyStandard
 from upath import UPath
 
 from mdio.converters.exceptions import GridTraceSparsityError
@@ -25,11 +26,19 @@ if TYPE_CHECKING:
     from click.core import Parameter
     from segy.schema.header import HeaderField
     from segy.schema.segy import SegySpec
-    from segy.schema.segy import SegyStandard
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
 
 app = typer.Typer(help="Convert SEG-Y <-> MDIO datasets.")
+
+
+REVISION_MAP = {
+    "rev 0": SegyStandard.REV0,
+    "rev 1": SegyStandard.REV1,
+    "rev 2": SegyStandard.REV2,
+    "rev 2.1": SegyStandard.REV21,
+    "custom": SegyStandard.CUSTOM,
+}
 
 
 class UPathParamType(click.ParamType):
@@ -60,12 +69,9 @@ class JSONParamType(click.ParamType):
 
 def prompt_for_segy_standard() -> SegyStandard:
     """Prompt user to select a SEG-Y standard."""
-    from segy.schema.segy import SegyStandard
-    from segy.standards.registry import segy_standard_registry
-
-    choices = [str(key) for key in segy_standard_registry]
-    standard_str = questionary.select("Select SEG-Y standard:", choices=choices, default="1.0").ask()
-    return SegyStandard(float(standard_str))
+    choices = list(REVISION_MAP.keys())
+    standard_str = questionary.select("Select SEG-Y standard:", choices=choices, default="rev 1").ask()
+    return SegyStandard(REVISION_MAP[standard_str])
 
 
 def prompt_for_text_encoding() -> str:
