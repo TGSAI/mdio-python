@@ -1,4 +1,8 @@
-"""SEG-Y CLI subcommands for import/export etc."""
+"""SEG-Y CLI subcommands for importing from SEG-Y to MDIO and (future) exporting back.
+
+This sub-app is available under the main CLI as: mdio segy <command>.
+Run: mdio segy --help or mdio segy import --help for usage and examples.
+"""
 
 from __future__ import annotations
 
@@ -25,7 +29,7 @@ if TYPE_CHECKING:
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
 
-app = typer.Typer(help="Commands for SEG-Y conversion.")
+app = typer.Typer(help="Convert SEG-Y <-> MDIO datasets.")
 
 
 class UPathParamType(click.ParamType):
