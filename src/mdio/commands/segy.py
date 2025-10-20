@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
 
-app = typer.Typer()
+app = typer.Typer(help="Commands for SEG-Y conversion.")
 
 
 class UPathParamType(click.ParamType):
