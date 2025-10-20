@@ -263,7 +263,14 @@ def segy_export(  # noqa: PLR0913
     overwrite: OverwriteType = False,
     interactive: InteractiveType = False,
 ) -> None:
-    """Export MDIO file to SEG-Y format given SEG-Y spec."""
+    """Export an MDIO dataset to SEG-Y.
+
+    Status: not yet implemented. This command currently raises NotImplementedError.
+
+    \b
+    Example (will error until implemented):
+    - mdio segy export input.mdio output.segy --segy-spec segy_spec.json
+    """  # noqa: D301
     if storage_input is not None:
         input_path = UPath(input_path, storage_options=storage_input)
 
