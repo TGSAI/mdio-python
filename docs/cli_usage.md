@@ -223,7 +223,7 @@ get information about usage.
 .. typer:: mdio.cli:app
     :prog: mdio
     :theme: monokai
-    :width: 90
+    :width: 100
     :show-nested:
     :make-sections:
 ```

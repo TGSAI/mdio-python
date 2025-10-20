@@ -193,17 +193,18 @@ def segy_import(  # noqa: PLR0913
 ) -> None:
     """Convert a SEG-Y file into an MDIO dataset.
 
+    \b
     In non-interactive mode you must provide both --mdio-template and --segy-spec.
     Use --interactive to be guided through selecting a template and building a SEG-Y spec.
 
     \b
     Examples:
     - Non-interactive (local files):
-      mdio segy import input.segy output.mdio --mdio-template PostStack3DTime --segy-spec segy_spec.json
-    - Overwrite existing output:
-      mdio segy import input.segy output.mdio --mdio-template PostStack3DDepth --segy-spec segy_spec.json --overwrite
+      mdio segy import in.segy out.mdio --mdio-template PostStack3DTime --segy-spec spec.json
+    - Overwrite existing output with interactive template with spec:
+      mdio segy import in.segy out.mdio --segy-spec spec.json --overwrite
     - Interactive (prompts for template and spec):
-      mdio segy import input.segy output.mdio --interactive
+      mdio segy import in.segy out.mdio --interactive
 
     \b
     Notes:
@@ -283,11 +284,12 @@ def segy_export(  # noqa: PLR0913
 ) -> None:
     """Export an MDIO dataset to SEG-Y.
 
+    \b
     Status: not yet implemented. This command currently raises NotImplementedError.
 
     \b
     Example (will error until implemented):
-    - mdio segy export input.mdio output.segy --segy-spec segy_spec.json
+    - mdio segy export in.mdio out.segy --segy-spec spec.json
     """
     if storage_input is not None:
         input_path = UPath(input_path, storage_options=storage_input)
