@@ -18,7 +18,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "typer>=0.19.2",
+    "typer>=0.20.0",
     "dask>=2025.9.1",
     "fsspec>=2025.9.0",
     "pint>=0.25.0",
