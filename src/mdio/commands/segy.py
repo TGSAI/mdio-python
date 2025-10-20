@@ -167,18 +167,18 @@ def load_segy_spec(segy_spec_path: UPath) -> SegySpec:
         raise typer.Abort from None
 
 
-SegyInType = Annotated[UPath, typer.Argument(help="Path to the input SEG-Y file.", click_type=UPathParamType())]
+SegyOutType = Annotated[UPath, typer.Argument(help="Path to the input SEG-Y file.", click_type=UPathParamType())]
 MdioOutType = Annotated[UPath, typer.Argument(help="Path to the output MDIO file.", click_type=UPathParamType())]
 MDIOTemplateType = Annotated[str | None, typer.Option(help="Name of the MDIO template.")]
 SegySpecType = Annotated[UPath | None, typer.Option(help="Path to the SEG-Y spec file.", click_type=UPathParamType())]
 StorageOptionType = Annotated[dict | None, typer.Option(help="Options for remote storage.", click_type=JSONParamType())]
 OverwriteType = Annotated[bool, typer.Option(help="Overwrite the MDIO file if it exists.")]
-InteractiveType = Annotated[bool, typer.Option(help="Enable interactive prompts when template and spec are missing.")]
+InteractiveType = Annotated[bool, typer.Option(help="Enable interactive prompts when template or spec are missing.")]
 
 
 @app.command(name="import")
 def segy_import(  # noqa: PLR0913
-    input_path: SegyInType,
+    input_path: SegyOutType,
     output_path: MdioOutType,
     mdio_template: MDIOTemplateType = None,
     segy_spec: SegySpecType = None,
@@ -242,6 +242,29 @@ def segy_import(  # noqa: PLR0913
         raise typer.Abort from None
 
     print(f"SEG-Y to MDIO conversion successful: {input_path} -> {output_path}")
+
+
+MdioInType = Annotated[UPath, typer.Argument(help="Path to the input MDIO file.", click_type=UPathParamType())]
+SegyOutType = Annotated[UPath, typer.Argument(help="Path to the output SEG-Y file.", click_type=UPathParamType())]
+StorageOptionType = Annotated[dict | None, typer.Option(help="Options for remote storage.", click_type=JSONParamType())]
+OverwriteType = Annotated[bool, typer.Option(help="Overwrite the MDIO file if it exists.")]
+
+
+@app.command(name="export")
+def segy_export(  # noqa: PLR0913
+    input_path: MdioInType,
+    output_path: SegyOutType,
+    segy_spec: SegySpecType = None,
+    storage_input: StorageOptionType = None,
+    overwrite: OverwriteType = False,
+    interactive: InteractiveType = False,
+) -> None:
+    """Export MDIO file to SEG-Y format given SEG-Y spec."""
+    if storage_input is not None:
+        input_path = UPath(input_path, storage_options=storage_input)
+
+    msg = f"Exporting MDIO to SEG-Y is not yet supported. Args: {locals()}"
+    raise NotImplementedError(msg)
 
 
 if __name__ == "__main__":
