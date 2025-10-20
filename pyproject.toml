@@ -125,7 +125,7 @@ ignore = [
 "tests/*" = ["S101", "PLR2004"]                                   # allow assertions and magic value comparison
 "tests/integration/test_segy_import_export_masked.py" = ["E501"]  # allow long lines for readibility
 "docs/tutorials/*.ipynb" = ["S101"]                               # allow assertions
-"src/mdio/commands/*.py" = ["PLC0415"]                            # allow lazy import for CLI performance
+"src/mdio/commands/*.py" = ["PLC0415", "D301"]                    # allow delayed imports and \b without raw strings
 
 [tool.ruff.lint.flake8-annotations]
 mypy-init-return = true
