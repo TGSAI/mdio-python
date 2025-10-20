@@ -53,7 +53,7 @@ class AbstractDatasetTemplate(ABC):
             f"AbstractDatasetTemplate("
             f"name={self.name!r}, "
             f"data_domain={self._data_domain!r}, "
-            f"spatial_dim_names={self._spatial_dim_names}, "
+            f"spatial_dim_names={self.spatial_dimension_names}, "
             f"dim_names={self._dim_names}, "
             f"physical_coord_names={self._physical_coord_names}, "
             f"logical_coord_names={self._logical_coord_names}, "
