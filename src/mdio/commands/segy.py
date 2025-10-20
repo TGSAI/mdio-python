@@ -37,7 +37,6 @@ REVISION_MAP = {
     "rev 1": SegyStandard.REV1,
     "rev 2": SegyStandard.REV2,
     "rev 2.1": SegyStandard.REV21,
-    "custom": SegyStandard.CUSTOM,
 }
 
 
@@ -100,7 +99,7 @@ def prompt_for_header_fields(field_type: str) -> list[HeaderField]:
     return fields
 
 
-def create_segy_spec(input_path: UPath) -> SegySpec:
+def create_segy_spec(input_path: UPath, mdio_template: AbstractDatasetTemplate) -> SegySpec:
     """Create SEG-Y specification interactively."""
     from segy.standards.registry import get_segy_standard
 
@@ -116,6 +115,13 @@ def create_segy_spec(input_path: UPath) -> SegySpec:
     trace_fields = prompt_for_header_fields("trace")
     if binary_fields or trace_fields:
         segy_spec = segy_spec.customize(binary_header_fields=binary_fields, trace_header_fields=trace_fields)
+
+    is_minimal = questionary.confirm("Import only trace headers required by template?", default=False).ask()
+    if is_minimal:
+        required_fields = set(mdio_template.coordinate_names) | set(mdio_template.spatial_dimension_names)
+        required_fields = required_fields | {"coordinate_scalar"}
+        new_fields = [field for field in segy_spec.trace.header.fields if field.name in required_fields]
+        segy_spec.trace.header.fields = new_fields
 
     should_save = questionary.confirm("Save SEG-Y specification?", default=True).ask()
     if should_save:
@@ -243,7 +249,7 @@ def segy_import(  # noqa: PLR0913
     if segy_spec:
         segy_spec_obj = load_segy_spec(segy_spec)
     elif interactive:
-        segy_spec_obj = create_segy_spec(input_path)
+        segy_spec_obj = create_segy_spec(input_path, mdio_template_obj)
     else:
         typer.secho(
             "SEG-Y spec is required in non-interactive mode. Provide --segy-spec or use --interactive to build one.",
