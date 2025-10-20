@@ -17,7 +17,6 @@ class Seismic2DPreStackShotTemplate(AbstractDatasetTemplate):
 
         self._dim_names = ("shot_point", "channel", self._data_domain)
         self._physical_coord_names = ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
-        self._logical_coord_names = ("gun",)
         self._var_chunk_shape = (16, 32, 2048)
 
     @property
@@ -39,12 +38,6 @@ class Seismic2DPreStackShotTemplate(AbstractDatasetTemplate):
 
         # Add non-dimension coordinates
         compressor = compressors.Blosc(cname=compressors.BloscCname.zstd)
-        self._builder.add_coordinate(
-            "gun",
-            dimensions=("shot_point",),
-            data_type=ScalarType.UINT8,
-            compressor=compressor,
-        )
         self._builder.add_coordinate(
             "source_coord_x",
             dimensions=("shot_point",),

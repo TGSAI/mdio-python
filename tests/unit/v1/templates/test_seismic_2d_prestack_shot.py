@@ -23,14 +23,14 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
     # 4 dim coords + 5 non-dim coords + 1 data + 1 trace mask + 1 headers = 12 variables
-    assert len(dataset.variables) == 11
+    assert len(dataset.variables) == 10
 
     # Verify trace headers
     validate_variable(
         dataset,
         name="headers",
         dims=[("shot_point", 256), ("channel", 24)],
-        coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
+        coords=["source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
         dtype=headers,
     )
 
@@ -38,7 +38,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         dataset,
         name="trace_mask",
         dims=[("shot_point", 256), ("channel", 24)],
-        coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
+        coords=["source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
         dtype=ScalarType.BOOL,
     )
 
@@ -69,14 +69,6 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     assert domain.metadata.units_v1 == UNITS_SECOND
 
     # Verify non-dimension coordinate variables
-    validate_variable(
-        dataset,
-        name="gun",
-        dims=[("shot_point", 256)],
-        coords=["gun"],
-        dtype=ScalarType.UINT8,
-    )
-
     source_coord_x = validate_variable(
         dataset,
         name="source_coord_x",
@@ -125,7 +117,6 @@ class TestSeismic2DPreStackShotTemplate:
         assert t._data_domain == "time"
         assert t._dim_names == ("shot_point", "channel", "time")
         assert t._physical_coord_names == ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
-        assert t._logical_coord_names == ("gun",)
         assert t.full_chunk_shape == (16, 32, 2048)
 
         # Variables instantiated when build_dataset() is called
@@ -159,7 +150,7 @@ class TestSeismic2DPreStackShotTemplate:
             dataset,
             name="amplitude",
             dims=[("shot_point", 256), ("channel", 24), ("time", 2048)],
-            coords=["gun", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
+            coords=["source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
