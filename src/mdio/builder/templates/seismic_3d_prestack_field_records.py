@@ -8,7 +8,7 @@ from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
 
 
-class SeismicPreStackTemplate(AbstractDatasetTemplate):
+class Seismic3DPreStackFieldRecordsTemplate(AbstractDatasetTemplate):
     """Seismic pre-stack time Dataset template.
 
     This should be used for both 2D and 3D datasets. Common-shot or common-channel datasets
@@ -34,7 +34,7 @@ class SeismicPreStackTemplate(AbstractDatasetTemplate):
 
     @property
     def _name(self) -> str:
-        return f"PreStackGathers3D{self._data_domain.capitalize()}"
+        return f"PreStackFieldRecords3D{self._data_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
         return {
