@@ -13,7 +13,7 @@ from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
 from mdio.builder.schemas.v1.units import TimeUnitModel
-from mdio.builder.templates.seismic_prestack import SeismicPreStackTemplate
+from mdio.builder.templates.seismic_3d_prestack_field_records import SeismicPreStackTemplate
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
