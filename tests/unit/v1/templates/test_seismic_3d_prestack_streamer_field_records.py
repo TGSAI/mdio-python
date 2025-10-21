@@ -1,4 +1,4 @@
-"""Unit tests for SeismicPreStackTemplate."""
+"""Unit tests for Seismic3DPreStackStreamerFieldRecordsTemplate."""
 
 import pytest
 from tests.unit.v1.helpers import validate_variable
