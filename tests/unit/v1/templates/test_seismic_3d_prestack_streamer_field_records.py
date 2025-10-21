@@ -13,7 +13,9 @@ from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
 from mdio.builder.schemas.v1.units import TimeUnitModel
-from mdio.builder.templates.seismic_3d_prestack_streamer_field_records import Seismic3DPreStackStreamerFieldRecordsTemplate
+from mdio.builder.templates.seismic_3d_prestack_streamer_field_records import (
+    Seismic3DPreStackStreamerFieldRecordsTemplate,
+)
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
