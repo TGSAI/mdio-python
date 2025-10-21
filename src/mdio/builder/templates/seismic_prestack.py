@@ -4,7 +4,7 @@ from typing import Any
 
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
-from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
 
 
