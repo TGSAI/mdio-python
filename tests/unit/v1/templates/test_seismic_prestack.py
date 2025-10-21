@@ -165,7 +165,7 @@ class TestSeismic3DPreStackShotTemplate:
             "group_coord_y",
             "orig_field_record_num",
         )
-        assert t.full_chunk_size == (1, 1, 16, 1, 32, 1024)
+        assert t.full_chunk_shape == (1, 1, 16, 1, 32, 1024)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
