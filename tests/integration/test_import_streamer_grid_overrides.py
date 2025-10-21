@@ -178,7 +178,7 @@ class TestImport6D:  # pragma: no cover - tests is skipped
 
         segy_to_mdio(
             segy_spec=segy_spec,
-            mdio_template=TemplateRegistry().get("PreStackGathers3DTime"),  # Placeholder for the template
+            mdio_template=TemplateRegistry().get("PreStackFieldRecords3DTime"),
             input_path=segy_path,
             output_path=zarr_tmp,
             overwrite=True,
