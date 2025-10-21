@@ -24,12 +24,9 @@ class Seismic3DPreStackFieldRecordsTemplate(AbstractDatasetTemplate):
         self._dim_names = (*self._spatial_dim_names, self._data_domain)
         self._physical_coord_names = ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
         self._logical_coord_names = ("orig_field_record_num",)
-        # TODO(Dmitriy Repin): Allow specifying full-dimension-extent chunk size in templates.
-        # https://github.com/TGSAI/mdio-python/issues/720
-        # When implemented, the following will be requesting the chunk size of the last dimension
-        # to be equal to the size of the dimension.
+        # TODO(Anyone): Disable chunking in time domain when support is merged.
+        # https://github.com/TGSAI/mdio-python/pull/723
         # self._var_chunk_shape = (1, 1, 16, 1, 32, -1)
-        # For now, we are hardcoding the chunk size to 1024.
         self._var_chunk_shape = (1, 1, 16, 1, 32, 1024)
 
     @property
