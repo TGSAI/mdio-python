@@ -359,8 +359,7 @@ def _populate_coordinates(
 
 
 def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_info: SegyFileInfo) -> xr_Dataset:
-    save_file_header = Environment.save_segy_file_header()
-    if not save_file_header:
+    if not Environment.save_segy_file_header():
         return xr_dataset
 
     expected_rows = 40
