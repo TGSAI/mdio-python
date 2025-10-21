@@ -29,7 +29,6 @@ from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTempla
 from mdio.builder.templates.seismic_3d_streamer_shot import Seismic3DStreamerShotGathersTemplate
 from mdio.builder.templates.seismic_3d_streamer_field import Seismic3DStreamerFieldRecords
 
-
 if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
 
