@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import multiprocessing as mp
-import os
 from concurrent.futures import ProcessPoolExecutor
 from concurrent.futures import as_completed
 from pathlib import Path
@@ -13,10 +12,10 @@ import numpy as np
 import zarr
 from dask.array import Array
 from dask.array import map_blocks
-from psutil import cpu_count
 from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
 
+from mdio.api._environ import Environment
 from mdio.api.io import _normalize_storage_options
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
@@ -36,8 +35,6 @@ if TYPE_CHECKING:
     from zarr import Array as zarr_Array
 
     from mdio.segy.file import SegyFileArguments
-
-default_cpus = cpu_count(logical=True)
 
 
 def _create_stats() -> SummaryStatistics:
@@ -83,8 +80,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
 
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
-    num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
-    num_workers = min(num_chunks, num_cpus)
+    num_workers = min(num_chunks, Environment.import_cpus())
     context = mp.get_context("spawn")
     executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
 

@@ -3,24 +3,21 @@
 from __future__ import annotations
 
 import multiprocessing as mp
-import os
 from concurrent.futures import ProcessPoolExecutor
 from itertools import repeat
 from math import ceil
 from typing import TYPE_CHECKING
 
 import numpy as np
-from psutil import cpu_count
 from tqdm.auto import tqdm
 
+from mdio.api._environ import Environment
 from mdio.segy._workers import header_scan_worker
 
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
 
     from mdio.segy.file import SegyFileArguments
-
-default_cpus = cpu_count(logical=True)
 
 
 def parse_headers(
@@ -53,8 +50,7 @@ def parse_headers(
 
         trace_ranges.append((start, stop))
 
-    num_cpus = int(os.getenv("MDIO__IMPORT__CPU_COUNT", default_cpus))
-    num_workers = min(n_blocks, num_cpus)
+    num_workers = min(n_blocks, Environment.import_cpus())
 
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
