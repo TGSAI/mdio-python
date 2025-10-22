@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import dask
 import numpy as np
-import numpy.testing as npt
 import pytest
 import xarray.testing as xrt
 from tests.integration.conftest import get_segy_mock_4d_spec
@@ -26,6 +25,7 @@ if TYPE_CHECKING:
 
 dask.config.set(scheduler="synchronous")
 os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
+
 
 # TODO(BrianMichell): Add non-binned back
 # https://github.com/TGSAI/mdio-python/issues/612

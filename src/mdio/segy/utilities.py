@@ -71,11 +71,14 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         horizontal_coordinates,
         chunksize=chunksize,
         grid_overrides=grid_overrides,
+        template=template,
     )
     # Use the spatial dimension names from horizontal_coordinates (which may have been modified by grid overrides)
     # Extract only the dimension names (not including non-dimension coordinates)
     # After grid overrides, trace might have been added to horizontal_coordinates
-    transformed_spatial_dims = [name for name in horizontal_coordinates if name in horizontal_dimensions or name == "trace"]
+    transformed_spatial_dims = [
+        name for name in horizontal_coordinates if name in horizontal_dimensions or name == "trace"
+    ]
 
     dimensions = []
     for dim_name in transformed_spatial_dims:

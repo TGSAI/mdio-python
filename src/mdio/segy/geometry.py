@@ -24,6 +24,8 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy.arrays import HeaderArray
 
+    from mdio.builder.templates.base import AbstractDatasetTemplate
+
 
 logger = logging.getLogger(__name__)
 
@@ -303,6 +305,7 @@ class GridOverrideCommand(ABC):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
 
@@ -379,42 +382,38 @@ class DuplicateIndex(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
         # Filter to only include dimension fields, not coordinate fields
-        # Coordinate fields typically have _x, _y suffixes or specific names like 'gun'
-        # We want to keep fields like shot_point, cable, channel but exclude source_coord_x, etc.
+        # We want to keep fields like shot_point, cable, channel but exclude coordinate fields
+        # Use the template's coordinate names to determine which fields are coordinates
+        coordinate_fields = set(template.coordinate_names)
         dimension_fields = []
-        coordinate_field_patterns = ['_x', '_y', '_coord', 'gun', 'source', 'group']
-        
+
         for field_name in index_headers.dtype.names:
             # Skip if it's already trace
-            if field_name == 'trace':
+            if field_name == "trace":
                 continue
-            # Check if it looks like a coordinate field
-            is_coordinate = any(pattern in field_name for pattern in coordinate_field_patterns)
-            if not is_coordinate:
+            # Check if this field is a coordinate field according to the template
+            if field_name not in coordinate_fields:
                 dimension_fields.append(field_name)
-        
+
         # Extract only dimension fields for trace indexing
-        if dimension_fields:
-            dimension_headers = index_headers[dimension_fields]
-        else:
-            # If no dimension fields, use all fields
-            dimension_headers = index_headers
-        
+        dimension_headers = index_headers[dimension_fields] if dimension_fields else index_headers
+
         # Create trace indices based on dimension fields only
         dimension_headers_with_trace = analyze_non_indexed_headers(dimension_headers)
-        
+
         # Add the trace field back to the full index_headers array
-        if dimension_headers_with_trace is not None and 'trace' in dimension_headers_with_trace.dtype.names:
+        if dimension_headers_with_trace is not None and "trace" in dimension_headers_with_trace.dtype.names:
             # Extract just the trace values array (not the whole structured array)
-            trace_values = np.array(dimension_headers_with_trace['trace'])
+            trace_values = np.array(dimension_headers_with_trace["trace"])
             # Append as a new field to the full headers
-            index_headers = rfn.append_fields(index_headers, 'trace', trace_values, usemask=False)
-        
+            index_headers = rfn.append_fields(index_headers, "trace", trace_values, usemask=False)
+
         return index_headers
 
     def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
@@ -467,6 +466,7 @@ class AutoChannelWrap(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
@@ -504,6 +504,7 @@ class AutoShotWrap(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
@@ -565,6 +566,7 @@ class GridOverrider:
         index_names: Sequence[str],
         grid_overrides: dict[str, bool],
         chunksize: Sequence[int] | None = None,
+        template: AbstractDatasetTemplate | None = None,
     ) -> tuple[HeaderArray, tuple[str], tuple[int]]:
         """Run grid overrides and return result."""
         for override in grid_overrides:
@@ -575,7 +577,7 @@ class GridOverrider:
                 raise GridOverrideUnknownError(override)
 
             function = self.commands[override].transform
-            index_headers = function(index_headers, grid_overrides=grid_overrides)
+            index_headers = function(index_headers, grid_overrides=grid_overrides, template=template)
 
             function = self.commands[override].transform_index_names
             index_names = function(index_names)
