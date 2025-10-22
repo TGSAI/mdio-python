@@ -387,31 +387,18 @@ class DuplicateIndex(GridOverrideCommand):
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
-        # Filter to only include dimension fields, not coordinate fields
-        # We want to keep fields like shot_point, cable, channel but exclude coordinate fields
-        # Use the template's coordinate names to determine which fields are coordinates
-        coordinate_fields = set(template.coordinate_names)
-        dimension_fields = []
+        # Filter out coordinate fields, keep only dimensions for trace indexing
+        coord_fields = set(template.coordinate_names) if template else set()
+        dim_fields = [name for name in index_headers.dtype.names
+                     if name != "trace" and name not in coord_fields]
 
-        for field_name in index_headers.dtype.names:
-            # Skip if it's already trace
-            if field_name == "trace":
-                continue
-            # Check if this field is a coordinate field according to the template
-            if field_name not in coordinate_fields:
-                dimension_fields.append(field_name)
+        # Create trace indices on dimension fields only
+        dim_headers = index_headers[dim_fields] if dim_fields else index_headers
+        dim_headers_with_trace = analyze_non_indexed_headers(dim_headers)
 
-        # Extract only dimension fields for trace indexing
-        dimension_headers = index_headers[dimension_fields] if dimension_fields else index_headers
-
-        # Create trace indices based on dimension fields only
-        dimension_headers_with_trace = analyze_non_indexed_headers(dimension_headers)
-
-        # Add the trace field back to the full index_headers array
-        if dimension_headers_with_trace is not None and "trace" in dimension_headers_with_trace.dtype.names:
-            # Extract just the trace values array (not the whole structured array)
-            trace_values = np.array(dimension_headers_with_trace["trace"])
-            # Append as a new field to the full headers
+        # Add trace field back to full headers
+        if dim_headers_with_trace is not None and "trace" in dim_headers_with_trace.dtype.names:
+            trace_values = np.array(dim_headers_with_trace["trace"])
             index_headers = rfn.append_fields(index_headers, "trace", trace_values, usemask=False)
 
         return index_headers
