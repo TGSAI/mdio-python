@@ -16,6 +16,7 @@ end-before: <!-- github-only -->
 
 installation
 cli_usage
+environment
 ```
 
 ```{toctree}
