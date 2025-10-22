@@ -176,8 +176,7 @@ def _scan_for_headers(
     # If they don't match, it means the template wasn't properly updated
     if full_chunk_shape != chunk_size:
         logger.warning(
-            "Chunk shape mismatch: template has %s but grid_plan returned %s. "
-            "Using grid_plan chunk shape.",
+            "Chunk shape mismatch: template has %s but grid_plan returned %s. Using grid_plan chunk shape.",
             full_chunk_shape,
             chunk_size,
         )
