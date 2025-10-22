@@ -161,8 +161,8 @@ def _scan_for_headers(
 
     # Update template to match grid_plan results after grid overrides
     if full_chunk_shape != chunk_size:
-        logger.warning(
-            "Chunk shape mismatch: template has %s but grid_plan returned %s. Using grid_plan chunk shape.",
+        logger.debug(
+            "Adjusting template chunk shape from %s to %s to match grid after overrides",
             full_chunk_shape,
             chunk_size,
         )
