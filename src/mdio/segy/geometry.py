@@ -382,7 +382,7 @@ class DuplicateIndex(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate,  # noqa: ARG002
+        template: AbstractDatasetTemplate,
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
