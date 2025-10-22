@@ -159,20 +159,17 @@ def _scan_for_headers(
         grid_overrides=grid_overrides,
     )
 
-    # After applying grid overrides to the template, chunk sizes should match
-    # If they don't match, it means the template wasn't properly updated
+    # Update template to match grid_plan results after grid overrides
     if full_chunk_shape != chunk_size:
         logger.warning(
             "Chunk shape mismatch: template has %s but grid_plan returned %s. Using grid_plan chunk shape.",
             full_chunk_shape,
             chunk_size,
         )
-        # Update the template's chunk shape to match what grid_plan returned
         template._var_chunk_shape = chunk_size
 
-    # Update template dimensions to match the actual grid dimensions after grid overrides
-    # The dimensions from grid_plan already reflect grid overrides
-    actual_spatial_dims = tuple(dim.name for dim in segy_dimensions[:-1])  # All dims except the vertical/time dimension
+    # Update dimensions if they don't match grid_plan results
+    actual_spatial_dims = tuple(dim.name for dim in segy_dimensions[:-1])
     if template.spatial_dimension_names != actual_spatial_dims:
         logger.debug(
             "Adjusting template dimensions from %s to %s to match grid after overrides",
