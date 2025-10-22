@@ -156,7 +156,11 @@ def _scan_for_headers(
     """Extract trace dimensions and index headers from the SEG-Y file.
 
     This is an expensive operation.
-    It scans the SEG-Y file in chunks by using ProcessPoolExecutor
+    It scans the SEG-Y file in chunks by using ProcessPoolExecutor.
+
+    Note:
+        If grid_overrides are applied to the template before calling this function,
+        the chunk_size returned from get_grid_plan should match the template's chunk shape.
     """
     full_chunk_shape = template.full_chunk_shape
     segy_dimensions, chunk_size, segy_headers = get_grid_plan(
@@ -167,13 +171,26 @@ def _scan_for_headers(
         chunksize=full_chunk_shape,
         grid_overrides=grid_overrides,
     )
+
+    # Update template to match grid_plan results after grid overrides
     if full_chunk_shape != chunk_size:
-        # TODO(Dmitriy): implement grid overrides
-        # https://github.com/TGSAI/mdio-python/issues/585
-        # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
-        # support for grid overrides is implemented
-        err = "Support for changing full_chunk_shape in grid overrides is not yet implemented"
-        raise NotImplementedError(err)
+        logger.debug(
+            "Adjusting template chunk shape from %s to %s to match grid after overrides",
+            full_chunk_shape,
+            chunk_size,
+        )
+        template._var_chunk_shape = chunk_size
+
+    # Update dimensions if they don't match grid_plan results
+    actual_spatial_dims = tuple(dim.name for dim in segy_dimensions[:-1])
+    if template.spatial_dimension_names != actual_spatial_dims:
+        logger.debug(
+            "Adjusting template dimensions from %s to %s to match grid after overrides",
+            template.spatial_dimension_names,
+            actual_spatial_dims,
+        )
+        template._dim_names = actual_spatial_dims + (template.trace_domain,)
+
     return segy_dimensions, segy_headers
 
 

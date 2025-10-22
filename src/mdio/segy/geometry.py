@@ -24,6 +24,8 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy.arrays import HeaderArray
 
+    from mdio.builder.templates.base import AbstractDatasetTemplate
+
 
 logger = logging.getLogger(__name__)
 
@@ -267,7 +269,8 @@ def analyze_non_indexed_headers(index_headers: HeaderArray, dtype: DTypeLike = n
     header_names = []
     for header_key in index_headers.dtype.names:
         if header_key != "trace":
-            unique_headers[header_key] = np.sort(np.unique(index_headers[header_key]))
+            unique_vals = np.sort(np.unique(index_headers[header_key]))
+            unique_headers[header_key] = unique_vals
             header_names.append(header_key)
             total_depth += 1
 
@@ -302,6 +305,7 @@ class GridOverrideCommand(ABC):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
 
@@ -378,11 +382,25 @@ class DuplicateIndex(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
-        return analyze_non_indexed_headers(index_headers)
+        # Filter out coordinate fields, keep only dimensions for trace indexing
+        coord_fields = set(template.coordinate_names) if template else set()
+        dim_fields = [name for name in index_headers.dtype.names if name != "trace" and name not in coord_fields]
+
+        # Create trace indices on dimension fields only
+        dim_headers = index_headers[dim_fields] if dim_fields else index_headers
+        dim_headers_with_trace = analyze_non_indexed_headers(dim_headers)
+
+        # Add trace field back to full headers
+        if dim_headers_with_trace is not None and "trace" in dim_headers_with_trace.dtype.names:
+            trace_values = np.array(dim_headers_with_trace["trace"])
+            index_headers = rfn.append_fields(index_headers, "trace", trace_values, usemask=False)
+
+        return index_headers
 
     def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
         """Insert dimension "trace" to the sample-1 dimension."""
@@ -434,6 +452,7 @@ class AutoChannelWrap(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
@@ -471,6 +490,7 @@ class AutoShotWrap(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
@@ -532,6 +552,7 @@ class GridOverrider:
         index_names: Sequence[str],
         grid_overrides: dict[str, bool],
         chunksize: Sequence[int] | None = None,
+        template: AbstractDatasetTemplate | None = None,
     ) -> tuple[HeaderArray, tuple[str], tuple[int]]:
         """Run grid overrides and return result."""
         for override in grid_overrides:
@@ -542,7 +563,7 @@ class GridOverrider:
                 raise GridOverrideUnknownError(override)
 
             function = self.commands[override].transform
-            index_headers = function(index_headers, grid_overrides=grid_overrides)
+            index_headers = function(index_headers, grid_overrides=grid_overrides, template=template)
 
             function = self.commands[override].transform_index_names
             index_names = function(index_names)
