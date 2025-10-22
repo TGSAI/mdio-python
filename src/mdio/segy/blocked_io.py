@@ -15,7 +15,7 @@ from dask.array import map_blocks
 from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
 
-from mdio.api._environ import Environment
+from mdio.api._environ import import_cpus
 from mdio.api.io import _normalize_storage_options
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
@@ -80,7 +80,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
 
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
-    num_workers = min(num_chunks, Environment.import_cpus())
+    num_workers = min(num_chunks, import_cpus())
     context = mp.get_context("spawn")
     executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
 

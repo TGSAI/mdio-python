@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from tqdm.dask import TqdmCallback
 
-from mdio.api._environ import Environment
+from mdio.api._environ import export_cpus
 from mdio.api.io import _normalize_path
 from mdio.api.io import open_mdio
 from mdio.segy.blocked_io import to_segy
@@ -143,7 +143,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
             if client is not None:
                 block_records = block_records.compute()
             else:
-                block_records = block_records.compute(num_workers=Environment.export_cpus())
+                block_records = block_records.compute(num_workers=export_cpus())
 
         ordered_files = [rec.path for rec in block_records.ravel() if rec != 0]
         ordered_files = [output_path] + ordered_files

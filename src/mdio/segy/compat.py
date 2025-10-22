@@ -22,7 +22,7 @@ from segy.schema import TraceDataSpec
 from segy.schema import TraceSpec
 from segy.standards.fields import binary
 
-from mdio.api._environ import Environment
+from mdio.api._environ import mdio_segy_spec as get_mdio_segy_spec
 from mdio.exceptions import InvalidMDIOError
 
 MDIO_VERSION = metadata.version("multidimio")
@@ -74,7 +74,7 @@ def get_trace_fields(version_str: str) -> list[HeaderField]:
 
 def mdio_segy_spec(version_str: str | None = None) -> SegySpec:
     """Get a SEG-Y encoding spec for MDIO based on version."""
-    spec_override = Environment.mdio_segy_spec()
+    spec_override = get_mdio_segy_spec()
 
     if spec_override is not None:
         return SegySpec.model_validate_json(spec_override)

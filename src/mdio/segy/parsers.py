@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from tqdm.auto import tqdm
 
-from mdio.api._environ import Environment
+from mdio.api._environ import import_cpus
 from mdio.segy._workers import header_scan_worker
 
 if TYPE_CHECKING:
@@ -50,7 +50,7 @@ def parse_headers(
 
         trace_ranges.append((start, stop))
 
-    num_workers = min(n_blocks, Environment.import_cpus())
+    num_workers = min(n_blocks, import_cpus())
 
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
