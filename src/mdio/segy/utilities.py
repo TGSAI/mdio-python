@@ -72,9 +72,15 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         chunksize=chunksize,
         grid_overrides=grid_overrides,
     )
+    # Use the spatial dimension names from horizontal_coordinates (which may have been modified by grid overrides)
+    # Extract only the dimension names (not including non-dimension coordinates)
+    # After grid overrides, trace might have been added to horizontal_coordinates
+    transformed_spatial_dims = [name for name in horizontal_coordinates if name in horizontal_dimensions or name == "trace"]
 
     dimensions = []
-    for dim_name in horizontal_dimensions:
+    for dim_name in transformed_spatial_dims:
+        if dim_name not in headers_subset.dtype.names:
+            continue
         dim_unique = np.unique(headers_subset[dim_name])
         dimensions.append(Dimension(coords=dim_unique, name=dim_name))
 

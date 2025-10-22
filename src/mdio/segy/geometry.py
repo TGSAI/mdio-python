@@ -267,7 +267,8 @@ def analyze_non_indexed_headers(index_headers: HeaderArray, dtype: DTypeLike = n
     header_names = []
     for header_key in index_headers.dtype.names:
         if header_key != "trace":
-            unique_headers[header_key] = np.sort(np.unique(index_headers[header_key]))
+            unique_vals = np.sort(np.unique(index_headers[header_key]))
+            unique_headers[header_key] = unique_vals
             header_names.append(header_key)
             total_depth += 1
 
@@ -382,7 +383,39 @@ class DuplicateIndex(GridOverrideCommand):
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
-        return analyze_non_indexed_headers(index_headers)
+        # Filter to only include dimension fields, not coordinate fields
+        # Coordinate fields typically have _x, _y suffixes or specific names like 'gun'
+        # We want to keep fields like shot_point, cable, channel but exclude source_coord_x, etc.
+        dimension_fields = []
+        coordinate_field_patterns = ['_x', '_y', '_coord', 'gun', 'source', 'group']
+        
+        for field_name in index_headers.dtype.names:
+            # Skip if it's already trace
+            if field_name == 'trace':
+                continue
+            # Check if it looks like a coordinate field
+            is_coordinate = any(pattern in field_name for pattern in coordinate_field_patterns)
+            if not is_coordinate:
+                dimension_fields.append(field_name)
+        
+        # Extract only dimension fields for trace indexing
+        if dimension_fields:
+            dimension_headers = index_headers[dimension_fields]
+        else:
+            # If no dimension fields, use all fields
+            dimension_headers = index_headers
+        
+        # Create trace indices based on dimension fields only
+        dimension_headers_with_trace = analyze_non_indexed_headers(dimension_headers)
+        
+        # Add the trace field back to the full index_headers array
+        if dimension_headers_with_trace is not None and 'trace' in dimension_headers_with_trace.dtype.names:
+            # Extract just the trace values array (not the whole structured array)
+            trace_values = np.array(dimension_headers_with_trace['trace'])
+            # Append as a new field to the full headers
+            index_headers = rfn.append_fields(index_headers, 'trace', trace_values, usemask=False)
+        
+        return index_headers
 
     def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
         """Insert dimension "trace" to the sample-1 dimension."""

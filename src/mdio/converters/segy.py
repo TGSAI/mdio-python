@@ -143,7 +143,11 @@ def _scan_for_headers(
     """Extract trace dimensions and index headers from the SEG-Y file.
 
     This is an expensive operation.
-    It scans the SEG-Y file in chunks by using ProcessPoolExecutor
+    It scans the SEG-Y file in chunks by using ProcessPoolExecutor.
+
+    Note:
+        If grid_overrides are applied to the template before calling this function,
+        the chunk_size returned from get_grid_plan should match the template's chunk shape.
     """
     full_chunk_shape = template.full_chunk_shape
     segy_dimensions, chunk_size, segy_headers = get_grid_plan(
@@ -154,13 +158,19 @@ def _scan_for_headers(
         chunksize=full_chunk_shape,
         grid_overrides=grid_overrides,
     )
+
+    # After applying grid overrides to the template, chunk sizes should match
+    # If they don't match, it means the template wasn't properly updated
     if full_chunk_shape != chunk_size:
-        # TODO(Dmitriy): implement grid overrides
-        # https://github.com/TGSAI/mdio-python/issues/585
-        # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
-        # support for grid overrides is implemented
-        err = "Support for changing full_chunk_shape in grid overrides is not yet implemented"
-        raise NotImplementedError(err)
+        logger.warning(
+            "Chunk shape mismatch: template has %s but grid_plan returned %s. "
+            "Using grid_plan chunk shape.",
+            full_chunk_shape,
+            chunk_size,
+        )
+        # Update the template's chunk shape to match what grid_plan returned
+        template._var_chunk_shape = chunk_size
+
     return segy_dimensions, segy_headers
 
 
@@ -551,6 +561,17 @@ def segy_to_mdio(  # noqa PLR0913
         grid_overrides=grid_overrides,
     )
     grid = _build_and_check_grid(segy_dimensions, segy_file_info, segy_headers)
+
+    # Update template dimensions to match the actual grid dimensions after grid overrides
+    # The chunk shape was already updated in _scan_for_headers, we just need to fix dimensions
+    actual_spatial_dims = tuple(grid.dim_names[:-1])  # All dims except the vertical/time dimension
+    if mdio_template.spatial_dimension_names != actual_spatial_dims:
+        logger.info(
+            "Adjusting template dimensions from %s to %s to match grid after overrides",
+            mdio_template.spatial_dimension_names,
+            actual_spatial_dims,
+        )
+        mdio_template._dim_names = actual_spatial_dims + (mdio_template.trace_domain,)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
