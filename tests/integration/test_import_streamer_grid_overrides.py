@@ -27,8 +27,9 @@ dask.config.set(scheduler="synchronous")
 os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
 
 
-@pytest.mark.parametrize("grid_override", [{"NonBinned": True, "chunksize": 4, "non_binned_dims": ["channel"]},
-                                         {"HasDuplicates": True}])
+@pytest.mark.parametrize(
+    "grid_override", [{"NonBinned": True, "chunksize": 4, "non_binned_dims": ["channel"]}, {"HasDuplicates": True}]
+)
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
