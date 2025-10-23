@@ -421,19 +421,51 @@ class DuplicateIndex(GridOverrideCommand):
 
 
 class NonBinned(DuplicateIndex):
-    """Automatically index traces in a single specified axis - trace."""
+    """Handle non-binned dimensions by converting them to a trace dimension with coordinates.
+
+    This override takes dimensions that are not regularly sampled (non-binned) and converts
+    them into a single 'trace' dimension. The original non-binned dimensions become coordinates
+    indexed by the trace dimension.
+
+    Example:
+        Template with dimensions [shot_point, cable, channel, azimuth, offset, sample]
+        and non_binned_dims=['azimuth', 'offset'] becomes:
+        - dimensions: [shot_point, cable, channel, trace, sample]
+        - coordinates: azimuth and offset with dimensions [shot_point, cable, channel, trace]
+
+    Attributes:
+        required_keys: No required keys for this override.
+        required_parameters: Set containing 'chunksize' and 'non_binned_dims'.
+    """
 
     required_keys = None
-    required_parameters = {"chunksize"}
+    required_parameters = {"chunksize", "non_binned_dims"}
+
+    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
+        """Validate if this transform should run on the type of data."""
+        self.check_required_params(grid_overrides)
+
+        # Validate that non_binned_dims is a list
+        non_binned_dims = grid_overrides.get("non_binned_dims", [])
+        if not isinstance(non_binned_dims, list):
+            msg = f"non_binned_dims must be a list, got {type(non_binned_dims)}"
+            raise ValueError(msg)
+
+        # Validate that all non-binned dimensions exist in headers
+        missing_dims = set(non_binned_dims) - set(index_headers.dtype.names)
+        if missing_dims:
+            msg = f"Non-binned dimensions {missing_dims} not found in index headers"
+            raise ValueError(msg)
 
     def transform_chunksize(
         self,
         chunksize: Sequence[int],
         grid_overrides: dict[str, bool | int],
     ) -> Sequence[int]:
-        """Perform the transform of chunksize."""
+        """Insert chunksize for trace dimension at N-1 position."""
         new_chunks = list(chunksize)
-        new_chunks.insert(-1, grid_overrides["chunksize"])
+        trace_chunksize = grid_overrides["chunksize"]
+        new_chunks.insert(-1, trace_chunksize)
         return tuple(new_chunks)
 
 
@@ -543,6 +575,9 @@ class GridOverrider:
                 continue
 
             parameters.update(command.required_parameters)
+
+        # Add optional parameters that are not strictly required but are valid
+        parameters.add("non_binned_dims")
 
         return parameters
 

@@ -73,11 +73,19 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         grid_overrides=grid_overrides,
         template=template,
     )
+
+    # Determine which dimensions are non-binned (converted to coordinates)
+    non_binned_dims = set()
+    if "NonBinned" in grid_overrides and "non_binned_dims" in grid_overrides:
+        non_binned_dims = set(grid_overrides["non_binned_dims"])
+
     # Use the spatial dimension names from horizontal_coordinates (which may have been modified by grid overrides)
-    # Extract only the dimension names (not including non-dimension coordinates)
+    # Extract only the dimension names (not including non-dimension coordinates or non-binned dimensions)
     # After grid overrides, trace might have been added to horizontal_coordinates
     transformed_spatial_dims = [
-        name for name in horizontal_coordinates if name in horizontal_dimensions or name == "trace"
+        name
+        for name in horizontal_coordinates
+        if (name in horizontal_dimensions or name == "trace") and name not in non_binned_dims
     ]
 
     dimensions = []
