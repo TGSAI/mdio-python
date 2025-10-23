@@ -27,9 +27,6 @@ dask.config.set(scheduler="synchronous")
 os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
 
 
-# TODO(BrianMichell): Add non-binned back
-# https://github.com/TGSAI/mdio-python/issues/612
-# @pytest.mark.parametrize("grid_override", [{"NonBinned": True, "chunksize": 4}, {"HasDuplicates": True}])
 @pytest.mark.parametrize("grid_override", [{"HasDuplicates": True}])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:
@@ -69,12 +66,17 @@ class TestImport4DNonReg:
         xrt.assert_duckarray_equal(ds["shot_point"], shots)
         xrt.assert_duckarray_equal(ds["cable"], cables)
 
-        # assert grid.select_dim("trace") == Dimension(range(1, np.amax(receivers_per_cable) + 1), "trace")
+        # HasDuplicates should create a trace dimension
         expected = list(range(1, np.amax(receivers_per_cable) + 1))
         xrt.assert_duckarray_equal(ds["trace"], expected)
 
         times_expected = list(range(0, num_samples, 1))
         xrt.assert_duckarray_equal(ds["time"], times_expected)
+
+        # HasDuplicates uses chunksize of 1 for trace dimension
+        trace_chunks = ds["amplitude"].chunksizes.get("trace", None)
+        if trace_chunks is not None:
+            assert all(chunk == 1 for chunk in trace_chunks)
 
 
 @pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True}, None])
