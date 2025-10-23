@@ -82,11 +82,28 @@ def get_grid_plan(  # noqa:  C901, PLR0913
     # Use the spatial dimension names from horizontal_coordinates (which may have been modified by grid overrides)
     # Extract only the dimension names (not including non-dimension coordinates or non-binned dimensions)
     # After grid overrides, trace might have been added to horizontal_coordinates
-    transformed_spatial_dims = [
-        name
-        for name in horizontal_coordinates
-        if (name in horizontal_dimensions or name == "trace") and name not in non_binned_dims
-    ]
+    # Compute transformed spatial dims: drop non-binned dims, insert trace if present in headers
+    transformed_spatial_dims = []
+    for name in horizontal_coordinates:
+        if name in non_binned_dims:
+            continue
+        if name == "trace" or name in horizontal_dimensions:
+            transformed_spatial_dims.append(name)
+
+    # Recompute chunksize to match transformed dims
+    original_spatial_dims = list(template.spatial_dimension_names)
+    original_chunks = list(template.full_chunk_shape)
+    new_spatial_chunks: list[int] = []
+    # Insert trace chunk size at N-1 when present, otherwise map remaining dims
+    for dim_name in transformed_spatial_dims:
+        if dim_name == "trace":
+            chunk_val = int(grid_overrides.get("chunksize", 1)) if "NonBinned" in grid_overrides else 1
+            new_spatial_chunks.append(chunk_val)
+            continue
+        if dim_name in original_spatial_dims:
+            idx = original_spatial_dims.index(dim_name)
+            new_spatial_chunks.append(original_chunks[idx])
+    chunksize = tuple(new_spatial_chunks + [original_chunks[-1]])
 
     dimensions = []
     for dim_name in transformed_spatial_dims:
