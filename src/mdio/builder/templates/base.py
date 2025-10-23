@@ -89,6 +89,21 @@ class AbstractDatasetTemplate(ABC):
         self._builder = MDIODatasetBuilder(name=name, attributes=attributes)
         self._add_dimensions()
         self._add_coordinates()
+        # Ensure any coordinates declared on the template but not added by subclass overrides
+        # are materialized with generic defaults. This keeps templates override-agnostic while
+        # allowing runtime-augmented coordinate lists to be respected.
+        for coord_name in self.coordinate_names:
+            try:
+                self._builder.add_coordinate(
+                    name=coord_name,
+                    dimensions=self.spatial_dimension_names,
+                    data_type=ScalarType.FLOAT64,
+                    compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
+                    metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(coord_name)),
+                )
+            except ValueError as exc:  # coordinate may already exist from subclass override
+                if "same name twice" not in str(exc):
+                    raise
         self._add_variables()
         self._add_trace_mask()
 

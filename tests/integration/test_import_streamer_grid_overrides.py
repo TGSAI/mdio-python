@@ -27,7 +27,8 @@ dask.config.set(scheduler="synchronous")
 os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
 
 
-@pytest.mark.parametrize("grid_override", [{"HasDuplicates": True}])
+# @pytest.mark.parametrize("grid_override", [{"NonBinned": True, "chunksize": 4, "non_binned_dims": ["channel"]}, {"HasDuplicates": True}])
+@pytest.mark.parametrize("grid_override", [{"NonBinned": True, "chunksize": 4, "non_binned_dims": ["channel"]}])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
@@ -43,11 +44,14 @@ class TestImport4DNonReg:
         segy_spec: SegySpec = get_segy_mock_4d_spec()
         segy_path = segy_mock_4d_shots[chan_header_type]
 
+        path = "tmp.mdio"
+        print(f"Running test with grid override: {grid_override}")
+
         segy_to_mdio(
             segy_spec=segy_spec,
             mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
             input_path=segy_path,
-            output_path=zarr_tmp,
+            output_path=path,
             overwrite=True,
             grid_overrides=grid_override,
         )
@@ -58,7 +62,7 @@ class TestImport4DNonReg:
         cables = [0, 101, 201, 301]
         receivers_per_cable = [1, 5, 7, 5]
 
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(path)
 
         assert ds["segy_file_header"].attrs["binaryHeader"]["samples_per_trace"] == num_samples
         assert ds.attrs["attributes"]["gridOverrides"] == grid_override
@@ -66,17 +70,23 @@ class TestImport4DNonReg:
         xrt.assert_duckarray_equal(ds["shot_point"], shots)
         xrt.assert_duckarray_equal(ds["cable"], cables)
 
-        # HasDuplicates should create a trace dimension
+        # Both HasDuplicates and NonBinned should create a trace dimension
         expected = list(range(1, np.amax(receivers_per_cable) + 1))
         xrt.assert_duckarray_equal(ds["trace"], expected)
 
         times_expected = list(range(0, num_samples, 1))
         xrt.assert_duckarray_equal(ds["time"], times_expected)
 
-        # HasDuplicates uses chunksize of 1 for trace dimension
+        # Check trace chunk size based on grid override
         trace_chunks = ds["amplitude"].chunksizes.get("trace", None)
         if trace_chunks is not None:
-            assert all(chunk == 1 for chunk in trace_chunks)
+            if "NonBinned" in grid_override:
+                # NonBinned uses specified chunksize for trace dimension
+                expected_chunksize = grid_override.get("chunksize", 1)
+                assert all(chunk == expected_chunksize for chunk in trace_chunks)
+            else:
+                # HasDuplicates uses chunksize of 1 for trace dimension
+                assert all(chunk == 1 for chunk in trace_chunks)
 
 
 @pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True}, None])

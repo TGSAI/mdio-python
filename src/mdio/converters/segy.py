@@ -178,16 +178,19 @@ def _scan_for_headers(
         )
         template._dim_names = actual_spatial_dims + (template.trace_domain,)
 
-    # Handle NonBinned: move non-binned dimensions to coordinates
+    # If using NonBinned override, expose non-binned dims as logical coordinates on the template instance
     if grid_overrides and "NonBinned" in grid_overrides and "non_binned_dims" in grid_overrides:
         non_binned_dims = tuple(grid_overrides["non_binned_dims"])
         if non_binned_dims:
             logger.debug(
-                "NonBinned grid override: moving dimensions %s to coordinates",
+                "NonBinned grid override: exposing non-binned dims as coordinates: %s",
                 non_binned_dims,
             )
-            # Add non-binned dimensions as logical coordinates
-            template._logical_coord_names = template._logical_coord_names + non_binned_dims
+            # Append any missing names; keep existing order and avoid duplicates
+            existing = set(template.coordinate_names)
+            to_add = tuple(n for n in non_binned_dims if n not in existing)
+            if to_add:
+                template._logical_coord_names = template._logical_coord_names + to_add
 
     return segy_dimensions, segy_headers
 
