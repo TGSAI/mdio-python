@@ -71,10 +71,41 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         horizontal_coordinates,
         chunksize=chunksize,
         grid_overrides=grid_overrides,
+        template=template,
     )
 
+    # After grid overrides, determine final spatial dimensions and their chunk sizes
+    non_binned_dims = set()
+    if "NonBinned" in grid_overrides and "non_binned_dims" in grid_overrides:
+        non_binned_dims = set(grid_overrides["non_binned_dims"])
+
+    # Create mapping from dimension name to original chunk size for easy lookup
+    original_spatial_dims = list(template.spatial_dimension_names)
+    original_chunks = list(template.full_chunk_shape[:-1])  # Exclude vertical (sample/time) dimension
+    dim_to_chunk = dict(zip(original_spatial_dims, original_chunks, strict=True))
+
+    # Final spatial dimensions: keep trace and original dims, exclude non-binned dims
+    final_spatial_dims = []
+    final_spatial_chunks = []
+    for name in horizontal_coordinates:
+        if name in non_binned_dims:
+            continue  # Skip dimensions that became coordinates
+        if name == "trace":
+            # Special handling for trace dimension
+            chunk_val = int(grid_overrides.get("chunksize", 1)) if "NonBinned" in grid_overrides else 1
+            final_spatial_dims.append(name)
+            final_spatial_chunks.append(chunk_val)
+        elif name in dim_to_chunk:
+            # Use original chunk size for known dimensions
+            final_spatial_dims.append(name)
+            final_spatial_chunks.append(dim_to_chunk[name])
+
+    chunksize = tuple(final_spatial_chunks + [template.full_chunk_shape[-1]])
+
     dimensions = []
-    for dim_name in horizontal_dimensions:
+    for dim_name in final_spatial_dims:
+        if dim_name not in headers_subset.dtype.names:
+            continue
         dim_unique = np.unique(headers_subset[dim_name])
         dimensions.append(Dimension(coords=dim_unique, name=dim_name))
 
