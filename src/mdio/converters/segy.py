@@ -134,31 +134,27 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
-def _scan_for_headers(
-    segy_file_kwargs: SegyFileArguments,
-    segy_file_info: SegyFileInfo,
+def _update_template_from_grid_overrides(
     template: AbstractDatasetTemplate,
-    grid_overrides: dict[str, Any] | None = None,
-) -> tuple[list[Dimension], SegyHeaderArray]:
-    """Extract trace dimensions and index headers from the SEG-Y file.
+    grid_overrides: dict[str, Any] | None,
+    segy_dimensions: list[Dimension],
+    full_chunk_shape: tuple[int, ...],
+    chunk_size: tuple[int, ...],
+) -> None:
+    """Update template attributes to match grid plan results after grid overrides.
 
-    This is an expensive operation.
-    It scans the SEG-Y file in chunks by using ProcessPoolExecutor.
+    This function modifies the template in-place to reflect changes from grid overrides:
+    - Updates chunk shape if it changed due to overrides
+    - Updates dimension names if they changed due to overrides
+    - Adds non-binned dimensions as coordinates for NonBinned override
 
-    Note:
-        If grid_overrides are applied to the template before calling this function,
-        the chunk_size returned from get_grid_plan should match the template's chunk shape.
+    Args:
+        template: The template to update
+        grid_overrides: Grid override configuration
+        segy_dimensions: Dimensions returned from grid planning
+        full_chunk_shape: Original template chunk shape
+        chunk_size: Chunk size returned from grid planning
     """
-    full_chunk_shape = template.full_chunk_shape
-    segy_dimensions, chunk_size, segy_headers = get_grid_plan(
-        segy_file_kwargs=segy_file_kwargs,
-        segy_file_info=segy_file_info,
-        return_headers=True,
-        template=template,
-        chunksize=full_chunk_shape,
-        grid_overrides=grid_overrides,
-    )
-
     # Update template to match grid_plan results after grid overrides
     if full_chunk_shape != chunk_size:
         logger.debug(
@@ -191,6 +187,40 @@ def _scan_for_headers(
             to_add = tuple(n for n in non_binned_dims if n not in existing)
             if to_add:
                 template._logical_coord_names = template._logical_coord_names + to_add
+
+
+def _scan_for_headers(
+    segy_file_kwargs: SegyFileArguments,
+    segy_file_info: SegyFileInfo,
+    template: AbstractDatasetTemplate,
+    grid_overrides: dict[str, Any] | None = None,
+) -> tuple[list[Dimension], SegyHeaderArray]:
+    """Extract trace dimensions and index headers from the SEG-Y file.
+
+    This is an expensive operation.
+    It scans the SEG-Y file in chunks by using ProcessPoolExecutor.
+
+    Note:
+        If grid_overrides are applied to the template before calling this function,
+        the chunk_size returned from get_grid_plan should match the template's chunk shape.
+    """
+    full_chunk_shape = template.full_chunk_shape
+    segy_dimensions, chunk_size, segy_headers = get_grid_plan(
+        segy_file_kwargs=segy_file_kwargs,
+        segy_file_info=segy_file_info,
+        return_headers=True,
+        template=template,
+        chunksize=full_chunk_shape,
+        grid_overrides=grid_overrides,
+    )
+
+    _update_template_from_grid_overrides(
+        template=template,
+        grid_overrides=grid_overrides,
+        segy_dimensions=segy_dimensions,
+        full_chunk_shape=full_chunk_shape,
+        chunk_size=chunk_size,
+    )
 
     return segy_dimensions, segy_headers
 
