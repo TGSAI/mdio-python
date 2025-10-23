@@ -1,116 +1,156 @@
 """Environment variable management for MDIO operations."""
 
-from os import getenv
-
 from psutil import cpu_count
+from pydantic import ConfigDict
+from pydantic import Field
+from pydantic import ValidationError
+from pydantic import field_validator
+from pydantic_settings import BaseSettings
 
 from mdio.converters.exceptions import EnvironmentFormatError
 
-# Environment variable keys
-_EXPORT_CPUS_KEY = "MDIO__EXPORT__CPU_COUNT"
-_IMPORT_CPUS_KEY = "MDIO__IMPORT__CPU_COUNT"
-_GRID_SPARSITY_RATIO_WARN_KEY = "MDIO__GRID__SPARSITY_RATIO_WARN"
-_GRID_SPARSITY_RATIO_LIMIT_KEY = "MDIO__GRID__SPARSITY_RATIO_LIMIT"
-_SAVE_SEGY_FILE_HEADER_KEY = "MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"
-_MDIO_SEGY_SPEC_KEY = "MDIO__SEGY__SPEC"
-_RAW_HEADERS_KEY = "MDIO__IMPORT__RAW_HEADERS"
-_IGNORE_CHECKS_KEY = "MDIO_IGNORE_CHECKS"
-_CLOUD_NATIVE_KEY = "MDIO__IMPORT__CLOUD_NATIVE"
 
-# Default values
-_EXPORT_CPUS_DEFAULT = cpu_count(logical=True)
-_IMPORT_CPUS_DEFAULT = cpu_count(logical=True)
-_GRID_SPARSITY_RATIO_WARN_DEFAULT = "2"
-_GRID_SPARSITY_RATIO_LIMIT_DEFAULT = "10"
-_SAVE_SEGY_FILE_HEADER_DEFAULT = "false"
-_MDIO_SEGY_SPEC_DEFAULT = None
-_RAW_HEADERS_DEFAULT = "false"
-_IGNORE_CHECKS_DEFAULT = "false"
-_CLOUD_NATIVE_DEFAULT = "false"
+class MDIOSettings(BaseSettings):
+    """MDIO environment configuration settings."""
+
+    # CPU configuration
+    export_cpus: int = Field(
+        default_factory=lambda: cpu_count(logical=True),
+        description="Number of CPUs to use for export operations",
+        alias="MDIO__EXPORT__CPU_COUNT",
+    )
+    import_cpus: int = Field(
+        default_factory=lambda: cpu_count(logical=True),
+        description="Number of CPUs to use for import operations",
+        alias="MDIO__IMPORT__CPU_COUNT",
+    )
+
+    # Grid sparsity configuration
+    grid_sparsity_ratio_warn: float = Field(
+        default=2.0,
+        description="Sparsity ratio threshold for warnings",
+        alias="MDIO__GRID__SPARSITY_RATIO_WARN",
+    )
+    grid_sparsity_ratio_limit: float = Field(
+        default=10.0,
+        description="Sparsity ratio threshold for errors",
+        alias="MDIO__GRID__SPARSITY_RATIO_LIMIT",
+    )
+
+    # Import configuration
+    save_segy_file_header: bool = Field(
+        default=False,
+        description="Whether to save SEG-Y file headers",
+        alias="MDIO__IMPORT__SAVE_SEGY_FILE_HEADER",
+    )
+    raw_headers: bool = Field(
+        default=False,
+        description="Whether to preserve raw headers",
+        alias="MDIO__IMPORT__RAW_HEADERS",
+    )
+    cloud_native: bool = Field(
+        default=False,
+        description="Whether to use cloud-native mode for SEG-Y processing",
+        alias="MDIO__IMPORT__CLOUD_NATIVE",
+    )
+
+    # General configuration
+    mdio_segy_spec: str | None = Field(
+        default=None,
+        description="Path to MDIO SEG-Y specification file",
+        alias="MDIO__SEGY__SPEC",
+    )
+    ignore_checks: bool = Field(
+        default=False,
+        description="Whether to ignore validation checks",
+        alias="MDIO_IGNORE_CHECKS",
+    )
+
+    model_config = ConfigDict(
+        env_prefix="",
+        case_sensitive=True,
+    )
+
+    @field_validator("save_segy_file_header", "raw_headers", "ignore_checks", "cloud_native", mode="before")
+    @classmethod
+    def parse_bool_fields(cls, v: object) -> bool:
+        """Parse boolean fields leniently, like the original implementation."""
+        if v is None:
+            return False
+        if isinstance(v, str):
+            return v.lower() in ("1", "true", "yes", "on")
+        return bool(v)
 
 
-def _get_env_value(key: str, default: str | int | None) -> str | None:
-    """Get environment variable value with fallback to default."""
-    if isinstance(default, int):
-        default = str(default)
-    return getenv(key, default)
-
-
-def _parse_bool(value: str | None) -> bool:
-    """Parse string value to boolean."""
-    if value is None:
-        return False
-    return value.lower() in ("1", "true", "yes", "on")
-
-
-def _parse_int(value: str | None, key: str) -> int:
-    """Parse string value to integer with validation."""
-    if value is None:
-        raise EnvironmentFormatError(key, "int")
+def _get_settings() -> MDIOSettings:
+    """Get current MDIO settings from environment variables."""
     try:
-        return int(value)
-    except ValueError as e:
-        raise EnvironmentFormatError(key, "int") from e
+        return MDIOSettings()
+    except ValidationError as e:
+        # Extract the field name and expected type from the error
+        error_details = e.errors()[0]
+        field_name = error_details.get("loc", [None])[0]
+        error_type = error_details.get("type", "unknown")
 
+        # Map pydantic error types to our error types
+        type_mapping = {
+            "int_parsing": "int",
+            "float_parsing": "float",
+        }
+        mapped_type = type_mapping.get(error_type, error_type)
 
-def _parse_float(value: str | None, key: str) -> float:
-    """Parse string value to float with validation."""
-    if value is None:
-        raise EnvironmentFormatError(key, "float")
-    try:
-        return float(value)
-    except ValueError as e:
-        raise EnvironmentFormatError(key, "float") from e
+        # Map field names back to environment variable names for the error
+        env_var_mapping = {
+            "export_cpus": "MDIO__EXPORT__CPU_COUNT",
+            "import_cpus": "MDIO__IMPORT__CPU_COUNT",
+            "grid_sparsity_ratio_warn": "MDIO__GRID__SPARSITY_RATIO_WARN",
+            "grid_sparsity_ratio_limit": "MDIO__GRID__SPARSITY_RATIO_LIMIT",
+        }
+        env_var = env_var_mapping.get(field_name, field_name)
+
+        raise EnvironmentFormatError(env_var, mapped_type) from e
 
 
 def export_cpus() -> int:
     """Number of CPUs to use for export operations."""
-    value = _get_env_value(_EXPORT_CPUS_KEY, _EXPORT_CPUS_DEFAULT)
-    return _parse_int(value, _EXPORT_CPUS_KEY)
+    return _get_settings().export_cpus
 
 
 def import_cpus() -> int:
     """Number of CPUs to use for import operations."""
-    value = _get_env_value(_IMPORT_CPUS_KEY, _IMPORT_CPUS_DEFAULT)
-    return _parse_int(value, _IMPORT_CPUS_KEY)
+    return _get_settings().import_cpus
 
 
 def grid_sparsity_ratio_warn() -> float:
     """Sparsity ratio threshold for warnings."""
-    value = _get_env_value(_GRID_SPARSITY_RATIO_WARN_KEY, _GRID_SPARSITY_RATIO_WARN_DEFAULT)
-    return _parse_float(value, _GRID_SPARSITY_RATIO_WARN_KEY)
+    return _get_settings().grid_sparsity_ratio_warn
 
 
 def grid_sparsity_ratio_limit() -> float:
     """Sparsity ratio threshold for errors."""
-    value = _get_env_value(_GRID_SPARSITY_RATIO_LIMIT_KEY, _GRID_SPARSITY_RATIO_LIMIT_DEFAULT)
-    return _parse_float(value, _GRID_SPARSITY_RATIO_LIMIT_KEY)
+    return _get_settings().grid_sparsity_ratio_limit
 
 
 def save_segy_file_header() -> bool:
     """Whether to save SEG-Y file headers."""
-    value = _get_env_value(_SAVE_SEGY_FILE_HEADER_KEY, _SAVE_SEGY_FILE_HEADER_DEFAULT)
-    return _parse_bool(value)
+    return _get_settings().save_segy_file_header
 
 
 def mdio_segy_spec() -> str | None:
     """Path to MDIO SEG-Y specification file."""
-    return _get_env_value(_MDIO_SEGY_SPEC_KEY, _MDIO_SEGY_SPEC_DEFAULT)
+    return _get_settings().mdio_segy_spec
 
 
 def raw_headers() -> bool:
     """Whether to preserve raw headers."""
-    value = _get_env_value(_RAW_HEADERS_KEY, _RAW_HEADERS_DEFAULT)
-    return _parse_bool(value)
+    return _get_settings().raw_headers
 
 
 def ignore_checks() -> bool:
     """Whether to ignore validation checks."""
-    value = _get_env_value(_IGNORE_CHECKS_KEY, _IGNORE_CHECKS_DEFAULT)
-    return _parse_bool(value)
+    return _get_settings().ignore_checks
 
 
 def cloud_native() -> bool:
     """Whether to use cloud-native mode for SEG-Y processing."""
-    value = _get_env_value(_CLOUD_NATIVE_KEY, _CLOUD_NATIVE_DEFAULT)
-    return _parse_bool(value)
+    return _get_settings().cloud_native
