@@ -81,6 +81,9 @@ class AbstractDatasetTemplate(ABC):
 
         Returns:
             Dataset: The constructed dataset
+
+        Raises:
+            ValueError: If coordinate already exists from subclass override.
         """
         self._dim_sizes = sizes
 
