@@ -57,7 +57,7 @@ CHUNK_SIZE = (8, 8, 8)
 
 def test_npy_to_mdio_basic(mock_array: NDArray, mock_template: AbstractDatasetTemplate) -> None:
     """Test basic NumPy to MDIO conversion using a template."""
-    numpy_to_mdio(mock_array, mock_template, "memory://npy.mdio", CHUNK_SIZE)
+    numpy_to_mdio(mock_array, mock_template, "memory://npy.mdio")
     ds = open_mdio("memory://npy.mdio")
 
     # Check data
@@ -80,7 +80,6 @@ def test_npy_to_mdio_with_coords(mock_array: NDArray, mock_template: AbstractDat
         mock_array,
         mock_template,
         "memory://npy_coord.mdio",
-        CHUNK_SIZE,
         index_coords,
     )
     ds = open_mdio("memory://npy_coord.mdio")
@@ -111,7 +110,7 @@ def test_npy_to_mdio_default_chunksize(mock_array: NDArray, mock_template: Abstr
 def test_npy_to_mdio_seismic_template(mock_array: NDArray) -> None:
     """Test NumPy to MDIO conversion using a seismic template."""
     template = Seismic3DPostStackTemplate(data_domain="time")
-    numpy_to_mdio(mock_array, template, "memory://npy_seismic.mdio", CHUNK_SIZE)
+    numpy_to_mdio(mock_array, template, "memory://npy_seismic.mdio")
     ds = open_mdio("memory://npy_seismic.mdio")
 
     # Check data
