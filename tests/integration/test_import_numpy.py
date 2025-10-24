@@ -118,3 +118,50 @@ def test_npy_to_mdio_seismic_template(mock_array: NDArray) -> None:
     npt.assert_array_equal(ds[data_var].values, mock_array)
     assert list(ds.sizes.keys()) == ["inline", "crossline", "time"]
     assert ds[data_var].shape == mock_array.shape
+
+
+def test_npy_to_mdio_invalid_coordinate_names(mock_array: NDArray, mock_template: AbstractDatasetTemplate) -> None:
+    """Test NumPy to MDIO conversion with invalid coordinate names."""
+    index_coords = {
+        "inline": np.arange(15),  # valid
+        "crossline": np.arange(10),  # valid
+        "invalid_dim": np.arange(20),  # invalid dimension name
+    }
+
+    with pytest.raises(ValueError, match=r"Coordinate name 'invalid_dim' not found in template dimensions"):
+        numpy_to_mdio(mock_array, mock_template, "memory://npy_invalid.mdio", index_coords=index_coords)
+
+
+def test_npy_to_mdio_invalid_coordinate_sizes(mock_array: NDArray, mock_template: AbstractDatasetTemplate) -> None:
+    """Test NumPy to MDIO conversion with invalid coordinate array sizes."""
+    index_coords = {
+        "inline": np.arange(10),  # wrong size (should be 15)
+        "crossline": np.arange(10),  # valid
+        "time": np.arange(20),  # valid
+    }
+
+    with pytest.raises(
+        ValueError, match=r"Size of coordinate 'inline' \(10\) does not match array dimension size \(15\)"
+    ):
+        numpy_to_mdio(mock_array, mock_template, "memory://npy_wrong_size.mdio", index_coords=index_coords)
+
+
+def test_npy_to_mdio_valid_custom_coordinates(mock_array: NDArray, mock_template: AbstractDatasetTemplate) -> None:
+    """Test NumPy to MDIO conversion with valid custom coordinates."""
+    index_coords = {
+        "inline": np.arange(100, 115),  # valid size (15)
+        "crossline": np.arange(200, 210),  # valid size (10)
+        "time": np.arange(0, 20),  # valid size (20)
+    }
+
+    numpy_to_mdio(mock_array, mock_template, "memory://npy_valid_custom.mdio", index_coords=index_coords)
+    ds = open_mdio("memory://npy_valid_custom.mdio")
+
+    # Check data
+    data_var = ds.attrs.get("defaultVariableName", "amplitude")
+    npt.assert_array_equal(ds[data_var].values, mock_array)
+
+    # Check coordinates are correctly set
+    npt.assert_array_equal(ds["inline"].values, index_coords["inline"])
+    npt.assert_array_equal(ds["crossline"].values, index_coords["crossline"])
+    npt.assert_array_equal(ds["time"].values, index_coords["time"])

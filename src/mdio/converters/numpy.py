@@ -49,6 +49,42 @@ def _build_dataset(
     return mdio_ds
 
 
+def _validate_coordinates(
+    index_coords: dict[str, NDArray],
+    mdio_template: AbstractDatasetTemplate,
+    array: NDArray,
+) -> None:
+    """Validate user-provided coordinates against template and array dimensions.
+
+    Args:
+        index_coords: Dictionary mapping dimension names to coordinate arrays.
+        mdio_template: The MDIO template defining expected dimensions.
+        array: The numpy array being converted.
+
+    Raises:
+        ValueError: If coordinate names or sizes don't match requirements.
+    """
+    # Validate that coordinate names match template dimension names
+    for coord_name in index_coords:
+        if coord_name not in mdio_template.dimension_names:
+            available_dims = sorted(mdio_template.dimension_names)
+            err = (
+                f"Coordinate name '{coord_name}' not found in template dimensions. "
+                f"Available dimensions: {available_dims}"
+            )
+            raise ValueError(err)
+
+    # Validate coordinate array sizes match array dimensions
+    for dim_name, coord_array in index_coords.items():
+        expected_size = array.shape[mdio_template.dimension_names.index(dim_name)]
+        if coord_array.size != expected_size:
+            err = (
+                f"Size of coordinate '{dim_name}' ({coord_array.size}) does not match "
+                f"array dimension size ({expected_size})"
+            )
+            raise ValueError(err)
+
+
 def _populate_coordinates_and_write(
     xr_dataset: xr_Dataset,
     index_coords: dict[str, NDArray],
@@ -110,6 +146,10 @@ def numpy_to_mdio(  # noqa: PLR0913
     if not overwrite and output_path.exists():
         err = f"Output location '{output_path.as_posix()}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)
+
+    # Validate coordinates if provided
+    if index_coords:
+        _validate_coordinates(index_coords, mdio_template, array)
 
     # Build dataset
     mdio_ds = _build_dataset(
