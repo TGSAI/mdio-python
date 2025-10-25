@@ -63,3 +63,7 @@ class MDIONotFoundError(MDIOError):
 
 class MDIOMissingVariableError(MDIOError):
     """Raised when a variable is missing from the MDIO dataset."""
+
+
+class MDIOMissingFieldError(MDIOError):
+    """Raised when a template key is missing from the SEG-Y file to be ingeseted."""
