@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import base64
 import logging
-import os
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -14,6 +13,11 @@ from segy.config import SegyHeaderOverrides
 from segy.standards.codes import MeasurementSystem as SegyMeasurementSystem
 from segy.standards.fields import binary as binary_header_fields
 
+from mdio.api._environ import grid_sparsity_ratio_limit
+from mdio.api._environ import grid_sparsity_ratio_warn
+from mdio.api._environ import ignore_checks as ignore_checks_env
+from mdio.api._environ import raw_headers
+from mdio.api._environ import save_segy_file_header
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.chunk_grid import RegularChunkGrid
@@ -28,7 +32,6 @@ from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.xarray_builder import to_xarray_dataset
 from mdio.constants import ZarrFormat
-from mdio.converters.exceptions import EnvironmentFormatError
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
@@ -92,8 +95,6 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     Raises:
         GridTraceSparsityError: If the sparsity ratio exceeds `MDIO__GRID__SPARSITY_RATIO_LIMIT`
             and `MDIO_IGNORE_CHECKS` is not set to a truthy value (e.g., "1", "true").
-        EnvironmentFormatError: If `MDIO__GRID__SPARSITY_RATIO_WARN` or
-            `MDIO__GRID__SPARSITY_RATIO_LIMIT` cannot be converted to a float.
     """
     # Calculate total possible traces in the grid (excluding sample dimension)
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)
@@ -102,20 +103,9 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     sparsity_ratio = float("inf") if num_traces == 0 else grid_traces / num_traces
 
     # Fetch and validate environment variables
-    warning_ratio_env = os.getenv("MDIO__GRID__SPARSITY_RATIO_WARN", "2")
-    error_ratio_env = os.getenv("MDIO__GRID__SPARSITY_RATIO_LIMIT", "10")
-    ignore_checks_env = os.getenv("MDIO_IGNORE_CHECKS", "false").lower()
-    ignore_checks = ignore_checks_env in ("1", "true", "yes", "on")
-
-    try:
-        warning_ratio = float(warning_ratio_env)
-    except ValueError as e:
-        raise EnvironmentFormatError("MDIO__GRID__SPARSITY_RATIO_WARN", "float") from e  # noqa: EM101
-
-    try:
-        error_ratio = float(error_ratio_env)
-    except ValueError as e:
-        raise EnvironmentFormatError("MDIO__GRID__SPARSITY_RATIO_LIMIT", "float") from e  # noqa: EM101
+    warning_ratio = grid_sparsity_ratio_warn()
+    error_ratio = grid_sparsity_ratio_limit()
+    ignore_checks = ignore_checks_env()
 
     # Check sparsity
     should_warn = sparsity_ratio > warning_ratio
@@ -373,8 +363,7 @@ def _populate_coordinates(
 
 
 def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_info: SegyFileInfo) -> xr_Dataset:
-    save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
-    if not save_file_header:
+    if not save_segy_file_header():
         return xr_dataset
 
     expected_rows = 40
@@ -398,7 +387,7 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_info: SegyFileInfo)
             "binaryHeader": segy_file_info.binary_header_dict,
         }
     )
-    if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
+    if raw_headers():
         raw_binary_base64 = base64.b64encode(segy_file_info.raw_binary_headers).decode("ascii")
         xr_dataset["segy_file_header"].attrs.update({"rawBinaryHeader": raw_binary_base64})
 
@@ -565,7 +554,7 @@ def segy_to_mdio(  # noqa PLR0913
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
 
-    if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
+    if raw_headers():
         if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
             logger.warning("Raw headers are only supported for Zarr v3. Skipping raw headers.")
         else:
