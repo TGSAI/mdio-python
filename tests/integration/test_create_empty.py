@@ -29,6 +29,7 @@ from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_xr_variable
 
 from mdio import __version__
+from mdio.api.create import create_empty
 from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
@@ -36,7 +37,6 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.converters.mdio import mdio_to_segy
 from mdio.core import Dimension
-from mdio.creators.mdio import create_empty
 
 UNITS_NONE = None
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)

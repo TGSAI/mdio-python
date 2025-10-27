@@ -83,3 +83,4 @@ def create_empty(  # noqa PLR0913
     # Write the dimension coordinates and trace mask
     meta_ds = dataset[drop_vars_delayed + ["trace_mask"]]
     to_mdio(meta_ds, output_path=output_path, mode="r+", compute=True)
+
