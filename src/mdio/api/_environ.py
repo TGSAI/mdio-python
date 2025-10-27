@@ -55,11 +55,6 @@ class MDIOSettings(BaseSettings):
     )
 
     # General configuration
-    mdio_segy_spec: str | None = Field(
-        default=None,
-        description="Path to MDIO SEG-Y specification file",
-        alias="MDIO__SEGY__SPEC",
-    )
     ignore_checks: bool = Field(
         default=False,
         description="Whether to ignore validation checks",
@@ -134,11 +129,6 @@ def grid_sparsity_ratio_limit() -> float:
 def save_segy_file_header() -> bool:
     """Whether to save SEG-Y file headers."""
     return _get_settings().save_segy_file_header
-
-
-def mdio_segy_spec() -> str | None:
-    """Path to MDIO SEG-Y specification file."""
-    return _get_settings().mdio_segy_spec
 
 
 def raw_headers() -> bool:

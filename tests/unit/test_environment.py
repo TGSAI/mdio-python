@@ -12,7 +12,6 @@ from mdio.api._environ import grid_sparsity_ratio_limit
 from mdio.api._environ import grid_sparsity_ratio_warn
 from mdio.api._environ import ignore_checks
 from mdio.api._environ import import_cpus
-from mdio.api._environ import mdio_segy_spec
 from mdio.api._environ import raw_headers
 from mdio.api._environ import save_segy_file_header
 from mdio.converters.exceptions import EnvironmentFormatError
@@ -40,12 +39,6 @@ class TestEnvironment:
             result = method()
             assert isinstance(result, expected_type)
 
-    def test_mdio_segy_spec_defaults_to_none(self) -> None:
-        """Test mdio_segy_spec returns None by default."""
-        with patch.dict(os.environ, {}, clear=True):
-            result = mdio_segy_spec()
-            assert result is None
-
     @pytest.mark.parametrize(
         ("env_var", "value", "method", "expected"),
         [
@@ -53,7 +46,6 @@ class TestEnvironment:
             ("MDIO__IMPORT__CPU_COUNT", "4", import_cpus, 4),
             ("MDIO__GRID__SPARSITY_RATIO_WARN", "3.5", grid_sparsity_ratio_warn, 3.5),
             ("MDIO__GRID__SPARSITY_RATIO_LIMIT", "15.0", grid_sparsity_ratio_limit, 15.0),
-            ("MDIO__SEGY__SPEC", "/path/to/spec.json", mdio_segy_spec, "/path/to/spec.json"),
         ],
     )
     def test_env_var_overrides(self, env_var: str, value: str, method: Callable[[], object], expected: object) -> None:
