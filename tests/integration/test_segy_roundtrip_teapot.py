@@ -14,11 +14,15 @@ from segy.schema import ScalarType
 from segy.standards import get_segy_standard
 from tests.integration.testing_helpers import get_inline_header_values
 from tests.integration.testing_helpers import get_values
-from tests.integration.testing_helpers import validate_variable
+from tests.integration.testing_helpers import validate_xr_variable
 
 from mdio import __version__
 from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.units import TimeUnitEnum
+from mdio.builder.schemas.v1.units import TimeUnitModel
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.segy import segy_to_mdio
 from mdio.segy.file import SegyFileWrapper
@@ -148,6 +152,11 @@ def raw_binary_header_teapot_dome() -> str:
     )
 
 
+UNITS_NONE = None
+UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
+UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
+
+
 class TestTeapotRoundtrip:
     """Tests for Teapot Dome data ingestion and export."""
 
@@ -163,9 +172,13 @@ class TestTeapotRoundtrip:
 
         NOTE: This test must be executed before the 'TestReader' and 'TestExport' tests.
         """
+        unit_aware_template = TemplateRegistry().get("PostStack3DTime")
+        unit_aware_template.add_units({"time": UNITS_SECOND})
+        unit_aware_template.add_units({"cdp_x": UNITS_METER})
+        unit_aware_template.add_units({"cdp_y": UNITS_METER})
         segy_to_mdio(
             segy_spec=teapot_segy_spec,
-            mdio_template=TemplateRegistry().get("PostStack3DTime"),
+            mdio_template=unit_aware_template,
             input_path=segy_input,
             output_path=zarr_tmp,
             overwrite=True,
@@ -224,38 +237,38 @@ class TestTeapotRoundtrip:
         ds = open_mdio(zarr_tmp)
 
         # Validate the dimension coordinate variables
-        validate_variable(ds, "inline", (345,), ("inline",), np.int32, range(1, 346), get_values)
-        validate_variable(ds, "crossline", (188,), ("crossline",), np.int32, range(1, 189), get_values)
-        validate_variable(ds, "time", (1501,), ("time",), np.int32, range(0, 3002, 2), get_values)
+        validate_xr_variable(ds, "inline", {"inline": 345}, UNITS_NONE, np.int32, range(1, 346), get_values)
+        validate_xr_variable(ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, range(1, 189), get_values)
+        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables
-        validate_variable(ds, "cdp_x", (345, 188), ("inline", "crossline"), np.float64, None, None)
-        validate_variable(ds, "cdp_y", (345, 188), ("inline", "crossline"), np.float64, None, None)
+        validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64, None, None)
+        validate_xr_variable(ds, "cdp_y", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64, None, None)
 
         # Validate the headers
         # We have a custom set of headers since we used customize_segy_specs()
         segy_spec = teapot_segy_spec
         data_type = segy_spec.trace.header.dtype
 
-        validate_variable(
+        validate_xr_variable(
             ds,
             "headers",
-            (345, 188),
-            ("inline", "crossline"),
+            {"inline": 345, "crossline": 188},
+            UNITS_NONE,
             data_type.newbyteorder("native"),  # mdio saves with machine endian, spec could be different endian
             range(1, 346),
             get_inline_header_values,
         )
 
         # Validate the trace mask
-        validate_variable(ds, "trace_mask", (345, 188), ("inline", "crossline"), np.bool, None, None)
+        validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool, None, None)
 
         # validate the amplitude data
-        validate_variable(
+        validate_xr_variable(
             ds,
             "amplitude",
-            (345, 188, 1501),
-            ("inline", "crossline", "time"),
+            {"inline": 345, "crossline": 188, "time": 1501},
+            UNITS_NONE,
             np.float32,
             None,
             None,

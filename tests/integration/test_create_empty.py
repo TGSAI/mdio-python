@@ -26,16 +26,60 @@ if TYPE_CHECKING:
 
 
 from tests.integration.testing_helpers import get_values
-from tests.integration.testing_helpers import validate_variable
+from tests.integration.testing_helpers import validate_xr_variable
 
 from mdio import __version__
 from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
+from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.converters.mdio import mdio_to_segy
 from mdio.core import Dimension
 from mdio.creators.mdio import create_empty
+
+UNITS_NONE = None
+UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
+UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
+UNITS_METER_PER_SECOND = SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)
+UNITS_FOOT = LengthUnitModel(length=LengthUnitEnum.FOOT)
+UNITS_FEET_PER_SECOND = SpeedUnitModel(speed=SpeedUnitEnum.FEET_PER_SECOND)
+
+
+class PostStack3DVelocityTemplate(Seismic3DPostStackTemplate):
+    """Custom template that uses 'velocity' as the default variable name instead of 'amplitude'."""
+
+    @property
+    def _default_variable_name(self) -> str:
+        """Override the default variable name."""
+        return "velocity"
+
+    def __init__(self, data_domain: str, is_metric: bool) -> None:
+        super().__init__(data_domain)
+        if is_metric:
+            self._units.update(
+                {
+                    "time": UNITS_SECOND,
+                    "cdp_x": UNITS_METER,
+                    "cdp_y": UNITS_METER,
+                    "velocity": UNITS_METER_PER_SECOND,
+                }
+            )
+        else:
+            self._units.update(
+                {
+                    "time": UNITS_SECOND,
+                    "cdp_x": UNITS_FOOT,
+                    "cdp_y": UNITS_FOOT,
+                    "velocity": UNITS_FEET_PER_SECOND,
+                }
+            )
+
+    @property
+    def _name(self) -> str:
+        """Override the name of the template."""
+        domain_suffix = self._data_domain.capitalize()
+        return f"PostStack3DVelocity{domain_suffix}"
 
 
 class TestCreateEmptyPostStack3DTimeMdio:
@@ -58,35 +102,51 @@ class TestCreateEmptyPostStack3DTimeMdio:
     @classmethod
     def _validate_empty_mdio_dataset(cls, ds: xr_Dataset, has_headers: bool) -> None:
         """Validate an empty MDIO dataset structure and content."""
+        assert ds.name == "PostStack3DVelocityTime"
         # Check that the dataset has the expected shape
         assert ds.sizes == {"inline": 345, "crossline": 188, "time": 1501}
 
         # Validate the dimension coordinate variables
-        validate_variable(ds, "inline", (345,), ("inline",), np.int32, range(1, 346), get_values)
-        validate_variable(ds, "crossline", (188,), ("crossline",), np.int32, range(1, 189), get_values)
-        validate_variable(ds, "time", (1501,), ("time",), np.int32, range(0, 3002, 2), get_values)
+        validate_xr_variable(ds, "inline", {"inline": 345}, UNITS_NONE, np.int32, range(1, 346), get_values)
+        validate_xr_variable(ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, range(1, 189), get_values)
+        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables (should be empty for empty dataset)
-        validate_variable(ds, "cdp_x", (345, 188), ("inline", "crossline"), np.float64, None, None)
-        validate_variable(ds, "cdp_y", (345, 188), ("inline", "crossline"), np.float64, None, None)
+        validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64, None, None)
+        validate_xr_variable(ds, "cdp_y", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64, None, None)
 
         if has_headers:
             # Validate the headers (should be empty for empty dataset)
             # Infer the dtype from segy_spec and ignore endianness
             header_dtype = cls._get_customized_v10_trace_header_spec().dtype.newbyteorder("native")
-            validate_variable(ds, "headers", (345, 188), ("inline", "crossline"), header_dtype, None, None)
-            validate_variable(ds, "segy_file_header", (), (), np.dtype("U1"), None, None)
+            validate_xr_variable(ds, "headers", {"inline": 345, "crossline": 188}, UNITS_NONE, header_dtype, None, None)
+            validate_xr_variable(
+                ds,
+                "segy_file_header",
+                dims={},
+                units=UNITS_NONE,
+                data_type=np.dtype("U1"),
+                expected_values=None,
+                actual_value_generator=None,
+            )
         else:
             assert "headers" not in ds.variables
             assert "segy_file_header" not in ds.variables
-
         # Validate the trace mask (should be all True for empty dataset)
-        validate_variable(ds, "trace_mask", (345, 188), ("inline", "crossline"), np.bool_, None, None)
+        validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool_, None, None)
         trace_mask = ds["trace_mask"].values
         assert not np.any(trace_mask), "All traces should be marked as dead in empty dataset"
 
         # Validate the amplitude data (should be empty)
-        validate_variable(ds, "amplitude", (345, 188, 1501), ("inline", "crossline", "time"), np.float32, None, None)
+        validate_xr_variable(
+            ds,
+            "velocity",
+            {"inline": 345, "crossline": 188, "time": 1501},
+            UNITS_METER_PER_SECOND,
+            np.float32,
+            None,
+            None,
+        )
 
     @classmethod
     def _create_empty_mdio(cls, create_headers: bool, output_path: Path, overwrite: bool = True) -> None:
@@ -101,8 +161,10 @@ class TestCreateEmptyPostStack3DTimeMdio:
         # If later on, we want to export to SEG-Y, we need to provide the trace header spec.
         # The HeaderSpec can be either standard or customized.
         headers = cls._get_customized_v10_trace_header_spec() if create_headers else None
+
+        # Create an empty MDIO v1 metric post-stack 3D time velocity dataset
         create_empty(
-            mdio_template_name="PostStack3DTime",
+            mdio_template=PostStack3DVelocityTemplate(data_domain="time", is_metric=True),
             dimensions=dims,
             output_path=output_path,
             headers=headers,
@@ -138,7 +200,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
         # Check basic metadata attributes
         expected_attrs = {
             "apiVersion": __version__,
-            "name": "PostStack3DTime",
+            "name": "PostStack3DVelocityTime",
         }
         actual_attrs_json = ds.attrs
 
@@ -159,7 +221,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
         assert attributes is not None
         assert len(attributes) == 3
         # Validate all attributes provided by the abstract template
-        assert attributes["defaultVariableName"] == "amplitude"
+        assert attributes["defaultVariableName"] == "velocity"
         assert attributes["surveyType"] == "3D"
         assert attributes["gatherType"] == "stacked"
 
@@ -203,9 +265,9 @@ class TestCreateEmptyPostStack3DTimeMdio:
 
     def test_populate_empty_dataset(self, mdio_with_headers: Path) -> None:
         """Test showing how to populate empty dataset."""
-        # Open an empty PostStack3DTime dataset with SEG-Y 1.0 headers
+        # Open an empty PostStack3DVelocityTime dataset with SEG-Y 1.0 headers
         # NOTES:
-        # When this empty dataset was created from the 'PostStack3DTime' template and dimensions,
+        # When this empty dataset was created from the 'PostStack3DVelocityTime' template and dimensions,
         # * 'inline', 'crossline', and 'time' dimension coordinate variables were created and pre-populated
         # * 'cdp_x', 'cdp_y' non-dimensional coordinate variables were created
         # * 'amplitude' variable was created (the name of this variable is specified in the template)

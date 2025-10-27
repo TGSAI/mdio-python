@@ -20,11 +20,12 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
     from mdio.builder.schemas import Dataset
+    from mdio.builder.templates.base import AbstractDatasetTemplate
     from mdio.core.dimension import Dimension
 
 
 def create_empty(  # noqa PLR0913
-    mdio_template_name: str,
+    mdio_template: AbstractDatasetTemplate | str,
     dimensions: list[Dimension],
     output_path: UPath | Path | str,
     headers: HeaderSpec | None = None,
@@ -33,7 +34,14 @@ def create_empty(  # noqa PLR0913
     """A function that creates an empty MDIO v1 file with known dimensions.
 
     Args:
-        mdio_template_name: The MDIO template to use to define the dataset structure.
+        mdio_template: The MDIO template or template name to use to define the dataset structure.
+            NOTE: If you want to have a unit-aware MDIO model, you need to add the units
+            to the template before calling this function. For example:
+            'unit_aware_template = TemplateRegistry().get("PostStack3DTime")'
+            'unit_aware_template.add_units({"time": UNITS_SECOND})'
+            'unit_aware_template.add_units({"cdp_x": UNITS_METER})'
+            'unit_aware_template.add_units({"cdp_y": UNITS_METER})'
+            'create_empty(unit_aware_template, dimensions, output_path, headers, overwrite)'
         dimensions: The dimensions of the MDIO file.
         output_path: The universal path for the output MDIO v1 file.
         headers: SEG-Y v1.0 trace headers. Defaults to None.
@@ -50,13 +58,11 @@ def create_empty(  # noqa PLR0913
 
     header_dtype = to_structured_type(headers.dtype) if headers else None
     grid = Grid(dims=dimensions)
-    mdio_template = TemplateRegistry().get(mdio_template_name)
-    mdio_ds: Dataset = mdio_template.build_dataset(
-        name=mdio_template_name,
-        sizes=grid.shape,
-        horizontal_coord_unit=None,
-        header_dtype=header_dtype,
-    )
+    if isinstance(mdio_template, str):
+        # A template name is passed in. Get a unit-unaware template from registry
+        mdio_template = TemplateRegistry().get(mdio_template)
+    # Build the dataset using the template
+    mdio_ds: Dataset = mdio_template.build_dataset(name=mdio_template.name, sizes=grid.shape, header_dtype=header_dtype)
 
     # Convert to xarray dataset
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
