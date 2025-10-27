@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from segy.arrays import HeaderArray
 
-from mdio.api._environ import cloud_native
+from mdio.api._environ import MDIOSettings
 from mdio.api.io import _normalize_storage_options
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 from mdio.segy.file import SegyFileArguments
@@ -50,7 +50,7 @@ def header_scan_worker(
 
     slice_ = slice(*trace_range)
 
-    trace_header = segy_file.trace[slice_].header if cloud_native() else segy_file.header[slice_]
+    trace_header = segy_file.trace[slice_].header if MDIOSettings().cloud_native else segy_file.header[slice_]
 
     if subset is not None:
         # struct field selection needs a list, not a tuple; a subset is a tuple from the template.
