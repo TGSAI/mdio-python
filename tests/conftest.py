@@ -76,25 +76,3 @@ def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def empty_mdio_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for empty MDIO testing."""
     return tmp_path_factory.mktemp(r"empty_mdio_dir")
-
-
-# Uncomment the function below for local debugging
-# @pytest.fixture(scope="session")
-# def tmp_path_factory() -> pytest.TempPathFactory:
-#     """Custom tmp_path_factory implementation for local debugging."""
-#     from pathlib import Path  # noqa: PLC0415
-
-#     class DebugTempPathFactory:
-#         def __init__(self) -> None:
-#             self._retention_policy = "all"
-
-#         def mktemp(self, basename: str, numbered: bool = True) -> Path:
-#             _ = numbered
-#             path = self.getbasetemp() / basename
-#             path.mkdir(parents=True, exist_ok=True)
-#             return path
-
-#         def getbasetemp(self) -> Path:
-#             return Path("tmp")
-
-#     return DebugTempPathFactory()
