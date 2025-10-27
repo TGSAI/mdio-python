@@ -75,23 +75,12 @@ $ export MDIO__IMPORT__SAVE_SEGY_FILE_HEADER=true
 $ mdio segy import input.segy output.mdio --header-locations 189,193
 ```
 
-### `MDIO__SEGY__SPEC`
-
-**Type:** String (file path)  
-**Default:** None
-
-Path to a custom SEG-Y specification file that defines byte locations and data types for
-trace headers. Use this to handle non-standard SEG-Y variants or custom header layouts.
-
-```shell
-$ export MDIO__SEGY__SPEC=/path/to/custom_spec.json
-$ mdio segy import input.segy output.mdio --header-locations 189,193
-```
+````
 
 ### `MDIO__IMPORT__CLOUD_NATIVE`
 
-**Type:** Boolean  
-**Default:** false  
+**Type:** Boolean
+**Default:** false
 **Accepted values:** `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
 
 Enables buffered reads during SEG-Y header scans to optimize performance when reading from or
@@ -101,7 +90,7 @@ actual ingestion.
 
 ```{note}
 This variable is designed for cloud storage I/O, regardless of where the compute is running.
-```
+````
 
 **When to use:**
 
