@@ -78,14 +78,14 @@ class TestEnvironment:
             assert result is expected
 
     @pytest.mark.parametrize(
-        ("property_name", "env_var"),
+        ("env_var"),
         [
-            ("export_cpus", "MDIO__EXPORT__CPU_COUNT"),
-            ("import_cpus", "MDIO__IMPORT__CPU_COUNT"),
+            ("MDIO__EXPORT__CPU_COUNT"),
+            ("MDIO__IMPORT__CPU_COUNT"),
         ],
     )
     @pytest.mark.parametrize("invalid_value", ["invalid", "not_a_number", ""])
-    def test_int_validation_errors(self, property_name: str, env_var: str, invalid_value: str) -> None:
+    def test_int_validation_errors(self, env_var: str, invalid_value: str) -> None:
         """Test integer properties raise errors for invalid values."""
         with patch.dict(os.environ, {env_var: invalid_value}):
             with pytest.raises(ValidationError) as exc_info:
@@ -94,14 +94,14 @@ class TestEnvironment:
             assert "int" in str(exc_info.value)
 
     @pytest.mark.parametrize(
-        ("property_name", "env_var"),
+        ("env_var"),
         [
-            ("grid_sparsity_ratio_warn", "MDIO__GRID__SPARSITY_RATIO_WARN"),
-            ("grid_sparsity_ratio_limit", "MDIO__GRID__SPARSITY_RATIO_LIMIT"),
+            ("MDIO__GRID__SPARSITY_RATIO_WARN"),
+            ("MDIO__GRID__SPARSITY_RATIO_LIMIT"),
         ],
     )
     @pytest.mark.parametrize("invalid_value", ["invalid", "not_a_number", ""])
-    def test_float_validation_errors(self, property_name: str, env_var: str, invalid_value: str) -> None:
+    def test_float_validation_errors(self, env_var: str, invalid_value: str) -> None:
         """Test float properties raise errors for invalid values."""
         with patch.dict(os.environ, {env_var: invalid_value}):
             with pytest.raises(ValidationError) as exc_info:
