@@ -47,6 +47,18 @@ def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.mktemp(r"mdio")
 
 
+@pytest.fixture(scope="session")
+def teapot_mdio_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Make a temp file for the output MDIO."""
+    return tmp_path_factory.mktemp(r"teapot.mdio")
+
+
+@pytest.fixture(scope="module")
+def mdio_4d_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Make a temp file for the output MDIO."""
+    return tmp_path_factory.mktemp(r"tmp_4d.mdio")
+
+
 @pytest.fixture(scope="module")
 def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:  # pragma: no cover - used by disabled test
     """Make a temp file for the output MDIO."""
@@ -63,4 +75,28 @@ def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 @pytest.fixture(scope="class")
 def empty_mdio_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for empty MDIO testing."""
-    return tmp_path_factory.mktemp(r"empty_mdio")
+    return tmp_path_factory.mktemp(r"empty_mdio_dir")
+
+
+#
+# Uncomment the function below for local debugging
+#
+# @pytest.fixture(scope="session")
+# def tmp_path_factory() -> pytest.TempPathFactory:
+#     """Custom tmp_path_factory implementation for local debugging."""
+#     from pathlib import Path  # noqa: PLC0415
+
+#     class DebugTempPathFactory:
+#         def __init__(self) -> None:
+#             self._retention_policy = "all"
+
+#         def mktemp(self, basename: str, numbered: bool = True) -> Path:
+#             _ = numbered
+#             path = self.getbasetemp() / basename
+#             path.mkdir(parents=True, exist_ok=True)
+#             return path
+
+#         def getbasetemp(self) -> Path:
+#             return Path("tmp")
+
+#     return DebugTempPathFactory()

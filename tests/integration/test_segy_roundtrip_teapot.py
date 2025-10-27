@@ -47,6 +47,11 @@ def set_env_vars(monkeypatch: Generator[pytest.MonkeyPatch]) -> None:
 @pytest.fixture
 def teapot_segy_spec() -> SegySpec:
     """Return the customized SEG-Y specification for the teapot dome dataset."""
+    return get_teapot_segy_spec()
+
+
+def get_teapot_segy_spec() -> SegySpec:
+    """Return the customized SEG-Y specification for the teapot dome dataset."""
     teapot_fields = [
         HeaderField(name="inline", byte=17, format=ScalarType.INT32),
         HeaderField(name="crossline", byte=13, format=ScalarType.INT32),
@@ -157,6 +162,7 @@ UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
 
 
+@pytest.mark.order(1)
 class TestTeapotRoundtrip:
     """Tests for Teapot Dome data ingestion and export."""
 
@@ -165,7 +171,7 @@ class TestTeapotRoundtrip:
     def test_teapot_import(
         self,
         segy_input: Path,
-        zarr_tmp: Path,
+        teapot_mdio_tmp: Path,
         teapot_segy_spec: SegySpec,
     ) -> None:
         """Test importing a SEG-Y file to MDIO.
@@ -180,14 +186,14 @@ class TestTeapotRoundtrip:
             segy_spec=teapot_segy_spec,
             mdio_template=unit_aware_template,
             input_path=segy_input,
-            output_path=zarr_tmp,
+            output_path=teapot_mdio_tmp,
             overwrite=True,
         )
 
     @pytest.mark.dependency("test_3d_import")
-    def test_dataset_metadata(self, zarr_tmp: Path) -> None:
+    def test_dataset_metadata(self, teapot_mdio_tmp: Path) -> None:
         """Metadata reading tests."""
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(teapot_mdio_tmp)
         expected_attrs = {
             "apiVersion": __version__,
             "createdOn": "2025-08-06 16:21:54.747880+00:00",
@@ -215,9 +221,9 @@ class TestTeapotRoundtrip:
         assert segy_file_header.attrs["binaryHeader"] == binary_header_teapot_dome()
         assert segy_file_header.attrs["rawBinaryHeader"] == raw_binary_header_teapot_dome()
 
-    def test_variable_metadata(self, zarr_tmp: Path) -> None:
+    def test_variable_metadata(self, teapot_mdio_tmp: Path) -> None:
         """Metadata reading tests."""
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(teapot_mdio_tmp)
         expected_attrs = {
             "count": 46854270,
             "sum": -8594.551589292674,
@@ -232,9 +238,9 @@ class TestTeapotRoundtrip:
         expected_attrs.pop("histogram")
         np.testing.assert_allclose(list(actual_attrs.values()), list(expected_attrs.values()))
 
-    def test_grid(self, zarr_tmp: Path, teapot_segy_spec: SegySpec) -> None:
+    def test_grid(self, teapot_mdio_tmp: Path, teapot_segy_spec: SegySpec) -> None:
         """Test validating MDIO variables."""
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(teapot_mdio_tmp)
 
         # Validate the dimension coordinate variables
         validate_xr_variable(ds, "inline", {"inline": 345}, UNITS_NONE, np.int32, range(1, 346), get_values)
@@ -274,35 +280,35 @@ class TestTeapotRoundtrip:
             None,
         )
 
-    def test_inline_reads(self, zarr_tmp: Path) -> None:
+    def test_inline_reads(self, teapot_mdio_tmp: Path) -> None:
         """Read and compare every 75 inlines' mean and std. dev."""
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(teapot_mdio_tmp)
         inlines = ds["amplitude"][::75, :, :]
         mean, std = inlines.mean(dtype="float64"), inlines.std(dtype="float64")
         npt.assert_allclose([mean, std], [0.00010555267, 0.60027058412])  # 11 precision
 
-    def test_crossline_reads(self, zarr_tmp: Path) -> None:
+    def test_crossline_reads(self, teapot_mdio_tmp: Path) -> None:
         """Read and compare every 75 crosslines' mean and std. dev."""
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(teapot_mdio_tmp)
         xlines = ds["amplitude"][:, ::75, :]
         mean, std = xlines.mean(dtype="float64"), xlines.std(dtype="float64")
         npt.assert_allclose([mean, std], [-5.03298501828e-05, 0.59406807762])  # 11 precision
 
-    def test_zslice_reads(self, zarr_tmp: Path) -> None:
+    def test_zslice_reads(self, teapot_mdio_tmp: Path) -> None:
         """Read and compare every 225 z-slices' mean and std. dev."""
-        ds = open_mdio(zarr_tmp)
+        ds = open_mdio(teapot_mdio_tmp)
         slices = ds["amplitude"][:, :, ::225]
         mean, std = slices.mean(dtype="float64"), slices.std(dtype="float64")
         npt.assert_allclose([mean, std], [0.00523692339, 0.61279943571])  # 11 precision
 
     @pytest.mark.dependency("test_3d_import")
     def test_3d_export(
-        self, segy_input: Path, zarr_tmp: Path, segy_export_tmp: Path, teapot_segy_spec: SegySpec
+        self, segy_input: Path, teapot_mdio_tmp: Path, segy_export_tmp: Path, teapot_segy_spec: SegySpec
     ) -> None:
         """Test 3D export."""
         rng = np.random.default_rng(seed=1234)
 
-        mdio_to_segy(segy_spec=teapot_segy_spec, input_path=zarr_tmp, output_path=segy_export_tmp)
+        mdio_to_segy(segy_spec=teapot_segy_spec, input_path=teapot_mdio_tmp, output_path=segy_export_tmp)
 
         # Check if file sizes match on IBM file.
         assert segy_input.stat().st_size == segy_export_tmp.stat().st_size

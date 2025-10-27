@@ -7,9 +7,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pytest
-from segy.schema import HeaderField
-from segy.schema import HeaderSpec
-from segy.schema import ScalarType
 from segy.standards import get_segy_standard
 
 from mdio.builder.schemas.v1.units import LengthUnitEnum
@@ -25,11 +22,13 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
 
+from tests.integration.test_segy_roundtrip_teapot import get_teapot_segy_spec
 from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_xr_variable
 
 from mdio import __version__
 from mdio.api.create import create_empty
+from mdio.api.create import create_empty_like
 from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
@@ -82,27 +81,13 @@ class PostStack3DVelocityTemplate(Seismic3DPostStackTemplate):
         return f"PostStack3DVelocity{domain_suffix}"
 
 
-class TestCreateEmptyPostStack3DTimeMdio:
+@pytest.mark.order(1000)
+class TestCreateEmptyMdio:
     """Tests for create_empty_mdio function."""
 
     @classmethod
-    def _get_customized_v10_trace_header_spec(cls) -> HeaderSpec:
-        """Get the header spec for the MDIO dataset."""
-        trace_header_fields = [
-            HeaderField(name="inline", byte=17, format=ScalarType.INT32),
-            HeaderField(name="crossline", byte=13, format=ScalarType.INT32),
-            HeaderField(name="cdp_x", byte=181, format=ScalarType.INT32),
-            HeaderField(name="cdp_y", byte=185, format=ScalarType.INT32),
-            HeaderField(name="coordinate_scalar", byte=71, format=ScalarType.INT16),
-        ]
-        hs: HeaderSpec = get_segy_standard(1.0).trace.header
-        hs.customize(fields=trace_header_fields)
-        return hs
-
-    @classmethod
-    def _validate_empty_mdio_dataset(cls, ds: xr_Dataset, has_headers: bool) -> None:
+    def _validate_empty_mdio_dataset(cls, ds: xr_Dataset, has_headers: bool, is_velocity: bool) -> None:
         """Validate an empty MDIO dataset structure and content."""
-        assert ds.name == "PostStack3DVelocityTime"
         # Check that the dataset has the expected shape
         assert ds.sizes == {"inline": 345, "crossline": 188, "time": 1501}
 
@@ -118,7 +103,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
         if has_headers:
             # Validate the headers (should be empty for empty dataset)
             # Infer the dtype from segy_spec and ignore endianness
-            header_dtype = cls._get_customized_v10_trace_header_spec().dtype.newbyteorder("native")
+            header_dtype = get_teapot_segy_spec().trace.header.dtype.newbyteorder("native")
             validate_xr_variable(ds, "headers", {"inline": 345, "crossline": 188}, UNITS_NONE, header_dtype, None, None)
             validate_xr_variable(
                 ds,
@@ -132,21 +117,33 @@ class TestCreateEmptyPostStack3DTimeMdio:
         else:
             assert "headers" not in ds.variables
             assert "segy_file_header" not in ds.variables
+
         # Validate the trace mask (should be all True for empty dataset)
         validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool_, None, None)
         trace_mask = ds["trace_mask"].values
         assert not np.any(trace_mask), "All traces should be marked as dead in empty dataset"
 
-        # Validate the amplitude data (should be empty)
-        validate_xr_variable(
-            ds,
-            "velocity",
-            {"inline": 345, "crossline": 188, "time": 1501},
-            UNITS_METER_PER_SECOND,
-            np.float32,
-            None,
-            None,
-        )
+        # Validate the velocity or amplitude data (should be empty)
+        if is_velocity:
+            validate_xr_variable(
+                ds,
+                "velocity",
+                {"inline": 345, "crossline": 188, "time": 1501},
+                UNITS_METER_PER_SECOND,
+                np.float32,
+                None,
+                None,
+            )
+        else:
+            validate_xr_variable(
+                ds,
+                "amplitude",
+                {"inline": 345, "crossline": 188, "time": 1501},
+                UNITS_NONE,
+                np.float32,
+                None,
+                None,
+            )
 
     @classmethod
     def _create_empty_mdio(cls, create_headers: bool, output_path: Path, overwrite: bool = True) -> None:
@@ -160,8 +157,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
 
         # If later on, we want to export to SEG-Y, we need to provide the trace header spec.
         # The HeaderSpec can be either standard or customized.
-        headers = cls._get_customized_v10_trace_header_spec() if create_headers else None
-
+        headers = get_teapot_segy_spec().trace.header if create_headers else None
         # Create an empty MDIO v1 metric post-stack 3D time velocity dataset
         create_empty(
             mdio_template=PostStack3DVelocityTemplate(data_domain="time", is_metric=True),
@@ -178,7 +174,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
         This fixture is scoped to the class level, so it will be executed only once
         and shared across all test methods in the class.
         """
-        empty_mdio: Path = empty_mdio_dir / "with_headers.mdio"
+        empty_mdio: Path = empty_mdio_dir / "mdio_with_headers.mdio"
         self._create_empty_mdio(create_headers=True, output_path=empty_mdio)
         return empty_mdio
 
@@ -189,18 +185,21 @@ class TestCreateEmptyPostStack3DTimeMdio:
         This fixture is scoped to the class level, so it will be executed only once
         and shared across all test methods in the class.
         """
-        empty_mdio: Path = empty_mdio_dir / "no_headers.mdio"
+        empty_mdio: Path = empty_mdio_dir / "mdio_no_headers.mdio"
         self._create_empty_mdio(create_headers=False, output_path=empty_mdio)
         return empty_mdio
 
-    def test_dataset_metadata(self, mdio_with_headers: Path) -> None:
-        """Test dataset metadata for empty MDIO file."""
-        ds = open_mdio(mdio_with_headers)
+    def validate_dataset_metadata(self, ds: xr_Dataset, is_velocity: bool) -> None:
+        """Validate the dataset metadata."""
+        if is_velocity:
+            assert ds.name == "PostStack3DVelocityTime"
+        else:
+            assert ds.name == "PostStack3DTime"
 
         # Check basic metadata attributes
         expected_attrs = {
             "apiVersion": __version__,
-            "name": "PostStack3DVelocityTime",
+            "name": ds.name,
         }
         actual_attrs_json = ds.attrs
 
@@ -221,17 +220,25 @@ class TestCreateEmptyPostStack3DTimeMdio:
         assert attributes is not None
         assert len(attributes) == 3
         # Validate all attributes provided by the abstract template
-        assert attributes["defaultVariableName"] == "velocity"
+        if is_velocity:
+            assert attributes["defaultVariableName"] == "velocity"
+        else:
+            assert attributes["defaultVariableName"] == "amplitude"
         assert attributes["surveyType"] == "3D"
         assert attributes["gatherType"] == "stacked"
+
+    def test_dataset_metadata(self, mdio_with_headers: Path) -> None:
+        """Test dataset metadata for empty MDIO file."""
+        ds = open_mdio(mdio_with_headers)
+        self.validate_dataset_metadata(ds, is_velocity=True)
 
     def test_variables(self, mdio_with_headers: Path, mdio_no_headers: Path) -> None:
         """Test grid validation for empty MDIO file."""
         ds = open_mdio(mdio_with_headers)
-        self._validate_empty_mdio_dataset(ds, has_headers=True)
+        self._validate_empty_mdio_dataset(ds, has_headers=True, is_velocity=True)
 
         ds = open_mdio(mdio_no_headers)
-        self._validate_empty_mdio_dataset(ds, has_headers=False)
+        self._validate_empty_mdio_dataset(ds, has_headers=False, is_velocity=True)
 
     def test_overwrite_behavior(self, empty_mdio_dir: Path) -> None:
         """Test overwrite parameter behavior in create_empty_mdio."""
@@ -257,7 +264,7 @@ class TestCreateEmptyPostStack3DTimeMdio:
 
         # Validate that the MDIO file can be loaded correctly using the helper function
         ds = open_mdio(empty_mdio)
-        self._validate_empty_mdio_dataset(ds, has_headers=True)
+        self._validate_empty_mdio_dataset(ds, has_headers=True, is_velocity=True)
 
         # Verify the garbage data was overwritten (should not exist)
         assert not garbage_file.exists(), "Garbage file should have been overwritten"
@@ -374,10 +381,24 @@ class TestCreateEmptyPostStack3DTimeMdio:
             # Select the SEG-Y standard to use for the conversion
             custom_segy_spec = get_segy_standard(1.0)
             # Customize to use the same HeaderSpec that was used to create the empty MDIO
-            custom_segy_spec.trace.header = self._get_customized_v10_trace_header_spec()
+            custom_segy_spec.trace.header = get_teapot_segy_spec().trace.header
             # Convert the MDIO file to SEG-Y
             mdio_to_segy(
                 segy_spec=custom_segy_spec,
                 input_path=output_path_mdio,
                 output_path=mdio_with_headers.parent / "populated_empty.sgy",
             )
+
+    @pytest.mark.order(1001)
+    @pytest.mark.dependency
+    def test_create_empty_like(self, teapot_mdio_tmp: Path, mdio_with_headers: Path) -> None:
+        """Create an empty MDIO file like the input file."""
+        _ = mdio_with_headers
+        ds = create_empty_like(
+            input_path=teapot_mdio_tmp,
+            output_path=None,  # We don't want to write to disk for now
+            keep_coordinates=True,
+            overwrite=True,
+        )
+        self.validate_dataset_metadata(ds, is_velocity=False)
+        self._validate_empty_mdio_dataset(ds, has_headers=True, is_velocity=False)

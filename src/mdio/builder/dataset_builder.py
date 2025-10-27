@@ -6,7 +6,6 @@ from enum import Enum
 from enum import auto
 from typing import Any
 
-from mdio import __version__
 from mdio.builder.formatting_html import dataset_builder_repr_html
 from mdio.builder.schemas.compressors import ZFP
 from mdio.builder.schemas.compressors import Blosc
@@ -59,6 +58,8 @@ class MDIODatasetBuilder:
     """
 
     def __init__(self, name: str, attributes: dict[str, Any] | None = None):
+        from mdio import __version__  # noqa: PLC0415 -  fixed circular import in mdio package and dataset_builder.py
+
         self._metadata = DatasetMetadata(
             name=name,
             api_version=__version__,

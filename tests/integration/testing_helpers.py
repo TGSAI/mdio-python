@@ -47,10 +47,12 @@ def validate_xr_variable(  # noqa PLR0913
     else:
         assert data_type == v.dtype
 
+    assert v.attrs.get("statsV1", None) is None, "StatsV1 should be empty for empty dataset variables"
+
     if units is not None:
         assert v.attrs == {"unitsV1": units.model_dump(mode="json")}
     else:
-        assert "unitsV1" not in v.attrs
+        assert "unitsV1" not in v.attrs, "UnitsV1 should not exist for unit-unaware variables"
 
     if expected_values is not None and actual_value_generator is not None:
         actual_values = actual_value_generator(v)
