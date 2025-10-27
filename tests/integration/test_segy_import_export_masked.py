@@ -16,7 +16,6 @@ import fsspec
 import numpy as np
 import pytest
 from numpy.testing import assert_array_equal
-from segy import SegyFile
 from segy.factory import SegyFactory
 from segy.schema import HeaderField
 from segy.schema import SegySpec
@@ -26,6 +25,7 @@ from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.segy import segy_to_mdio
+from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
@@ -441,8 +441,8 @@ class TestNdImportExport:
             output_path=segy_rt_path,
         )
 
-        expected_sgy = SegyFile(segy_path)
-        actual_sgy = SegyFile(segy_rt_path)
+        expected_sgy = SegyFileWrapper(segy_path)
+        actual_sgy = SegyFileWrapper(segy_rt_path)
 
         num_traces = expected_sgy.num_traces
         random_indices = rng.choice(num_traces, 10, replace=False)
@@ -485,8 +485,8 @@ class TestNdImportExport:
         )
 
         expected_trc_idx = selection_mask.ravel().nonzero()[0]
-        expected_sgy = SegyFile(segy_path)
-        actual_sgy = SegyFile(segy_rt_path)
+        expected_sgy = SegyFileWrapper(segy_path)
+        actual_sgy = SegyFileWrapper(segy_rt_path)
 
         # TODO (Dmitriy Repin): Reconcile custom SegySpecs used in the roundtrip SEGY -> MDIO -> SEGY tests
         # https://github.com/TGSAI/mdio-python/issues/610

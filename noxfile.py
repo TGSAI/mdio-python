@@ -235,6 +235,7 @@ def docs_build(session: Session) -> None:
             "sphinx-click",
             "sphinx-copybutton",
             "sphinx-design",
+            "ipywidgets",
         ],
     )
 
@@ -264,6 +265,7 @@ def docs(session: Session) -> None:
             "sphinx-click",
             "sphinx-copybutton",
             "sphinx-design",
+            "ipywidgets",
         ],
     )
 

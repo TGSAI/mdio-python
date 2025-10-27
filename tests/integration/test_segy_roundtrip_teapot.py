@@ -9,7 +9,6 @@ import dask
 import numpy as np
 import numpy.testing as npt
 import pytest
-from segy import SegyFile
 from segy.schema import HeaderField
 from segy.schema import ScalarType
 from segy.standards import get_segy_standard
@@ -22,6 +21,7 @@ from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.segy import segy_to_mdio
+from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -295,8 +295,8 @@ class TestTeapotRoundtrip:
         assert segy_input.stat().st_size == segy_export_tmp.stat().st_size
 
         # IBM. Is random original traces and headers match round-trip file?
-        in_segy = SegyFile(segy_input, spec=teapot_segy_spec)
-        out_segy = SegyFile(segy_export_tmp, spec=teapot_segy_spec)
+        in_segy = SegyFileWrapper(segy_input, spec=teapot_segy_spec)
+        out_segy = SegyFileWrapper(segy_export_tmp, spec=teapot_segy_spec)
 
         num_traces = in_segy.num_traces
         random_indices = rng.choice(num_traces, 100, replace=False)

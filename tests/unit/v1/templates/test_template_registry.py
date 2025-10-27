@@ -1,5 +1,7 @@
 """Tests for the singleton TemplateRegistry implementation."""
 
+import copy
+import pickle
 import threading
 import time
 
@@ -11,7 +13,7 @@ from mdio.builder.template_registry import get_template_registry
 from mdio.builder.template_registry import is_template_registered
 from mdio.builder.template_registry import list_templates
 from mdio.builder.template_registry import register_template
-from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
 
 EXPECTED_DEFAULT_TEMPLATE_NAMES = [
@@ -113,7 +115,10 @@ class TestTemplateRegistrySingleton:
 
         assert registry1 is registry2
         assert registry2.is_registered("test_template")
-        assert registry2.get("test_template") is template1
+        # Templates are returned as deep copies, not the original
+        retrieved = registry2.get("test_template")
+        assert retrieved is not template1
+        assert retrieved.name == template1.name
 
     def test_register_template(self) -> None:
         """Test template registration."""
@@ -124,7 +129,10 @@ class TestTemplateRegistrySingleton:
 
         assert name == "test"  # Should be the template name
         assert registry.is_registered("test")
-        assert registry.get("test") is template
+        # Templates are returned as deep copies, not the original
+        retrieved = registry.get("test")
+        assert retrieved is not template
+        assert retrieved.name == template.name
 
     def test_register_duplicate_template(self) -> None:
         """Test error when registering duplicate template."""
@@ -161,6 +169,59 @@ class TestTemplateRegistrySingleton:
 
         with pytest.raises(KeyError, match="Template 'nonexistent' is not registered"):
             registry.unregister("nonexistent")
+
+    def test_get_returns_deep_copy(self) -> None:
+        """Test that get() returns a deep copy, not the original."""
+        registry = TemplateRegistry()
+        template = MockDatasetTemplate("test_deepcopy")
+        registry.register(template)
+
+        # Get the template twice
+        retrieved1 = registry.get("test_deepcopy")
+        retrieved2 = registry.get("test_deepcopy")
+
+        # Each retrieval should return a different object
+        assert retrieved1 is not retrieved2
+        assert retrieved1 is not template
+        assert retrieved2 is not template
+
+        # But they should have the same name
+        assert retrieved1.name == template.name
+        assert retrieved2.name == template.name
+
+    def test_template_modifications_are_independent(self) -> None:
+        """Test that modifications to one template don't affect others."""
+        registry = TemplateRegistry()
+        template = MockDatasetTemplate("test_modify")
+        template._units = {"original": "value"}
+        registry.register(template)
+
+        # Get two copies
+        copy1 = registry.get("test_modify")
+        copy2 = registry.get("test_modify")
+
+        # Modify the first copy
+        copy1._units["copy1_key"] = "copy1_value"
+
+        # Modify the second copy differently
+        copy2._units["copy2_key"] = "copy2_value"
+
+        # Get a third copy
+        copy3 = registry.get("test_modify")
+
+        # Each copy should have only its own modifications
+        assert "copy1_key" in copy1._units
+        assert "copy1_key" not in copy2._units
+        assert "copy1_key" not in copy3._units
+
+        assert "copy2_key" in copy2._units
+        assert "copy2_key" not in copy1._units
+        assert "copy2_key" not in copy3._units
+
+        # All should have the original value
+        assert copy1._units["original"] == "value"
+        assert copy2._units["original"] == "value"
+        assert copy3._units["original"] == "value"
 
     def test_list_all_templates(self) -> None:
         """Test listing all registered templates."""
@@ -229,6 +290,58 @@ class TestTemplateRegistrySingleton:
         for template_name in EXPECTED_DEFAULT_TEMPLATE_NAMES:
             assert registry2.is_registered(template_name)
 
+    def test_template_is_deepcopyable(self) -> None:
+        """Test that retrieved templates can be deep copied."""
+        registry = TemplateRegistry()
+        template = MockDatasetTemplate("test_deepcopy_method")
+        template._units = {"test": "value"}
+        registry.register(template)
+
+        # Get a template
+        retrieved = registry.get("test_deepcopy_method")
+
+        # Deep copy it
+        copied = copy.deepcopy(retrieved)
+
+        # Should be different objects
+        assert copied is not retrieved
+
+        # Modify the copy
+        copied._units["new_key"] = "new_value"
+
+        # Original retrieved template should be unchanged
+        assert "new_key" not in retrieved._units
+        assert "new_key" in copied._units
+
+    def test_template_is_pickleable(self) -> None:
+        """Test that retrieved templates can be pickled and unpickled."""
+        registry = TemplateRegistry()
+        template = MockDatasetTemplate("test_pickle")
+        template._units = {"test": "value"}
+        registry.register(template)
+
+        # Get a template
+        retrieved = registry.get("test_pickle")
+
+        # Pickle and unpickle it
+        pickled = pickle.dumps(retrieved)
+        # You should only ever unpickle with trusted data!
+        unpickled = pickle.loads(pickled)  # noqa: S301
+
+        # Should be different objects
+        assert unpickled is not retrieved
+
+        # Should have the same data
+        assert unpickled.name == retrieved.name
+        assert unpickled._units == retrieved._units
+
+        # Modify unpickled
+        unpickled._units["new_key"] = "new_value"
+
+        # Original should be unchanged
+        assert "new_key" not in retrieved._units
+        assert "new_key" in unpickled._units
+
 
 class TestGlobalFunctions:
     """Test cases for global convenience functions."""
@@ -260,7 +373,10 @@ class TestGlobalFunctions:
 
         assert name == "global_test"
         assert is_template_registered("global_test")
-        assert get_template("global_test") is template
+        # Templates are returned as deep copies, not the original
+        retrieved = get_template("global_test")
+        assert retrieved is not template
+        assert retrieved.name == template.name
 
     def test_list_templates_global(self) -> None:
         """Test global template listing."""

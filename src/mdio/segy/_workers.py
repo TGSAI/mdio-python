@@ -2,44 +2,36 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from typing import TYPE_CHECKING
-from typing import TypedDict
 
 import numpy as np
-from segy import SegyFile
 from segy.arrays import HeaderArray
 
-from mdio.api.io import to_mdio
-from mdio.builder.schemas.dtype import ScalarType
+from mdio.api.io import _normalize_storage_options
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
+from mdio.segy.file import SegyFileArguments
+from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
-    from segy.config import SegyFileSettings
-    from segy.schema import SegySpec
     from upath import UPath
-    from xarray import Dataset as xr_Dataset
     from zarr import Array as zarr_Array
 
-from xarray import Variable
+from zarr import open_group as zarr_open_group
 from zarr.core.config import config as zarr_config
 
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
-from mdio.builder.xarray_builder import _get_fill_value
 from mdio.constants import fill_value_map
 
-
-class SegyFileArguments(TypedDict):
-    """Arguments to open SegyFile instance creation."""
-
-    url: str
-    spec: SegySpec | None
-    settings: SegyFileSettings | None
+logger = logging.getLogger(__name__)
 
 
 def header_scan_worker(
-    segy_kw: SegyFileArguments, trace_range: tuple[int, int], subset: list[str] | None = None
+    segy_file_kwargs: SegyFileArguments,
+    trace_range: tuple[int, int],
+    subset: tuple[str, ...] | None = None,
 ) -> HeaderArray:
     """Header scan worker.
 
@@ -47,14 +39,14 @@ def header_scan_worker(
     a different context manager.
 
     Args:
-        segy_kw: Arguments to open SegyFile instance.
+        segy_file_kwargs: Arguments to open SegyFile instance.
         trace_range: Tuple consisting of the trace ranges to read.
-        subset: List of header names to filter and keep.
+        subset: Tuple of header names to filter and keep.
 
     Returns:
         HeaderArray parsed from SEG-Y library.
     """
-    segy_file = SegyFile(**segy_kw)
+    segy_file = SegyFileWrapper(**segy_file_kwargs)
 
     slice_ = slice(*trace_range)
 
@@ -82,24 +74,22 @@ def header_scan_worker(
 
 
 def trace_worker(  # noqa: PLR0913
-    segy_kw: SegyFileArguments,
+    segy_file_kwargs: SegyFileArguments,
     output_path: UPath,
     data_variable_name: str,
     region: dict[str, slice],
     grid_map: zarr_Array,
-    dataset: xr_Dataset,
 ) -> SummaryStatistics | None:
     """Writes a subset of traces from a region of the dataset of Zarr file.
 
     Args:
-        segy_kw: Arguments to open SegyFile instance.
+        segy_file_kwargs: Arguments to open SegyFile instance.
         output_path: Universal Path for the output Zarr dataset
             (e.g. local file path or cloud storage URI) the location
             also includes storage options for cloud storage.
         data_variable_name: Name of the data variable to write.
         region: Region of the dataset to write to.
         grid_map: Zarr array mapping live traces to their positions in the dataset.
-        dataset: Xarray dataset containing the data to write.
 
     Returns:
         SummaryStatistics object containing statistics about the written traces.
@@ -114,7 +104,7 @@ def trace_worker(  # noqa: PLR0913
         return None
 
     # Open the SEG-Y file in this process since the open file handles cannot be shared across processes.
-    segy_file = SegyFile(**segy_kw)
+    segy_file = SegyFileWrapper(**segy_file_kwargs)
 
     # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
     # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
@@ -122,16 +112,15 @@ def trace_worker(  # noqa: PLR0913
 
     live_trace_indexes = local_grid_map[not_null].tolist()
 
+    # Open the zarr group to write directly
+    storage_options = _normalize_storage_options(output_path)
+    zarr_group = zarr_open_group(output_path.as_posix(), mode="r+", storage_options=storage_options)
+
     header_key = "headers"
     raw_header_key = "raw_headers"
 
-    # Get subset of the dataset that has not yet been saved
-    # The headers might not be present in the dataset
-    worker_variables = [data_variable_name]
-    if header_key in dataset.data_vars:  # Keeping the `if` here to allow for more worker configurations
-        worker_variables.append(header_key)
-    if raw_header_key in dataset.data_vars:
-        worker_variables.append(raw_header_key)
+    # Check which variables exist in the zarr store
+    available_arrays = list(zarr_group.array_keys())
 
     # traces = segy_file.trace[live_trace_indexes]
     # Raw headers are not intended to remain as a feature of the SEGY ingestion.
@@ -140,56 +129,44 @@ def trace_worker(  # noqa: PLR0913
     # NOTE: The `raw_header_key` code block should be removed in full as it will become dead code.
     traces = SegyFileRawTraceWrapper(segy_file, live_trace_indexes)
 
-    ds_to_write = dataset[worker_variables]
+    # Compute slices once (headers exclude sample dimension)
+    header_region_slices = region_slices[:-1]  # Exclude sample dimension
 
-    if raw_header_key in worker_variables:
-        tmp_raw_headers = np.zeros_like(dataset[raw_header_key])
+    full_shape = tuple(s.stop - s.start for s in region_slices)
+    header_shape = tuple(s.stop - s.start for s in header_region_slices)
+
+    # Write raw headers if they exist
+    # Headers only have spatial dimensions (no sample dimension)
+    if raw_header_key in available_arrays:
+        raw_header_array = zarr_group[raw_header_key]
+        tmp_raw_headers = np.full(header_shape, raw_header_array.fill_value)
         tmp_raw_headers[not_null] = traces.raw_header
+        raw_header_array[header_region_slices] = tmp_raw_headers
 
-        ds_to_write[raw_header_key] = Variable(
-            ds_to_write[raw_header_key].dims,
-            tmp_raw_headers,
-            attrs=ds_to_write[raw_header_key].attrs,
-            encoding=ds_to_write[raw_header_key].encoding,  # Not strictly necessary, but safer than not doing it.
-        )
-
-    if header_key in worker_variables:
-        # TODO(BrianMichell): Implement this better so that we can enable fill values without changing the code
-        # https://github.com/TGSAI/mdio-python/issues/584
-        tmp_headers = np.zeros_like(dataset[header_key])
+    # Write headers if they exist
+    # Headers only have spatial dimensions (no sample dimension)
+    if header_key in available_arrays:
+        header_array = zarr_group[header_key]
+        tmp_headers = np.full(header_shape, header_array.fill_value)
         tmp_headers[not_null] = traces.header
-        # Create a new Variable object to avoid copying the temporary array
-        # The ideal solution is to use `ds_to_write[header_key][:] = tmp_headers`
-        # but Xarray appears to be copying memory instead of doing direct assignment.
-        # TODO(BrianMichell): #614 Look into this further.
-        # https://github.com/TGSAI/mdio-python/issues/584
-        ds_to_write[header_key] = Variable(
-            ds_to_write[header_key].dims,
-            tmp_headers,
-            attrs=ds_to_write[header_key].attrs,
-            encoding=ds_to_write[header_key].encoding,  # Not strictly necessary, but safer than not doing it.
-        )
+        header_array[header_region_slices] = tmp_headers
 
-    data_variable = ds_to_write[data_variable_name]
-    fill_value = _get_fill_value(ScalarType(data_variable.dtype.name))
-    tmp_samples = np.full_like(data_variable, fill_value=fill_value)
+    # Write the data variable
+    data_array = zarr_group[data_variable_name]
+    tmp_samples = np.full(full_shape, data_array.fill_value)
     tmp_samples[not_null] = traces.sample
-
-    # TODO(BrianMichell): #614 Look into this further.
-    # https://github.com/TGSAI/mdio-python/issues/584
-    ds_to_write[data_variable_name] = Variable(
-        ds_to_write[data_variable_name].dims,
-        tmp_samples,
-        attrs=ds_to_write[data_variable_name].attrs,
-        encoding=ds_to_write[data_variable_name].encoding,  # Not strictly necessary, but safer than not doing it.
-    )
-
-    to_mdio(ds_to_write, output_path=output_path, region=region, mode="r+")
+    data_array[region_slices] = tmp_samples
 
     nonzero_samples = np.ma.masked_values(traces.sample, 0, copy=False)
+
+    nonzero_count = nonzero_samples.count()
+    if nonzero_count == 0:
+        # Return None to avoid calculating a NaN in sum_squares
+        return None
+
     histogram = CenteredBinHistogram(bin_centers=[], counts=[])
     return SummaryStatistics(
-        count=nonzero_samples.count(),
+        count=nonzero_count,
         min=nonzero_samples.min(),
         max=nonzero_samples.max(),
         sum=nonzero_samples.sum(dtype="float64"),

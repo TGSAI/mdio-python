@@ -5,12 +5,10 @@ from __future__ import annotations
 import base64
 import logging
 import os
-from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
 import zarr
-from segy import SegyFile
 from segy.config import SegyFileSettings
 from segy.config import SegyHeaderOverrides
 from segy.standards.codes import MeasurementSystem as SegyMeasurementSystem
@@ -23,6 +21,8 @@ from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.compressors import Blosc
 from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.schemas.dtype import ScalarType
+from mdio.builder.schemas.v1.units import AngleUnitEnum
+from mdio.builder.schemas.v1.units import AngleUnitModel
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.variable import VariableMetadata
@@ -37,9 +37,9 @@ from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
 from mdio.segy import blocked_io
+from mdio.segy.file import get_segy_file_info
 from mdio.segy.scalar import SCALE_COORDINATE_KEYS
 from mdio.segy.scalar import _apply_coordinate_scalar
-from mdio.segy.scalar import _get_coordinate_scalar
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
@@ -52,13 +52,25 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
     from mdio.builder.schemas import Dataset
-    from mdio.builder.templates.abstract_dataset_template import AbstractDatasetTemplate
+    from mdio.builder.templates.base import AbstractDatasetTemplate
     from mdio.core.dimension import Dimension
+    from mdio.segy.file import SegyFileArguments
+    from mdio.segy.file import SegyFileInfo
 
 logger = logging.getLogger(__name__)
 
 
 MEASUREMENT_SYSTEM_KEY = binary_header_fields.Rev0.MEASUREMENT_SYSTEM_CODE.model.name
+ANGLE_UNIT_KEYS = ["angle", "azimuth"]
+SPATIAL_UNIT_KEYS = [
+    "cdp_x",
+    "cdp_y",
+    "source_coord_x",
+    "source_coord_y",
+    "group_coord_x",
+    "group_coord_y",
+    "offset",
+]
 
 
 def grid_density_qc(grid: Grid, num_traces: int) -> None:
@@ -135,37 +147,9 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
-@dataclass
-class SegyFileHeaderDump:
-    """Segy metadata information."""
-
-    text_header: str
-    binary_header_dict: dict
-    raw_binary_headers: bytes
-
-
-def _get_segy_file_header_dump(segy_file: SegyFile) -> SegyFileHeaderDump:
-    """Reads information from a SEG-Y file."""
-    text_header = segy_file.text_header
-
-    raw_binary_headers: bytes = segy_file.fs.read_block(
-        fn=segy_file.url,
-        offset=segy_file.spec.binary_header.offset,
-        length=segy_file.spec.binary_header.itemsize,
-    )
-
-    # We read here twice, but it's ok for now. Only 400-bytes.
-    binary_header_dict = segy_file.binary_header.to_dict()
-
-    return SegyFileHeaderDump(
-        text_header=text_header,
-        binary_header_dict=binary_header_dict,
-        raw_binary_headers=raw_binary_headers,
-    )
-
-
 def _scan_for_headers(
-    segy_file: SegyFile,
+    segy_file_kwargs: SegyFileArguments,
+    segy_file_info: SegyFileInfo,
     template: AbstractDatasetTemplate,
     grid_overrides: dict[str, Any] | None = None,
 ) -> tuple[list[Dimension], SegyHeaderArray]:
@@ -174,30 +158,35 @@ def _scan_for_headers(
     This is an expensive operation.
     It scans the SEG-Y file in chunks by using ProcessPoolExecutor
     """
-    full_chunk_size = template.full_chunk_size
+    full_chunk_shape = template.full_chunk_shape
     segy_dimensions, chunk_size, segy_headers = get_grid_plan(
-        segy_file=segy_file,
+        segy_file_kwargs=segy_file_kwargs,
+        segy_file_info=segy_file_info,
         return_headers=True,
         template=template,
-        chunksize=full_chunk_size,
+        chunksize=full_chunk_shape,
         grid_overrides=grid_overrides,
     )
-    if full_chunk_size != chunk_size:
+    if full_chunk_shape != chunk_size:
         # TODO(Dmitriy): implement grid overrides
         # https://github.com/TGSAI/mdio-python/issues/585
         # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
         # support for grid overrides is implemented
-        err = "Support for changing full_chunk_size in grid overrides is not yet implemented"
+        err = "Support for changing full_chunk_shape in grid overrides is not yet implemented"
         raise NotImplementedError(err)
     return segy_dimensions, segy_headers
 
 
-def _build_and_check_grid(segy_dimensions: list[Dimension], num_traces: int, segy_headers: SegyHeaderArray) -> Grid:
+def _build_and_check_grid(
+    segy_dimensions: list[Dimension],
+    segy_file_info: SegyFileInfo,
+    segy_headers: SegyHeaderArray,
+) -> Grid:
     """Build and check the grid from the SEG-Y headers and dimensions.
 
     Args:
         segy_dimensions: List of of all SEG-Y dimensions to build grid from.
-        num_traces: Number of traces in the SEG-Y file.
+        segy_file_info: SegyFileInfo instance containing the SEG-Y file information.
         segy_headers: Headers read in from SEG-Y file for building the trace map.
 
     Returns:
@@ -207,6 +196,7 @@ def _build_and_check_grid(segy_dimensions: list[Dimension], num_traces: int, seg
         GridTraceCountError: If number of traces in SEG-Y file does not match the parsed grid
     """
     grid = Grid(dims=segy_dimensions)
+    num_traces = segy_file_info.num_traces
     grid_density_qc(grid, num_traces)
     grid.build_map(segy_headers)
     # Check grid validity by comparing trace numbers
@@ -276,7 +266,7 @@ def populate_non_dim_coordinates(
     grid: Grid,
     coordinates: dict[str, SegyHeaderArray],
     drop_vars_delayed: list[str],
-    horizontal_coordinate_scalar: int,
+    spatial_coordinate_scalar: int,
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate the xarray dataset with coordinate variables."""
     non_data_domain_dims = grid.dim_names[:-1]  # minus the data domain dimension
@@ -292,7 +282,7 @@ def populate_non_dim_coordinates(
         tmp_coord_values[not_null] = coord_values[coord_trace_indices[not_null]]
 
         if coord_name in SCALE_COORDINATE_KEYS:
-            tmp_coord_values = _apply_coordinate_scalar(tmp_coord_values, horizontal_coordinate_scalar)
+            tmp_coord_values = _apply_coordinate_scalar(tmp_coord_values, spatial_coordinate_scalar)
 
         dataset[coord_name][:] = tmp_coord_values
         drop_vars_delayed.append(coord_name)
@@ -303,9 +293,9 @@ def populate_non_dim_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_horizontal_coordinate_unit(segy_info: SegyFileHeaderDump) -> LengthUnitModel | None:
+def _get_spatial_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
-    measurement_system_code = int(segy_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
+    measurement_system_code = int(segy_file_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
 
     if measurement_system_code not in (1, 2):
         logger.warning(
@@ -324,11 +314,34 @@ def _get_horizontal_coordinate_unit(segy_info: SegyFileHeaderDump) -> LengthUnit
     return LengthUnitModel(length=unit)
 
 
+def _update_template_units(template: AbstractDatasetTemplate, unit: LengthUnitModel | None) -> AbstractDatasetTemplate:
+    """Update the template with dynamic and some pre-defined units."""
+    # Add units for pre-defined: angle and azimuth etc.
+    new_units = {key: AngleUnitModel(angle=AngleUnitEnum.DEGREES) for key in ANGLE_UNIT_KEYS}
+
+    # If a spatial unit is not provided, we return as is
+    if unit is None:
+        template.add_units(new_units)
+        return template
+
+    # Dynamically add units based on the spatial coordinate unit
+    for key in SPATIAL_UNIT_KEYS:
+        current_value = template.get_unit_by_key(key)
+        if current_value is not None:
+            logger.warning("Unit for %s already in template. Will keep the original unit: %s", key, current_value)
+            continue
+
+        new_units[key] = unit
+
+    template.add_units(new_units)
+    return template
+
+
 def _populate_coordinates(
     dataset: xr_Dataset,
     grid: Grid,
     coords: dict[str, SegyHeaderArray],
-    horizontal_coordinate_scalar: int,
+    spatial_coordinate_scalar: int,
 ) -> tuple[xr_Dataset, list[str]]:
     """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
 
@@ -338,7 +351,7 @@ def _populate_coordinates(
         dataset: The xarray dataset to populate.
         grid: The grid object containing the grid map.
         coords: The non-dim coordinates to populate.
-        horizontal_coordinate_scalar: The X/Y coordinate scalar from the SEG-Y file.
+        spatial_coordinate_scalar: The X/Y coordinate scalar from the SEG-Y file.
 
     Returns:
         Xarray dataset with filled coordinates and updated variables to drop after writing
@@ -353,13 +366,13 @@ def _populate_coordinates(
         grid,
         coordinates=coords,
         drop_vars_delayed=drop_vars_delayed,
-        horizontal_coordinate_scalar=horizontal_coordinate_scalar,
+        spatial_coordinate_scalar=spatial_coordinate_scalar,
     )
 
     return dataset, drop_vars_delayed
 
 
-def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_header_dump: SegyFileHeaderDump) -> xr_Dataset:
+def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_info: SegyFileInfo) -> xr_Dataset:
     save_file_header = os.getenv("MDIO__IMPORT__SAVE_SEGY_FILE_HEADER", "") in ("1", "true", "yes", "on")
     if not save_file_header:
         return xr_dataset
@@ -367,11 +380,11 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_header_dump: SegyFi
     expected_rows = 40
     expected_cols = 80
 
-    text_header_rows = segy_file_header_dump.text_header.splitlines()
+    text_header_rows = segy_file_info.text_header.splitlines()
     text_header_cols_bad = [len(row) != expected_cols for row in text_header_rows]
 
     if len(text_header_rows) != expected_rows:
-        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_file_header_dump.text_header)}"
+        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_file_info.text_header)}"
         raise ValueError(err)
 
     if any(text_header_cols_bad):
@@ -381,12 +394,12 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_header_dump: SegyFi
     xr_dataset["segy_file_header"] = ((), "")
     xr_dataset["segy_file_header"].attrs.update(
         {
-            "textHeader": segy_file_header_dump.text_header,
-            "binaryHeader": segy_file_header_dump.binary_header_dict,
+            "textHeader": segy_file_info.text_header,
+            "binaryHeader": segy_file_info.binary_header_dict,
         }
     )
     if os.getenv("MDIO__IMPORT__RAW_HEADERS") in ("1", "true", "yes", "on"):
-        raw_binary_base64 = base64.b64encode(segy_file_header_dump.raw_binary_headers).decode("ascii")
+        raw_binary_base64 = base64.b64encode(segy_file_info.raw_binary_headers).decode("ascii")
         xr_dataset["segy_file_header"].attrs.update({"rawBinaryHeader": raw_binary_base64})
 
     return xr_dataset
@@ -431,7 +444,7 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
         original_add_variables()
 
         # Now add the raw headers variable
-        chunk_shape = mdio_template._var_chunk_shape[:-1]
+        chunk_shape = mdio_template.full_chunk_shape[:-1]
 
         # Create chunk grid metadata
         chunk_metadata = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
@@ -440,7 +453,7 @@ def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> Abst
         mdio_template._builder.add_variable(
             name="raw_headers",
             long_name="Raw Headers",
-            dimensions=mdio_template._dim_names[:-1],  # All dimensions except vertical
+            dimensions=mdio_template.spatial_dimension_names,
             data_type=ScalarType.BYTES240,
             compressor=Blosc(cname=BloscCname.zstd),
             coordinates=None,  # No coordinates as specified
@@ -482,6 +495,22 @@ def _chunk_variable(ds: Dataset, target_variable_name: str) -> None:
     ds.variables[index].metadata.chunk_grid = chunk_grid
 
 
+def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatasetTemplate) -> None:
+    """Validate that the SegySpec has all required fields in the MDIO template."""
+    header_fields = {field.name for field in segy_spec.trace.header.fields}
+
+    required_fields = set(mdio_template.spatial_dimension_names) | set(mdio_template.coordinate_names)
+    required_fields = required_fields | {"coordinate_scalar"}  # ensure coordinate scalar is always present
+    missing_fields = required_fields - header_fields
+
+    if missing_fields:
+        err = (
+            f"Required fields {sorted(missing_fields)} for template {mdio_template.name} "
+            f"not found in the provided segy_spec"
+        )
+        raise ValueError(err)
+
+
 def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
@@ -507,6 +536,8 @@ def segy_to_mdio(  # noqa PLR0913
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
     """
+    _validate_spec_in_template(segy_spec, mdio_template)
+
     input_path = _normalize_path(input_path)
     output_path = _normalize_path(output_path)
 
@@ -515,17 +546,21 @@ def segy_to_mdio(  # noqa PLR0913
         raise FileExistsError(err)
 
     segy_settings = SegyFileSettings(storage_options=input_path.storage_options)
-    segy_file = SegyFile(
-        url=input_path.as_posix(),
-        spec=segy_spec,
-        settings=segy_settings,
-        header_overrides=segy_header_overrides,
+    segy_file_kwargs: SegyFileArguments = {
+        "url": input_path.as_posix(),
+        "spec": segy_spec,
+        "settings": segy_settings,
+        "header_overrides": segy_header_overrides,
+    }
+    segy_file_info = get_segy_file_info(segy_file_kwargs)
+
+    segy_dimensions, segy_headers = _scan_for_headers(
+        segy_file_kwargs,
+        segy_file_info,
+        template=mdio_template,
+        grid_overrides=grid_overrides,
     )
-    segy_info: SegyFileHeaderDump = _get_segy_file_header_dump(segy_file)
-
-    segy_dimensions, segy_headers = _scan_for_headers(segy_file, mdio_template, grid_overrides)
-
-    grid = _build_and_check_grid(segy_dimensions, segy_file.num_traces, segy_headers)
+    grid = _build_and_check_grid(segy_dimensions, segy_file_info, segy_headers)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
@@ -537,13 +572,9 @@ def segy_to_mdio(  # noqa PLR0913
             logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
             mdio_template = _add_raw_headers_to_template(mdio_template)
 
-    horizontal_unit = _get_horizontal_coordinate_unit(segy_info)
-    mdio_ds: Dataset = mdio_template.build_dataset(
-        name=mdio_template.name,
-        sizes=grid.shape,
-        horizontal_coord_unit=horizontal_unit,
-        header_dtype=header_dtype,
-    )
+    spatial_unit = _get_spatial_coordinate_unit(segy_file_info)
+    mdio_template = _update_template_units(mdio_template, spatial_unit)
+    mdio_ds: Dataset = mdio_template.build_dataset(name=mdio_template.name, sizes=grid.shape, header_dtype=header_dtype)
 
     _add_grid_override_to_metadata(dataset=mdio_ds, grid_overrides=grid_overrides)
 
@@ -554,15 +585,14 @@ def segy_to_mdio(  # noqa PLR0913
 
     xr_dataset: xr_Dataset = to_xarray_dataset(mdio_ds=mdio_ds)
 
-    coordinate_scalar = _get_coordinate_scalar(segy_file)
     xr_dataset, drop_vars_delayed = _populate_coordinates(
         dataset=xr_dataset,
         grid=grid,
         coords=non_dim_coords,
-        horizontal_coordinate_scalar=coordinate_scalar,
+        spatial_coordinate_scalar=segy_file_info.coordinate_scalar,
     )
 
-    xr_dataset = _add_segy_file_headers(xr_dataset, segy_info)
+    xr_dataset = _add_segy_file_headers(xr_dataset, segy_file_info)
 
     xr_dataset.trace_mask.data[:] = grid.live_mask
     # IMPORTANT: Do not drop the "trace_mask" here, as it will be used later in
@@ -583,7 +613,7 @@ def segy_to_mdio(  # noqa PLR0913
     # This is an memory-expensive and time-consuming read-write operation
     # performed in chunks to save the memory
     blocked_io.to_zarr(
-        segy_file=segy_file,
+        segy_file_kwargs=segy_file_kwargs,
         output_path=output_path,
         grid_map=grid.map,
         dataset=xr_dataset,

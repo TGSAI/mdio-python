@@ -1,4 +1,4 @@
-aiohttp==3.12.15
+aiohttp==3.13.0
 autodoc-pydantic==2.2.0
 furo==2025.9.25
 linkify-it-py==2.0.3
@@ -8,3 +8,4 @@ sphinx==8.2.3
 sphinx-click==6.1.0
 sphinx-copybutton==0.5.2
 sphinx-design==0.6.1
+ipywidgets==8.1.7
