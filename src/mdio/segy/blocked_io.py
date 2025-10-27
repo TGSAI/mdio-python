@@ -69,6 +69,8 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     Returns:
         None
     """
+    env = MDIOSettings()
+
     data = dataset[data_variable_name]
 
     final_stats = _create_stats()
@@ -80,7 +82,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
 
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
-    num_workers = min(num_chunks, MDIOSettings().import_cpus)
+    num_workers = min(num_chunks, env.import_cpus)
     context = mp.get_context("spawn")
     executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
 

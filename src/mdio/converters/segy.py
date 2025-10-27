@@ -92,6 +92,7 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         GridTraceSparsityError: If the sparsity ratio exceeds `MDIO__GRID__SPARSITY_RATIO_LIMIT`
             and `MDIO_IGNORE_CHECKS` is not set to a truthy value (e.g., "1", "true").
     """
+    env = MDIOSettings()
     # Calculate total possible traces in the grid (excluding sample dimension)
     grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)
 
@@ -99,9 +100,9 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     sparsity_ratio = float("inf") if num_traces == 0 else grid_traces / num_traces
 
     # Fetch and validate environment variables
-    warning_ratio = MDIOSettings().grid_sparsity_ratio_warn
-    error_ratio = MDIOSettings().grid_sparsity_ratio_limit
-    ignore_checks = MDIOSettings().ignore_checks
+    warning_ratio = env.grid_sparsity_ratio_warn
+    error_ratio = env.grid_sparsity_ratio_limit
+    ignore_checks = env.ignore_checks
 
     # Check sparsity
     should_warn = sparsity_ratio > warning_ratio
@@ -359,7 +360,9 @@ def _populate_coordinates(
 
 
 def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_info: SegyFileInfo) -> xr_Dataset:
-    if not MDIOSettings().save_segy_file_header:
+    env = MDIOSettings()
+
+    if not env.save_segy_file_header:
         return xr_dataset
 
     expected_rows = 40
@@ -383,7 +386,7 @@ def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_info: SegyFileInfo)
             "binaryHeader": segy_file_info.binary_header_dict,
         }
     )
-    if MDIOSettings().raw_headers:
+    if env.raw_headers:
         raw_binary_base64 = base64.b64encode(segy_file_info.raw_binary_headers).decode("ascii")
         xr_dataset["segy_file_header"].attrs.update({"rawBinaryHeader": raw_binary_base64})
 
@@ -521,6 +524,8 @@ def segy_to_mdio(  # noqa PLR0913
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
     """
+    env = MDIOSettings()
+
     _validate_spec_in_template(segy_spec, mdio_template)
 
     input_path = _normalize_path(input_path)
@@ -550,7 +555,7 @@ def segy_to_mdio(  # noqa PLR0913
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
 
-    if MDIOSettings().raw_headers:
+    if env.raw_headers:
         if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
             logger.warning("Raw headers are only supported for Zarr v3. Skipping raw headers.")
         else:

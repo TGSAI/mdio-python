@@ -68,6 +68,8 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         >>> output_path = UPath("prefix/file.segy")
         >>> mdio_to_segy(input_path, output_path)
     """
+    env = MDIOSettings()
+
     input_path = _normalize_path(input_path)
     output_path = _normalize_path(output_path)
 
@@ -143,7 +145,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
             if client is not None:
                 block_records = block_records.compute()
             else:
-                block_records = block_records.compute(num_workers=MDIOSettings().export_cpus)
+                block_records = block_records.compute(num_workers=env.export_cpus)
 
         ordered_files = [rec.path for rec in block_records.ravel() if rec != 0]
         ordered_files = [output_path] + ordered_files
