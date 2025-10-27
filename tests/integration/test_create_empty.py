@@ -255,7 +255,7 @@ class TestCreateEmptyMdio:
     def test_populate_empty_dataset(self, mdio_with_headers: Path) -> None:
         """Test showing how to populate empty dataset."""
         # Open an empty PostStack3DVelocityTime dataset with SEG-Y 1.0 headers
-        # 
+        #
         # When this empty dataset was created from the 'PostStack3DVelocityTime' template and dimensions,
         # * 'inline', 'crossline', and 'time' dimension coordinate variables were created and pre-populated
         #   NOTE: the 'time' units are specified in the template, so they are not None in this case.
