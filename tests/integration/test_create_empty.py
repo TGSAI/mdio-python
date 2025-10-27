@@ -92,57 +92,39 @@ class TestCreateEmptyMdio:
         assert ds.sizes == {"inline": 345, "crossline": 188, "time": 1501}
 
         # Validate the dimension coordinate variables
-        validate_xr_variable(ds, "inline", {"inline": 345}, UNITS_NONE, np.int32, range(1, 346), get_values)
-        validate_xr_variable(ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, range(1, 189), get_values)
-        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, range(0, 3002, 2), get_values)
+        validate_xr_variable(ds, "inline", {"inline": 345}, UNITS_NONE, np.int32, False, range(1, 346), get_values)
+        validate_xr_variable(
+            ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, False, range(1, 189), get_values
+        )
+        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, False, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables (should be empty for empty dataset)
-        validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64, None, None)
-        validate_xr_variable(ds, "cdp_y", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64, None, None)
+        validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)
+        validate_xr_variable(ds, "cdp_y", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)
 
         if has_headers:
             # Validate the headers (should be empty for empty dataset)
             # Infer the dtype from segy_spec and ignore endianness
             header_dtype = get_teapot_segy_spec().trace.header.dtype.newbyteorder("native")
-            validate_xr_variable(ds, "headers", {"inline": 345, "crossline": 188}, UNITS_NONE, header_dtype, None, None)
-            validate_xr_variable(
-                ds,
-                "segy_file_header",
-                dims={},
-                units=UNITS_NONE,
-                data_type=np.dtype("U1"),
-                expected_values=None,
-                actual_value_generator=None,
-            )
+            validate_xr_variable(ds, "headers", {"inline": 345, "crossline": 188}, UNITS_NONE, header_dtype)
+            validate_xr_variable(ds, "segy_file_header", dims={}, units=UNITS_NONE, data_type=np.dtype("U1"))
         else:
             assert "headers" not in ds.variables
             assert "segy_file_header" not in ds.variables
 
         # Validate the trace mask (should be all True for empty dataset)
-        validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool_, None, None)
+        validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool_)
         trace_mask = ds["trace_mask"].values
         assert not np.any(trace_mask), "All traces should be marked as dead in empty dataset"
 
         # Validate the velocity or amplitude data (should be empty)
         if is_velocity:
             validate_xr_variable(
-                ds,
-                "velocity",
-                {"inline": 345, "crossline": 188, "time": 1501},
-                UNITS_METER_PER_SECOND,
-                np.float32,
-                None,
-                None,
+                ds, "velocity", {"inline": 345, "crossline": 188, "time": 1501}, UNITS_METER_PER_SECOND, np.float32
             )
         else:
             validate_xr_variable(
-                ds,
-                "amplitude",
-                {"inline": 345, "crossline": 188, "time": 1501},
-                UNITS_NONE,
-                np.float32,
-                None,
-                None,
+                ds, "amplitude", {"inline": 345, "crossline": 188, "time": 1501}, UNITS_NONE, np.float32
             )
 
     @classmethod
@@ -273,17 +255,19 @@ class TestCreateEmptyMdio:
     def test_populate_empty_dataset(self, mdio_with_headers: Path) -> None:
         """Test showing how to populate empty dataset."""
         # Open an empty PostStack3DVelocityTime dataset with SEG-Y 1.0 headers
-        # NOTES:
+        # 
         # When this empty dataset was created from the 'PostStack3DVelocityTime' template and dimensions,
         # * 'inline', 'crossline', and 'time' dimension coordinate variables were created and pre-populated
+        #   NOTE: the 'time' units are specified in the template, so they are not None in this case.
         # * 'cdp_x', 'cdp_y' non-dimensional coordinate variables were created
-        # * 'amplitude' variable was created (the name of this variable is specified in the template)
-        #   HACK: in this example, we will use this variable to store the velocity data
+        #   NOTE: the 'cdp_x' and 'cdp_y' units are specified in the template, so they are not None in this case.
+        # * 'velocity' variable was created (the name of this default variable is specified in the template)
+        #   NOTE: the 'velocity' units are specified in the template, so they are not None in this case.
         # * 'trace_mask' variable was created and pre-populated with 'False' fill values
         #   (all traces are marked as dead)
         # * 'headers' and 'segy_file_header' variables were created (if the dataset was created with
         #   headers not None). The 'headers' variable structured datatype is defined by the HeaderSpec
-        # that was used to create the empty MDIO
+        #   that was used to create the empty MDIO
         # * dataset attribute called 'attributes' was created
         ds = open_mdio(mdio_with_headers)
 
@@ -320,7 +304,9 @@ class TestCreateEmptyMdio:
         # 4) Populate dataset's trace mask (optional)
         ds.trace_mask[:] = ~np.isnan(velocity[:, :, 0])
 
-        # 5) Set coordinate and data variable units (optional)
+        # 5) If the units were not set in the template or you want to change the coordinate and data variable units
+        #    you can set the unitsV1 attribute for the coordinate and data variables (optional).
+        #    If you are happy with the units specified in the template, you should skip this step.
         ds.time.attrs["unitsV1"] = TimeUnitModel(time=TimeUnitEnum.MILLISECOND).model_dump(mode="json")
 
         ds.cdp_x.attrs["unitsV1"] = LengthUnitModel(length=LengthUnitEnum.FOOT).model_dump(mode="json")
@@ -376,7 +362,7 @@ class TestCreateEmptyMdio:
         output_path_mdio = mdio_with_headers.parent / "populated_empty.mdio"
         to_mdio(ds, output_path=output_path_mdio, mode="w", compute=True)
 
-        # 9) Convert the populated emptyMDIO to SEG-Y
+        # 9) Convert the populated empty MDIO to SEG-Y
         if "headers" in ds.variables:
             # Select the SEG-Y standard to use for the conversion
             custom_segy_spec = get_segy_standard(1.0)

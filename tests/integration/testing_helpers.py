@@ -24,7 +24,8 @@ def validate_xr_variable(  # noqa PLR0913
     dims: dict[int],
     units: AllUnitModel,
     data_type: np.dtype,
-    expected_values: range | None,
+    has_stats: bool = False,
+    expected_values: range | None = None,
     actual_value_generator: Callable[[xr.DataArray], np.ndarray] | None = None,
 ) -> None:
     """Validate the properties of a variable in an Xarray dataset."""
@@ -47,10 +48,16 @@ def validate_xr_variable(  # noqa PLR0913
     else:
         assert data_type == v.dtype
 
-    assert v.attrs.get("statsV1", None) is None, "StatsV1 should be empty for empty dataset variables"
+    stats = v.attrs.get("statsV1", None)
+    if has_stats:
+        assert stats is not None, "StatsV1 should not be empty for dataset variables with stats"
+    else:
+        assert stats is None, "StatsV1 should be empty for dataset variables without stats"
 
     if units is not None:
-        assert v.attrs == {"unitsV1": units.model_dump(mode="json")}
+        units_v1 = v.attrs.get("unitsV1", None)
+        assert units_v1 is not None, "UnitsV1 should not be empty for dataset variables with units"
+        assert units_v1 == units.model_dump(mode="json")
     else:
         assert "unitsV1" not in v.attrs, "UnitsV1 should not exist for unit-unaware variables"
 

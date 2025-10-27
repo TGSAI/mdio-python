@@ -243,13 +243,15 @@ class TestTeapotRoundtrip:
         ds = open_mdio(teapot_mdio_tmp)
 
         # Validate the dimension coordinate variables
-        validate_xr_variable(ds, "inline", {"inline": 345}, UNITS_NONE, np.int32, range(1, 346), get_values)
-        validate_xr_variable(ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, range(1, 189), get_values)
-        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, range(0, 3002, 2), get_values)
+        validate_xr_variable(ds, "inline", {"inline": 345}, UNITS_NONE, np.int32, False, range(1, 346), get_values)
+        validate_xr_variable(
+            ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, False, range(1, 189), get_values
+        )
+        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, False, range(0, 3002, 2), get_values)
 
         # Validate the non-dimensional coordinate variables
-        validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64, None, None)
-        validate_xr_variable(ds, "cdp_y", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64, None, None)
+        validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)
+        validate_xr_variable(ds, "cdp_y", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)
 
         # Validate the headers
         # We have a custom set of headers since we used customize_segy_specs()
@@ -262,22 +264,17 @@ class TestTeapotRoundtrip:
             {"inline": 345, "crossline": 188},
             UNITS_NONE,
             data_type.newbyteorder("native"),  # mdio saves with machine endian, spec could be different endian
+            False,
             range(1, 346),
             get_inline_header_values,
         )
 
         # Validate the trace mask
-        validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool, None, None)
+        validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool)
 
         # validate the amplitude data
         validate_xr_variable(
-            ds,
-            "amplitude",
-            {"inline": 345, "crossline": 188, "time": 1501},
-            UNITS_NONE,
-            np.float32,
-            None,
-            None,
+            ds, "amplitude", {"inline": 345, "crossline": 188, "time": 1501}, UNITS_NONE, np.float32, True
         )
 
     def test_inline_reads(self, teapot_mdio_tmp: Path) -> None:

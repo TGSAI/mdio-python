@@ -78,9 +78,7 @@ def empty_mdio_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.mktemp(r"empty_mdio_dir")
 
 
-#
 # Uncomment the function below for local debugging
-#
 # @pytest.fixture(scope="session")
 # def tmp_path_factory() -> pytest.TempPathFactory:
 #     """Custom tmp_path_factory implementation for local debugging."""
