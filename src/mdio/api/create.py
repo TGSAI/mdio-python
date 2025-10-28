@@ -30,10 +30,10 @@ if TYPE_CHECKING:
 def create_empty(  # noqa PLR0913
     mdio_template: AbstractDatasetTemplate | str,
     dimensions: list[Dimension],
-    output_path: UPath | Path | str,
+    output_path: UPath | Path | str | None,
     headers: HeaderSpec | None = None,
     overwrite: bool = False,
-) -> None:
+) -> xr_Dataset:
     """A function that creates an empty MDIO v1 file with known dimensions.
 
     Args:
@@ -73,19 +73,24 @@ def create_empty(  # noqa PLR0913
     # Populate coordinates using the grid
     # For empty datasets, we only populate dimension coordinates
     drop_vars_delayed = []
-    dataset, drop_vars_delayed = populate_dim_coordinates(xr_dataset, grid, drop_vars_delayed=drop_vars_delayed)
+    xr_dataset, drop_vars_delayed = populate_dim_coordinates(xr_dataset, grid, drop_vars_delayed=drop_vars_delayed)
 
     if headers:
         # Since the headers were provided, the user wants to export to SEG-Y
         # Add a dummy segy_file_header variable used to export to SEG-Y
-        dataset["segy_file_header"] = ((), "")
+        xr_dataset["segy_file_header"] = ((), "")
 
     # Create the Zarr store with the correct structure but with empty arrays
-    to_mdio(dataset, output_path=output_path, mode="w", compute=False)
+    if output_path is not None:
+        to_mdio(xr_dataset, output_path=output_path, mode="w", compute=False)
 
     # Write the dimension coordinates and trace mask
-    meta_ds = dataset[drop_vars_delayed + ["trace_mask"]]
-    to_mdio(meta_ds, output_path=output_path, mode="r+", compute=True)
+    xr_dataset = xr_dataset[drop_vars_delayed + ["trace_mask"]]
+    
+    if output_path is not None:
+        to_mdio(xr_dataset, output_path=output_path, mode="r+", compute=True)
+
+    return xr_dataset
 
 
 def create_empty_like(  # noqa PLR0913

@@ -104,13 +104,14 @@ class TestCreateEmptyMdio:
         # The HeaderSpec can be either standard or customized.
         headers = get_teapot_segy_spec().trace.header if create_headers else None
         # Create an empty MDIO v1 metric post-stack 3D time velocity dataset
-        create_empty(
+        xr_dataset = create_empty(
             mdio_template=PostStack3DVelocityTemplate(data_domain="time", is_metric=True),
             dimensions=dims,
             output_path=output_path,
             headers=headers,
             overwrite=overwrite,
         )
+        return xr_dataset
 
     @classmethod
     def validate_teapod_dataset_metadata(cls, ds: xr_Dataset, is_velocity: bool) -> None:
@@ -203,7 +204,8 @@ class TestCreateEmptyMdio:
         and shared across all test methods in the class.
         """
         empty_mdio: Path = empty_mdio_dir / "mdio_with_headers.mdio"
-        self._create_empty_mdio(create_headers=True, output_path=empty_mdio)
+        xr_dataset = self._create_empty_mdio(create_headers=True, output_path=empty_mdio)
+        assert xr_dataset is not None
         return empty_mdio
 
     @pytest.fixture(scope="class")
@@ -214,7 +216,8 @@ class TestCreateEmptyMdio:
         and shared across all test methods in the class.
         """
         empty_mdio: Path = empty_mdio_dir / "mdio_no_headers.mdio"
-        self._create_empty_mdio(create_headers=False, output_path=empty_mdio)
+        xr_dataset = self._create_empty_mdio(create_headers=False, output_path=empty_mdio)
+        assert xr_dataset is not None
         return empty_mdio
 
     def test_dataset_metadata(self, mdio_with_headers: Path) -> None:
@@ -251,7 +254,8 @@ class TestCreateEmptyMdio:
             self._create_empty_mdio(create_headers=True, output_path=empty_mdio, overwrite=False)
 
         # Third call: Create MDIO with overwrite=True - should succeed and overwrite garbage
-        self._create_empty_mdio(create_headers=True, output_path=empty_mdio, overwrite=True)
+        xr_dataset = self._create_empty_mdio(create_headers=True, output_path=empty_mdio, overwrite=True)
+        assert xr_dataset is not None
 
         # Validate that the MDIO file can be loaded correctly using the helper function
         ds = open_mdio(empty_mdio)
@@ -398,6 +402,8 @@ class TestCreateEmptyMdio:
             keep_coordinates=True,
             overwrite=True,
         )
+        assert ds is not None
+
         self.validate_teapod_dataset_metadata(ds, is_velocity=False)
         header_dtype = get_teapot_segy_spec().trace.header.dtype
         self.validate_teapod_dataset_variables(ds, header_dtype=header_dtype, is_velocity=False)
