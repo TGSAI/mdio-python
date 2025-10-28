@@ -10,7 +10,7 @@
 
 MDIO can be configured using environment variables to customize behavior for import, export,
 and validation operations. These variables provide runtime control without requiring code changes.
-You can find a summary of the available variables below.
+You can find a summary of the available variables and their defaults below.
 
 | **Variable**                          | **Type** | **Default**                      |
 | ------------------------------------- | -------- | -------------------------------- |
@@ -20,9 +20,8 @@ You can find a summary of the available variables below.
 | `MDIO__GRID__SPARSITY_RATIO_LIMIT`    | `float`  | `10.0`                           |
 | `MDIO__IMPORT__SAVE_SEGY_FILE_HEADER` | `bool`   | `False`                          |
 | `MDIO__IMPORT__CLOUD_NATIVE`          | `bool`   | `False`                          |
-| `MDIO_IGNORE_CHECKS`                  | `bool`   | `False`                          |
 | `MDIO__IMPORT__RAW_HEADERS`           | `bool`   | `False`                          |
-|                                       |          |                                  |
+| `MDIO_IGNORE_CHECKS`                  | `bool`   | `False`                          |
 
 ## CPU and Performance
 
