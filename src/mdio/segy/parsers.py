@@ -40,7 +40,7 @@ def parse_headers(
         HeaderArray. Keys are the index names, values are numpy arrays of parsed headers for the
         current block. Array is of type byte_type except IBM32 which is mapped to FLOAT32.
     """
-    env = MDIOSettings()
+    settings = MDIOSettings()
 
     trace_count = num_traces
     n_blocks = int(ceil(trace_count / block_size))
@@ -52,7 +52,7 @@ def parse_headers(
 
         trace_ranges.append((start, stop))
 
-    num_workers = min(n_blocks, env.import_cpus)
+    num_workers = min(n_blocks, settings.import_cpus)
 
     tqdm_kw = {"unit": "block", "dynamic_ncols": True}
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default

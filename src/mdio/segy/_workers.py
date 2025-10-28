@@ -46,13 +46,13 @@ def header_scan_worker(
     Returns:
         HeaderArray parsed from SEG-Y library.
     """
-    env = MDIOSettings()
+    settings = MDIOSettings()
 
     segy_file = SegyFileWrapper(**segy_file_kwargs)
 
     slice_ = slice(*trace_range)
 
-    trace_header = segy_file.trace[slice_].header if env.cloud_native else segy_file.header[slice_]
+    trace_header = segy_file.trace[slice_].header if settings.cloud_native else segy_file.header[slice_]
 
     if subset is not None:
         # struct field selection needs a list, not a tuple; a subset is a tuple from the template.
