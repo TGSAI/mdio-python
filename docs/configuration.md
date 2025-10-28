@@ -1,5 +1,5 @@
 ```{eval-rst}
-:tocdepth: 3
+:tocdepth: 2
 ```
 
 ```{currentModule} mdio.core.config
@@ -10,13 +10,23 @@
 
 MDIO can be configured using environment variables to customize behavior for import, export,
 and validation operations. These variables provide runtime control without requiring code changes.
+You can find a summary of the available variables below.
+
+| **Variable**                          | **Type** | **Default**                      |
+| ------------------------------------- | -------- | -------------------------------- |
+| `MDIO__IMPORT__CPU_COUNT`             | `int`    | Number of logical CPUs available |
+| `MDIO__EXPORT__CPU_COUNT`             | `int`    | Number of logical CPUs available |
+| `MDIO__GRID__SPARSITY_RATIO_WARN`     | `float`  | `2.0`                            |
+| `MDIO__GRID__SPARSITY_RATIO_LIMIT`    | `float`  | `10.0`                           |
+| `MDIO__IMPORT__SAVE_SEGY_FILE_HEADER` | `bool`   | `False`                          |
+| `MDIO__IMPORT__CLOUD_NATIVE`          | `bool`   | `False`                          |
+| `MDIO_IGNORE_CHECKS`                  | `bool`   | `False`                          |
+| `MDIO__IMPORT__RAW_HEADERS`           | `bool`   | `False`                          |
+|                                       |          |                                  |
 
 ## CPU and Performance
 
 ### `MDIO__EXPORT__CPU_COUNT`
-
-**Type:** Integer
-**Default:** Number of logical CPUs available
 
 Controls the number of CPUs used during SEG-Y export operations. Adjust this to balance
 performance with system resource availability.
@@ -27,9 +37,6 @@ $ mdio segy export input.mdio output.segy
 ```
 
 ### `MDIO__IMPORT__CPU_COUNT`
-
-**Type:** Integer
-**Default:** Number of logical CPUs available
 
 Controls the number of CPUs used during SEG-Y import operations. Higher values can
 significantly speed up ingestion of large datasets.
@@ -43,9 +50,6 @@ $ mdio segy import input.segy output.mdio --header-locations 189,193
 
 ### `MDIO__GRID__SPARSITY_RATIO_WARN`
 
-**Type:** Float
-**Default:** 2.0
-
 Sparsity ratio threshold that triggers warnings during grid validation. The sparsity ratio
 measures how sparse the trace grid is compared to a dense grid. Values above this threshold
 will log warnings but won't prevent operations.
@@ -55,9 +59,6 @@ $ export MDIO__GRID__SPARSITY_RATIO_WARN=3.0
 ```
 
 ### `MDIO__GRID__SPARSITY_RATIO_LIMIT`
-
-**Type:** Float
-**Default:** 10.0
 
 Sparsity ratio threshold that triggers errors and prevents operations. Use this to enforce
 quality standards and prevent ingestion of excessively sparse datasets that may indicate
@@ -71,8 +72,6 @@ $ export MDIO__GRID__SPARSITY_RATIO_LIMIT=15.0
 
 ### `MDIO__IMPORT__SAVE_SEGY_FILE_HEADER`
 
-**Type:** Boolean
-**Default:** false
 **Accepted values:** `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
 
 When enabled, preserves the original SEG-Y textual file header during import.
@@ -83,12 +82,8 @@ $ export MDIO__IMPORT__SAVE_SEGY_FILE_HEADER=true
 $ mdio segy import input.segy output.mdio --header-locations 189,193
 ```
 
-````
-
 ### `MDIO__IMPORT__CLOUD_NATIVE`
 
-**Type:** Boolean
-**Default:** false
 **Accepted values:** `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
 
 Enables buffered reads during SEG-Y header scans to optimize performance when reading from or
@@ -98,7 +93,7 @@ actual ingestion.
 
 ```{note}
 This variable is designed for cloud storage I/O, regardless of where the compute is running.
-````
+```
 
 **When to use:**
 
@@ -119,8 +114,6 @@ $ mdio segy import s3://bucket/input.segy output.mdio --header-locations 189,193
 
 ### `MDIO_IGNORE_CHECKS`
 
-**Type:** Boolean
-**Default:** false
 **Accepted values:** `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
 
 Bypasses validation checks during MDIO operations. This is primarily intended for development,
@@ -140,8 +133,6 @@ $ mdio segy import input.segy output.mdio --header-locations 189,193
 
 ### `MDIO__IMPORT__RAW_HEADERS`
 
-**Type:** Boolean
-**Default:** false
 **Accepted values:** `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
 
 ```{warning}
