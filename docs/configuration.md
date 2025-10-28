@@ -1,4 +1,12 @@
-# Environment Variables
+```{eval-rst}
+:tocdepth: 3
+```
+
+```{currentModule} mdio.core.config
+
+```
+
+# Configuration
 
 MDIO can be configured using environment variables to customize behavior for import, export,
 and validation operations. These variables provide runtime control without requiring code changes.
@@ -7,7 +15,7 @@ and validation operations. These variables provide runtime control without requi
 
 ### `MDIO__EXPORT__CPU_COUNT`
 
-**Type:** Integer  
+**Type:** Integer
 **Default:** Number of logical CPUs available
 
 Controls the number of CPUs used during SEG-Y export operations. Adjust this to balance
@@ -20,7 +28,7 @@ $ mdio segy export input.mdio output.segy
 
 ### `MDIO__IMPORT__CPU_COUNT`
 
-**Type:** Integer  
+**Type:** Integer
 **Default:** Number of logical CPUs available
 
 Controls the number of CPUs used during SEG-Y import operations. Higher values can
@@ -35,7 +43,7 @@ $ mdio segy import input.segy output.mdio --header-locations 189,193
 
 ### `MDIO__GRID__SPARSITY_RATIO_WARN`
 
-**Type:** Float  
+**Type:** Float
 **Default:** 2.0
 
 Sparsity ratio threshold that triggers warnings during grid validation. The sparsity ratio
@@ -48,7 +56,7 @@ $ export MDIO__GRID__SPARSITY_RATIO_WARN=3.0
 
 ### `MDIO__GRID__SPARSITY_RATIO_LIMIT`
 
-**Type:** Float  
+**Type:** Float
 **Default:** 10.0
 
 Sparsity ratio threshold that triggers errors and prevents operations. Use this to enforce
@@ -63,8 +71,8 @@ $ export MDIO__GRID__SPARSITY_RATIO_LIMIT=15.0
 
 ### `MDIO__IMPORT__SAVE_SEGY_FILE_HEADER`
 
-**Type:** Boolean  
-**Default:** false  
+**Type:** Boolean
+**Default:** false
 **Accepted values:** `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
 
 When enabled, preserves the original SEG-Y textual file header during import.
@@ -111,8 +119,8 @@ $ mdio segy import s3://bucket/input.segy output.mdio --header-locations 189,193
 
 ### `MDIO_IGNORE_CHECKS`
 
-**Type:** Boolean  
-**Default:** false  
+**Type:** Boolean
+**Default:** false
 **Accepted values:** `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
 
 Bypasses validation checks during MDIO operations. This is primarily intended for development,
@@ -132,8 +140,8 @@ $ mdio segy import input.segy output.mdio --header-locations 189,193
 
 ### `MDIO__IMPORT__RAW_HEADERS`
 
-**Type:** Boolean  
-**Default:** false  
+**Type:** Boolean
+**Default:** false
 **Accepted values:** `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
 
 ```{warning}
@@ -193,4 +201,11 @@ load_dotenv()  # Load environment variables from .env file
 MDIO__IMPORT__CPU_COUNT=16
 MDIO__GRID__SPARSITY_RATIO_LIMIT=15.0
 MDIO__IMPORT__CLOUD_NATIVE=true
+```
+
+## Reference
+
+```{eval-rst}
+.. autopydantic_model:: MDIOSettings
+    :inherited-members: BaseSettings
 ```
