@@ -1,10 +1,10 @@
 """Environment variable management for MDIO operations."""
 
 from psutil import cpu_count
-from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
+from pydantic_settings import SettingsConfigDict
 
 
 class MDIOSettings(BaseSettings):
@@ -58,10 +58,7 @@ class MDIOSettings(BaseSettings):
         alias="MDIO_IGNORE_CHECKS",
     )
 
-    model_config = ConfigDict(
-        env_prefix="",
-        case_sensitive=True,
-    )
+    model_config = SettingsConfigDict(case_sensitive=True)
 
     @field_validator("save_segy_file_header", "raw_headers", "ignore_checks", "cloud_native", mode="before")
     @classmethod

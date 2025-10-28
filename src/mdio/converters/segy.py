@@ -13,7 +13,6 @@ from segy.config import SegyHeaderOverrides
 from segy.standards.codes import MeasurementSystem as SegyMeasurementSystem
 from segy.standards.fields import binary as binary_header_fields
 
-from mdio.api._environ import MDIOSettings
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.chunk_grid import RegularChunkGrid
@@ -32,6 +31,7 @@ from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
+from mdio.core.settings import MDIOSettings
 from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize

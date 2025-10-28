@@ -6,7 +6,7 @@ from unittest.mock import patch
 import pytest
 from pydantic import ValidationError
 
-from mdio.api._environ import MDIOSettings
+from mdio.core.settings import MDIOSettings
 
 
 class TestEnvironment:

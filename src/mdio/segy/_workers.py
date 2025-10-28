@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 from segy.arrays import HeaderArray
 
-from mdio.api._environ import MDIOSettings
 from mdio.api.io import _normalize_storage_options
+from mdio.core.settings import MDIOSettings
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 from mdio.segy.file import SegyFileArguments
 from mdio.segy.file import SegyFileWrapper
