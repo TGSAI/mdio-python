@@ -91,7 +91,7 @@ class TestCreateEmptyMdio:
     """Tests for create_empty_mdio function."""
 
     @classmethod
-    def _create_empty_mdio(cls, create_headers: bool, output_path: Path, overwrite: bool = True) -> None:
+    def _create_empty_mdio(cls, create_headers: bool, output_path: Path, overwrite: bool = True) -> xr_Dataset:
         """Create a temporary empty MDIO file for testing."""
         # Create the grid with the specified dimensions
         dims = [
@@ -104,14 +104,13 @@ class TestCreateEmptyMdio:
         # The HeaderSpec can be either standard or customized.
         headers = get_teapot_segy_spec().trace.header if create_headers else None
         # Create an empty MDIO v1 metric post-stack 3D time velocity dataset
-        xr_dataset = create_empty(
+        return create_empty(
             mdio_template=PostStack3DVelocityTemplate(data_domain="time", is_metric=True),
             dimensions=dims,
             output_path=output_path,
             headers=headers,
             overwrite=overwrite,
         )
-        return xr_dataset
 
     @classmethod
     def validate_teapod_dataset_metadata(cls, ds: xr_Dataset, is_velocity: bool) -> None:

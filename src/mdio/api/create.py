@@ -50,6 +50,9 @@ def create_empty(  # noqa PLR0913
         headers: SEG-Y v1.0 trace headers. Defaults to None.
         overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
 
+    Returns:
+        The output MDIO dataset.
+
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
     """
@@ -86,7 +89,7 @@ def create_empty(  # noqa PLR0913
 
     # Write the dimension coordinates and trace mask
     xr_dataset = xr_dataset[drop_vars_delayed + ["trace_mask"]]
-    
+
     if output_path is not None:
         to_mdio(xr_dataset, output_path=output_path, mode="r+", compute=True)
 
