@@ -2,7 +2,6 @@
 
 from psutil import cpu_count
 from pydantic import Field
-from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
 
@@ -59,13 +58,3 @@ class MDIOSettings(BaseSettings):
     )
 
     model_config = SettingsConfigDict(case_sensitive=True)
-
-    @field_validator("save_segy_file_header", "raw_headers", "ignore_checks", "cloud_native", mode="before")
-    @classmethod
-    def parse_bool_fields(cls, v: object) -> bool:
-        """Parse boolean fields leniently, like the original implementation."""
-        if v is None:
-            return False
-        if isinstance(v, str):
-            return v.lower() in ("1", "true", "yes", "on")
-        return bool(v)
