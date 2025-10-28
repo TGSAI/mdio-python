@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 import logging
-import os
 from typing import TYPE_CHECKING
 
 import numpy as np
 from segy.arrays import HeaderArray
 
 from mdio.api.io import _normalize_storage_options
+from mdio.core.config import MDIOSettings
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 from mdio.segy.file import SegyFileArguments
 from mdio.segy.file import SegyFileWrapper
@@ -46,16 +46,13 @@ def header_scan_worker(
     Returns:
         HeaderArray parsed from SEG-Y library.
     """
+    settings = MDIOSettings()
+
     segy_file = SegyFileWrapper(**segy_file_kwargs)
 
     slice_ = slice(*trace_range)
 
-    cloud_native_mode = os.getenv("MDIO__IMPORT__CLOUD_NATIVE", default="False")
-
-    if cloud_native_mode.lower() in {"true", "1"}:
-        trace_header = segy_file.trace[slice_].header
-    else:
-        trace_header = segy_file.header[slice_]
+    trace_header = segy_file.trace[slice_].header if settings.cloud_native else segy_file.header[slice_]
 
     if subset is not None:
         # struct field selection needs a list, not a tuple; a subset is a tuple from the template.
