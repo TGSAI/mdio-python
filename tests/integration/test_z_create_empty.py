@@ -1,4 +1,11 @@
-"""Test for create_empty_mdio function."""
+"""Test for create_empty_mdio function.
+
+This set of tests has to run after the segy_roundtrip_teapot tests have run because
+the teapot dataset is used as the input for the create_empty_like test.
+
+NOTE: The only reliable way to ensure the test order (including the case when the 
+test are run in parallel) is to use the alphabetical order of the test names.
+"""
 
 from __future__ import annotations
 
@@ -22,9 +29,11 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
 
-from tests.integration.test_segy_roundtrip_teapot import get_teapot_segy_spec
-from tests.integration.testing_helpers import get_values
+from tests.integration.testing_helpers import UNITS_NONE, UNITS_SECOND, UNITS_METER, UNITS_FOOT, UNITS_METER_PER_SECOND, UNITS_FEET_PER_SECOND
+from tests.integration.testing_helpers import get_teapot_segy_spec
 from tests.integration.testing_helpers import validate_xr_variable
+from tests.integration.testing_helpers import get_values
+
 
 from mdio import __version__
 from mdio.api.create import create_empty
@@ -36,14 +45,6 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.converters.mdio import mdio_to_segy
 from mdio.core import Dimension
-
-UNITS_NONE = None
-UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
-UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
-UNITS_METER_PER_SECOND = SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)
-UNITS_FOOT = LengthUnitModel(length=LengthUnitEnum.FOOT)
-UNITS_FEET_PER_SECOND = SpeedUnitModel(speed=SpeedUnitEnum.FEET_PER_SECOND)
-
 
 class PostStack3DVelocityTemplate(Seismic3DPostStackTemplate):
     """Custom template that uses 'velocity' as the default variable name instead of 'amplitude'."""
@@ -80,52 +81,8 @@ class PostStack3DVelocityTemplate(Seismic3DPostStackTemplate):
         domain_suffix = self._data_domain.capitalize()
         return f"PostStack3DVelocity{domain_suffix}"
 
-
-@pytest.mark.order(1000)
 class TestCreateEmptyMdio:
     """Tests for create_empty_mdio function."""
-
-    @classmethod
-    def _validate_empty_mdio_dataset(cls, ds: xr_Dataset, has_headers: bool, is_velocity: bool) -> None:
-        """Validate an empty MDIO dataset structure and content."""
-        # Check that the dataset has the expected shape
-        assert ds.sizes == {"inline": 345, "crossline": 188, "time": 1501}
-
-        # Validate the dimension coordinate variables
-        validate_xr_variable(ds, "inline", {"inline": 345}, UNITS_NONE, np.int32, False, range(1, 346), get_values)
-        validate_xr_variable(
-            ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, False, range(1, 189), get_values
-        )
-        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, False, range(0, 3002, 2), get_values)
-
-        # Validate the non-dimensional coordinate variables (should be empty for empty dataset)
-        validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)
-        validate_xr_variable(ds, "cdp_y", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)
-
-        if has_headers:
-            # Validate the headers (should be empty for empty dataset)
-            # Infer the dtype from segy_spec and ignore endianness
-            header_dtype = get_teapot_segy_spec().trace.header.dtype.newbyteorder("native")
-            validate_xr_variable(ds, "headers", {"inline": 345, "crossline": 188}, UNITS_NONE, header_dtype)
-            validate_xr_variable(ds, "segy_file_header", dims={}, units=UNITS_NONE, data_type=np.dtype("U1"))
-        else:
-            assert "headers" not in ds.variables
-            assert "segy_file_header" not in ds.variables
-
-        # Validate the trace mask (should be all True for empty dataset)
-        validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool_)
-        trace_mask = ds["trace_mask"].values
-        assert not np.any(trace_mask), "All traces should be marked as dead in empty dataset"
-
-        # Validate the velocity or amplitude data (should be empty)
-        if is_velocity:
-            validate_xr_variable(
-                ds, "velocity", {"inline": 345, "crossline": 188, "time": 1501}, UNITS_METER_PER_SECOND, np.float32
-            )
-        else:
-            validate_xr_variable(
-                ds, "amplitude", {"inline": 345, "crossline": 188, "time": 1501}, UNITS_NONE, np.float32
-            )
 
     @classmethod
     def _create_empty_mdio(cls, create_headers: bool, output_path: Path, overwrite: bool = True) -> None:
@@ -149,29 +106,8 @@ class TestCreateEmptyMdio:
             overwrite=overwrite,
         )
 
-    @pytest.fixture(scope="class")
-    def mdio_with_headers(self, empty_mdio_dir: Path) -> Path:
-        """Create a temporary empty MDIO file for testing.
-
-        This fixture is scoped to the class level, so it will be executed only once
-        and shared across all test methods in the class.
-        """
-        empty_mdio: Path = empty_mdio_dir / "mdio_with_headers.mdio"
-        self._create_empty_mdio(create_headers=True, output_path=empty_mdio)
-        return empty_mdio
-
-    @pytest.fixture(scope="class")
-    def mdio_no_headers(self, empty_mdio_dir: Path) -> Path:
-        """Create a temporary empty MDIO file for testing.
-
-        This fixture is scoped to the class level, so it will be executed only once
-        and shared across all test methods in the class.
-        """
-        empty_mdio: Path = empty_mdio_dir / "mdio_no_headers.mdio"
-        self._create_empty_mdio(create_headers=False, output_path=empty_mdio)
-        return empty_mdio
-
-    def validate_dataset_metadata(self, ds: xr_Dataset, is_velocity: bool) -> None:
+    @classmethod
+    def validate_teapod_dataset_metadata(cls, ds: xr_Dataset, is_velocity: bool) -> None:
         """Validate the dataset metadata."""
         if is_velocity:
             assert ds.name == "PostStack3DVelocityTime"
@@ -209,18 +145,86 @@ class TestCreateEmptyMdio:
         assert attributes["surveyType"] == "3D"
         assert attributes["gatherType"] == "stacked"
 
+    @classmethod
+    def validate_teapod_dataset_variables(cls, ds: xr_Dataset, header_dtype: np.dtype | None, is_velocity: bool) -> None:
+        """Validate an empty MDIO dataset structure and content."""
+        # Check that the dataset has the expected shape
+        assert ds.sizes == {"inline": 345, "crossline": 188, "time": 1501}
+
+        # Validate the dimension coordinate variables
+        validate_xr_variable(ds, "inline", {"inline": 345}, UNITS_NONE, np.int32, False, range(1, 346), get_values)
+        validate_xr_variable(
+            ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, False, range(1, 189), get_values
+        )
+        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, False, range(0, 3002, 2), get_values)
+
+        # Validate the non-dimensional coordinate variables (should be empty for empty dataset)
+        validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)
+        validate_xr_variable(ds, "cdp_y", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)
+
+        if header_dtype is not None:
+            # Validate the headers (should be empty for empty dataset)
+            # Infer the dtype from segy_spec and ignore endianness
+            header_dtype = header_dtype.newbyteorder("native")
+            validate_xr_variable(ds, "headers", {"inline": 345, "crossline": 188}, UNITS_NONE, header_dtype)
+            validate_xr_variable(ds, "segy_file_header", dims={}, units=UNITS_NONE, data_type=np.dtype("U1"))
+        else:
+            assert "headers" not in ds.variables
+            assert "segy_file_header" not in ds.variables
+
+        # Validate the trace mask (should be all True for empty dataset)
+        validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool_)
+        trace_mask = ds["trace_mask"].values
+        assert not np.any(trace_mask), "All traces should be marked as dead in empty dataset"
+
+        # Validate the velocity or amplitude data (should be empty)
+        if is_velocity:
+            validate_xr_variable(
+                ds, "velocity", {"inline": 345, "crossline": 188, "time": 1501}, UNITS_METER_PER_SECOND, np.float32
+            )
+        else:
+            validate_xr_variable(
+                ds, "amplitude", {"inline": 345, "crossline": 188, "time": 1501}, UNITS_NONE, np.float32
+            )
+
+    @pytest.fixture(scope="class")
+    def mdio_with_headers(self, empty_mdio_dir: Path) -> Path:
+        """Create a temporary empty MDIO file for testing.
+
+        This fixture is scoped to the class level, so it will be executed only once
+        and shared across all test methods in the class.
+        """
+        empty_mdio: Path = empty_mdio_dir / "mdio_with_headers.mdio"
+        self._create_empty_mdio(create_headers=True, output_path=empty_mdio)
+        return empty_mdio
+
+    @pytest.fixture(scope="class")
+    def mdio_no_headers(self, empty_mdio_dir: Path) -> Path:
+        """Create a temporary empty MDIO file for testing.
+
+        This fixture is scoped to the class level, so it will be executed only once
+        and shared across all test methods in the class.
+        """
+        empty_mdio: Path = empty_mdio_dir / "mdio_no_headers.mdio"
+        self._create_empty_mdio(create_headers=False, output_path=empty_mdio)
+        return empty_mdio
+
+
     def test_dataset_metadata(self, mdio_with_headers: Path) -> None:
         """Test dataset metadata for empty MDIO file."""
         ds = open_mdio(mdio_with_headers)
-        self.validate_dataset_metadata(ds, is_velocity=True)
+        self.validate_teapod_dataset_metadata(ds, is_velocity=True)
+
 
     def test_variables(self, mdio_with_headers: Path, mdio_no_headers: Path) -> None:
         """Test grid validation for empty MDIO file."""
+        
         ds = open_mdio(mdio_with_headers)
-        self._validate_empty_mdio_dataset(ds, has_headers=True, is_velocity=True)
+        header_dtype = get_teapot_segy_spec().trace.header.dtype
+        self.validate_teapod_dataset_variables(ds, header_dtype=header_dtype, is_velocity=True)
 
         ds = open_mdio(mdio_no_headers)
-        self._validate_empty_mdio_dataset(ds, has_headers=False, is_velocity=True)
+        self.validate_teapod_dataset_variables(ds, header_dtype=None, is_velocity=True)
 
     def test_overwrite_behavior(self, empty_mdio_dir: Path) -> None:
         """Test overwrite parameter behavior in create_empty_mdio."""
@@ -246,7 +250,9 @@ class TestCreateEmptyMdio:
 
         # Validate that the MDIO file can be loaded correctly using the helper function
         ds = open_mdio(empty_mdio)
-        self._validate_empty_mdio_dataset(ds, has_headers=True, is_velocity=True)
+        self.validate_teapod_dataset_metadata(ds, is_velocity=True)
+        header_dtype = get_teapot_segy_spec().trace.header.dtype
+        self.validate_teapod_dataset_variables(ds, header_dtype=header_dtype, is_velocity=True)
 
         # Verify the garbage data was overwritten (should not exist)
         assert not garbage_file.exists(), "Garbage file should have been overwritten"
@@ -375,16 +381,21 @@ class TestCreateEmptyMdio:
                 output_path=mdio_with_headers.parent / "populated_empty.sgy",
             )
 
-    @pytest.mark.order(1001)
-    @pytest.mark.dependency
-    def test_create_empty_like(self, teapot_mdio_tmp: Path, mdio_with_headers: Path) -> None:
-        """Create an empty MDIO file like the input file."""
-        _ = mdio_with_headers
+
+    def test_create_empty_like(self, teapot_mdio_tmp: Path) -> None:
+        """Create an empty MDIO file like the input MDIO file.
+        
+        This test has to run after the segy_roundtrip_teapot tests have run because
+        its uses 'teapot_mdio_tmp' created by the segy_roundtrip_teapot tests as the input.
+        """
+
         ds = create_empty_like(
             input_path=teapot_mdio_tmp,
+            # TODO: write to a file
             output_path=None,  # We don't want to write to disk for now
             keep_coordinates=True,
             overwrite=True,
         )
-        self.validate_dataset_metadata(ds, is_velocity=False)
-        self._validate_empty_mdio_dataset(ds, has_headers=True, is_velocity=False)
+        self.validate_teapod_dataset_metadata(ds, is_velocity=False)
+        header_dtype = get_teapot_segy_spec().trace.header.dtype
+        self.validate_teapod_dataset_variables(ds, header_dtype=header_dtype, is_velocity=False)

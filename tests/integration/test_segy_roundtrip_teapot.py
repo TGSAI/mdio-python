@@ -9,20 +9,17 @@ import dask
 import numpy as np
 import numpy.testing as npt
 import pytest
-from segy.schema import HeaderField
-from segy.schema import ScalarType
-from segy.standards import get_segy_standard
+from tests.integration.testing_helpers import UNITS_METER
+from tests.integration.testing_helpers import UNITS_NONE
+from tests.integration.testing_helpers import UNITS_SECOND
 from tests.integration.testing_helpers import get_inline_header_values
+from tests.integration.testing_helpers import get_teapot_segy_spec
 from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_xr_variable
 
 from mdio import __version__
 from mdio import mdio_to_segy
 from mdio.api.io import open_mdio
-from mdio.builder.schemas.v1.units import LengthUnitEnum
-from mdio.builder.schemas.v1.units import LengthUnitModel
-from mdio.builder.schemas.v1.units import TimeUnitEnum
-from mdio.builder.schemas.v1.units import TimeUnitModel
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.segy import segy_to_mdio
 from mdio.segy.file import SegyFileWrapper
@@ -48,17 +45,6 @@ def set_env_vars(monkeypatch: Generator[pytest.MonkeyPatch]) -> None:
 def teapot_segy_spec() -> SegySpec:
     """Return the customized SEG-Y specification for the teapot dome dataset."""
     return get_teapot_segy_spec()
-
-
-def get_teapot_segy_spec() -> SegySpec:
-    """Return the customized SEG-Y specification for the teapot dome dataset."""
-    teapot_fields = [
-        HeaderField(name="inline", byte=17, format=ScalarType.INT32),
-        HeaderField(name="crossline", byte=13, format=ScalarType.INT32),
-        HeaderField(name="cdp_x", byte=81, format=ScalarType.INT32),
-        HeaderField(name="cdp_y", byte=85, format=ScalarType.INT32),
-    ]
-    return get_segy_standard(1.0).customize(trace_header_fields=teapot_fields)
 
 
 def text_header_teapot_dome() -> str:
@@ -157,12 +143,6 @@ def raw_binary_header_teapot_dome() -> str:
     )
 
 
-UNITS_NONE = None
-UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
-UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
-
-
-@pytest.mark.order(1)
 class TestTeapotRoundtrip:
     """Tests for Teapot Dome data ingestion and export."""
 

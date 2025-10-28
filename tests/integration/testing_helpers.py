@@ -4,8 +4,36 @@ from collections.abc import Callable
 
 import numpy as np
 import xarray as xr
+from segy.schema import HeaderField
+from segy.schema import ScalarType
+from segy.schema.segy import SegySpec
+from segy.standards import get_segy_standard
 
 from mdio.builder.schemas.v1.units import AllUnitModel
+from mdio.builder.schemas.v1.units import LengthUnitEnum
+from mdio.builder.schemas.v1.units import LengthUnitModel
+from mdio.builder.schemas.v1.units import SpeedUnitEnum
+from mdio.builder.schemas.v1.units import SpeedUnitModel
+from mdio.builder.schemas.v1.units import TimeUnitEnum
+from mdio.builder.schemas.v1.units import TimeUnitModel
+
+UNITS_NONE = None
+UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
+UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
+UNITS_METER_PER_SECOND = SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)
+UNITS_FOOT = LengthUnitModel(length=LengthUnitEnum.FOOT)
+UNITS_FEET_PER_SECOND = SpeedUnitModel(speed=SpeedUnitEnum.FEET_PER_SECOND)
+
+
+def get_teapot_segy_spec() -> SegySpec:
+    """Return the customized SEG-Y specification for the teapot dome dataset."""
+    teapot_fields = [
+        HeaderField(name="inline", byte=17, format=ScalarType.INT32),
+        HeaderField(name="crossline", byte=13, format=ScalarType.INT32),
+        HeaderField(name="cdp_x", byte=81, format=ScalarType.INT32),
+        HeaderField(name="cdp_y", byte=85, format=ScalarType.INT32),
+    ]
+    return get_segy_standard(1.0).customize(trace_header_fields=teapot_fields)
 
 
 def get_values(arr: xr.DataArray) -> np.ndarray:
