@@ -36,6 +36,7 @@ from mdio.core.grid import Grid
 from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
+from mdio.exceptions import MDIOMissingFieldError
 from mdio.segy import blocked_io
 from mdio.segy.file import get_segy_file_info
 from mdio.segy.scalar import SCALE_COORDINATE_KEYS
@@ -508,7 +509,7 @@ def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatas
             f"Required fields {sorted(missing_fields)} for template {mdio_template.name} "
             f"not found in the provided segy_spec"
         )
-        raise ValueError(err)
+        raise MDIOMissingFieldError(err)
 
 
 def segy_to_mdio(  # noqa PLR0913

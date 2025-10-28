@@ -220,7 +220,10 @@ For each command / subcommand you can provide `--help` argument to
 get information about usage.
 
 ```{eval-rst}
-.. click:: mdio.__main__:main
+.. typer:: mdio.cli:app
     :prog: mdio
-    :nested: full
+    :theme: monokai
+    :width: 100
+    :show-nested:
+    :make-sections:
 ```

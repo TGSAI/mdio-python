@@ -10,6 +10,7 @@ from segy.standards import get_segy_standard
 
 from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.converters.segy import _validate_spec_in_template
+from mdio.exceptions import MDIOMissingFieldError
 
 
 class TestValidateSpecInTemplate:
@@ -43,7 +44,7 @@ class TestValidateSpecInTemplate:
         segy_spec = spec.customize(trace_header_fields=header_fields)
 
         # Should raise ValueError listing the missing fields
-        with pytest.raises(ValueError, match=r"Required fields.*not found in.*segy_spec") as exc_info:
+        with pytest.raises(MDIOMissingFieldError, match=r"Required fields.*not found in.*segy_spec") as exc_info:
             _validate_spec_in_template(segy_spec, template)
 
         error_message = str(exc_info.value)
@@ -67,7 +68,7 @@ class TestValidateSpecInTemplate:
         segy_spec = spec.customize(trace_header_fields=standard_fields)
 
         # Should raise ValueError for missing coordinate_scalar
-        with pytest.raises(ValueError, match=r"Required fields.*not found in.*segy_spec") as exc_info:
+        with pytest.raises(MDIOMissingFieldError, match=r"Required fields.*not found in.*segy_spec") as exc_info:
             _validate_spec_in_template(segy_spec, template)
 
         error_message = str(exc_info.value)

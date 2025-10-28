@@ -18,14 +18,13 @@ classifiers = [
 ]
 
 dependencies = [
-    "click>=8.3.0",
-    "click-params>=0.5.0",
+    "typer>=0.20.0",
     "dask>=2025.9.1",
     "fsspec>=2025.9.0",
     "pint>=0.25.0",
     "psutil>=7.1.0",
     "pydantic>=2.12.0",
-    "rich>=14.1.0",
+    "questionary>=2.1.1",
     "segy>=0.5.3",
     "tqdm>=4.67.1",
     "universal-pathlib>=0.3.3",
@@ -44,7 +43,7 @@ repository = "https://github.com/TGSAI/mdio-python"
 documentation = "https://mdio-python.readthedocs.io"
 
 [project.scripts]
-mdio = "mdio.__main__:main"
+mdio = "mdio.cli:app"
 
 [dependency-groups]
 dev = [
@@ -68,8 +67,8 @@ docs = [
     "matplotlib>=3.10.6",
     "myst-nb>=1.3.0",
     "sphinx>=8.2.3",
+    "sphinxcontrib-typer>=0.6.2",
     "sphinx-autobuild>=2025.8.25",
-    "sphinx-click>=6.1.0",
     "sphinx-copybutton>=0.5.2",
     "sphinx-design>=0.6.1",
     "ipywidgets>=8.1.7",
@@ -123,9 +122,10 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "PLR2004"]
-"tests/integration/test_segy_import_export_masked.py" = ["E501"]
-"docs/tutorials/*.ipynb" = ["S101"]
+"tests/*" = ["S101", "PLR2004"]                                   # allow assertions and magic value comparison
+"tests/integration/test_segy_import_export_masked.py" = ["E501"]  # allow long lines for readibility
+"docs/tutorials/*.ipynb" = ["S101"]                               # allow assertions
+"src/mdio/commands/*.py" = ["PLC0415", "D301"]                    # allow delayed imports and \b without raw strings
 
 [tool.ruff.lint.flake8-annotations]
 mypy-init-return = true
@@ -145,6 +145,7 @@ style = "google"
 arg-type-hints-in-docstring = false
 check-return-types = false
 check-yield-types = false
+exclude = "src/mdio/commands/segy.py"
 
 [tool.coverage.paths]
 source = ["src", "*/site-packages"]

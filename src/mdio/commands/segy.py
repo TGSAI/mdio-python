@@ -1,389 +1,574 @@
-"""SEG-Y Import/Export CLI Plugin."""
+"""SEG-Y CLI subcommands for importing from SEG-Y to MDIO and (future) exporting back.
 
-from typing import Any
-
-from click import BOOL
-from click import FLOAT
-from click import STRING
-from click import Choice
-from click import Group
-from click import Path
-from click import argument
-from click import option
-from click_params import JSON
-from click_params import IntListParamType
-from click_params import StringListParamType
-
-SEGY_HELP = """
-MDIO and SEG-Y conversion utilities. Below is general information about the SEG-Y format and MDIO
-features. For import or export specific functionality check the import or export modules:
-
-\b
-mdio segy import --help
-mdio segy export --help
-
-MDIO can import SEG-Y files to a modern, chunked format.
-
-The SEG-Y format is defined by the Society of Exploration Geophysicists as a data transmission
-format and has its roots back to 1970s. There are currently multiple revisions of the SEG-Y format.
-
-MDIO can unravel and index any SEG-Y file that is on a regular grid. There is no limitation to
-dimensionality of the data, as long as it can be represented on a regular grid. Most seismic
-surveys are on a regular grid of unique shot/receiver IDs or  are imaged on regular CDP or
-INLINE/CROSSLINE grids.
-
-The SEG-Y headers are used as identifiers to take the flattened SEG-Y data and convert it to the
-multi-dimensional tensor representation. An example of ingesting a 3-D Post-Stack seismic data can
-be though as the following, per the SEG-Y Rev1 standard:
-
-\b
---header-names inline,crossline
---header-locations 189,193
---header-types int32,int32
-
-\b
-Our recommended chunk sizes are:
-(Based on GCS benchmarks)
-\b
-3D: 64 x 64 x 64
-2D: 512 x 512
-
-The 4D+ datasets chunking recommendation depends on the type of 4D+ dataset (i.e. SHOT vs CDP data
-will have different chunking).
-
-MDIO also import or export big and little endian coded IBM or IEEE floating point formatted SEG-Y
-files. MDIO can also build a grid from arbitrary header locations for indexing. However, the
-headers are stored as the SEG-Y Rev 1 after ingestion.
+This sub-app is available under the main CLI as: mdio segy <command>.
+Run: mdio segy --help or mdio segy import --help for usage and examples.
 """
 
-cli = Group(name="segy", help=SEGY_HELP)
+from __future__ import annotations
+
+import json
+from typing import TYPE_CHECKING
+from typing import Annotated
+from typing import Any
+
+import click
+import questionary
+import typer
+from rich import print  # noqa: A004
+from segy.schema.format import TextHeaderEncoding
+from segy.schema.segy import SegyStandard
+from upath import UPath
+
+from mdio.converters.exceptions import GridTraceSparsityError
+from mdio.exceptions import MDIOMissingFieldError
+
+if TYPE_CHECKING:
+    from click.core import Context
+    from click.core import Parameter
+    from segy.schema.header import HeaderField
+    from segy.schema.segy import SegySpec
+
+    from mdio.builder.templates.base import AbstractDatasetTemplate
+
+app = typer.Typer(help="Convert SEG-Y <-> MDIO datasets.")
 
 
-@cli.command(name="import")
-@argument("segy-path", type=STRING)
-@argument("mdio-path", type=STRING)
-@option(
-    "-loc",
-    "--header-locations",
-    required=True,
-    help="Byte locations of the index attributes in SEG-Y trace header.",
-    type=IntListParamType(),
-)
-@option(
-    "-types",
-    "--header-types",
-    required=False,
-    help="Data types of the index attributes in SEG-Y trace header.",
-    type=StringListParamType(),
-)
-@option(
-    "-names",
-    "--header-names",
-    required=False,
-    help="Names of the index attributes",
-    type=StringListParamType(),
-)
-@option(
-    "-chunks",
-    "--chunk-size",
-    required=False,
-    help="Custom chunk size for bricked storage",
-    type=IntListParamType(),
-)
-@option(
-    "-lossless",
-    "--lossless",
-    required=False,
-    default=True,
-    help="Toggle lossless, and perceptually lossless compression",
-    type=BOOL,
-    show_default=True,
-)
-@option(
-    "-tolerance",
-    "--compression-tolerance",
-    required=False,
-    default=0.01,
-    help="Lossy compression tolerance in ZFP.",
-    type=FLOAT,
-    show_default=True,
-)
-@option(
-    "-storage-input",
-    "--storage-options-input",
-    required=False,
-    help="Storage options for SEG-Y input file.",
-    type=JSON,
-)
-@option(
-    "-storage-output",
-    "--storage-options-output",
-    required=False,
-    help="Storage options for the MDIO output file.",
-    type=JSON,
-)
-@option(
-    "-overwrite",
-    "--overwrite",
-    is_flag=True,
-    help="Flag to overwrite the MDIO file if it exists",
-    show_default=True,
-)
-@option(
-    "-grid-overrides",
-    "--grid-overrides",
-    required=False,
-    help="Option to add grid overrides.",
-    type=JSON,
-)
+REVISION_MAP = {
+    "rev 0": SegyStandard.REV0,
+    "rev 1": SegyStandard.REV1,
+    "rev 2": SegyStandard.REV2,
+    "rev 2.1": SegyStandard.REV21,
+}
+
+
+class UPathParamType(click.ParamType):
+    """Click parser for UPath."""
+
+    name = "Path"
+
+    def convert(self, value: str, param: Parameter | None, ctx: Context | None) -> UPath:  # noqa: ARG002
+        """Convert string path to UPath."""
+        try:
+            return UPath(value)
+        except Exception:
+            self.fail(f"{value} can't be initialized as UPath", param, ctx)
+
+
+class JSONParamType(click.ParamType):
+    """Click parser for JSON."""
+
+    name = "JSON"
+
+    def convert(self, value: str, param: Parameter | None, ctx: Context | None) -> dict[str, Any]:  # noqa: ARG002
+        """Convert JSON-like string to dict."""
+        try:
+            return json.loads(value)
+        except json.JSONDecodeError:
+            self.fail(f"{value} is not a valid json string", param, ctx)
+
+
+def prompt_for_segy_standard() -> SegyStandard:
+    """Prompt user to select a SEG-Y standard."""
+    choices = list(REVISION_MAP.keys())
+    standard_str = questionary.select("Select SEG-Y standard:", choices=choices, default="rev 1").ask()
+    return SegyStandard(REVISION_MAP[standard_str])
+
+
+def prompt_for_text_encoding() -> str:
+    """Prompt user for text header encoding."""
+    return questionary.select("Select text header encoding:", choices=["ebcdic", "ascii"], default="ebcdic").ask()
+
+
+def prompt_for_header_fields(field_type: str, segy_spec: SegySpec | None = None) -> list[HeaderField]:
+    """Prompt user to customize header fields with interactive choices.
+
+    Improvements over the previous version:
+    - No comma-separated input is required.
+    - You can pick known fields from the current SEG-Y spec via a checkbox.
+    - You can add new fields using guided prompts for name, byte, and format.
+    """
+    from segy.schema.header import HeaderField
+
+    def _get_known_fields() -> list[HeaderField]:
+        if segy_spec is None:
+            return []
+        if field_type.lower() == "binary":
+            return list(getattr(segy_spec.binary.header, "fields", []))
+        if field_type.lower() == "trace":
+            return list(getattr(segy_spec.trace.header, "fields", []))
+        return []
+
+    def _format_choice(hf: HeaderField) -> str:
+        # Show helpful info for each known field
+        return f"{hf.name} (byte={hf.byte}, format={hf.format})"
+
+    fields: list[HeaderField] = []
+
+    if not questionary.confirm(f"Customize {field_type} header fields?", default=False).ask():
+        return fields
+
+    while True:
+        action = questionary.select(
+            f"Customize {field_type} header fields — choose an action:",
+            choices=[
+                "Add from known fields",
+                "Add a new field",
+                "View current selections",
+                "Clear selections",
+                "Done",
+            ],
+            default="Add a new field",
+        ).ask()
+
+        if action == "Add from known fields":
+            known = _get_known_fields()
+            if not known:
+                print("No known fields available to select. You can still add a new field.")
+                continue
+            choices = [_format_choice(hf) for hf in known]
+            selected = questionary.checkbox(f"Select {field_type} header fields to add:", choices=choices).ask() or []
+            # Map chosen strings back to HeaderField models
+            lookup = {_format_choice(hf): hf for hf in known}
+            for label in selected:
+                hf = lookup.get(label)
+                if hf is not None:
+                    fields.append(HeaderField.model_validate(hf.model_dump()))
+
+        elif action == "Add a new field":
+            name = questionary.text("Field name (e.g., inline):").ask()
+            if not name:
+                print("Name cannot be empty.")
+                continue
+
+            byte_str = questionary.text("Starting byte (integer):").ask()
+            try:
+                byte_val = int(byte_str)
+            except (TypeError, ValueError):
+                print("Byte must be an integer.")
+                continue
+
+            # Choose data format from available ScalarType values (from segy library)
+            from segy.schema.format import ScalarType
+
+            fmt_choices = [s.value for s in ScalarType]
+            format_ = questionary.select("Data format:", choices=fmt_choices, default="int32").ask()
+            if not format_:
+                print("Format cannot be empty.")
+                continue
+
+            try:
+                valid_field = HeaderField.model_validate({"name": name, "byte": byte_val, "format": format_})
+            except Exception as exc:  # pydantic validation error
+                print(f"Invalid field specification: {exc}")
+                continue
+            fields.append(valid_field)
+
+        elif action == "View current selections":
+            if not fields:
+                print("No custom fields selected yet.")
+            else:
+                print("Currently selected fields:")
+                for i, hf in enumerate(fields, start=1):
+                    print(f"  {i}. {hf.name} (byte={hf.byte}, format={hf.format})")
+
+        elif action == "Clear selections":
+            if fields and questionary.confirm("Clear all selected fields?", default=False).ask():
+                fields = []
+
+        elif action == "Done":
+            break
+
+    return fields
+
+
+def create_segy_spec(
+    input_path: UPath, mdio_template: AbstractDatasetTemplate, preselected_encoding: str | None = None
+) -> SegySpec:
+    """Create SEG-Y specification interactively."""
+    from segy.standards.registry import get_segy_standard
+
+    # Preview textual header FIRST with EBCDIC by default (before selecting SEG-Y revision)
+    if preselected_encoding is None:
+        text_encoding = TextHeaderEncoding.EBCDIC
+        segy_spec_preview = get_segy_standard(SegyStandard.REV1)
+        segy_spec_preview.text_header.encoding = text_encoding
+        if segy_spec_preview.ext_text_header is not None:
+            segy_spec_preview.ext_text_header.spec.encoding = text_encoding
+        segy_spec_preview.endianness = None
+
+        if questionary.confirm("Preview textual header now?", default=True).ask():
+            include_ext = False
+            while True:
+                main_txt, ext_txt_list = _read_text_headers(input_path, segy_spec_preview)
+                ext_to_show = ext_txt_list if include_ext else []
+                bundle = _format_header_bundle(main_txt, ext_to_show, segy_spec_preview.text_header.encoding)
+                _pager(bundle)
+
+                # If there are extended headers, let the user decide to include them next time
+                if ext_txt_list:
+                    include_ext = questionary.confirm(
+                        "Include extended text headers in the next preview?", default=include_ext
+                    ).ask()
+
+                # Offer saving the currently displayed content
+                did_save = False
+                if questionary.confirm("Save displayed header(s) to a file?", default=False).ask():
+                    default_hdr_path = input_path.with_name(f"{input_path.stem}_text_header.txt")
+                    out_hdr_uri = questionary.text(
+                        "Filename for textual header:", default=default_hdr_path.as_posix()
+                    ).ask()
+                    if out_hdr_uri:
+                        with UPath(out_hdr_uri).open("w") as fh:
+                            fh.write(bundle)
+                        print(f"Textual header saved to '{out_hdr_uri}'.")
+                        did_save = True
+
+                # If the user saved, exit the preview loop without asking to preview again
+                if did_save:
+                    break
+
+                # Allow switching encoding and re-previewing
+                if not questionary.confirm("Switch encoding and preview again?", default=False).ask():
+                    break
+
+                new_enc = prompt_for_text_encoding()
+                text_encoding = new_enc or text_encoding
+                segy_spec_preview.text_header.encoding = text_encoding
+                if segy_spec_preview.ext_text_header is not None:
+                    segy_spec_preview.ext_text_header.spec.encoding = text_encoding
+    else:
+        text_encoding = preselected_encoding
+
+    # Now prompt for SEG-Y standard and build the final spec
+    segy_standard = prompt_for_segy_standard()
+    segy_spec = get_segy_standard(segy_standard)
+    segy_spec.text_header.encoding = text_encoding
+    if segy_standard >= 1:
+        segy_spec.ext_text_header.spec.encoding = text_encoding
+    segy_spec.endianness = None
+
+    # Optionally reduce to only template-required trace headers BEFORE customizations,
+    # so any user-added extra fields remain intact afterwards.
+    is_minimal = questionary.confirm("Import only trace headers required by template?", default=False).ask()
+    if is_minimal:
+        required_fields = set(mdio_template.coordinate_names) | set(mdio_template.spatial_dimension_names)
+        required_fields = required_fields | {"coordinate_scalar"}
+        new_fields = [field for field in segy_spec.trace.header.fields if field.name in required_fields]
+        segy_spec.trace.header.fields = new_fields
+
+    # Now prompt for any customizations; these will be applied on top of the (possibly minimal) spec.
+    binary_fields = prompt_for_header_fields("binary", segy_spec)
+    trace_fields = prompt_for_header_fields("trace", segy_spec)
+    if binary_fields or trace_fields:
+        segy_spec = segy_spec.customize(binary_header_fields=binary_fields, trace_header_fields=trace_fields)
+
+    should_save = questionary.confirm("Save SEG-Y specification?", default=True).ask()
+    if should_save:
+        from segy import SegyFile
+
+        out_segy_spec_path = input_path.with_name(f"{input_path.stem}_segy_spec.json")
+        out_segy_spec_uri = out_segy_spec_path.as_posix()
+
+        custom_uri = questionary.text("Filename for SEG-Y Specification:", default=out_segy_spec_uri).ask()
+        custom_path = UPath(custom_uri)
+        updated_spec = SegyFile(input_path.as_posix(), spec=segy_spec).spec
+
+        with custom_path.open(mode="w") as f:
+            json.dump(updated_spec.model_dump(mode="json"), f, indent=2)
+        print(f"SEG-Y specification saved to '{custom_uri}'.")
+
+    return segy_spec
+
+
+def prompt_for_mdio_template() -> AbstractDatasetTemplate:
+    """Prompt user to select a MDIO template."""
+    from mdio.builder.template_registry import get_template_registry
+
+    registry = get_template_registry()
+    choices = registry.list_all_templates()
+    template_name = questionary.select("Select MDIO template:", choices=choices).ask()
+
+    if template_name is None:
+        raise typer.Abort
+
+    return registry.get(template_name)
+
+
+def load_mdio_template(mdio_template_name: str) -> AbstractDatasetTemplate:
+    """Load MDIO template from registry or select one interactively."""
+    from mdio.builder.template_registry import get_template_registry
+
+    registry = get_template_registry()
+    try:
+        return registry.get(mdio_template_name)
+    except KeyError:
+        typer.secho(f"MDIO template '{mdio_template_name}' not found.", fg="red", err=True)
+        raise typer.Abort from None
+
+
+def load_segy_spec(segy_spec_path: UPath) -> SegySpec:
+    """Load SEG-Y specification from a file."""
+    from pydantic import ValidationError
+    from segy.schema.segy import SegySpec
+
+    try:
+        with segy_spec_path.open("r") as f:
+            return SegySpec.model_validate_json(f.read())
+    except FileNotFoundError:
+        typer.secho(f"SEG-Y specification file '{segy_spec_path}' does not exist.", fg="red", err=True)
+        raise typer.Abort from None
+    except ValidationError:
+        typer.secho(f"Invalid SEG-Y specification file '{segy_spec_path}'.", fg="red", err=True)
+        raise typer.Abort from None
+
+
+SegyOutType = Annotated[UPath, typer.Argument(help="Path to the input SEG-Y file.", click_type=UPathParamType())]
+MdioOutType = Annotated[UPath, typer.Argument(help="Path to the output MDIO file.", click_type=UPathParamType())]
+MDIOTemplateType = Annotated[str | None, typer.Option(help="Name of the MDIO template.")]
+SegySpecType = Annotated[UPath | None, typer.Option(help="Path to the SEG-Y spec file.", click_type=UPathParamType())]
+StorageOptionType = Annotated[dict | None, typer.Option(help="Options for remote storage.", click_type=JSONParamType())]
+OverwriteType = Annotated[bool, typer.Option(help="Overwrite the MDIO file if it exists.")]
+InteractiveType = Annotated[bool, typer.Option(help="Enable interactive prompts when template or spec are missing.")]
+
+
+@app.command(name="import")
 def segy_import(  # noqa: PLR0913
-    segy_path: str,
-    mdio_path: str,
-    header_locations: list[int],
-    header_types: list[str],
-    header_names: list[str],
-    chunk_size: list[int],
-    lossless: bool,
-    compression_tolerance: float,
-    storage_options_input: dict[str, Any],
-    storage_options_output: dict[str, Any],
-    overwrite: bool,
-    grid_overrides: dict[str, Any],
+    input_path: SegyOutType,
+    output_path: MdioOutType,
+    mdio_template: MDIOTemplateType = None,
+    segy_spec: SegySpecType = None,
+    storage_input: StorageOptionType = None,
+    storage_output: StorageOptionType = None,
+    overwrite: OverwriteType = False,
+    interactive: InteractiveType = False,
 ) -> None:
-    r"""Ingest SEG-Y file to MDIO.
+    """Convert a SEG-Y file into an MDIO dataset.
 
-    SEG-Y format is explained in the "segy" group of the command line interface. To see additional
-    information run:
+    \b
+    In non-interactive mode you must provide both --mdio-template and --segy-spec.
+    Use --interactive to be guided through selecting a template and building a SEG-Y spec.
 
-    mdio segy --help
+    \b
+    Examples:
+    - Non-interactive (local files):
+      mdio segy import in.segy out.mdio --mdio-template PostStack3DTime --segy-spec spec.json
+    - Overwrite existing output with interactive template with spec:
+      mdio segy import in.segy out.mdio --segy-spec spec.json --overwrite
+    - Interactive (prompts for template and spec):
+      mdio segy import in.segy out.mdio --interactive
 
-    MDIO allows ingesting flattened seismic surveys in SEG-Y format into a multidimensional
-    tensor that represents the correct geometry of the seismic dataset.
-
-    The output MDIO file can be local or on the cloud. For local files, a UNIX or Windows path is
-    sufficient. However, for cloud stores, an appropriate protocol must be provided. Some examples:
-
-    File Path Patterns:
-
-        \b
-        If we are working locally:
-        --input_segy_path local_seismic.segy
-        --output-mdio-path local_seismic.mdio
-
-        \b
-        If we are working on the cloud on Amazon Web Services:
-        --input_segy_path local_seismic.segy
-        --output-mdio-path s3://bucket/local_seismic.mdio
-
-        \b
-        If we are working on the cloud on Google Cloud:
-        --input_segy_path local_seismic.segy
-        --output-mdio-path gs://bucket/local_seismic.mdio
-
-        \b
-        If we are working on the cloud on Microsoft Azure:
-        --input_segy_path local_seismic.segy
-        --output-mdio-path abfs://bucket/local_seismic.mdio
-
-    The SEG-Y headers for indexing must also be specified. The index byte locations (starts from 1)
-    are the minimum amount of information needed to index the file. However, we suggest giving
-    names to the index dimensions, and if needed providing the header types if they are not
-    standard. By default, all header entries are assumed to be 4-byte long (int32).
-
-    The chunk size depends on the data type, however, it can be chosen to accommodate any
-    workflow's access patterns. See examples below for some common use cases.
-
-    By default, the data is ingested with LOSSLESS compression. This saves disk space in the range
-    of 20% to 40%. MDIO also allows data to be compressed using the ZFP compressor's fixed
-    accuracy lossy compression. If lossless parameter is set to False and MDIO was installed using
-    the lossy extra; then the data will be compressed to approximately 30% of its original size and
-    will be perceptually lossless. The compression amount can be adjusted using the option
-    compression_tolerance (float). Values less than 1 gives good results. The higher the value, the
-    more compression, but will introduce artifacts. The default value is 0.01 tolerance, however we
-    get good results up to 0.5; where data is almost compressed to 10% of its original size. NOTE:
-    This assumes data has amplitudes normalized to have approximately standard deviation of 1. If
-    dataset has values smaller than this tolerance, a lot of loss may occur.
-
-    Usage:
-
-        Below are some examples of ingesting standard SEG-Y files per the SEG-Y Revision 1 and 2.
-
-        \b
-        3D Seismic Post-Stack:
-        Chunks: 128 inlines x 128 crosslines x 128 samples
-        --header-locations 189,193
-        --header-names inline,crossline
-
-
-        \b
-        3D Seismic Imaged Pre-Stack Gathers:
-        Chunks: 16 inlines x 16 crosslines x 16 offsets x 512 samples
-        --header-locations 189,193,37
-        --header-names inline,crossline,offset
-        --chunk-size 16,16,16,512
-
-        \b
-        2D Seismic Shot Data (Byte Locations Vary):
-        Chunks: 16 shots x 256 channels x 512 samples
-        --header-locations 9,13
-        --header-names shot,chan
-        --chunk-size 16,256,512
-
-        \b
-        3D Seismic Shot Data (Byte Locations Vary):
-        Let's assume streamer number is at byte 213 as
-        a 2-byte integer field.
-        Chunks: 8 shots x 2 cables x 256 channels x 512 samples
-        --header-locations 9,213,13
-        --header-names shot,cable,chan
-        --header-types int32,int16,int32
-        --chunk-size 8,2,256,512
-
-    We can override the dataset grid by the `grid_overrides` parameter. This allows us to ingest
-    files that don't conform to the true geometry of the seismic acquisition.
-
-    For example if we are ingesting 3D seismic shots that don't have a cable number and channel
-    numbers are sequential (i.e. each cable doesn't start with channel number 1; we can tell MDIO
-    to ingest this with the correct geometry by calculating cable numbers and wrapped channel
-    numbers. Note the missing byte location and type for the "cable" index.
-
-
-    Usage:
-        3D Seismic Shot Data (Byte Locations Vary):
-        Let's assume streamer number does not exist but there are
-        800 channels per cable.
-        Chunks: 8 shots x 2 cables x 256 channels x 512 samples
-        --header-locations 9,None,13
-        --header-names shot,cable,chan
-        --header-types int32,None,int32
-        --chunk-size 8,2,256,512
-
-        \b
-        No grid overrides are necessary for shot gathers with channel numbers and wrapped channels.
-
-        In cases where the user does not know if the input has unwrapped channels but desires to
-        store with wrapped channel index use: --grid-overrides '{"AutoChannelWrap": True}'
-
-        \b
-        For cases with no well-defined trace header for indexing a NonBinned grid override is
-        provided.This creates the index and attributes an incrementing integer to the trace for the
-        index based on first in first out. For example a CDP and Offset keyed file might have a
-        header for offset as real world offset which would result in a very sparse populated index.
-        Instead, the following override will create a new index from 1 to N, where N is the number
-        of offsets within a CDP ensemble. The index to be auto generated is called "trace". Note
-        the required "chunksize" parameter in the grid override. This is due to the non-binned
-        ensemble chunksize is irrelevant to the index dimension chunksizes and has to be specified
-        in the grid override itself. Note the lack of offset, only indexing CDP, providing CDP
-        header type, and chunksize for only CDP and Sample dimension. The chunksize for non-binned
-        dimension is in grid overrides. Below configuration will yield 1MB chunks.
-        \b
-        --header-locations 21
-        --header-names cdp
-        --header-types int32
-        --chunk-size 4,1024
-        --grid-overrides '{"NonBinned": True, "chunksize": 64}'
-
-        \b
-        A more complicated case where you may have a 5D dataset that is not binned in Offset and
-        Azimuth directions can be ingested like below. However, the Offset and Azimuth dimensions
-        will be combined to "trace" dimension. The below configuration will yield 1MB chunks.
-        \b
-        --header-locations 189,193
-        --header-names inline,crossline
-        --header-types int32,int32
-        --chunk-size 4,4,1024
-        --grid-overrides '{"NonBinned": True, "chunksize": 16}'
-
-        \b
-        For dataset with expected duplicate traces we have the following parameterization. This
-        will use the same logic as NonBinned with a fixed chunksize of 1. The other keys are still
-        important. The below example allows multiple traces per receiver (i.e. reshoot).
-        \b
-        --header-locations 9,213,13
-        --header-names shot,cable,chan
-        --header-types int32,int16,int32
-        --chunk-size 8,2,256,512
-        --grid-overrides '{"HasDuplicates": True}'
+    \b
+    Notes:
+    - Storage options are fsspec-compatible JSON passed to --storage-input/--storage-output.
+    - The command fails if output exists unless --overwrite is provided.
     """
-    # Lazy import to reduce CLI startup time
-    from mdio import segy_to_mdio  # noqa: PLC0415
+    if storage_input is not None:
+        input_path = UPath(input_path, storage_options=storage_input)
 
-    segy_to_mdio(
-        segy_path=segy_path,
-        mdio_path_or_buffer=mdio_path,
-        index_bytes=header_locations,
-        index_types=header_types,
-        index_names=header_names,
-        chunksize=chunk_size,
-        lossless=lossless,
-        compression_tolerance=compression_tolerance,
-        storage_options_input=storage_options_input,
-        storage_options_output=storage_options_output,
-        overwrite=overwrite,
-        grid_overrides=grid_overrides,
-    )
+    if storage_output is not None:
+        output_path = UPath(output_path, storage_options=storage_output)
+
+    if not input_path.is_file():
+        typer.secho(f"Input file '{input_path}' does not exist.", fg="red", err=True)
+        raise typer.Abort from None
+
+    # Preview textual header before template selection when building spec interactively
+    preselected_encoding: str | None = None
+    if interactive and segy_spec is None:
+        preselected_encoding = _interactive_text_header_preview_select_encoding(input_path)
+
+    if mdio_template:
+        mdio_template_obj = load_mdio_template(mdio_template)
+    elif interactive:
+        mdio_template_obj = prompt_for_mdio_template()
+    else:
+        typer.secho(
+            "MDIO template is required in non-interactive mode. Provide --mdio-template or use --interactive.",
+            fg="red",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    # Load or create SEG-Y specification
+    if segy_spec:
+        segy_spec_obj = load_segy_spec(segy_spec)
+    elif interactive:
+        segy_spec_obj = create_segy_spec(input_path, mdio_template_obj, preselected_encoding=preselected_encoding)
+    else:
+        typer.secho(
+            "SEG-Y spec is required in non-interactive mode. Provide --segy-spec or use --interactive to build one.",
+            fg="red",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    # Perform conversion
+    from mdio.converters import segy_to_mdio
+
+    try:
+        segy_to_mdio(
+            segy_spec=segy_spec_obj,
+            mdio_template=mdio_template_obj,
+            input_path=input_path,
+            output_path=output_path,
+            overwrite=overwrite,
+        )
+    except FileExistsError:
+        typer.secho(f"Output location '{output_path}' exists. Use `--overwrite` flag to overwrite.", fg="red", err=True)
+        raise typer.Abort from None
+    except (MDIOMissingFieldError, GridTraceSparsityError) as err:
+        typer.secho(str(err), fg="red", err=True)
+        raise typer.Abort from None
+
+    print(f"SEG-Y to MDIO conversion successful: {input_path} -> {output_path}")
 
 
-@cli.command(name="export")
-@argument("mdio-file", type=STRING)
-@argument("segy-path", type=Path(exists=False))
-@option(
-    "-access",
-    "--access-pattern",
-    required=False,
-    default="012",
-    help="Access pattern of the file",
-    type=STRING,
-    show_default=True,
-)
-@option(
-    "-storage",
-    "--storage-options",
-    required=False,
-    help="Custom storage options for cloud backends.",
-    type=JSON,
-)
-@option(
-    "-endian",
-    "--endian",
-    required=False,
-    default="big",
-    help="Endianness of the SEG-Y file",
-    type=Choice(["little", "big"]),
-    show_default=True,
-    show_choices=True,
-)
-def segy_export(
-    mdio_file: str,
-    segy_path: str,
-    access_pattern: str,
-    storage_options: dict[str, Any],
-    endian: str,
+MdioInType = Annotated[UPath, typer.Argument(help="Path to the input MDIO file.", click_type=UPathParamType())]
+SegyOutType = Annotated[UPath, typer.Argument(help="Path to the output SEG-Y file.", click_type=UPathParamType())]
+StorageOptionType = Annotated[dict | None, typer.Option(help="Options for remote storage.", click_type=JSONParamType())]
+OverwriteType = Annotated[bool, typer.Option(help="Overwrite the MDIO file if it exists.")]
+
+
+@app.command(name="export")
+def segy_export(  # noqa: PLR0913
+    input_path: MdioInType,
+    output_path: SegyOutType,
+    segy_spec: SegySpecType = None,
+    storage_input: StorageOptionType = None,
+    overwrite: OverwriteType = False,
+    interactive: InteractiveType = False,
 ) -> None:
-    """Export MDIO file to SEG-Y.
+    """Export an MDIO dataset to SEG-Y.
 
-    SEG-Y format is explained in the "segy" group of the command line interface. To see
-    additional information run:
+    \b
+    Status: not yet implemented. This command currently raises NotImplementedError.
 
-    mdio segy --help
-
-    MDIO allows exporting multidimensional seismic data back to the flattened seismic format
-    SEG-Y, to be used in data transmission.
-
-    The input headers are preserved as is, and will be transferred to the output file.
-
-    The user has control over the endianness, and the floating point data type. However, by default
-    we export as Big-Endian IBM float, per the SEG-Y format's default.
-
-    The input MDIO can be local or cloud based. However, the output SEG-Y will be generated locally.
+    \b
+    Example (will error until implemented):
+    - mdio segy export in.mdio out.segy --segy-spec spec.json
     """
-    # Lazy import to reduce CLI startup time
-    from mdio import mdio_to_segy  # noqa: PLC0415
+    if storage_input is not None:
+        input_path = UPath(input_path, storage_options=storage_input)
 
-    mdio_to_segy(
-        mdio_path_or_buffer=mdio_file,
-        output_segy_path=segy_path,
-        access_pattern=access_pattern,
-        storage_options=storage_options,
-        endian=endian,
-    )
+    msg = f"Exporting MDIO to SEG-Y is not yet supported. Args: {locals()}"
+    raise NotImplementedError(msg)
+
+
+if __name__ == "__main__":
+    app()
+
+
+# --- Helpers for textual header preview ---
+
+
+def _read_text_headers(input_path: UPath, segy_spec: SegySpec) -> tuple[str, list[str]]:
+    """Read main and extended textual headers from a SEG-Y file using the provided spec.
+
+    Important: Avoid SegyFile.text_header and .ext_text_header cached properties so that
+    switching encodings reflects immediately. We read raw bytes and decode via the spec.
+    """
+    from segy import SegyFile
+
+    sf = SegyFile(input_path.as_posix(), spec=segy_spec)
+
+    # Read and decode the main textual header directly via the spec
+    # We need to clear the cached properties
+    if hasattr(sf.spec.text_header, "processor"):
+        del sf.spec.text_header.processor
+    if hasattr(sf, "text_header"):
+        del sf.text_header
+
+    main: str = sf.text_header
+
+    # Read and decode extended textual headers (if present) directly via the spec
+    ext: list[str] = []
+    ext_spec = sf.spec.ext_text_header
+    if ext_spec is not None:
+        ext_buf = sf.fs.read_block(fn=sf.url, offset=ext_spec.offset, length=ext_spec.itemsize)
+        ext = ext_spec.decode(ext_buf)
+
+    return main, ext
+
+
+def _pager(content: str) -> None:
+    """Show content via a pager if available; fallback to plain print."""
+    try:
+        click.echo_via_pager(content)
+    except Exception:  # pragma: no cover - fallback path
+        print(content)
+
+
+def _format_header_bundle(main: str, ext_list: list[str] | None, encoding: str) -> str:
+    """Format textual headers nicely for display or saving."""
+    lines: list[str] = [
+        f"Textual Header (encoding={encoding})",
+        "-" * 60,
+        main.rstrip("\n"),
+    ]
+    if ext_list:
+        for i, ext in enumerate(ext_list, start=1):
+            lines.extend(
+                [
+                    "",
+                    f"Extended Text Header #{i} (encoding={encoding})",
+                    "-" * 60,
+                    ext.rstrip("\n"),
+                ]
+            )
+    return "\n".join(lines)
+
+
+def _interactive_text_header_preview_select_encoding(input_path: UPath) -> str:
+    """Run textual header preview before template selection and return the chosen encoding.
+
+    Uses a temporary REV1 spec and starts with EBCDIC by default. Allows switching
+    between EBCDIC/ASCII and saving the displayed headers.
+    """
+    from segy.standards.registry import get_segy_standard
+
+    text_encoding = TextHeaderEncoding.EBCDIC
+    segy_spec_preview = get_segy_standard(SegyStandard.REV1)
+    segy_spec_preview.text_header.encoding = text_encoding
+    if segy_spec_preview.ext_text_header is not None:
+        segy_spec_preview.ext_text_header.spec.encoding = text_encoding
+    segy_spec_preview.endianness = None
+
+    if questionary.confirm("Preview textual header now?", default=True).ask():
+        include_ext = False
+        while True:
+            main_txt, ext_txt_list = _read_text_headers(input_path, segy_spec_preview)
+            ext_to_show = ext_txt_list if include_ext else []
+            bundle = _format_header_bundle(main_txt, ext_to_show, segy_spec_preview.text_header.encoding)
+            _pager(bundle)
+
+            if ext_txt_list:
+                include_ext = questionary.confirm(
+                    "Include extended text headers in the next preview?", default=include_ext
+                ).ask()
+
+            did_save = False
+            if questionary.confirm("Save displayed header(s) to a file?", default=False).ask():
+                default_hdr_path = input_path.with_name(f"{input_path.stem}_text_header.txt")
+                out_hdr_uri = questionary.text(
+                    "Filename for textual header:", default=default_hdr_path.as_posix()
+                ).ask()
+                if out_hdr_uri:
+                    with UPath(out_hdr_uri).open("w") as fh:
+                        fh.write(bundle)
+                    print(f"Textual header saved to '{out_hdr_uri}'.")
+                    did_save = True
+
+            # If the user saved, exit the preview loop without asking to preview again
+            if did_save:
+                break
+
+            if not questionary.confirm("Switch encoding and preview again?", default=False).ask():
+                break
+
+            new_enc = prompt_for_text_encoding()
+            text_encoding = new_enc or text_encoding
+            segy_spec_preview.text_header.encoding = text_encoding
+            if segy_spec_preview.ext_text_header is not None:
+                segy_spec_preview.ext_text_header.spec.encoding = text_encoding
+
+    return text_encoding
