@@ -126,7 +126,7 @@ def create_empty_like(  # noqa PLR0913
     # Keep the name (which is the same as the used template name) and the original API version
     # ds_output.attrs["name"]
     # ds_output.attrs["apiVersion"]
-    ds_output.attrs["createdOn"] = datetime.now(UTC)
+    ds_output.attrs["createdOn"] = str(datetime.now(UTC))
 
     # Coordinates
     if not keep_coordinates:

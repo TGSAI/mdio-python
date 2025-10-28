@@ -3,7 +3,7 @@
 This set of tests has to run after the segy_roundtrip_teapot tests have run because
 the teapot dataset is used as the input for the create_empty_like test.
 
-NOTE: The only reliable way to ensure the test order (including the case when the 
+NOTE: The only reliable way to ensure the test order (including the case when the
 test are run in parallel) is to use the alphabetical order of the test names.
 """
 
@@ -29,11 +29,15 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
 
-from tests.integration.testing_helpers import UNITS_NONE, UNITS_SECOND, UNITS_METER, UNITS_FOOT, UNITS_METER_PER_SECOND, UNITS_FEET_PER_SECOND
+from tests.integration.testing_helpers import UNITS_FEET_PER_SECOND
+from tests.integration.testing_helpers import UNITS_FOOT
+from tests.integration.testing_helpers import UNITS_METER
+from tests.integration.testing_helpers import UNITS_METER_PER_SECOND
+from tests.integration.testing_helpers import UNITS_NONE
+from tests.integration.testing_helpers import UNITS_SECOND
 from tests.integration.testing_helpers import get_teapot_segy_spec
-from tests.integration.testing_helpers import validate_xr_variable
 from tests.integration.testing_helpers import get_values
-
+from tests.integration.testing_helpers import validate_xr_variable
 
 from mdio import __version__
 from mdio.api.create import create_empty
@@ -45,6 +49,7 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.converters.mdio import mdio_to_segy
 from mdio.core import Dimension
+
 
 class PostStack3DVelocityTemplate(Seismic3DPostStackTemplate):
     """Custom template that uses 'velocity' as the default variable name instead of 'amplitude'."""
@@ -80,6 +85,7 @@ class PostStack3DVelocityTemplate(Seismic3DPostStackTemplate):
         """Override the name of the template."""
         domain_suffix = self._data_domain.capitalize()
         return f"PostStack3DVelocity{domain_suffix}"
+
 
 class TestCreateEmptyMdio:
     """Tests for create_empty_mdio function."""
@@ -146,7 +152,9 @@ class TestCreateEmptyMdio:
         assert attributes["gatherType"] == "stacked"
 
     @classmethod
-    def validate_teapod_dataset_variables(cls, ds: xr_Dataset, header_dtype: np.dtype | None, is_velocity: bool) -> None:
+    def validate_teapod_dataset_variables(
+        cls, ds: xr_Dataset, header_dtype: np.dtype | None, is_velocity: bool
+    ) -> None:
         """Validate an empty MDIO dataset structure and content."""
         # Check that the dataset has the expected shape
         assert ds.sizes == {"inline": 345, "crossline": 188, "time": 1501}
@@ -209,16 +217,13 @@ class TestCreateEmptyMdio:
         self._create_empty_mdio(create_headers=False, output_path=empty_mdio)
         return empty_mdio
 
-
     def test_dataset_metadata(self, mdio_with_headers: Path) -> None:
         """Test dataset metadata for empty MDIO file."""
         ds = open_mdio(mdio_with_headers)
         self.validate_teapod_dataset_metadata(ds, is_velocity=True)
 
-
     def test_variables(self, mdio_with_headers: Path, mdio_no_headers: Path) -> None:
         """Test grid validation for empty MDIO file."""
-        
         ds = open_mdio(mdio_with_headers)
         header_dtype = get_teapot_segy_spec().trace.header.dtype
         self.validate_teapod_dataset_variables(ds, header_dtype=header_dtype, is_velocity=True)
@@ -381,18 +386,15 @@ class TestCreateEmptyMdio:
                 output_path=mdio_with_headers.parent / "populated_empty.sgy",
             )
 
-
-    def test_create_empty_like(self, teapot_mdio_tmp: Path) -> None:
+    def test_create_empty_like(self, teapot_mdio_tmp: Path, empty_mdio_dir: Path) -> None:
         """Create an empty MDIO file like the input MDIO file.
-        
+
         This test has to run after the segy_roundtrip_teapot tests have run because
         its uses 'teapot_mdio_tmp' created by the segy_roundtrip_teapot tests as the input.
         """
-
         ds = create_empty_like(
             input_path=teapot_mdio_tmp,
-            # TODO: write to a file
-            output_path=None,  # We don't want to write to disk for now
+            output_path=empty_mdio_dir / "create_empty_like.mdio",
             keep_coordinates=True,
             overwrite=True,
         )
