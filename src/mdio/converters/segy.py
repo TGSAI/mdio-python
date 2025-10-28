@@ -30,8 +30,8 @@ from mdio.constants import ZarrFormat
 from mdio.converters.exceptions import GridTraceCountError
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
+from mdio.core.config import MDIOSettings
 from mdio.core.grid import Grid
-from mdio.core.settings import MDIOSettings
 from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize

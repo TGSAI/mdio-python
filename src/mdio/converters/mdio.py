@@ -10,7 +10,7 @@ from tqdm.dask import TqdmCallback
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import open_mdio
-from mdio.core.settings import MDIOSettings
+from mdio.core.config import MDIOSettings
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy

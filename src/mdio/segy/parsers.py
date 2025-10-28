@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from tqdm.auto import tqdm
 
-from mdio.core.settings import MDIOSettings
+from mdio.core.config import MDIOSettings
 from mdio.segy._workers import header_scan_worker
 
 if TYPE_CHECKING:

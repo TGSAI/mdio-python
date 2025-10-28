@@ -9,7 +9,7 @@ import numpy as np
 from segy.arrays import HeaderArray
 
 from mdio.api.io import _normalize_storage_options
-from mdio.core.settings import MDIOSettings
+from mdio.core.config import MDIOSettings
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 from mdio.segy.file import SegyFileArguments
 from mdio.segy.file import SegyFileWrapper

@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
-from mdio.core.settings import MDIOSettings
+from mdio.core.config import MDIOSettings
 
 
 class TestEnvironment:
