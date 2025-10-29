@@ -22,11 +22,11 @@ from typing import TYPE_CHECKING
 from mdio.builder.formatting_html import template_registry_repr_html
 from mdio.builder.templates.seismic_2d_cdp import Seismic2DCdpGathersTemplate
 from mdio.builder.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
-from mdio.builder.templates.seismic_2d_shot_streamer import Seismic2DStreamerShotGathersTemplate
+from mdio.builder.templates.seismic_2d_streamer_shot import Seismic2DStreamerShotGathersTemplate
 from mdio.builder.templates.seismic_3d_cdp import Seismic3DCdpGathersTemplate
 from mdio.builder.templates.seismic_3d_coca import Seismic3DCocaGathersTemplate
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
-from mdio.builder.templates.seismic_3d_shot_streamer import Seismic3DStreamerShotGathersTemplate
+from mdio.builder.templates.seismic_3d_streamer_shot import Seismic3DStreamerShotGathersTemplate
 
 if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate

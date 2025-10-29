@@ -12,7 +12,7 @@ from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
 from mdio.builder.schemas.v1.units import TimeUnitModel
-from mdio.builder.templates.seismic_2d_shot_streamer import Seismic2DStreamerShotGathersTemplate
+from mdio.builder.templates.seismic_2d_streamer_shot import Seismic2DStreamerShotGathersTemplate
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
