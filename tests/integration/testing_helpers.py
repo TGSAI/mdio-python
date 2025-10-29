@@ -3,8 +3,8 @@
 from collections.abc import Callable
 
 import numpy as np
-from numpy.typing import DTypeLike
 import xarray as xr
+from numpy.typing import DTypeLike
 from segy.schema import HeaderField
 from segy.schema import ScalarType
 from segy.schema.segy import SegySpec
@@ -80,7 +80,7 @@ def validate_variable(  # noqa PLR0913
     if expected_values is not None and actual_value_generator is not None:
         actual_values = actual_value_generator(arr)
         assert np.array_equal(expected_values, actual_values)
-        
+
 
 def validate_xr_variable(  # noqa PLR0913
     dataset: xr.Dataset,

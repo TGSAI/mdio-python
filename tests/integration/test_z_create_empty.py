@@ -29,13 +29,10 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
 
-from mdio.builder.template_registry import TemplateRegistry
-from mdio.converters.segy import segy_to_mdio
 from tests.integration.testing_helpers import UNITS_METER
 from tests.integration.testing_helpers import UNITS_METERS_PER_SECOND
 from tests.integration.testing_helpers import UNITS_MILLISECOND
 from tests.integration.testing_helpers import UNITS_NONE
-from tests.integration.testing_helpers import UNITS_SECOND
 from tests.integration.testing_helpers import get_teapot_segy_spec
 from tests.integration.testing_helpers import get_values
 from tests.integration.testing_helpers import validate_xr_variable
@@ -47,8 +44,10 @@ from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
+from mdio.builder.template_registry import TemplateRegistry
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.converters.mdio import mdio_to_segy
+from mdio.converters.segy import segy_to_mdio
 from mdio.core import Dimension
 
 
@@ -168,7 +167,7 @@ class TestCreateEmptyMdio:
             header_dtype = header_dtype.newbyteorder("native")
             validate_xr_variable(ds, "headers", {"inline": 345, "crossline": 188}, UNITS_NONE, header_dtype)
             # The "segy_file_header" is optional
-            if "segy_file_header" in ds.variables: 
+            if "segy_file_header" in ds.variables:
                 validate_xr_variable(ds, "segy_file_header", dims={}, units=UNITS_NONE, data_type=np.dtype("U1"))
         else:
             assert "headers" not in ds.variables
@@ -389,9 +388,8 @@ class TestCreateEmptyMdio:
         This test has to run after the segy_roundtrip_teapot tests have run because
         its uses 'teapot_mdio_tmp' created by the segy_roundtrip_teapot tests as the input.
         """
-
-        mdio_input_tmp  = empty_mdio_dir / "create_empty_like_input.mdio"
-        mdio_output_tmp  = empty_mdio_dir / "create_empty_like_output.mdio"
+        mdio_input_tmp = empty_mdio_dir / "create_empty_like_input.mdio"
+        mdio_output_tmp = empty_mdio_dir / "create_empty_like_output.mdio"
 
         mdio_unit_aware_template = TemplateRegistry().get("PostStack3DTime")
         mdio_unit_aware_template.add_units({"time": UNITS_MILLISECOND})

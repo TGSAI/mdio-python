@@ -1,2 +1,1 @@
 """MDIO Data conversion API."""
-
