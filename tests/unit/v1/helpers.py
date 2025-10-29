@@ -179,7 +179,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
         metadata=image_metadata,
     )
     # Add velocity variable
-    speed_unit = SpeedUnitModel(speed=SpeedUnitEnum.METER_PER_SECOND)
+    speed_unit = SpeedUnitModel(speed=SpeedUnitEnum.METERS_PER_SECOND)
     velocity_metadata = common_metadata.model_copy(update={"units_v1": speed_unit})
     ds.add_variable(
         name="velocity",

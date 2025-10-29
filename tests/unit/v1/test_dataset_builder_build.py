@@ -114,7 +114,7 @@ def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR09
     )
     assert velocity.compressor is None
     assert velocity.metadata.chunk_grid.configuration.chunk_shape == (128, 128, 128)
-    assert velocity.metadata.units_v1.speed == SpeedUnitEnum.METER_PER_SECOND
+    assert velocity.metadata.units_v1.speed == SpeedUnitEnum.METERS_PER_SECOND
 
     image_inline = validate_variable(
         dataset,
