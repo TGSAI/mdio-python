@@ -49,7 +49,7 @@ class TestImport4DNonReg:  # pragma: no cover - tests is skipped
 
         segy_to_mdio(
             segy_spec=segy_spec,
-            mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
+            mdio_template=TemplateRegistry().get("StreamerShotGathers3D"),
             input_path=segy_path,
             output_path=zarr_tmp,
             overwrite=True,
@@ -96,7 +96,7 @@ class TestImport4D:
 
         segy_to_mdio(
             segy_spec=segy_spec,
-            mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
+            mdio_template=TemplateRegistry().get("StreamerShotGathers3D"),
             input_path=segy_path,
             output_path=zarr_tmp,
             overwrite=True,
@@ -146,7 +146,7 @@ class TestImport4DSparse:
         with pytest.raises(GridTraceSparsityError) as execinfo:
             segy_to_mdio(
                 segy_spec=segy_spec,
-                mdio_template=TemplateRegistry().get("PreStackShotGathers3DTime"),
+                mdio_template=TemplateRegistry().get("StreamerShotGathers3D"),
                 input_path=segy_path,
                 output_path=zarr_tmp,
                 overwrite=True,

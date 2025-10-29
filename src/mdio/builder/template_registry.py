@@ -20,13 +20,13 @@ import threading
 from typing import TYPE_CHECKING
 
 from mdio.builder.formatting_html import template_registry_repr_html
+from mdio.builder.templates.seismic_2d_cdp import Seismic2DCdpGathersTemplate
 from mdio.builder.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
-from mdio.builder.templates.seismic_2d_prestack_cdp import Seismic2DPreStackCDPTemplate
-from mdio.builder.templates.seismic_2d_prestack_shot import Seismic2DPreStackShotTemplate
+from mdio.builder.templates.seismic_2d_streamer_shot import Seismic2DStreamerShotGathersTemplate
+from mdio.builder.templates.seismic_3d_cdp import Seismic3DCdpGathersTemplate
+from mdio.builder.templates.seismic_3d_coca import Seismic3DCocaGathersTemplate
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
-from mdio.builder.templates.seismic_3d_prestack_cdp import Seismic3DPreStackCDPTemplate
-from mdio.builder.templates.seismic_3d_prestack_coca import Seismic3DPreStackCocaTemplate
-from mdio.builder.templates.seismic_3d_prestack_shot import Seismic3DPreStackShotTemplate
+from mdio.builder.templates.seismic_3d_streamer_shot import Seismic3DStreamerShotGathersTemplate
 
 if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
@@ -126,15 +126,15 @@ class TemplateRegistry:
         # CDP/CMP Ordered Data
         for data_domain in ("time", "depth"):
             for gather_domain in ("offset", "angle"):
-                self.register(Seismic3DPreStackCDPTemplate(data_domain, gather_domain))
-                self.register(Seismic2DPreStackCDPTemplate(data_domain, gather_domain))
+                self.register(Seismic3DCdpGathersTemplate(data_domain, gather_domain))
+                self.register(Seismic2DCdpGathersTemplate(data_domain, gather_domain))
 
-        self.register(Seismic3DPreStackCocaTemplate("time"))
-        self.register(Seismic3DPreStackCocaTemplate("depth"))
+        self.register(Seismic3DCocaGathersTemplate("time"))
+        self.register(Seismic3DCocaGathersTemplate("depth"))
 
         # Field (shot) data
-        self.register(Seismic2DPreStackShotTemplate("time"))
-        self.register(Seismic3DPreStackShotTemplate("time"))
+        self.register(Seismic2DStreamerShotGathersTemplate())
+        self.register(Seismic3DStreamerShotGathersTemplate())
 
     def get(self, template_name: str) -> AbstractDatasetTemplate:
         """Get an instance of a template from the registry by its name.
