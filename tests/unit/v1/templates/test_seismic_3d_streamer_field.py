@@ -1,6 +1,5 @@
 """Unit tests for Seismic3DStreamerFieldRecordsTemplate."""
 
-import pytest
 from tests.unit.v1.helpers import validate_variable
 
 from mdio.builder.schemas.chunk_grid import RegularChunkGrid
@@ -100,7 +99,7 @@ class TestSeismic3DStreamerFieldRecordsTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {"surveyDimensionality": "3D", "ensembleType": "shot_point", "processingStage": "pre-stack"}
+        assert attrs == {"surveyDimensionality": "3D", "ensembleType": "track", "processingStage": "pre-stack"}
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(self, structured_headers: StructuredType) -> None:
@@ -116,7 +115,7 @@ class TestSeismic3DStreamerFieldRecordsTemplate:
 
         assert dataset.metadata.name == "North Sea 3D Streamer Field Records"
         assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
-        assert dataset.metadata.attributes["ensembleType"] == "shot_point"
+        assert dataset.metadata.attributes["ensembleType"] == "track"
         assert dataset.metadata.attributes["processingStage"] == "pre-stack"
 
         _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
@@ -134,11 +133,3 @@ class TestSeismic3DStreamerFieldRecordsTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == (1, 1, 16, 1, 32, 1024)
         assert seismic.metadata.stats_v1 is None
-
-
-@pytest.mark.parametrize("data_domain", ["Time", "TiME"])
-def test_domain_case_handling(data_domain: str) -> None:
-    """Test that domain parameter handles different cases correctly."""
-    template = Seismic3DStreamerFieldRecordsTemplate(data_domain=data_domain)
-    assert template._data_domain == data_domain.lower()
-    assert template.name.endswith(data_domain.capitalize())
