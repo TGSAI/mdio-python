@@ -1,6 +1,5 @@
 """Unit tests for Seismic2DStreamerShotGathersTemplate."""
 
-import pytest
 from tests.unit.v1.helpers import validate_variable
 
 from mdio.builder.schemas.chunk_grid import RegularChunkGrid
@@ -127,7 +126,7 @@ class TestSeismic2DStreamerShotGathersTemplate:
         attrs = t._load_dataset_attributes()
         assert attrs == {"surveyType": "2D", "ensembleType": "common_source"}
 
-        assert t.name == "StreamerShotGathers2DTime"
+        assert t.name == "StreamerShotGathers2D"
 
     def test_build_dataset(self, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic2DStreamerShotGathersTemplate build in time domain."""
@@ -136,7 +135,7 @@ class TestSeismic2DStreamerShotGathersTemplate:
         t.add_units({"group_coord_x": UNITS_METER, "group_coord_y": UNITS_METER})  # spatial domain units
         t.add_units({"time": UNITS_SECOND})  # data domain units
 
-        assert t.name == "StreamerShotGathers2DTime"
+        assert t.name == "StreamerShotGathers2D"
         dataset = t.build_dataset("North Sea 2D Shot Time", sizes=(256, 24, 2048), header_dtype=structured_headers)
 
         assert dataset.metadata.name == "North Sea 2D Shot Time"
@@ -158,11 +157,3 @@ class TestSeismic2DStreamerShotGathersTemplate:
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
         assert seismic.metadata.chunk_grid.configuration.chunk_shape == (16, 32, 2048)
         assert seismic.metadata.stats_v1 is None
-
-
-@pytest.mark.parametrize("data_domain", ["Time", "TiME"])
-def test_domain_case_handling(data_domain: str) -> None:
-    """Test that domain parameter handles different cases correctly."""
-    template = Seismic2DStreamerShotGathersTemplate(data_domain=data_domain)
-    assert template._data_domain == data_domain.lower()
-    assert template.name.endswith(data_domain.capitalize())

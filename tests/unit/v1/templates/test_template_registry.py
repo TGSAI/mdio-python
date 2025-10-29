@@ -31,8 +31,8 @@ EXPECTED_DEFAULT_TEMPLATE_NAMES = [
     "CdpAngleGathers3DDepth",
     "CocaGathers3DTime",
     "CocaGathers3DDepth",
-    "StreamerShotGathers2DTime",
-    "StreamerShotGathers3DTime",
+    "StreamerShotGathers2D",
+    "StreamerShotGathers3D",
 ]
 
 

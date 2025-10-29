@@ -133,8 +133,8 @@ class TemplateRegistry:
         self.register(Seismic3DCocaGathersTemplate("depth"))
 
         # Field (shot) data
-        self.register(Seismic2DStreamerShotGathersTemplate("time"))
-        self.register(Seismic3DStreamerShotGathersTemplate("time"))
+        self.register(Seismic2DStreamerShotGathersTemplate())
+        self.register(Seismic3DStreamerShotGathersTemplate())
 
     def get(self, template_name: str) -> AbstractDatasetTemplate:
         """Get an instance of a template from the registry by its name.
