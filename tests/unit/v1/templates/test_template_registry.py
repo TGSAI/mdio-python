@@ -33,7 +33,7 @@ EXPECTED_DEFAULT_TEMPLATE_NAMES = [
     "CocaGathers3DDepth",
     "StreamerShotGathers2D",
     "StreamerShotGathers3D",
-    "StreamerFieldRecords3D"
+    "StreamerFieldRecords3D",
 ]
 
 
