@@ -31,9 +31,7 @@ os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
 # TODO(Altay): Finish implementing these grid overrides.
 # https://github.com/TGSAI/mdio-python/issues/612
 @pytest.mark.skip(reason="NonBinned and HasDuplicates haven't been properly implemented yet.")
-@pytest.mark.parametrize(
-    "grid_override", [{"NonBinned": True}, {"HasDuplicates": True}], ids=["NonBinned", "HasDuplicates"]
-)
+@pytest.mark.parametrize("grid_override", [{"NonBinned": True}, {"HasDuplicates": True}])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
 class TestImport4DNonReg:  # pragma: no cover - tests is skipped
     """Test for 4D segy import with grid overrides."""
@@ -80,7 +78,7 @@ class TestImport4DNonReg:  # pragma: no cover - tests is skipped
         xrt.assert_duckarray_equal(ds["time"], times_expected)
 
 
-@pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True}, None], ids=["AutoChannelWrap", "None"])
+@pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True}, None])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
 class TestImport4D:
     """Test for 4D segy import with grid overrides."""
@@ -158,11 +156,9 @@ class TestImport4DSparse:
         assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
 
 
-@pytest.mark.parametrize(
-    "grid_override", [{"AutoChannelWrap": True, "AutoShotWrap": True}, None], ids=["Channel&ShotWrap", "None"]
-)
+@pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True, "AutoShotWrap": True}, None])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
-class TestImport6D:  # pragma: no cover - tests is skipped
+class TestImport6D:
     """Test for 6D segy import with grid overrides."""
 
     def test_import_6d_segy(  # noqa: PLR0913
@@ -178,7 +174,7 @@ class TestImport6D:  # pragma: no cover - tests is skipped
 
         segy_to_mdio(
             segy_spec=segy_spec,
-            mdio_template=TemplateRegistry().get("PreStackStreamerFieldRecords3DTime"),
+            mdio_template=TemplateRegistry().get("StreamerFieldRecords3D"),
             input_path=segy_path,
             output_path=zarr_tmp,
             overwrite=True,
