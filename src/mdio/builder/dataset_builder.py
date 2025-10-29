@@ -150,12 +150,32 @@ class MDIODatasetBuilder:
             msg = "Adding coordinate with the same name twice is not allowed"
             raise ValueError(msg)
 
-        # Validate that all referenced dimensions are already defined
+        # Resolve referenced dimensions strictly, except allow a single substitution with 'trace' if present.
         named_dimensions = []
+        trace_dim = _get_named_dimension(self._dimensions, "trace")
+        resolved_dim_names: list[str] = []
+        trace_used = False
+        missing_dims: list[str] = []
         for dim_name in dimensions:
             nd = _get_named_dimension(self._dimensions, dim_name)
+            if nd is not None:
+                if dim_name not in resolved_dim_names:
+                    resolved_dim_names.append(dim_name)
+                continue
+            if trace_dim is not None and not trace_used and "trace" not in resolved_dim_names:
+                resolved_dim_names.append("trace")
+                trace_used = True
+            else:
+                missing_dims.append(dim_name)
+
+        if missing_dims:
+            msg = f"Pre-existing dimension named {missing_dims[0]!r} is not found"
+            raise ValueError(msg)
+
+        for resolved_name in resolved_dim_names:
+            nd = _get_named_dimension(self._dimensions, resolved_name)
             if nd is None:
-                msg = f"Pre-existing dimension named {dim_name!r} is not found"
+                msg = f"Pre-existing dimension named {resolved_name!r} is not found"
                 raise ValueError(msg)
             named_dimensions.append(nd)
 
@@ -174,7 +194,7 @@ class MDIODatasetBuilder:
         self.add_variable(
             name=coord.name,
             long_name=coord.long_name,
-            dimensions=dimensions,  # dimension names (list[str])
+            dimensions=tuple(resolved_dim_names),  # resolved dimension names
             data_type=coord.data_type,
             compressor=compressor,
             coordinates=[name],  # Use the coordinate name as a reference
