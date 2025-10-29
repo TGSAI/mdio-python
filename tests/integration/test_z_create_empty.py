@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 from tests.integration.testing_helpers import UNITS_FEET_PER_SECOND
 from tests.integration.testing_helpers import UNITS_FOOT
 from tests.integration.testing_helpers import UNITS_METER
-from tests.integration.testing_helpers import UNITS_METER_PER_SECOND
+from tests.integration.testing_helpers import UNITS_METERS_PER_SECOND
 from tests.integration.testing_helpers import UNITS_NONE
 from tests.integration.testing_helpers import UNITS_SECOND
 from tests.integration.testing_helpers import get_teapot_segy_spec
@@ -67,7 +67,7 @@ class PostStack3DVelocityTemplate(Seismic3DPostStackTemplate):
                     "time": UNITS_SECOND,
                     "cdp_x": UNITS_METER,
                     "cdp_y": UNITS_METER,
-                    "velocity": UNITS_METER_PER_SECOND,
+                    "velocity": UNITS_METERS_PER_SECOND,
                 }
             )
         else:
@@ -188,7 +188,7 @@ class TestCreateEmptyMdio:
         # Validate the velocity or amplitude data (should be empty)
         if is_velocity:
             validate_xr_variable(
-                ds, "velocity", {"inline": 345, "crossline": 188, "time": 1501}, UNITS_METER_PER_SECOND, np.float32
+                ds, "velocity", {"inline": 345, "crossline": 188, "time": 1501}, UNITS_METERS_PER_SECOND, np.float32
             )
         else:
             validate_xr_variable(
