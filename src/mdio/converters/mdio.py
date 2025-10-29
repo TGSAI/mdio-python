@@ -2,16 +2,15 @@
 
 from __future__ import annotations
 
-import os
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING
 
 import numpy as np
-from psutil import cpu_count
 from tqdm.dask import TqdmCallback
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import open_mdio
+from mdio.core.config import MDIOSettings
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
@@ -27,10 +26,6 @@ if TYPE_CHECKING:
 
     from segy.schema import SegySpec
     from upath import UPath
-
-
-default_cpus = cpu_count(logical=True)
-NUM_CPUS = int(os.getenv("MDIO__EXPORT__CPU_COUNT", default_cpus))
 
 
 def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
@@ -73,6 +68,8 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         >>> output_path = UPath("prefix/file.segy")
         >>> mdio_to_segy(input_path, output_path)
     """
+    settings = MDIOSettings()
+
     input_path = _normalize_path(input_path)
     output_path = _normalize_path(output_path)
 
@@ -148,7 +145,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
             if client is not None:
                 block_records = block_records.compute()
             else:
-                block_records = block_records.compute(num_workers=NUM_CPUS)
+                block_records = block_records.compute(num_workers=settings.export_cpus)
 
         ordered_files = [rec.path for rec in block_records.ravel() if rec != 0]
         ordered_files = [output_path] + ordered_files
