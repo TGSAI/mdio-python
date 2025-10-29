@@ -38,13 +38,6 @@ def create_empty(  # noqa PLR0913
 
     Args:
         mdio_template: The MDIO template or template name to use to define the dataset structure.
-            NOTE: If you want to have a unit-aware MDIO model, you need to add the units
-            to the template before calling this function. For example:
-            'unit_aware_template = TemplateRegistry().get("PostStack3DTime")'
-            'unit_aware_template.add_units({"time": UNITS_SECOND})'
-            'unit_aware_template.add_units({"cdp_x": UNITS_METER})'
-            'unit_aware_template.add_units({"cdp_y": UNITS_METER})'
-            'create_empty(unit_aware_template, dimensions, output_path, headers, overwrite)'
         dimensions: The dimensions of the MDIO file.
         output_path: The universal path for the output MDIO v1 file.
         headers: SEG-Y v1.0 trace headers. Defaults to None.
@@ -139,7 +132,7 @@ def create_empty_like(  # noqa PLR0913
     # Coordinates
     if not keep_coordinates:
         for coord_name in ds_output.coords:
-            ds_output[coord_name].attrs["unitsV1"] = None
+            ds_output[coord_name].attrs.pop("unitsV1", None)
 
     # MDIO attributes
     attr = ds_output.attrs["attributes"]
@@ -157,17 +150,17 @@ def create_empty_like(  # noqa PLR0913
     # Data variable
     var_name = attr["defaultVariableName"]
     var = ds_output[var_name]
-    var.attrs["statsV1"] = None
+    var.attrs.pop("statsV1", None)
     if not keep_coordinates:
-        var.attrs["unitsV1"] = None
+        var.attrs.pop("unitsV1", None)
 
     # SEG-Y file header
     if "segy_file_header" in ds_output.variables:
         segy_file_header = ds_output["segy_file_header"]
         if segy_file_header is not None:
-            segy_file_header.attrs["textHeader"] = None
-            segy_file_header.attrs["binaryHeader"] = None
-            segy_file_header.attrs["rawBinaryHeader"] = None
+            segy_file_header.attrs.pop("textHeader", None)
+            segy_file_header.attrs.pop("binaryHeader", None)
+            segy_file_header.attrs.pop("rawBinaryHeader", None)
 
     if output_path is not None:
         to_mdio(ds_output, output_path=output_path, mode="w", compute=True)

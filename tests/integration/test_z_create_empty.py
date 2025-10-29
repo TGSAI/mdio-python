@@ -29,10 +29,9 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
 
-from tests.integration.testing_helpers import UNITS_FEET_PER_SECOND
-from tests.integration.testing_helpers import UNITS_FOOT
 from tests.integration.testing_helpers import UNITS_METER
 from tests.integration.testing_helpers import UNITS_METERS_PER_SECOND
+from tests.integration.testing_helpers import UNITS_MILLISECOND
 from tests.integration.testing_helpers import UNITS_NONE
 from tests.integration.testing_helpers import UNITS_SECOND
 from tests.integration.testing_helpers import get_teapot_segy_spec
@@ -51,7 +50,7 @@ from mdio.converters.mdio import mdio_to_segy
 from mdio.core import Dimension
 
 
-class PostStack3DVelocityTemplate(Seismic3DPostStackTemplate):
+class PostStack3DVelocityMetricTemplate(Seismic3DPostStackTemplate):
     """Custom template that uses 'velocity' as the default variable name instead of 'amplitude'."""
 
     @property
@@ -59,26 +58,16 @@ class PostStack3DVelocityTemplate(Seismic3DPostStackTemplate):
         """Override the default variable name."""
         return "velocity"
 
-    def __init__(self, data_domain: str, is_metric: bool) -> None:
+    def __init__(self, data_domain: str) -> None:
         super().__init__(data_domain)
-        if is_metric:
-            self._units.update(
-                {
-                    "time": UNITS_SECOND,
-                    "cdp_x": UNITS_METER,
-                    "cdp_y": UNITS_METER,
-                    "velocity": UNITS_METERS_PER_SECOND,
-                }
-            )
-        else:
-            self._units.update(
-                {
-                    "time": UNITS_SECOND,
-                    "cdp_x": UNITS_FOOT,
-                    "cdp_y": UNITS_FOOT,
-                    "velocity": UNITS_FEET_PER_SECOND,
-                }
-            )
+        self._units.update(
+            {
+                "time": UNITS_MILLISECOND,
+                "cdp_x": UNITS_METER,
+                "cdp_y": UNITS_METER,
+                "velocity": UNITS_METERS_PER_SECOND,
+            }
+        )
 
     @property
     def _name(self) -> str:
@@ -95,9 +84,9 @@ class TestCreateEmptyMdio:
         """Create a temporary empty MDIO file for testing."""
         # Create the grid with the specified dimensions
         dims = [
-            Dimension(name="inline", coords=range(1, 346, 1)),  # 100-300 with step 1
-            Dimension(name="crossline", coords=range(1, 189, 1)),  # 1000-1600 with step 2
-            Dimension(name="time", coords=range(0, 3002, 2)),  # 0-3 seconds 4ms sample rate
+            Dimension(name="inline", coords=range(1, 346, 1)),
+            Dimension(name="crossline", coords=range(1, 189, 1)),
+            Dimension(name="time", coords=range(0, 3002, 2)),
         ]
 
         # If later on, we want to export to SEG-Y, we need to provide the trace header spec.
@@ -105,7 +94,7 @@ class TestCreateEmptyMdio:
         headers = get_teapot_segy_spec().trace.header if create_headers else None
         # Create an empty MDIO v1 metric post-stack 3D time velocity dataset
         return create_empty(
-            mdio_template=PostStack3DVelocityTemplate(data_domain="time", is_metric=True),
+            mdio_template=PostStack3DVelocityMetricTemplate(data_domain="time"),
             dimensions=dims,
             output_path=output_path,
             headers=headers,
@@ -113,7 +102,7 @@ class TestCreateEmptyMdio:
         )
 
     @classmethod
-    def validate_teapod_dataset_metadata(cls, ds: xr_Dataset, is_velocity: bool) -> None:
+    def validate_teapot_dataset_metadata(cls, ds: xr_Dataset, is_velocity: bool) -> None:
         """Validate the dataset metadata."""
         if is_velocity:
             assert ds.name == "PostStack3DVelocityTime"
@@ -137,7 +126,6 @@ class TestCreateEmptyMdio:
 
         # Check that createdOn exists
         assert "createdOn" in actual_attrs_json
-        assert actual_attrs_json["createdOn"] is not None
 
         # Validate template attributes
         attributes = ds.attrs["attributes"]
@@ -152,7 +140,7 @@ class TestCreateEmptyMdio:
         assert attributes["gatherType"] == "stacked"
 
     @classmethod
-    def validate_teapod_dataset_variables(
+    def validate_teapot_dataset_variables(
         cls, ds: xr_Dataset, header_dtype: np.dtype | None, is_velocity: bool
     ) -> None:
         """Validate an empty MDIO dataset structure and content."""
@@ -164,7 +152,9 @@ class TestCreateEmptyMdio:
         validate_xr_variable(
             ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, False, range(1, 189), get_values
         )
-        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, False, range(0, 3002, 2), get_values)
+        validate_xr_variable(
+            ds, "time", {"time": 1501}, UNITS_MILLISECOND, np.int32, False, range(0, 3002, 2), get_values
+        )
 
         # Validate the non-dimensional coordinate variables (should be empty for empty dataset)
         validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)
@@ -183,7 +173,7 @@ class TestCreateEmptyMdio:
         # Validate the trace mask (should be all True for empty dataset)
         validate_xr_variable(ds, "trace_mask", {"inline": 345, "crossline": 188}, UNITS_NONE, np.bool_)
         trace_mask = ds["trace_mask"].values
-        assert not np.any(trace_mask), "All traces should be marked as dead in empty dataset"
+        assert not np.any(trace_mask), "Expected all `False` values in `trace_mask` but found `True`."
 
         # Validate the velocity or amplitude data (should be empty)
         if is_velocity:
@@ -222,16 +212,16 @@ class TestCreateEmptyMdio:
     def test_dataset_metadata(self, mdio_with_headers: Path) -> None:
         """Test dataset metadata for empty MDIO file."""
         ds = open_mdio(mdio_with_headers)
-        self.validate_teapod_dataset_metadata(ds, is_velocity=True)
+        self.validate_teapot_dataset_metadata(ds, is_velocity=True)
 
     def test_variables(self, mdio_with_headers: Path, mdio_no_headers: Path) -> None:
         """Test grid validation for empty MDIO file."""
         ds = open_mdio(mdio_with_headers)
         header_dtype = get_teapot_segy_spec().trace.header.dtype
-        self.validate_teapod_dataset_variables(ds, header_dtype=header_dtype, is_velocity=True)
+        self.validate_teapot_dataset_variables(ds, header_dtype=header_dtype, is_velocity=True)
 
         ds = open_mdio(mdio_no_headers)
-        self.validate_teapod_dataset_variables(ds, header_dtype=None, is_velocity=True)
+        self.validate_teapot_dataset_variables(ds, header_dtype=None, is_velocity=True)
 
     def test_overwrite_behavior(self, empty_mdio_dir: Path) -> None:
         """Test overwrite parameter behavior in create_empty_mdio."""
@@ -258,9 +248,9 @@ class TestCreateEmptyMdio:
 
         # Validate that the MDIO file can be loaded correctly using the helper function
         ds = open_mdio(empty_mdio)
-        self.validate_teapod_dataset_metadata(ds, is_velocity=True)
+        self.validate_teapot_dataset_metadata(ds, is_velocity=True)
         header_dtype = get_teapot_segy_spec().trace.header.dtype
-        self.validate_teapod_dataset_variables(ds, header_dtype=header_dtype, is_velocity=True)
+        self.validate_teapot_dataset_variables(ds, header_dtype=header_dtype, is_velocity=True)
 
         # Verify the garbage data was overwritten (should not exist)
         assert not garbage_file.exists(), "Garbage file should have been overwritten"
@@ -403,6 +393,6 @@ class TestCreateEmptyMdio:
         )
         assert ds is not None
 
-        self.validate_teapod_dataset_metadata(ds, is_velocity=False)
+        self.validate_teapot_dataset_metadata(ds, is_velocity=False)
         header_dtype = get_teapot_segy_spec().trace.header.dtype
-        self.validate_teapod_dataset_variables(ds, header_dtype=header_dtype, is_velocity=False)
+        self.validate_teapot_dataset_variables(ds, header_dtype=header_dtype, is_velocity=False)

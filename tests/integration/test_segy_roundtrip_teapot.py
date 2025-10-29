@@ -10,8 +10,8 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 from tests.integration.testing_helpers import UNITS_METER
+from tests.integration.testing_helpers import UNITS_MILLISECOND
 from tests.integration.testing_helpers import UNITS_NONE
-from tests.integration.testing_helpers import UNITS_SECOND
 from tests.integration.testing_helpers import get_inline_header_values
 from tests.integration.testing_helpers import get_teapot_segy_spec
 from tests.integration.testing_helpers import get_values
@@ -159,7 +159,7 @@ class TestTeapotRoundtrip:
         NOTE: This test must be executed before the 'TestReader' and 'TestExport' tests.
         """
         unit_aware_template = TemplateRegistry().get("PostStack3DTime")
-        unit_aware_template.add_units({"time": UNITS_SECOND})
+        unit_aware_template.add_units({"time": UNITS_MILLISECOND})
         unit_aware_template.add_units({"cdp_x": UNITS_METER})
         unit_aware_template.add_units({"cdp_y": UNITS_METER})
         segy_to_mdio(
@@ -227,7 +227,9 @@ class TestTeapotRoundtrip:
         validate_xr_variable(
             ds, "crossline", {"crossline": 188}, UNITS_NONE, np.int32, False, range(1, 189), get_values
         )
-        validate_xr_variable(ds, "time", {"time": 1501}, UNITS_SECOND, np.int32, False, range(0, 3002, 2), get_values)
+        validate_xr_variable(
+            ds, "time", {"time": 1501}, UNITS_MILLISECOND, np.int32, False, range(0, 3002, 2), get_values
+        )
 
         # Validate the non-dimensional coordinate variables
         validate_xr_variable(ds, "cdp_x", {"inline": 345, "crossline": 188}, UNITS_METER, np.float64)

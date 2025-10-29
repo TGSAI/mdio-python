@@ -20,6 +20,7 @@ from mdio.builder.schemas.v1.units import TimeUnitModel
 UNITS_NONE = None
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
+UNITS_MILLISECOND = TimeUnitModel(time=TimeUnitEnum.MILLISECOND)
 UNITS_METERS_PER_SECOND = SpeedUnitModel(speed=SpeedUnitEnum.METERS_PER_SECOND)
 UNITS_FOOT = LengthUnitModel(length=LengthUnitEnum.FOOT)
 UNITS_FEET_PER_SECOND = SpeedUnitModel(speed=SpeedUnitEnum.FEET_PER_SECOND)
