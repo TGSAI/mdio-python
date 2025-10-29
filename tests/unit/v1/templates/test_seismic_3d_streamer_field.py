@@ -1,4 +1,4 @@
-"""Unit tests for Seismic3DPreStackStreamerFieldRecordsTemplate."""
+"""Unit tests for Seismic3DStreamerFieldRecordsTemplate."""
 
 import pytest
 from tests.unit.v1.helpers import validate_variable
@@ -13,9 +13,7 @@ from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
 from mdio.builder.schemas.v1.units import TimeUnitModel
-from mdio.builder.templates.seismic_3d_prestack_streamer_field_records import (
-    Seismic3DPreStackStreamerFieldRecordsTemplate,
-)
+from mdio.builder.templates.seismic_3d_streamer_field import Seismic3DStreamerFieldRecordsTemplate
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
@@ -81,15 +79,15 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         assert coord.metadata.units_v1.length == LengthUnitEnum.METER
 
 
-class TestSeismic3DPreStackStreamerFieldRecordsTemplate:
-    """Unit tests for Seismic3DPreStackStreamerFieldRecordsTemplate."""
+class TestSeismic3DStreamerFieldRecordsTemplate:
+    """Unit tests for Seismic3DStreamerFieldRecordsTemplate."""
 
     def test_configuration(self) -> None:
-        """Unit tests for Seismic3DPreStackStreamerFieldRecordsTemplate."""
-        t = Seismic3DPreStackStreamerFieldRecordsTemplate(data_domain="time")
+        """Unit tests for Seismic3DStreamerFieldRecordsTemplate."""
+        t = Seismic3DStreamerFieldRecordsTemplate(data_domain="time")
 
         # Template attributes
-        assert t.name == "PreStackStreamerFieldRecords3DTime"
+        assert t.name == "StreamerFieldRecords3D"
         assert t._dim_names == ("shot_line", "gun", "shot_point", "cable", "channel", "time")
         assert t._physical_coord_names == ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
         # TODO(Anyone): Disable chunking in time domain when support is merged.
@@ -106,8 +104,8 @@ class TestSeismic3DPreStackStreamerFieldRecordsTemplate:
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(self, structured_headers: StructuredType) -> None:
-        """Unit tests for Seismic3DPreStackStreamerFieldRecordsTemplate build."""
-        t = Seismic3DPreStackStreamerFieldRecordsTemplate(data_domain="time")
+        """Unit tests for Seismic3DStreamerFieldRecordsTemplate build."""
+        t = Seismic3DStreamerFieldRecordsTemplate(data_domain="time")
         t.add_units({"source_coord_x": UNITS_METER, "source_coord_y": UNITS_METER})  # spatial domain units
         t.add_units({"group_coord_x": UNITS_METER, "group_coord_y": UNITS_METER})  # spatial domain units
         t.add_units({"time": UNITS_SECOND})  # data domain units
@@ -141,6 +139,6 @@ class TestSeismic3DPreStackStreamerFieldRecordsTemplate:
 @pytest.mark.parametrize("data_domain", ["Time", "TiME"])
 def test_domain_case_handling(data_domain: str) -> None:
     """Test that domain parameter handles different cases correctly."""
-    template = Seismic3DPreStackStreamerFieldRecordsTemplate(data_domain=data_domain)
+    template = Seismic3DStreamerFieldRecordsTemplate(data_domain=data_domain)
     assert template._data_domain == data_domain.lower()
     assert template.name.endswith(data_domain.capitalize())
