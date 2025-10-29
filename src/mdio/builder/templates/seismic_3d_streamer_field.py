@@ -9,9 +9,9 @@ from mdio.builder.templates.types import SeismicDataDomain
 
 
 class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
-    """Seismic pre-stack time Dataset template.
+    """Seismic 3D streamer shot field records template.
 
-    A generalized template for pre-stack field records in either 2D or 3D.
+    A generalized template for streamer field records that are optimized for:
         - Common-shot dataset
         - Common-channel dataset
 
