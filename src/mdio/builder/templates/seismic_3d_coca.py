@@ -1,4 +1,4 @@
-"""Seismic3DPreStackCocaTemplate MDIO v1 dataset templates."""
+"""Seismic3DCocaTemplate MDIO v1 dataset templates."""
 
 from typing import Any
 
@@ -9,7 +9,7 @@ from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
 
 
-class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
+class Seismic3DCocaGathersTemplate(AbstractDatasetTemplate):
     """Seismic CoCA (common offset, common azimuth) pre-stack 3D Dataset template."""
 
     def __init__(self, data_domain: SeismicDataDomain):
@@ -21,7 +21,7 @@ class Seismic3DPreStackCocaTemplate(AbstractDatasetTemplate):
 
     @property
     def _name(self) -> str:
-        return f"PreStackCocaGathers3D{self._data_domain.capitalize()}"
+        return f"CocaGathers3D{self._data_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
         return {"surveyType": "3D", "gatherType": "common_offset_common_azimuth"}

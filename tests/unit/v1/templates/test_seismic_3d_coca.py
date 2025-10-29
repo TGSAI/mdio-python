@@ -1,4 +1,4 @@
-"""Unit tests for Seismic3DPreStackCocaTemplate."""
+"""Unit tests for Seismic3DCocaGathersTemplate."""
 
 import pytest
 from tests.unit.v1.helpers import validate_variable
@@ -15,7 +15,7 @@ from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
 from mdio.builder.schemas.v1.units import TimeUnitModel
-from mdio.builder.templates.seismic_3d_prestack_coca import Seismic3DPreStackCocaTemplate
+from mdio.builder.templates.seismic_3d_coca import Seismic3DCocaGathersTemplate
 from mdio.builder.templates.types import SeismicDataDomain
 
 UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
@@ -111,12 +111,12 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
 
 
 @pytest.mark.parametrize("data_domain", ["depth", "time"])
-class TestSeismic3DPreStackCocaTemplate:
-    """Unit tests for Seismic3DPreStackCocaTemplate."""
+class TestSeismic3DCocaGathersTemplate:
+    """Unit tests for Seismic3DCocaGathersTemplate."""
 
     def test_configuration(self, data_domain: SeismicDataDomain) -> None:
-        """Unit tests for Seismic3DPreStackCocaTemplate."""
-        t = Seismic3DPreStackCocaTemplate(data_domain=data_domain)
+        """Unit tests for Seismic3DCocaGathersTemplate."""
+        t = Seismic3DCocaGathersTemplate(data_domain=data_domain)
 
         # Template attributes
         assert t._dim_names == ("inline", "crossline", "offset", "azimuth", data_domain)
@@ -134,7 +134,7 @@ class TestSeismic3DPreStackCocaTemplate:
 
     def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
         """Unit tests for Seismic3DPreStackShotTemplate build."""
-        t = Seismic3DPreStackCocaTemplate(data_domain=data_domain)
+        t = Seismic3DCocaGathersTemplate(data_domain=data_domain)
         t.add_units({"cdp_x": UNITS_METER, "cdp_y": UNITS_METER})  # spatial domain units
         t.add_units({"offset": UNITS_METER, "azimuth": UNITS_DEGREE})  # spatial domain units
         t.add_units({"time": UNITS_SECOND, "depth": UNITS_METER})  # data domain units
@@ -167,8 +167,8 @@ class TestSeismic3DPreStackCocaTemplate:
 @pytest.mark.parametrize("data_domain", ["Time", "DePTh"])
 def test_domain_case_handling(data_domain: str) -> None:
     """Test that domain parameter handles different cases correctly."""
-    template = Seismic3DPreStackCocaTemplate(data_domain=data_domain)
+    template = Seismic3DCocaGathersTemplate(data_domain=data_domain)
     assert template._data_domain == data_domain.lower()
 
     data_domain_suffix = data_domain.lower().capitalize()
-    assert template.name == f"PreStackCocaGathers3D{data_domain_suffix}"
+    assert template.name == f"CocaGathers3D{data_domain_suffix}"
