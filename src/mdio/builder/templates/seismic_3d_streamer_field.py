@@ -12,8 +12,10 @@ class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
     """Seismic 3D streamer shot field records template.
 
     A generalized template for streamer field records that are optimized for:
-        - Common-shot dataset
-        - Common-channel dataset
+        - Common-shot access
+        - Common-channel access
+
+    It can also store all the shot-lines of a survey in one MDIO if needed.
 
     Args:
         data_domain: The domain of the dataset.
