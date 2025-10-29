@@ -2,16 +2,17 @@
 
 from importlib import metadata
 
-from mdio.api.io import open_mdio
-from mdio.api.io import to_mdio
-from mdio.converters import mdio_to_segy
-from mdio.converters import segy_to_mdio
-
 try:
     __version__ = metadata.version("multidimio")
 except metadata.PackageNotFoundError:
     __version__ = "unknown"
 
+from mdio.api.io import open_mdio
+from mdio.api.io import to_mdio
+from mdio.converters.mdio import mdio_to_segy
+from mdio.converters.segy import segy_to_mdio
+from mdio.api.create import create_empty
+from mdio.api.create import create_empty_like
 
 __all__ = [
     "__version__",
@@ -19,4 +20,6 @@ __all__ = [
     "to_mdio",
     "mdio_to_segy",
     "segy_to_mdio",
+    "create_empty",
+    "create_empty_like",
 ]

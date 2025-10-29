@@ -58,3 +58,9 @@ def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the round-trip IBM SEG-Y."""
     tmp_dir = tmp_path_factory.mktemp("segy")
     return tmp_dir / "teapot_roundtrip.segy"
+
+
+@pytest.fixture(scope="class")
+def empty_mdio_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Make a temp file for empty MDIO testing."""
+    return tmp_path_factory.mktemp(r"empty_mdio_dir")
