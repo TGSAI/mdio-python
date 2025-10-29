@@ -22,11 +22,11 @@ from typing import TYPE_CHECKING
 from mdio.builder.formatting_html import template_registry_repr_html
 from mdio.builder.templates.seismic_2d_cdp import Seismic2DCdpGathersTemplate
 from mdio.builder.templates.seismic_2d_poststack import Seismic2DPostStackTemplate
-from mdio.builder.templates.seismic_2d_shot_streamer import Seismic2DPreStackShotTemplate
+from mdio.builder.templates.seismic_2d_shot_streamer import Seismic2DStreamerShotGathersTemplate
 from mdio.builder.templates.seismic_3d_cdp import Seismic3DCdpGathersTemplate
 from mdio.builder.templates.seismic_3d_coca import Seismic3DCocaGathersTemplate
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
-from mdio.builder.templates.seismic_3d_shot_streamer import Seismic3DPreStackShotTemplate
+from mdio.builder.templates.seismic_3d_shot_streamer import Seismic3DStreamerShotGathersTemplate
 
 if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
@@ -133,8 +133,8 @@ class TemplateRegistry:
         self.register(Seismic3DCocaGathersTemplate("depth"))
 
         # Field (shot) data
-        self.register(Seismic2DPreStackShotTemplate("time"))
-        self.register(Seismic3DPreStackShotTemplate("time"))
+        self.register(Seismic2DStreamerShotGathersTemplate("time"))
+        self.register(Seismic3DStreamerShotGathersTemplate("time"))
 
     def get(self, template_name: str) -> AbstractDatasetTemplate:
         """Get an instance of a template from the registry by its name.

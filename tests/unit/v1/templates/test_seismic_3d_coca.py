@@ -133,7 +133,7 @@ class TestSeismic3DCocaGathersTemplate:
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
-        """Unit tests for Seismic3DPreStackShotTemplate build."""
+        """Unit tests for Seismic3DStreamerShotGathersTemplate build."""
         t = Seismic3DCocaGathersTemplate(data_domain=data_domain)
         t.add_units({"cdp_x": UNITS_METER, "cdp_y": UNITS_METER})  # spatial domain units
         t.add_units({"offset": UNITS_METER, "azimuth": UNITS_DEGREE})  # spatial domain units

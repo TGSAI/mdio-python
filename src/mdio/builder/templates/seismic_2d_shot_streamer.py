@@ -1,4 +1,4 @@
-"""Seismic2DPreStackShotTemplate MDIO v1 dataset templates."""
+"""Seismic2DStreamerShotGathersTemplate MDIO v1 dataset templates."""
 
 from typing import Any
 
@@ -9,7 +9,7 @@ from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
 
 
-class Seismic2DPreStackShotTemplate(AbstractDatasetTemplate):
+class Seismic2DStreamerShotGathersTemplate(AbstractDatasetTemplate):
     """Seismic Shot pre-stack 2D time or depth Dataset template."""
 
     def __init__(self, data_domain: SeismicDataDomain):
@@ -21,7 +21,7 @@ class Seismic2DPreStackShotTemplate(AbstractDatasetTemplate):
 
     @property
     def _name(self) -> str:
-        return f"PreStackShotGathers2D{self._data_domain.capitalize()}"
+        return f"StreamerShotGathers2D{self._data_domain.capitalize()}"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
         return {"surveyType": "2D", "ensembleType": "common_source"}
