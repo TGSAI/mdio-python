@@ -9,16 +9,14 @@ from typing import TYPE_CHECKING
 import numpy as np
 from segy.arrays import HeaderArray
 
-from mdio.api.io import _normalize_storage_options
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 from mdio.segy.file import SegyFileArguments
 from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
-    from upath import UPath
     from zarr import Array as zarr_Array
+    from zarr import Group as zarr_Group
 
-from zarr import open_group as zarr_open_group
 from zarr.core.config import config as zarr_config
 
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
@@ -75,7 +73,7 @@ def header_scan_worker(
 
 def trace_worker(  # noqa: PLR0913
     segy_file_kwargs: SegyFileArguments,
-    output_path: UPath,
+    zarr_group: zarr_Group,
     data_variable_name: str,
     region: dict[str, slice],
     grid_map: zarr_Array,
@@ -84,9 +82,7 @@ def trace_worker(  # noqa: PLR0913
 
     Args:
         segy_file_kwargs: Arguments to open SegyFile instance.
-        output_path: Universal Path for the output Zarr dataset
-            (e.g. local file path or cloud storage URI) the location
-            also includes storage options for cloud storage.
+        zarr_group: Zarr group to write to.
         data_variable_name: Name of the data variable to write.
         region: Region of the dataset to write to.
         grid_map: Zarr array mapping live traces to their positions in the dataset.
@@ -108,13 +104,10 @@ def trace_worker(  # noqa: PLR0913
 
     # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
     # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
+    # This remains set here to ensure that each worker does not use more than 1 thread.
     zarr_config.set({"threading.max_workers": 1})
 
     live_trace_indexes = local_grid_map[not_null].tolist()
-
-    # Open the zarr group to write directly
-    storage_options = _normalize_storage_options(output_path)
-    zarr_group = zarr_open_group(output_path.as_posix(), mode="r+", storage_options=storage_options)
 
     header_key = "headers"
     raw_header_key = "raw_headers"

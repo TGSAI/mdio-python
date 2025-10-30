@@ -74,6 +74,22 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     """
     data = dataset[data_variable_name]
 
+    storage_options = _normalize_storage_options(output_path)
+    zarr_format = zarr.config.get("default_zarr_format")
+    # TODO(BrianMichell): This reverts changes made in #701
+    # https://github.com/TGSAI/mdio-python/pull/701
+    zarr_group = zarr_open_group(
+        output_path.as_posix(),
+        mode="r+",
+        storage_options=storage_options,
+        use_consolidated=zarr_format == ZarrFormat.V2,
+        zarr_version=zarr_format,
+        zarr_format=zarr_format,
+    )
+    # Setting the zarr_format and zarr_version explicitly to avoid searching for the
+    # correct version that has already been serialized.
+    # We know it's correct to get from the existing config because this function is only used during ingestion.
+
     final_stats = _create_stats()
 
     data_variable_chunks = data.encoding.get("chunks")
@@ -90,7 +106,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
 
     with executor:
         futures = []
-        common_args = (segy_file_kwargs, output_path, data_variable_name)
+        common_args = (segy_file_kwargs, zarr_group, data_variable_name)
         for region in chunk_iter:
             subset_args = (region, grid_map)
             future = executor.submit(trace_worker, *common_args, *subset_args)
