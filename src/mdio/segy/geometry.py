@@ -459,7 +459,7 @@ class AutoChannelWrap(GridOverrideCommand):
 class AutoShotWrap(GridOverrideCommand):
     """Automatically determine ShotGun acquisition type."""
 
-    required_keys = {"shot_line", "gun", "shot_point", "cable", "channel"}
+    required_keys = {"sail_line", "gun", "shot_point", "cable", "channel"}
     required_parameters = None
 
     def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
@@ -476,22 +476,22 @@ class AutoShotWrap(GridOverrideCommand):
         self.validate(index_headers, grid_overrides)
 
         result = analyze_shotlines_for_guns(index_headers)
-        unique_shot_lines, unique_guns_in_shot_line, geom_type = result
+        unique_sail_lines, unique_guns_in_sail_line, geom_type = result
         logger.info("Ingesting dataset as shot type: %s", geom_type.name)
 
         max_num_guns = 1
-        for shot_line in unique_shot_lines:
-            logger.info("shot_line: %s has guns: %s", shot_line, unique_guns_in_shot_line[str(shot_line)])
-            num_guns = len(unique_guns_in_shot_line[str(shot_line)])
+        for sail_line in unique_sail_lines:
+            logger.info("sail_line: %s has guns: %s", sail_line, unique_guns_in_sail_line[str(sail_line)])
+            num_guns = len(unique_guns_in_sail_line[str(sail_line)])
             max_num_guns = max(num_guns, max_num_guns)
 
         # This might be slow and potentially could be improved with a rewrite
         # to prevent so many lookups
         if geom_type == ShotGunGeometryType.B:
-            for shot_line in unique_shot_lines:
-                shot_line_idxs = np.where(index_headers["shot_line"][:] == shot_line)
-                index_headers["shot_point"][shot_line_idxs] = np.floor(
-                    index_headers["shot_point"][shot_line_idxs] / max_num_guns
+            for sail_line in unique_sail_lines:
+                sail_line_idxs = np.where(index_headers["sail_line"][:] == sail_line)
+                index_headers["shot_point"][sail_line_idxs] = np.floor(
+                    index_headers["shot_point"][sail_line_idxs] / max_num_guns
                 )
         return index_headers
 
