@@ -15,7 +15,7 @@ from dask.array import map_blocks
 from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
 
-from mdio.api.io import _normalize_storage_options
+from mdio.api.io import _get_gcs_store
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.constants import ZarrFormat
@@ -82,23 +82,9 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     num_chunks = chunk_iter.num_chunks
 
     zarr_format = zarr.config.get("default_zarr_format")
-    print("Opening zarr group once in main process...")
-    
+
     # Open zarr group once in main process
-    # For GCS paths with fake server, create FSMap; otherwise use path + storage_options
-    if str(output_path).startswith("gs://"):
-        import gcsfs
-        fs = gcsfs.GCSFileSystem(
-            endpoint_url="http://localhost:4443",
-            token="anon",
-        )
-        base_url = getattr(getattr(fs, "session", None), "_base_url", "http://localhost:4443")
-        print(f"[mdio.utils] Using fake GCS mapper via {base_url}")
-        store = fs.get_mapper(output_path.as_posix().replace("gs://", ""))
-        storage_options = None
-    else:
-        store = output_path.as_posix()
-        storage_options = _normalize_storage_options(output_path)
+    store, storage_options = _get_gcs_store(output_path)
 
     zarr_group = zarr_open_group(
         store,
@@ -108,7 +94,6 @@ def to_zarr(  # noqa: PLR0913, PLR0915
         zarr_version=zarr_format,
         zarr_format=zarr_format,
     )
-    print("Zarr group opened")
 
     # Get array handles from the opened group
     data_array = zarr_group[data_variable_name]
@@ -123,7 +108,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     num_workers = min(num_chunks, settings.import_cpus)
     context = mp.get_context("spawn")
-    
+
     # Use initializer to open segy file once per worker
     executor = ProcessPoolExecutor(
         max_workers=num_workers,
