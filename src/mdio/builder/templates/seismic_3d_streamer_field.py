@@ -24,10 +24,13 @@ class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
     def __init__(self, data_domain: SeismicDataDomain = "time"):
         super().__init__(data_domain=data_domain)
 
-        self._spatial_dim_names = ("shot_line", "gun", "shot_point", "cable", "channel")
+        self._spatial_dim_names = ("sail_line", "gun", "shot_index", "cable", "channel")
         self._dim_names = (*self._spatial_dim_names, self._data_domain)
         self._physical_coord_names = ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
-        self._logical_coord_names = ("orig_field_record_num",)  # ffid
+        self._logical_coord_names = (
+            "shot_point",
+            "orig_field_record_num",
+        )  # ffid
         self._var_chunk_shape = (1, 1, 16, 1, 32, 1024)
 
     @property
@@ -35,44 +38,69 @@ class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
         return "StreamerFieldRecords3D"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {
-            "surveyDimensionality": "3D",
-            "ensembleType": "track",
-            "processingStage": "pre-stack",
-        }
+        return {"surveyDimensionality": "3D", "ensembleType": "common_source_by_gun"}
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
-        for name in self._dim_names:
-            self._builder.add_coordinate(name, dimensions=(name,), data_type=ScalarType.INT32)
+        # EXCLUDE: `shot_index` since its 0-N
+        self._builder.add_coordinate(
+            "sail_line",
+            dimensions=("sail_line",),
+            data_type=ScalarType.UINT32,
+        )
+        self._builder.add_coordinate(
+            "gun",
+            dimensions=("gun",),
+            data_type=ScalarType.UINT8,
+        )
+        self._builder.add_coordinate(
+            "cable",
+            dimensions=("cable",),
+            data_type=ScalarType.UINT8,
+        )
+        self._builder.add_coordinate(
+            "channel",
+            dimensions=("channel",),
+            data_type=ScalarType.UINT16,
+        )
+        self._builder.add_coordinate(
+            self._data_domain,
+            dimensions=(self._data_domain,),
+            data_type=ScalarType.INT32,
+        )
 
         # Add non-dimension coordinates
         self._builder.add_coordinate(
             "orig_field_record_num",
-            dimensions=("shot_line", "gun", "shot_point"),
-            data_type=ScalarType.INT32,
+            dimensions=("sail_line", "gun", "shot_index"),
+            data_type=ScalarType.UINT32,
+        )
+        self._builder.add_coordinate(
+            "shot_point",
+            dimensions=("sail_line", "gun", "shot_index"),
+            data_type=ScalarType.UINT32,
         )
         self._builder.add_coordinate(
             "source_coord_x",
-            dimensions=("shot_line", "gun", "shot_point"),
+            dimensions=("sail_line", "gun", "shot_index"),
             data_type=ScalarType.FLOAT64,
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_x")),
         )
         self._builder.add_coordinate(
             "source_coord_y",
-            dimensions=("shot_line", "gun", "shot_point"),
+            dimensions=("sail_line", "gun", "shot_index"),
             data_type=ScalarType.FLOAT64,
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_y")),
         )
         self._builder.add_coordinate(
             "group_coord_x",
-            dimensions=("shot_line", "gun", "shot_point", "cable", "channel"),
+            dimensions=("sail_line", "gun", "shot_index", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_x")),
         )
         self._builder.add_coordinate(
             "group_coord_y",
-            dimensions=("shot_line", "gun", "shot_point", "cable", "channel"),
+            dimensions=("sail_line", "gun", "shot_index", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_y")),
         )

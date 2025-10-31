@@ -18,6 +18,18 @@ UNITS_METER = LengthUnitModel(length=LengthUnitEnum.METER)
 UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
 
 
+DATASET_SIZE_MAP = {"sail_line": 1, "gun": 2, "shot_index": 128, "cable": 256, "channel": 12, "time": 1024}
+DATASET_DTYPE_MAP = {"sail_line": "uint32", "gun": "uint8", "cable": "uint8", "channel": "uint16", "time": "int32"}
+EXPECTED_COORDINATES = [
+    "shot_point",
+    "orig_field_record_num",
+    "source_coord_x",
+    "source_coord_y",
+    "group_coord_x",
+    "group_coord_y",
+]
+
+
 def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
     """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
@@ -28,50 +40,65 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     validate_variable(
         dataset,
         name="headers",
-        dims=[("shot_line", 1), ("gun", 3), ("shot_point", 256), ("cable", 512), ("channel", 24)],
-        coords=["orig_field_record_num", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
+        dims=[(k, v) for k, v in DATASET_SIZE_MAP.items() if k != domain],
+        coords=EXPECTED_COORDINATES,
         dtype=headers,
     )
 
     validate_variable(
         dataset,
         name="trace_mask",
-        dims=[("shot_line", 1), ("gun", 3), ("shot_point", 256), ("cable", 512), ("channel", 24)],
-        coords=["orig_field_record_num", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
+        dims=[(k, v) for k, v in DATASET_SIZE_MAP.items() if k != domain],
+        coords=EXPECTED_COORDINATES,
         dtype=ScalarType.BOOL,
     )
 
     # Verify dimension coordinate variables
-    for dim_name in ["shot_line", "gun", "shot_point", "cable", "channel", domain]:
+    for dim_name, dim_size in DATASET_SIZE_MAP.items():
+        if dim_name == "shot_index":
+            continue
+
         validate_variable(
             dataset,
             name=dim_name,
-            dims=[
-                (
-                    dim_name,
-                    {"shot_line": 1, "gun": 3, "shot_point": 256, "cable": 512, "channel": 24, domain: 2048}[dim_name],
-                )
-            ],
+            dims=[(dim_name, dim_size)],
             coords=[dim_name],
-            dtype=ScalarType.INT32,
+            dtype=ScalarType(DATASET_DTYPE_MAP[dim_name]),
         )
 
     # Verify non-dimension coordinate variables
     validate_variable(
         dataset,
         name="orig_field_record_num",
-        dims=[("shot_line", 1), ("gun", 3), ("shot_point", 256)],
+        dims=[(k, v) for k, v in DATASET_SIZE_MAP.items() if k in ["sail_line", "gun", "shot_index"]],
         coords=["orig_field_record_num"],
-        dtype=ScalarType.INT32,
+        dtype=ScalarType.UINT32,
+    )
+
+    validate_variable(
+        dataset,
+        name="shot_point",
+        dims=[(k, v) for k, v in DATASET_SIZE_MAP.items() if k in ["sail_line", "gun", "shot_index"]],
+        coords=["shot_point"],
+        dtype=ScalarType.UINT32,
     )
 
     # Verify coordinate variables with units
-    for coord_name in ["source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"]:
+    for coord_name in ["source_coord_x", "source_coord_y"]:
         coord = validate_variable(
             dataset,
             name=coord_name,
-            dims=[("shot_line", 1), ("gun", 3), ("shot_point", 256)]
-            + ([("cable", 512), ("channel", 24)] if "group" in coord_name else []),
+            dims=[(k, v) for k, v in DATASET_SIZE_MAP.items() if k in ["sail_line", "gun", "shot_index"]],
+            coords=[coord_name],
+            dtype=ScalarType.FLOAT64,
+        )
+        assert coord.metadata.units_v1.length == LengthUnitEnum.METER
+
+    for coord_name in ["group_coord_x", "group_coord_y"]:
+        coord = validate_variable(
+            dataset,
+            name=coord_name,
+            dims=[(k, v) for k, v in DATASET_SIZE_MAP.items() if k != domain],
             coords=[coord_name],
             dtype=ScalarType.FLOAT64,
         )
@@ -87,10 +114,8 @@ class TestSeismic3DStreamerFieldRecordsTemplate:
 
         # Template attributes
         assert t.name == "StreamerFieldRecords3D"
-        assert t._dim_names == ("shot_line", "gun", "shot_point", "cable", "channel", "time")
+        assert t._dim_names == ("sail_line", "gun", "shot_index", "cable", "channel", "time")
         assert t._physical_coord_names == ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
-        # TODO(Anyone): Disable chunking in time domain when support is merged.
-        # https://github.com/TGSAI/mdio-python/pull/723
         assert t.full_chunk_shape == (1, 1, 16, 1, 32, 1024)
 
         # Variables instantiated when build_dataset() is called
@@ -99,7 +124,7 @@ class TestSeismic3DStreamerFieldRecordsTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {"surveyDimensionality": "3D", "ensembleType": "track", "processingStage": "pre-stack"}
+        assert attrs == {"surveyDimensionality": "3D", "ensembleType": "common_source_by_gun"}
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(self, structured_headers: StructuredType) -> None:
@@ -109,14 +134,11 @@ class TestSeismic3DStreamerFieldRecordsTemplate:
         t.add_units({"group_coord_x": UNITS_METER, "group_coord_y": UNITS_METER})  # spatial domain units
         t.add_units({"time": UNITS_SECOND})  # data domain units
 
-        dataset = t.build_dataset(
-            "North Sea 3D Streamer Field Records", sizes=(1, 3, 256, 512, 24, 2048), header_dtype=structured_headers
-        )
+        dataset = t.build_dataset("Survey3D", sizes=(1, 2, 128, 256, 12, 1024), header_dtype=structured_headers)
 
-        assert dataset.metadata.name == "North Sea 3D Streamer Field Records"
+        assert dataset.metadata.name == "Survey3D"
         assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
-        assert dataset.metadata.attributes["ensembleType"] == "track"
-        assert dataset.metadata.attributes["processingStage"] == "pre-stack"
+        assert dataset.metadata.attributes["ensembleType"] == "common_source_by_gun"
 
         _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
 
@@ -124,8 +146,15 @@ class TestSeismic3DStreamerFieldRecordsTemplate:
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[("shot_line", 1), ("gun", 3), ("shot_point", 256), ("cable", 512), ("channel", 24), ("time", 2048)],
-            coords=["orig_field_record_num", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y"],
+            dims=[("sail_line", 1), ("gun", 2), ("shot_index", 128), ("cable", 256), ("channel", 12), ("time", 1024)],
+            coords=[
+                "shot_point",
+                "orig_field_record_num",
+                "source_coord_x",
+                "source_coord_y",
+                "group_coord_x",
+                "group_coord_y",
+            ],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
