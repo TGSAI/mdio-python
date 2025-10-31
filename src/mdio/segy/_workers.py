@@ -42,10 +42,6 @@ def _init_worker(segy_file_kwargs: SegyFileArguments) -> None:
     
     from segy import SegyFile
 
-    # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
-    # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
-    zarr_config.set({"threading.max_workers": 1})
-
     # Open the SEG-Y file once per worker
     _worker_segy_file = SegyFile(**segy_file_kwargs)
 
@@ -114,6 +110,9 @@ def trace_worker(  # noqa: PLR0913
         SummaryStatistics object containing statistics about the written traces.
     """
     global _worker_segy_file
+    # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__CPU_COUNT` environment variable.
+    # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
+    zarr_config.set({"threading.max_workers": 1})
     
     # Use the pre-opened segy file from worker initialization
     segy_file = _worker_segy_file
