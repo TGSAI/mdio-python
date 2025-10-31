@@ -6,7 +6,6 @@ import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
-from segy import SegyFile
 from segy.arrays import HeaderArray
 
 from mdio.core.config import MDIOSettings
@@ -15,6 +14,7 @@ from mdio.segy.file import SegyFileArguments
 from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
+    from segy import SegyFile
     from zarr import Array as zarr_Array
 
 from zarr.core.config import config as zarr_config
@@ -24,28 +24,6 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.constants import fill_value_map
 
 logger = logging.getLogger(__name__)
-
-# Global variable to store opened segy file per worker process
-_worker_segy_file = None
-
-
-def _init_worker(segy_file_kwargs: SegyFileArguments) -> None:
-    """Initialize worker process with persistent segy file handle.
-
-    This function is called once per worker process to open the segy file,
-    which is then reused across all tasks in that worker.
-
-    Args:
-        segy_file_kwargs: Arguments to open SegyFile instance.
-    """
-    global _worker_segy_file  # noqa: PLW0603
-    # TODO(BrianMichell): Diagnose and fix handles not being cleaned up on cloud2cloud ingesions.
-    # https://github.com/TGSAI/mdio-python/pull/712
-    # https://github.com/TGSAI/mdio-python/pull/701
-    # The reason for having a global variable is to reduce the number of GET requests for opening the file.
-
-    # Open the SEG-Y file once per worker
-    _worker_segy_file = SegyFile(**segy_file_kwargs)
 
 
 def header_scan_worker(
@@ -91,6 +69,7 @@ def header_scan_worker(
 
 
 def trace_worker(  # noqa: PLR0913
+    segy_file: SegyFile,
     data_array: zarr_Array,
     header_array: zarr_Array | None,
     raw_header_array: zarr_Array | None,
@@ -99,9 +78,8 @@ def trace_worker(  # noqa: PLR0913
 ) -> SummaryStatistics | None:
     """Writes a subset of traces from a region of the dataset of Zarr file.
 
-    Uses pre-opened segy file from _init_worker and receives zarr arrays directly.
-
     Args:
+        segy_file: The opened SEG-Y file.
         data_array: Zarr array for writing trace data.
         header_array: Zarr array for writing trace headers (or None if not needed).
         raw_header_array: Zarr array for writing raw headers (or None if not needed).
@@ -111,11 +89,6 @@ def trace_worker(  # noqa: PLR0913
     Returns:
         SummaryStatistics object containing statistics about the written traces.
     """
-    global _worker_segy_file  # noqa: PLW0602
-
-    # Use the pre-opened segy file from worker initialization
-    segy_file = _worker_segy_file
-
     # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__CPU_COUNT` environment variable.
     # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
     zarr_config.set({"threading.max_workers": 1})

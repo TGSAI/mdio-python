@@ -12,6 +12,7 @@ import numpy as np
 import zarr
 from dask.array import Array
 from dask.array import map_blocks
+from segy import SegyFile
 from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
 
@@ -21,7 +22,6 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.constants import ZarrFormat
 from mdio.core.config import MDIOSettings
 from mdio.core.indexing import ChunkIterator
-from mdio.segy._workers import _init_worker
 from mdio.segy._workers import trace_worker
 from mdio.segy.creation import SegyPartRecord
 from mdio.segy.creation import concat_files
@@ -106,9 +106,9 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     executor = ProcessPoolExecutor(
         max_workers=num_workers,
         mp_context=context,
-        initializer=_init_worker,
-        initargs=(segy_file_kwargs,),
     )
+
+    segy_file = SegyFile(**segy_file_kwargs)
 
     with executor:
         futures = []
@@ -116,6 +116,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
             # Pass zarr array handles directly to workers
             future = executor.submit(
                 trace_worker,
+                segy_file,
                 data_array,
                 header_array,
                 raw_header_array,
