@@ -15,7 +15,7 @@ from dask.array import map_blocks
 from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
 
-from mdio.api.io import _get_gcs_store
+from mdio.api.io import _normalize_storage_options
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.constants import ZarrFormat
@@ -84,10 +84,9 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     zarr_format = zarr.config.get("default_zarr_format")
 
     # Open zarr group once in main process
-    store, storage_options = _get_gcs_store(output_path)
-
+    storage_options = _normalize_storage_options(output_path)
     zarr_group = zarr_open_group(
-        store,
+        output_path.as_posix(),
         mode="r+",
         storage_options=storage_options,
         use_consolidated=zarr_format == ZarrFormat.V2,
@@ -99,10 +98,6 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     data_array = zarr_group[data_variable_name]
     header_array = zarr_group.get("headers")
     raw_header_array = zarr_group.get("raw_headers")
-
-    # Convert grid_map to numpy array for serialization
-    # grid_map is an in-memory zarr array, so we can read it all at once
-    grid_map_data = grid_map[:]
 
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
@@ -127,7 +122,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
                 header_array,
                 raw_header_array,
                 region,
-                grid_map_data,
+                grid_map,
             )
             futures.append(future)
 

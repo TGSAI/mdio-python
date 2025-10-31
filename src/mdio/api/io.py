@@ -13,7 +13,6 @@ from xarray import open_zarr as xr_open_zarr
 from xarray.backends.writers import to_zarr as xr_to_zarr
 
 from mdio.constants import ZarrFormat
-from mdio.core.config import MDIOSettings
 from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
 
 if TYPE_CHECKING:
@@ -26,37 +25,11 @@ if TYPE_CHECKING:
 
 
 def _normalize_path(path: UPath | Path | str) -> UPath:
-    """Normalize a path to a UPath."""
     return UPath(path)
 
 
 def _normalize_storage_options(path: UPath) -> dict[str, Any] | None:
-    """Normalize storage options from UPath."""
     return None if len(path.storage_options) == 0 else path.storage_options
-
-
-def _get_gcs_store(path: UPath) -> tuple[Any, dict[str, Any] | None]:
-    """Get store and storage options, using local fake GCS server if enabled.
-
-    Args:
-        path: UPath pointing to storage location.
-
-    Returns:
-        Tuple of (store, storage_options) where store is either a mapper or path string.
-    """
-    settings = MDIOSettings()
-
-    if settings.local_gcs_server and str(path).startswith("gs://"):
-        import gcsfs  # noqa: PLC0415
-
-        fs = gcsfs.GCSFileSystem(
-            endpoint_url="http://localhost:4443",
-            token="anon",  # noqa: S106
-        )
-        store = fs.get_mapper(path.as_posix().replace("gs://", ""))
-        return store, None
-
-    return path.as_posix(), _normalize_storage_options(path)
 
 
 def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dataset:
@@ -114,22 +87,17 @@ def to_mdio(  # noqa: PLR0913
             the region of existing MDIO array(s) in which to write this dataset's data.
     """
     output_path = _normalize_path(output_path)
+    storage_options = _normalize_storage_options(output_path)
     zarr_format = zarr.config.get("default_zarr_format")
 
-    store, storage_options = _get_gcs_store(output_path)
-
-    kwargs = {
-        "dataset": dataset,
-        "store": store,
-        "mode": mode,
-        "compute": compute,
-        "consolidated": zarr_format == ZarrFormat.V2,
-        "region": region,
-        "write_empty_chunks": False,
-    }
-
-    if storage_options is not None and not isinstance(store, dict):
-        kwargs["storage_options"] = storage_options
-
     with zarr_warnings_suppress_unstable_structs_v3():
-        xr_to_zarr(**kwargs)
+        xr_to_zarr(
+            dataset,
+            store=output_path.as_posix(),  # xarray doesn't like URI when file:// is protocol
+            mode=mode,
+            compute=compute,
+            consolidated=zarr_format == ZarrFormat.V2,  # on for v2, off for v3
+            region=region,
+            storage_options=storage_options,
+            write_empty_chunks=False,
+        )

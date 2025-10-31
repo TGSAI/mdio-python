@@ -56,10 +56,5 @@ class MDIOSettings(BaseSettings):
         description="Whether to ignore validation checks",
         alias="MDIO_IGNORE_CHECKS",
     )
-    local_gcs_server: bool = Field(
-        default=False,
-        description="Whether to use local fake GCS server for testing (localhost:4443)",
-        alias="MDIO__LOCAL_GCS_SERVER",
-    )
 
     model_config = SettingsConfigDict(case_sensitive=True)

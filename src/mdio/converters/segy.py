@@ -597,6 +597,7 @@ def segy_to_mdio(  # noqa PLR0913
 
     # Now we can drop them to simplify chunked write of the data variable
     xr_dataset = xr_dataset.drop_vars(drop_vars_delayed)
+
     # Write the headers and traces in chunks using grid_map to indicate dead traces
     default_variable_name = mdio_template.default_variable_name
     # This is an memory-expensive and time-consuming read-write operation
