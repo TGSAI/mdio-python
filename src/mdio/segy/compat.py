@@ -8,7 +8,6 @@ files, we need to open them with the old SEG-Y spec. This is where we define it.
 from __future__ import annotations
 
 import logging
-import os
 from importlib import metadata
 
 from packaging import version
@@ -74,11 +73,6 @@ def get_trace_fields(version_str: str) -> list[HeaderField]:
 
 def mdio_segy_spec(version_str: str | None = None) -> SegySpec:
     """Get a SEG-Y encoding spec for MDIO based on version."""
-    spec_override = os.getenv("MDIO__SEGY__SPEC")
-
-    if spec_override is not None:
-        return SegySpec.model_validate_json(spec_override)
-
     version_str = MDIO_VERSION if version_str is None else version_str
 
     binary_fields = get_binary_fields()

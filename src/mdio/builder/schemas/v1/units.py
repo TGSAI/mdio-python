@@ -59,7 +59,7 @@ DensityUnitModel = create_unit_model(DensityUnitEnum, "DensityUnitModel", "densi
 class SpeedUnitEnum(UnitEnum):
     """Enum class representing units of speed."""
 
-    METER_PER_SECOND = ureg.meter / ureg.second
+    METERS_PER_SECOND = ureg.meter / ureg.second
     FEET_PER_SECOND = ureg.feet / ureg.second
 
 
