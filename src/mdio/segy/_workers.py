@@ -6,6 +6,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
+from segy import SegyFile
 from segy.arrays import HeaderArray
 
 from mdio.core.config import MDIOSettings
@@ -15,10 +16,9 @@ from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
     from zarr import Array as zarr_Array
-    from zarr import Group as zarr_Group
-    from segy import SegyFile
 
 from zarr.core.config import config as zarr_config
+
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.constants import fill_value_map
@@ -31,16 +31,18 @@ _worker_segy_file = None
 
 def _init_worker(segy_file_kwargs: SegyFileArguments) -> None:
     """Initialize worker process with persistent segy file handle.
-    
+
     This function is called once per worker process to open the segy file,
     which is then reused across all tasks in that worker.
-    
+
     Args:
         segy_file_kwargs: Arguments to open SegyFile instance.
     """
-    global _worker_segy_file
-    
-    from segy import SegyFile
+    global _worker_segy_file  # noqa: PLW0603
+    # TODO(BrianMichell): Diagnose and fix handles not being cleaned up on cloud2cloud ingesions.
+    # https://github.com/TGSAI/mdio-python/pull/712
+    # https://github.com/TGSAI/mdio-python/pull/701
+    # The reason for having a global variable is to reduce the number of GET requests for opening the file.
 
     # Open the SEG-Y file once per worker
     _worker_segy_file = SegyFile(**segy_file_kwargs)
@@ -96,7 +98,7 @@ def trace_worker(  # noqa: PLR0913
     grid_map: zarr_Array,
 ) -> SummaryStatistics | None:
     """Writes a subset of traces from a region of the dataset of Zarr file.
-    
+
     Uses pre-opened segy file from _init_worker and receives zarr arrays directly.
 
     Args:
@@ -109,8 +111,8 @@ def trace_worker(  # noqa: PLR0913
     Returns:
         SummaryStatistics object containing statistics about the written traces.
     """
-    global _worker_segy_file
-    
+    global _worker_segy_file  # noqa: PLW0602
+
     # Use the pre-opened segy file from worker initialization
     segy_file = _worker_segy_file
 

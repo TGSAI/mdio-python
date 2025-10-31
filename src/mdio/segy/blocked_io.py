@@ -90,8 +90,6 @@ def to_zarr(  # noqa: PLR0913, PLR0915
         mode="r+",
         storage_options=storage_options,
         use_consolidated=zarr_format == ZarrFormat.V2,
-        zarr_version=zarr_format,
-        zarr_format=zarr_format,
     )
 
     # Get array handles from the opened group
