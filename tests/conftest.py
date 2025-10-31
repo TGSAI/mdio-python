@@ -47,6 +47,18 @@ def zarr_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.mktemp(r"mdio")
 
 
+@pytest.fixture(scope="session")
+def teapot_mdio_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Make a temp file for the output MDIO."""
+    return tmp_path_factory.mktemp(r"teapot.mdio")
+
+
+@pytest.fixture(scope="module")
+def mdio_4d_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Make a temp file for the output MDIO."""
+    return tmp_path_factory.mktemp(r"tmp_4d.mdio")
+
+
 @pytest.fixture(scope="module")
 def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:  # pragma: no cover - used by disabled test
     """Make a temp file for the output MDIO."""
@@ -58,3 +70,9 @@ def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the round-trip IBM SEG-Y."""
     tmp_dir = tmp_path_factory.mktemp("segy")
     return tmp_dir / "teapot_roundtrip.segy"
+
+
+@pytest.fixture(scope="class")
+def empty_mdio_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Make a temp file for empty MDIO testing."""
+    return tmp_path_factory.mktemp(r"empty_mdio_dir")

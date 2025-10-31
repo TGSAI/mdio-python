@@ -1,5 +1,6 @@
 """Tests the schema v1 dataset_serializer public API."""
 
+import shutil
 from pathlib import Path
 
 import numpy as np
@@ -302,4 +303,7 @@ def test_seismic_poststack_3d_acceptance_to_xarray_dataset(tmp_path: Path) -> No
     xr_ds = to_xarray_dataset(dataset)
 
     file_path = f"{tmp_path}/{xr_ds.attrs['name']}.zarr"
+    # Delete the directory if it exists from running previous tests
+    if Path(file_path).exists():
+        shutil.rmtree(file_path)
     to_mdio(xr_ds, output_path=file_path, mode="w-", compute=False)
