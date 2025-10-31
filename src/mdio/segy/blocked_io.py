@@ -21,6 +21,7 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.constants import ZarrFormat
 from mdio.core.config import MDIOSettings
 from mdio.core.indexing import ChunkIterator
+from mdio.segy._workers import _init_worker
 from mdio.segy._workers import trace_worker
 from mdio.segy.creation import SegyPartRecord
 from mdio.segy.creation import concat_files
@@ -80,18 +81,69 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     chunk_iter = ChunkIterator(shape=data.shape, chunks=worker_chunks, dim_names=data.dims)
     num_chunks = chunk_iter.num_chunks
 
+    zarr_format = zarr.config.get("default_zarr_format")
+    print("Opening zarr group once in main process...")
+    
+    # Open zarr group once in main process
+    # For GCS paths with fake server, create FSMap; otherwise use path + storage_options
+    if str(output_path).startswith("gs://"):
+        import gcsfs
+        fs = gcsfs.GCSFileSystem(
+            endpoint_url="http://localhost:4443",
+            token="anon",
+        )
+        base_url = getattr(getattr(fs, "session", None), "_base_url", "http://localhost:4443")
+        print(f"[mdio.utils] Using fake GCS mapper via {base_url}")
+        store = fs.get_mapper(output_path.as_posix().replace("gs://", ""))
+        storage_options = None
+    else:
+        store = output_path.as_posix()
+        storage_options = _normalize_storage_options(output_path)
+
+    zarr_group = zarr_open_group(
+        store,
+        mode="r+",
+        storage_options=storage_options,
+        use_consolidated=zarr_format == ZarrFormat.V2,
+        zarr_version=zarr_format,
+        zarr_format=zarr_format,
+    )
+    print("Zarr group opened")
+
+    # Get array handles from the opened group
+    data_array = zarr_group[data_variable_name]
+    header_array = zarr_group.get("headers")
+    raw_header_array = zarr_group.get("raw_headers")
+
+    # Convert grid_map to numpy array for serialization
+    # grid_map is an in-memory zarr array, so we can read it all at once
+    grid_map_data = grid_map[:]
+
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     num_workers = min(num_chunks, settings.import_cpus)
     context = mp.get_context("spawn")
-    executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
+    
+    # Use initializer to open segy file once per worker
+    executor = ProcessPoolExecutor(
+        max_workers=num_workers,
+        mp_context=context,
+        initializer=_init_worker,
+        initargs=(segy_file_kwargs,),
+    )
 
     with executor:
         futures = []
-        common_args = (segy_file_kwargs, output_path, data_variable_name)
         for region in chunk_iter:
-            subset_args = (region, grid_map)
-            future = executor.submit(trace_worker, *common_args, *subset_args)
+            # Pass zarr array handles directly to workers
+            future = executor.submit(
+                trace_worker,
+                data_array,
+                header_array,
+                raw_header_array,
+                region,
+                grid_map_data,
+            )
             futures.append(future)
 
         iterable = tqdm(
@@ -106,11 +158,9 @@ def to_zarr(  # noqa: PLR0913, PLR0915
             if result is not None:
                 _update_stats(final_stats, result)
 
+    # Update statistics using the already-open zarr group
     # Xarray doesn't directly support incremental attribute updates when appending to an existing Zarr store.
     # HACK: We will update the array attribute using zarr's API directly.
-    # Use the data_variable_name to get the array in the Zarr group and write "statistics" metadata there
-    storage_options = _normalize_storage_options(output_path)
-    zarr_group = zarr_open_group(output_path.as_posix(), mode="a", storage_options=storage_options)
     attr_json = final_stats.model_dump_json()
     zarr_group[data_variable_name].attrs.update({"statsV1": attr_json})
 

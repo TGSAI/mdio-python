@@ -531,9 +531,11 @@ def segy_to_mdio(  # noqa PLR0913
     input_path = _normalize_path(input_path)
     output_path = _normalize_path(output_path)
 
+    print("Checking if output path exists...")
     if not overwrite and output_path.exists():
         err = f"Output location '{output_path.as_posix()}' exists. Set `overwrite=True` if intended."
         raise FileExistsError(err)
+    print("Output path check was fine")
 
     segy_settings = SegyFileSettings(storage_options=input_path.storage_options)
     segy_file_kwargs: SegyFileArguments = {
@@ -589,15 +591,16 @@ def segy_to_mdio(  # noqa PLR0913
     # blocked_io.to_zarr() -> _workers.trace_worker()
 
     # This will create the Zarr store with the correct structure but with empty arrays
+    print("Creating Zarr store...")
     to_mdio(xr_dataset, output_path=output_path, mode="w", compute=False)
-
+    print("Zarr store created")
     # This will write the non-dimension coordinates and trace mask
     meta_ds = xr_dataset[drop_vars_delayed + ["trace_mask"]]
     to_mdio(meta_ds, output_path=output_path, mode="r+", compute=True)
-
+    print("Non-dimension coordinates and trace mask written")
     # Now we can drop them to simplify chunked write of the data variable
     xr_dataset = xr_dataset.drop_vars(drop_vars_delayed)
-
+    print("Dropped variables")
     # Write the headers and traces in chunks using grid_map to indicate dead traces
     default_variable_name = mdio_template.default_variable_name
     # This is an memory-expensive and time-consuming read-write operation

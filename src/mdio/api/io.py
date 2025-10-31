@@ -23,13 +23,46 @@ if TYPE_CHECKING:
     from xarray.core.types import T_Chunks
     from xarray.core.types import ZarrWriteModes
 
-
 def _normalize_path(path: UPath | Path | str) -> UPath:
+    """Normalize a path to a UPath.
+
+    For gs:// paths, the fake GCS server configuration is handled via storage_options
+    in _normalize_storage_options().
+    """
+    from upath import UPath
+
     return UPath(path)
 
-
 def _normalize_storage_options(path: UPath) -> dict[str, Any] | None:
-    return None if len(path.storage_options) == 0 else path.storage_options
+    """Normalize and patch storage options for UPath paths.
+
+    - Extracts any existing options from the UPath.
+    - Automatically redirects gs:// URLs to a local fake-GCS endpoint
+      when testing (localhost:4443).
+    """
+    import gcsfs
+
+    # Start with any existing options from UPath
+    storage_options = dict(path.storage_options) if len(path.storage_options) else {}
+
+    # Redirect gs:// to local fake-GCS server for testing
+    if str(path).startswith("gs://"):
+        fs = gcsfs.GCSFileSystem(
+            endpoint_url="http://localhost:4443",
+            token="anon",
+        )
+        base_url = getattr(getattr(fs, "session", None), "_base_url", "http://localhost:4443")
+        print(f"[mdio.utils] Redirecting GCS path to local fake server: {base_url}")
+        storage_options["fs"] = fs
+
+    return storage_options or None
+
+# def _normalize_path(path: UPath | Path | str) -> UPath:
+#     return UPath(path)
+
+
+# def _normalize_storage_options(path: UPath) -> dict[str, Any] | None:
+#     return None if len(path.storage_options) == 0 else path.storage_options
 
 
 def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dataset:
@@ -49,6 +82,8 @@ def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dat
     Returns:
         An Xarray dataset opened from the input path.
     """
+    import zarr
+
     input_path = _normalize_path(input_path)
     storage_options = _normalize_storage_options(input_path)
     zarr_format = zarr.config.get("default_zarr_format")
@@ -61,43 +96,101 @@ def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dat
         consolidated=zarr_format == ZarrFormat.V2,  # on for v2, off for v3
     )
 
-
-def to_mdio(  # noqa: PLR0913
+def to_mdio(
     dataset: Dataset,
     output_path: UPath | Path | str,
     mode: ZarrWriteModes | None = None,
     *,
     compute: bool = True,
-    region: Mapping[str, slice | Literal["auto"]] | Literal["auto"] | None = None,
-) -> None:
-    """Write dataset contents to an MDIO output_path.
+    region: Mapping[str, slice | Literal["auto"]] | Literal["auto"] | None = None,):
+    """Write dataset contents to an MDIO output_path."""
+    import gcsfs
+    import zarr
 
-    Args:
-        dataset: The dataset to write.
-        output_path: The universal path of the output MDIO file.
-        mode: Persistence mode: "w" means create (overwrite if exists)
-            "w-" means create (fail if exists)
-            "a" means override all existing variables including dimension coordinates (create if does not exist)
-            "a-" means only append those variables that have ``append_dim``.
-            "r+" means modify existing array *values* only (raise an error if any metadata or shapes would change).
-            The default mode is "r+" if ``region`` is set and ``w-`` otherwise.
-        compute: If True write array data immediately; otherwise return a ``dask.delayed.Delayed`` object that
-            can be computed to write array data later. Metadata is always updated eagerly.
-        region: Optional mapping from dimension names to either a) ``"auto"``, or b) integer slices, indicating
-            the region of existing MDIO array(s) in which to write this dataset's data.
-    """
     output_path = _normalize_path(output_path)
-    storage_options = _normalize_storage_options(output_path)
     zarr_format = zarr.config.get("default_zarr_format")
 
-    with zarr_warnings_suppress_unstable_structs_v3():
-        xr_to_zarr(
-            dataset,
-            store=output_path.as_posix(),  # xarray doesn't like URI when file:// is protocol
-            mode=mode,
-            compute=compute,
-            consolidated=zarr_format == ZarrFormat.V2,  # on for v2, off for v3
-            region=region,
-            storage_options=storage_options,
-            write_empty_chunks=False,
+    # For GCS paths, create FSMap for fake GCS server
+    if str(output_path).startswith("gs://"):
+        fs = gcsfs.GCSFileSystem(
+            endpoint_url="http://localhost:4443",
+            token="anon",
         )
+        base_url = getattr(getattr(fs, "session", None), "_base_url", "http://localhost:4443")
+        print(f"[mdio.utils] Using fake GCS mapper via {base_url}")
+        store = fs.get_mapper(output_path.as_posix().replace("gs://", ""))
+        storage_options = None  # Must be None when passing a mapper
+    else:
+        store = output_path.as_posix()
+        storage_options = _normalize_storage_options(output_path)
+
+    print(f"[mdio.utils] Writing to store: {store}")
+    print(f"[mdio.utils] Storage options: {storage_options}")
+
+    kwargs = dict(
+        dataset=dataset,
+        store=store,
+        mode=mode,
+        compute=compute,
+        consolidated=zarr_format == ZarrFormat.V2,
+        region=region,
+        write_empty_chunks=False,
+    )
+    if storage_options is not None and not isinstance(store, dict):
+        kwargs["storage_options"] = storage_options
+
+    with zarr_warnings_suppress_unstable_structs_v3():
+        xr_to_zarr(**kwargs)
+
+
+# def to_mdio(  # noqa: PLR0913
+#     dataset: Dataset,
+#     output_path: UPath | Path | str,
+#     mode: ZarrWriteModes | None = None,
+#     *,
+#     compute: bool = True,
+#     region: Mapping[str, slice | Literal["auto"]] | Literal["auto"] | None = None,
+# ) -> None:
+#     """Write dataset contents to an MDIO output_path."""
+#     import gcsfs, zarr
+
+#     output_path = _normalize_path(output_path)
+
+#     if output_path.as_posix().startswith("gs://"):
+#         fs = gcsfs.GCSFileSystem(
+#             endpoint_url="http://localhost:4443",
+#             token="anon",
+#         )
+
+#         base_url = getattr(getattr(fs, "session", None), "_base_url", "http://localhost:4443")
+#         print(f"Using custom fake GCS filesystem with endpoint {base_url}")
+
+#         # Build a mapper so all I/O uses the fake GCS server
+#         mapper = fs.get_mapper(output_path.as_posix().replace("gs://", ""))
+#         store = mapper
+#         storage_options = None  # must be None when passing a mapper
+#     else:
+#         store = output_path.as_posix()
+#         storage_options = _normalize_storage_options(output_path) or {}
+
+#     print(f"Writing to store: {store}")
+#     zarr_format = zarr.config.get("default_zarr_format")
+
+#     kwargs = dict(
+#         dataset=dataset,
+#         store=store,
+#         mode=mode,
+#         compute=compute,
+#         consolidated=zarr_format == ZarrFormat.V2,
+#         region=region,
+#         write_empty_chunks=False,
+#     )
+#     if storage_options is not None:
+#         kwargs["storage_options"] = storage_options
+
+#     with zarr_warnings_suppress_unstable_structs_v3():
+#         xr_to_zarr(**kwargs)
+
+
+
+

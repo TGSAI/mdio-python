@@ -8,24 +8,46 @@ from typing import TYPE_CHECKING
 import numpy as np
 from segy.arrays import HeaderArray
 
-from mdio.api.io import _normalize_storage_options
 from mdio.core.config import MDIOSettings
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
 from mdio.segy.file import SegyFileArguments
 from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
-    from upath import UPath
     from zarr import Array as zarr_Array
+    from zarr import Group as zarr_Group
+    from segy import SegyFile
 
-from zarr import open_group as zarr_open_group
 from zarr.core.config import config as zarr_config
-
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.constants import fill_value_map
 
 logger = logging.getLogger(__name__)
+
+# Global variable to store opened segy file per worker process
+_worker_segy_file = None
+
+
+def _init_worker(segy_file_kwargs: SegyFileArguments) -> None:
+    """Initialize worker process with persistent segy file handle.
+    
+    This function is called once per worker process to open the segy file,
+    which is then reused across all tasks in that worker.
+    
+    Args:
+        segy_file_kwargs: Arguments to open SegyFile instance.
+    """
+    global _worker_segy_file
+    
+    from segy import SegyFile
+
+    # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
+    # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
+    zarr_config.set({"threading.max_workers": 1})
+
+    # Open the SEG-Y file once per worker
+    _worker_segy_file = SegyFile(**segy_file_kwargs)
 
 
 def header_scan_worker(
@@ -71,28 +93,33 @@ def header_scan_worker(
 
 
 def trace_worker(  # noqa: PLR0913
-    segy_file_kwargs: SegyFileArguments,
-    output_path: UPath,
-    data_variable_name: str,
+    data_array: zarr_Array,
+    header_array: zarr_Array | None,
+    raw_header_array: zarr_Array | None,
     region: dict[str, slice],
-    grid_map: zarr_Array,
+    grid_map_data: np.ndarray,
 ) -> SummaryStatistics | None:
     """Writes a subset of traces from a region of the dataset of Zarr file.
+    
+    Uses pre-opened segy file from _init_worker and receives zarr arrays directly.
 
     Args:
-        segy_file_kwargs: Arguments to open SegyFile instance.
-        output_path: Universal Path for the output Zarr dataset
-            (e.g. local file path or cloud storage URI) the location
-            also includes storage options for cloud storage.
-        data_variable_name: Name of the data variable to write.
+        data_array: Zarr array for writing trace data.
+        header_array: Zarr array for writing trace headers (or None if not needed).
+        raw_header_array: Zarr array for writing raw headers (or None if not needed).
         region: Region of the dataset to write to.
-        grid_map: Zarr array mapping live traces to their positions in the dataset.
+        grid_map_data: Numpy array mapping live traces to their positions in the dataset.
 
     Returns:
         SummaryStatistics object containing statistics about the written traces.
     """
+    global _worker_segy_file
+    
+    # Use the pre-opened segy file from worker initialization
+    segy_file = _worker_segy_file
+
     region_slices = tuple(region.values())
-    local_grid_map = grid_map[region_slices[:-1]]  # minus last (vertical) axis
+    local_grid_map = grid_map_data[region_slices[:-1]]  # minus last (vertical) axis
 
     # The dtype.max is the sentinel value for the grid map.
     # Normally, this is uint32, but some grids need to be promoted to uint64.
@@ -100,26 +127,8 @@ def trace_worker(  # noqa: PLR0913
     if not not_null.any():
         return None
 
-    # Open the SEG-Y file in this process since the open file handles cannot be shared across processes.
-    segy_file = SegyFileWrapper(**segy_file_kwargs)
-
-    # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__MAX_WORKERS` environment variable.
-    # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
-    zarr_config.set({"threading.max_workers": 1})
-
     live_trace_indexes = local_grid_map[not_null].tolist()
 
-    # Open the zarr group to write directly
-    storage_options = _normalize_storage_options(output_path)
-    zarr_group = zarr_open_group(output_path.as_posix(), mode="r+", storage_options=storage_options)
-
-    header_key = "headers"
-    raw_header_key = "raw_headers"
-
-    # Check which variables exist in the zarr store
-    available_arrays = list(zarr_group.array_keys())
-
-    # traces = segy_file.trace[live_trace_indexes]
     # Raw headers are not intended to remain as a feature of the SEGY ingestion.
     # For that reason, we have wrapped the accessors to provide an interface that can be removed
     # and not require additional changes to the below code.
@@ -132,24 +141,21 @@ def trace_worker(  # noqa: PLR0913
     full_shape = tuple(s.stop - s.start for s in region_slices)
     header_shape = tuple(s.stop - s.start for s in header_region_slices)
 
-    # Write raw headers if they exist
+    # Write raw headers if array was provided
     # Headers only have spatial dimensions (no sample dimension)
-    if raw_header_key in available_arrays:
-        raw_header_array = zarr_group[raw_header_key]
+    if raw_header_array is not None:
         tmp_raw_headers = np.full(header_shape, raw_header_array.fill_value)
         tmp_raw_headers[not_null] = traces.raw_header
         raw_header_array[header_region_slices] = tmp_raw_headers
 
-    # Write headers if they exist
+    # Write headers if array was provided
     # Headers only have spatial dimensions (no sample dimension)
-    if header_key in available_arrays:
-        header_array = zarr_group[header_key]
+    if header_array is not None:
         tmp_headers = np.full(header_shape, header_array.fill_value)
         tmp_headers[not_null] = traces.header
         header_array[header_region_slices] = tmp_headers
 
     # Write the data variable
-    data_array = zarr_group[data_variable_name]
     tmp_samples = np.full(full_shape, data_array.fill_value)
     tmp_samples[not_null] = traces.sample
     data_array[region_slices] = tmp_samples
