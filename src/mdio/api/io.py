@@ -40,13 +40,13 @@ def _normalize_storage_options(path: UPath) -> dict[str, Any] | None:
     - Automatically redirects gs:// URLs to a local fake-GCS endpoint
       when testing (localhost:4443).
     """
-    import gcsfs
 
     # Start with any existing options from UPath
     storage_options = dict(path.storage_options) if len(path.storage_options) else {}
 
     # Redirect gs:// to local fake-GCS server for testing
     if str(path).startswith("gs://"):
+        import gcsfs
         fs = gcsfs.GCSFileSystem(
             endpoint_url="http://localhost:4443",
             token="anon",
@@ -104,7 +104,6 @@ def to_mdio(
     compute: bool = True,
     region: Mapping[str, slice | Literal["auto"]] | Literal["auto"] | None = None,):
     """Write dataset contents to an MDIO output_path."""
-    import gcsfs
     import zarr
 
     output_path = _normalize_path(output_path)
@@ -112,6 +111,7 @@ def to_mdio(
 
     # For GCS paths, create FSMap for fake GCS server
     if str(output_path).startswith("gs://"):
+        import gcsfs
         fs = gcsfs.GCSFileSystem(
             endpoint_url="http://localhost:4443",
             token="anon",
