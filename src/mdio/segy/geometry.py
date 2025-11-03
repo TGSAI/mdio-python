@@ -487,11 +487,13 @@ class AutoShotWrap(GridOverrideCommand):
 
         # This might be slow and potentially could be improved with a rewrite
         # to prevent so many lookups
+        shot_index = np.empty(len(index_headers), dtype="uint8")
+        index_headers = rfn.append_fields(index_headers, "shot_index", shot_index)
         if geom_type == ShotGunGeometryType.B:
             for sail_line in unique_sail_lines:
                 sail_line_idxs = np.where(index_headers["sail_line"][:] == sail_line)
-                index_headers["shot_point"][sail_line_idxs] = np.floor(
-                    index_headers["shot_point"][sail_line_idxs] / max_num_guns
+                index_headers["shot_index"][sail_line_idxs] = np.floor(
+                    index_headers["shot_index"][sail_line_idxs] / max_num_guns
                 )
         return index_headers
 
