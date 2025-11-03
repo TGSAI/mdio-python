@@ -27,10 +27,7 @@ class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
         self._spatial_dim_names = ("sail_line", "gun", "shot_index", "cable", "channel")
         self._dim_names = (*self._spatial_dim_names, self._data_domain)
         self._physical_coord_names = ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
-        self._logical_coord_names = (
-            "shot_point",
-            "orig_field_record_num",
-        )  # ffid
+        self._logical_coord_names = ("shot_point", "orig_field_record_num")  # ffid
         self._var_chunk_shape = (1, 1, 16, 1, 32, 1024)
 
     @property
