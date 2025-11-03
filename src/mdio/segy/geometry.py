@@ -487,7 +487,7 @@ class AutoShotWrap(GridOverrideCommand):
 
         # This might be slow and potentially could be improved with a rewrite
         # to prevent so many lookups
-        shot_index = np.empty(len(index_headers), dtype="uint8")
+        shot_index = np.empty(len(index_headers), dtype="uint32")
         index_headers = rfn.append_fields(index_headers, "shot_index", shot_index)
         if geom_type == ShotGunGeometryType.B:
             for sail_line in unique_sail_lines:

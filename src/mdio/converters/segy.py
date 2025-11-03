@@ -488,6 +488,7 @@ def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatas
     header_fields = {field.name for field in segy_spec.trace.header.fields}
 
     required_fields = set(mdio_template.spatial_dimension_names) | set(mdio_template.coordinate_names)
+    required_fields = required_fields - set(mdio_template.calculated_dimension_names)  # remove to be calculated
     required_fields = required_fields | {"coordinate_scalar"}  # ensure coordinate scalar is always present
     missing_fields = required_fields - header_fields
 
