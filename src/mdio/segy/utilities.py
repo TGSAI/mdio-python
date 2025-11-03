@@ -58,6 +58,10 @@ def get_grid_plan(  # noqa:  C901, PLR0913
     # Keep only dimension and non-dimension coordinates excluding the vertical axis
     horizontal_dimensions = template.spatial_dimension_names
     horizontal_coordinates = horizontal_dimensions + template.coordinate_names
+
+    # Remove any to be computed fields
+    horizontal_coordinates = tuple(set(horizontal_coordinates) - set(template.calculated_dimension_names))
+
     headers_subset = parse_headers(
         segy_file_kwargs=segy_file_kwargs,
         num_traces=segy_file_info.num_traces,
