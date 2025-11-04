@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from mdio.core.dimension import Dimension
 
 
-def create_empty(  # noqa PLR0913
+def create_empty(
     mdio_template: AbstractDatasetTemplate | str,
     dimensions: list[Dimension],
     output_path: UPath | Path | str | None,
@@ -89,7 +89,7 @@ def create_empty(  # noqa PLR0913
     return xr_dataset
 
 
-def create_empty_like(  # noqa PLR0913
+def create_empty_like(
     input_path: UPath | Path | str,
     output_path: UPath | Path | str,
     keep_coordinates: bool = False,
