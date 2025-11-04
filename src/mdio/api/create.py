@@ -40,7 +40,7 @@ def create_empty(
         mdio_template: The MDIO template or template name to use to define the dataset structure.
         dimensions: The dimensions of the MDIO file.
         output_path: The universal path for the output MDIO v1 file.
-        headers: SEG-Y v1.0 trace headers. Defaults to None.
+        headers: The SEG-Y trace headers that are important to the Dataset. Defaults to None.
         overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
 
     Returns:
