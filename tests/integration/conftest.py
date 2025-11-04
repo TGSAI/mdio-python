@@ -144,7 +144,7 @@ def segy_mock_4d_shots(fake_segy_tmp: Path) -> dict[StreamerShotGeometryType, Pa
     num_samples = 25
     shots = [2, 3, 5, 6, 7, 8, 9]
     guns = [1, 2]
-    cables = [0, 101, 201, 301]
+    cables = [0, 3, 5, 7]
     receivers_per_cable = [1, 5, 7, 5]
 
     segy_paths = {}

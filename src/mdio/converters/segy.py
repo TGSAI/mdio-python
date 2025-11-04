@@ -345,10 +345,10 @@ def _populate_coordinates(
     """
     drop_vars_delayed = []
     # Populate the dimension coordinate variables (1-D arrays)
-    dataset, vars_to_drop_later = populate_dim_coordinates(dataset, grid, drop_vars_delayed=drop_vars_delayed)
+    dataset, drop_vars_delayed = populate_dim_coordinates(dataset, grid, drop_vars_delayed=drop_vars_delayed)
 
     # Populate the non-dimension coordinate variables (N-dim arrays)
-    dataset, vars_to_drop_later = populate_non_dim_coordinates(
+    dataset, drop_vars_delayed = populate_non_dim_coordinates(
         dataset,
         grid,
         coordinates=coords,
@@ -593,6 +593,9 @@ def segy_to_mdio(  # noqa PLR0913
     to_mdio(xr_dataset, output_path=output_path, mode="w", compute=False)
 
     # This will write the non-dimension coordinates and trace mask
+    # We also remove dimensions that don't have associated coordinates
+    unindexed_dims = [d for d in xr_dataset.dims if d not in xr_dataset.coords]
+    [drop_vars_delayed.remove(d) for d in unindexed_dims]
     meta_ds = xr_dataset[drop_vars_delayed + ["trace_mask"]]
     to_mdio(meta_ds, output_path=output_path, mode="r+", compute=True)
 

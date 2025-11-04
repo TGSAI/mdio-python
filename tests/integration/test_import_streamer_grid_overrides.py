@@ -59,7 +59,7 @@ class TestImport4DNonReg:  # pragma: no cover - tests is skipped
         # Expected values
         num_samples = 25
         shots = [2, 3, 5, 6, 7, 8, 9]
-        cables = [0, 101, 201, 301]
+        cables = [0, 3, 5, 7]
         receivers_per_cable = [1, 5, 7, 5]
 
         ds = open_mdio(zarr_tmp)
@@ -106,7 +106,7 @@ class TestImport4D:
         # Expected values
         num_samples = 25
         shots = [2, 3, 5, 6, 7, 8, 9]
-        cables = [0, 101, 201, 301]
+        cables = [0, 3, 5, 7]
         receivers_per_cable = [1, 5, 7, 5]
 
         ds = open_mdio(zarr_tmp)
@@ -156,7 +156,7 @@ class TestImport4DSparse:
         assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
 
 
-@pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True, "AutoShotWrap": True}, None])
+@pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True, "AutoShotWrap": True}, {"AutoShotWrap": True}])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
 class TestImport6D:
     """Test for 6D segy import with grid overrides."""
@@ -183,26 +183,33 @@ class TestImport6D:
 
         # Expected values
         num_samples = 25
-        shots = [2, 3, 5, 6, 7, 8, 9]  # original shot list
-        if grid_override is not None and "AutoShotWrap" in grid_override:
-            shots_new = [int(shot / 2) for shot in shots]  # Updated shot index when ingesting with 2 guns
-            shots_set = set(shots_new)  # remove duplicates
-            shots = list(shots_set)  # Unique shot points for 6D indexed with gun
-        cables = [0, 101, 201, 301]
+        shot_points = [2, 3, 5, 6, 7, 8, 9]  # original shot list, missing shot ~ 4.
+
+        shot_index = [int(sp / 2) for sp in shot_points]  # Updated shot index when ingesting with 2 guns
+        shot_index = np.unique(shot_index) - 1  # Unique shot point indices for 6D indexed with gun
+        cables = [0, 3, 5, 7]
         guns = [1, 2]
         receivers_per_cable = [1, 5, 7, 5]
 
         ds = open_mdio(zarr_tmp)
 
         xrt.assert_duckarray_equal(ds["gun"], guns)
-        xrt.assert_duckarray_equal(ds["shot_point"], shots)
+        xrt.assert_duckarray_equal(ds["shot_index"], shot_index)
         xrt.assert_duckarray_equal(ds["cable"], cables)
 
-        if chan_header_type == StreamerShotGeometryType.B and grid_override is None:
+        if chan_header_type == StreamerShotGeometryType.B and "AutoChannelWrap" not in grid_override:
             expected = list(range(1, np.sum(receivers_per_cable) + 1))
         else:
             expected = list(range(1, np.amax(receivers_per_cable) + 1))
         xrt.assert_duckarray_equal(ds["channel"], expected)
+
+        expected_shot_points = [
+            [
+                [2, 4294967295, 6, 8],  # gun = 1
+                [3, 5, 7, 9],  # gun = 2
+            ],  # sail_line = 1
+        ]
+        xrt.assert_duckarray_equal(ds["shot_point"], expected_shot_points)
 
         times_expected = list(range(0, num_samples, 1))
         xrt.assert_duckarray_equal(ds["time"], times_expected)
