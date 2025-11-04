@@ -53,7 +53,7 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         All index dimensions and chunksize or dimensions and chunksize together with header values.
 
     Raises:
-        ValueError: If computed fields are not found after header overrides.
+        ValueError: If computed fields are not found after grid overrides.
     """
     if grid_overrides is None:
         grid_overrides = {}
@@ -84,7 +84,7 @@ def get_grid_plan(  # noqa:  C901, PLR0913
     if len(computed_fields) > 0 and not computed_fields.issubset(headers_subset.dtype.names):
         err = (
             f"Required computed fields {sorted(computed_fields)} for template {template.name} "
-            f"not found after header overrides. Please ensure correct overrides are applied."
+            f"not found after grid overrides. Please ensure correct overrides are applied."
         )
         raise ValueError(err)
 
