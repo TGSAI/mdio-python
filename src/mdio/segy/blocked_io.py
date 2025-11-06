@@ -12,6 +12,7 @@ import numpy as np
 import zarr
 from dask.array import Array
 from dask.array import map_blocks
+from segy import SegyFile
 from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
 
@@ -80,18 +81,48 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     chunk_iter = ChunkIterator(shape=data.shape, chunks=worker_chunks, dim_names=data.dims)
     num_chunks = chunk_iter.num_chunks
 
+    zarr_format = zarr.config.get("default_zarr_format")
+
+    # Open zarr group once in main process
+    storage_options = _normalize_storage_options(output_path)
+    zarr_group = zarr_open_group(
+        output_path.as_posix(),
+        mode="r+",
+        storage_options=storage_options,
+        use_consolidated=zarr_format == ZarrFormat.V2,
+    )
+
+    # Get array handles from the opened group
+    data_array = zarr_group[data_variable_name]
+    header_array = zarr_group.get("headers")
+    raw_header_array = zarr_group.get("raw_headers")
+
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     num_workers = min(num_chunks, settings.import_cpus)
     context = mp.get_context("spawn")
-    executor = ProcessPoolExecutor(max_workers=num_workers, mp_context=context)
+
+    # Use initializer to open segy file once per worker
+    executor = ProcessPoolExecutor(
+        max_workers=num_workers,
+        mp_context=context,
+    )
+
+    segy_file = SegyFile(**segy_file_kwargs)
 
     with executor:
         futures = []
-        common_args = (segy_file_kwargs, output_path, data_variable_name)
         for region in chunk_iter:
-            subset_args = (region, grid_map)
-            future = executor.submit(trace_worker, *common_args, *subset_args)
+            # Pass zarr array handles directly to workers
+            future = executor.submit(
+                trace_worker,
+                segy_file,
+                data_array,
+                header_array,
+                raw_header_array,
+                region,
+                grid_map,
+            )
             futures.append(future)
 
         iterable = tqdm(
@@ -106,11 +137,9 @@ def to_zarr(  # noqa: PLR0913, PLR0915
             if result is not None:
                 _update_stats(final_stats, result)
 
+    # Update statistics using the already-open zarr group
     # Xarray doesn't directly support incremental attribute updates when appending to an existing Zarr store.
     # HACK: We will update the array attribute using zarr's API directly.
-    # Use the data_variable_name to get the array in the Zarr group and write "statistics" metadata there
-    storage_options = _normalize_storage_options(output_path)
-    zarr_group = zarr_open_group(output_path.as_posix(), mode="a", storage_options=storage_options)
     attr_json = final_stats.model_dump_json()
     zarr_group[data_variable_name].attrs.update({"statsV1": attr_json})
 
