@@ -493,7 +493,7 @@ class AutoShotWrap(GridOverrideCommand):
             for sail_line in unique_sail_lines:
                 sail_line_idxs = np.where(index_headers["sail_line"][:] == sail_line)
                 index_headers["shot_index"][sail_line_idxs] = np.floor(
-                    index_headers["shot_index"][sail_line_idxs] / max_num_guns
+                    index_headers["shot_point"][sail_line_idxs] / max_num_guns
                 )
                 # Make shot index zero-based PER sail line
                 index_headers["shot_index"][sail_line_idxs] -= index_headers["shot_index"][sail_line_idxs].min()
