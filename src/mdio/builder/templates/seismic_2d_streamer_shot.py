@@ -24,7 +24,7 @@ class Seismic2DStreamerShotGathersTemplate(AbstractDatasetTemplate):
         return "StreamerShotGathers2D"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {"surveyType": "2D", "ensembleType": "common_source"}
+        return {"surveyType": "2D", "gatherType": "common_source"}
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates

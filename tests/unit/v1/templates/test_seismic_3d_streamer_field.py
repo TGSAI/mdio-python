@@ -124,7 +124,7 @@ class TestSeismic3DStreamerFieldRecordsTemplate:
 
         # Verify dataset attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {"surveyDimensionality": "3D", "ensembleType": "common_source_by_gun"}
+        assert attrs == {"surveyDimensionality": "3D", "gatherType": "common_source"}
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(self, structured_headers: StructuredType) -> None:
@@ -138,7 +138,7 @@ class TestSeismic3DStreamerFieldRecordsTemplate:
 
         assert dataset.metadata.name == "Survey3D"
         assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
-        assert dataset.metadata.attributes["ensembleType"] == "common_source_by_gun"
+        assert dataset.metadata.attributes["gatherType"] == "common_source"
 
         _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
 

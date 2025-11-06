@@ -36,7 +36,7 @@ class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
         return "StreamerFieldRecords3D"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {"surveyDimensionality": "3D", "ensembleType": "common_source_by_gun"}
+        return {"surveyDimensionality": "3D", "gatherType": "common_source"}
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates

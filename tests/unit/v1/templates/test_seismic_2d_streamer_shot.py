@@ -124,7 +124,7 @@ class TestSeismic2DStreamerShotGathersTemplate:
 
         # Verify prestack shot attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {"surveyType": "2D", "ensembleType": "common_source"}
+        assert attrs == {"surveyType": "2D", "gatherType": "common_source"}
 
         assert t.name == "StreamerShotGathers2D"
 
@@ -140,7 +140,7 @@ class TestSeismic2DStreamerShotGathersTemplate:
 
         assert dataset.metadata.name == "North Sea 2D Shot Time"
         assert dataset.metadata.attributes["surveyType"] == "2D"
-        assert dataset.metadata.attributes["ensembleType"] == "common_source"
+        assert dataset.metadata.attributes["gatherType"] == "common_source"
 
         _validate_coordinates_headers_trace_mask(dataset, structured_headers, "time")
 
