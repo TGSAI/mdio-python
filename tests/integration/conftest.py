@@ -22,13 +22,13 @@ if TYPE_CHECKING:
 def get_segy_mock_4d_spec() -> SegySpec:
     """Create a mock 4D SEG-Y specification."""
     trace_header_fields = [
-        HeaderField(name="field_rec_no", byte=9, format="int32"),
+        HeaderField(name="orig_field_record_num", byte=9, format="int32"),
         HeaderField(name="channel", byte=13, format="int32"),
         HeaderField(name="shot_point", byte=17, format="int32"),
         HeaderField(name="offset", byte=37, format="int32"),
         HeaderField(name="samples_per_trace", byte=115, format="int16"),
         HeaderField(name="sample_interval", byte=117, format="int16"),
-        HeaderField(name="shot_line", byte=133, format="int16"),
+        HeaderField(name="sail_line", byte=133, format="int16"),
         HeaderField(name="cable", byte=137, format="int16"),
         HeaderField(name="gun", byte=171, format="int16"),
         HeaderField(name="coordinate_scalar", byte=71, format="int16"),
@@ -111,15 +111,15 @@ def create_segy_mock_4d(  # noqa: PLR0913
             gun = gun_headers[trc_idx]
             cable = cable_headers[trc_idx]
             channel = channel_headers[trc_idx]
-            shot_line = 1
+            sail_line = 1
             offset = 0
 
             if index_receivers is False:
-                channel, gun, shot_line = 0, 0, 0
+                channel, gun, sail_line = 0, 0, 0
 
             # Assign dimension coordinate fields with calculated mock data
-            header_fields = ["field_rec_no", "channel", "shot_point", "offset", "shot_line", "cable", "gun"]
-            headers[header_fields][trc_idx] = (shot, channel, shot, offset, shot_line, cable, gun)
+            header_fields = ["orig_field_record_num", "channel", "shot_point", "offset", "sail_line", "cable", "gun"]
+            headers[header_fields][trc_idx] = (shot, channel, shot, offset, sail_line, cable, gun)
 
             # Assign coordinate fields with mock data
             x = start_x + step_x * trc_shot_idx
@@ -144,7 +144,7 @@ def segy_mock_4d_shots(fake_segy_tmp: Path) -> dict[StreamerShotGeometryType, Pa
     num_samples = 25
     shots = [2, 3, 5, 6, 7, 8, 9]
     guns = [1, 2]
-    cables = [0, 101, 201, 301]
+    cables = [0, 3, 5, 7]
     receivers_per_cable = [1, 5, 7, 5]
 
     segy_paths = {}
