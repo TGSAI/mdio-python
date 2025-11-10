@@ -142,6 +142,8 @@ def _compressor_to_encoding(
             msg = "zfpy and numcodecs are required to use ZFP compression"
             raise ImportError(msg)
         zfp_kwargs = compressor.model_dump(exclude={"name"}, mode="json")
+        # Convert string mode to integer for numcodecs compatibility
+        zfp_kwargs["mode"] = compressor.mode.int_code
         if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
             # This may not be an exhaustive list of keys that are incompatible with v2.
             if zfp_kwargs.get("writeHeader") is not None:
