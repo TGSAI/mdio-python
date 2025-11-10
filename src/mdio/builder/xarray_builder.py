@@ -143,7 +143,9 @@ def _compressor_to_encoding(
             raise ImportError(msg)
         zfp_kwargs = compressor.model_dump(exclude={"name"}, mode="json")
         if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
-            # I'm not sure if this is the appropriate way for v2.
+            # This may not be an exhaustive list of keys that are incompatible with v2.
+            if zfp_kwargs.get("writeHeader") is not None:
+                zfp_kwargs.pop("writeHeader")
             return {"compressors": zfpy_ZFPY(**zfp_kwargs)}
         return {"serializer": zarr_ZFPY(**zfp_kwargs), "compressors": None}
 
