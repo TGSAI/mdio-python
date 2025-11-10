@@ -145,9 +145,6 @@ def _compressor_to_encoding(
         # Convert string mode to integer for numcodecs compatibility
         zfp_kwargs["mode"] = compressor.mode.int_code
         if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
-            # This may not be an exhaustive list of keys that are incompatible with v2.
-            if zfp_kwargs.get("writeHeader") is not None:
-                zfp_kwargs.pop("writeHeader")
             return {"compressors": zfpy_ZFPY(**zfp_kwargs)}
         return {"serializer": zarr_ZFPY(**zfp_kwargs), "compressors": None}
 
