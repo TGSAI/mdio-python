@@ -14,9 +14,11 @@ from mdio.converters.type_converter import to_numpy_dtype
 try:
     # zfpy is an optional dependency for ZFP compression
     # It is not installed by default, so we check for its presence and import it only if available.
-    from zfpy import ZFPY as zfpy_ZFPY  # noqa: N811
+    from numcodecs import ZFPY as zfpy_ZFPY  # noqa: N811
+    from zarr.codecs.numcodecs import ZFPY as zarr_ZFPY  # noqa: N811
 except ImportError:
     zfpy_ZFPY = None  # noqa: N816
+    zarr_ZFPY = None  # noqa: N816
 
 from mdio.builder.schemas.compressors import ZFP as mdio_ZFP  # noqa: N811
 from mdio.builder.schemas.compressors import Blosc as mdio_Blosc
@@ -121,9 +123,9 @@ def _get_zarr_chunks(var: Variable, all_named_dims: dict[str, NamedDimension]) -
     return _get_zarr_shape(var, all_named_dims=all_named_dims)
 
 
-def _convert_compressor(
+def _compressor_to_encoding(
     compressor: mdio_Blosc | mdio_ZFP | None,
-) -> BloscCodec | Blosc | zfpy_ZFPY | None:
+) -> dict[str, BloscCodec | Blosc | zfpy_ZFPY | zarr_ZFPY] | None:
     """Convert a compressor to a numcodecs compatible format."""
     if compressor is None:
         return None
@@ -132,19 +134,18 @@ def _convert_compressor(
         blosc_kwargs = compressor.model_dump(exclude={"name"}, mode="json")
         if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
             blosc_kwargs["shuffle"] = -1 if blosc_kwargs["shuffle"] is None else blosc_kwargs["shuffle"]
-            return Blosc(**blosc_kwargs)
-        return BloscCodec(**blosc_kwargs)
+            return {"compressors": Blosc(**blosc_kwargs)}
+        return {"compressors": BloscCodec(**blosc_kwargs)}
 
     if isinstance(compressor, mdio_ZFP):
         if zfpy_ZFPY is None:
             msg = "zfpy and numcodecs are required to use ZFP compression"
             raise ImportError(msg)
-        return zfpy_ZFPY(
-            mode=compressor.mode.value,
-            tolerance=compressor.tolerance,
-            rate=compressor.rate,
-            precision=compressor.precision,
-        )
+        zfp_kwargs = compressor.model_dump(exclude={"name"}, mode="json")
+        if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
+            # I'm not sure if this is the appropriate way for v2.
+            return {"compressors": zfpy_ZFPY(**zfp_kwargs)}
+        return {"serializer": zarr_ZFPY(**zfp_kwargs), "compressors": None}
 
     msg = f"Unsupported compressor model: {type(compressor)}"
     raise TypeError(msg)
@@ -222,9 +223,13 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
 
         encoding = {
             "chunks": original_chunks,
-            "compressors": _convert_compressor(v.compressor),
             fill_value_key: fill_value,
         }
+
+        compressor_encodings = _compressor_to_encoding(v.compressor)
+
+        if compressor_encodings is not None:
+            encoding.update(compressor_encodings)
 
         if zarr_format == ZarrFormat.V2:
             encoding["chunk_key_encoding"] = {"name": "v2", "configuration": {"separator": "/"}}
