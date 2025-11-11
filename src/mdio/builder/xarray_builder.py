@@ -127,8 +127,9 @@ def _compressor_to_encoding(
     compressor: mdio_Blosc | mdio_ZFP | None,
 ) -> dict[str, BloscCodec | Blosc | zfpy_ZFPY | zarr_ZFPY] | None:
     """Convert a compressor to a numcodecs compatible format."""
-    if compressor is None:
-        return None
+    if compressor is not None and not isinstance(compressor, mdio_Blosc | mdio_ZFP):
+        msg = f"Unsupported compressor model: {type(compressor)}"
+        raise TypeError(msg)
 
     is_v2 = zarr.config.get("default_zarr_format") == ZarrFormat.V2
     kwargs = compressor.model_dump(exclude={"name"}, mode="json")
@@ -148,8 +149,7 @@ def _compressor_to_encoding(
             return {"compressors": zfpy_ZFPY(**kwargs)}
         return {"serializer": zarr_ZFPY(**kwargs), "compressors": None}
 
-    msg = f"Unsupported compressor model: {type(compressor)}"
-    raise TypeError(msg)
+    return None
 
 
 def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
