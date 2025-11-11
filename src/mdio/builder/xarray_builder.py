@@ -127,7 +127,10 @@ def _compressor_to_encoding(
     compressor: mdio_Blosc | mdio_ZFP | None,
 ) -> dict[str, BloscCodec | Blosc | zfpy_ZFPY | zarr_ZFPY] | None:
     """Convert a compressor to a numcodecs compatible format."""
-    if compressor is not None and not isinstance(compressor, mdio_Blosc | mdio_ZFP):
+    if compressor is None:
+        return None
+
+    if not isinstance(compressor, (mdio_Blosc, mdio_ZFP)):
         msg = f"Unsupported compressor model: {type(compressor)}"
         raise TypeError(msg)
 
@@ -140,16 +143,14 @@ def _compressor_to_encoding(
         codec_cls = Blosc if is_v2 else BloscCodec
         return {"compressors": codec_cls(**kwargs)}
 
-    if isinstance(compressor, mdio_ZFP):
-        if zfpy_ZFPY is None:
-            msg = "zfpy and numcodecs are required to use ZFP compression"
-            raise ImportError(msg)
-        kwargs["mode"] = compressor.mode.int_code
-        if is_v2:
-            return {"compressors": zfpy_ZFPY(**kwargs)}
-        return {"serializer": zarr_ZFPY(**kwargs), "compressors": None}
-
-    return None
+    # must be ZFP beyond here
+    if zfpy_ZFPY is None:
+        msg = "zfpy and numcodecs are required to use ZFP compression"
+        raise ImportError(msg)
+    kwargs["mode"] = compressor.mode.int_code
+    if is_v2:
+        return {"compressors": zfpy_ZFPY(**kwargs)}
+    return {"serializer": zarr_ZFPY(**kwargs), "compressors": None}
 
 
 def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
