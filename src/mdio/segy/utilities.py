@@ -64,9 +64,9 @@ def get_grid_plan(  # noqa:  C901, PLR0913
     # Exclude calculated dimensions - they don't exist in SEG-Y headers
     calculated_dims = set(template.calculated_dimension_names)
 
-    # Remove any to be computed fields
+    # Remove any to be computed fields - preserve order by using list comprehension instead of set operations
     computed_fields = set(template.calculated_dimension_names)
-    horizontal_coordinates = tuple(set(horizontal_coordinates) - computed_fields)
+    horizontal_coordinates = tuple(c for c in horizontal_coordinates if c not in computed_fields)
 
     headers_subset = parse_headers(
         segy_file_kwargs=segy_file_kwargs,
