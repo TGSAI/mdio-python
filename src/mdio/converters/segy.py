@@ -158,14 +158,14 @@ def _update_template_from_grid_overrides(
     # Update template to match grid_plan results after grid overrides
     # Extract actual spatial dimensions from segy_dimensions (excluding vertical dimension)
     actual_spatial_dims = tuple(dim.name for dim in segy_dimensions[:-1])
-    
+
     # Align chunk_size with actual dimensions - truncate if dimensions were filtered out
     num_actual_spatial = len(actual_spatial_dims)
     num_chunk_spatial = len(chunk_size) - 1  # Exclude vertical dimension chunk
     if num_actual_spatial != num_chunk_spatial:
         # Truncate chunk_size to match actual dimensions
         chunk_size = chunk_size[:num_actual_spatial] + (chunk_size[-1],)
-    
+
     if full_chunk_shape != chunk_size:
         logger.debug(
             "Adjusting template chunk shape from %s to %s to match grid after overrides",
