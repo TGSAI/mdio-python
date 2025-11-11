@@ -1,4 +1,4 @@
-"""Unit tests for Seismic2DPreStackCDPTemplate."""
+"""Unit tests for Seismic3DCdpGathersTemplate."""
 
 import pytest
 from tests.unit.v1.helpers import validate_variable
@@ -15,7 +15,7 @@ from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import TimeUnitEnum
 from mdio.builder.schemas.v1.units import TimeUnitModel
-from mdio.builder.templates.seismic_2d_prestack_cdp import Seismic2DPreStackCDPTemplate
+from mdio.builder.templates.seismic_3d_cdp import Seismic3DCdpGathersTemplate
 from mdio.builder.templates.types import CdpGatherDomain
 from mdio.builder.templates.types import SeismicDataDomain
 
@@ -32,14 +32,14 @@ def validate_coordinates_headers_trace_mask(
 ) -> None:
     """A helper method to validate coordinates, headers, and trace mask."""
     # Verify variables
-    # 3 dim coords + 2 non-dim coords + 1 data + 1 trace mask + 1 headers = 8 variables
-    assert len(dataset.variables) == 8
+    # 4 dim coords + 2 non-dim coords + 1 data + 1 trace mask + 1 headers = 8 variables
+    assert len(dataset.variables) == 9
 
     # Verify trace headers
     validate_variable(
         dataset,
         name="headers",
-        dims=[("cdp", 512), (gather_domain, 36)],
+        dims=[("inline", 512), ("crossline", 768), (gather_domain, 36)],
         coords=["cdp_x", "cdp_y"],
         dtype=headers,
     )
@@ -47,7 +47,7 @@ def validate_coordinates_headers_trace_mask(
     validate_variable(
         dataset,
         name="trace_mask",
-        dims=[("cdp", 512), (gather_domain, 36)],
+        dims=[("inline", 512), ("crossline", 768), (gather_domain, 36)],
         coords=["cdp_x", "cdp_y"],
         dtype=ScalarType.BOOL,
     )
@@ -55,9 +55,17 @@ def validate_coordinates_headers_trace_mask(
     # Verify dimension coordinate variables
     validate_variable(
         dataset,
-        name="cdp",
-        dims=[("cdp", 512)],
-        coords=["cdp"],
+        name="inline",
+        dims=[("inline", 512)],
+        coords=["inline"],
+        dtype=ScalarType.INT32,
+    )
+
+    validate_variable(
+        dataset,
+        name="crossline",
+        dims=[("crossline", 768)],
+        coords=["crossline"],
         dtype=ScalarType.INT32,
     )
 
@@ -83,7 +91,7 @@ def validate_coordinates_headers_trace_mask(
     cdp_x = validate_variable(
         dataset,
         name="cdp_x",
-        dims=[("cdp", 512), (gather_domain, 36)],
+        dims=[("inline", 512), ("crossline", 768), (gather_domain, 36)],
         coords=["cdp_x"],
         dtype=ScalarType.FLOAT64,
     )
@@ -92,7 +100,7 @@ def validate_coordinates_headers_trace_mask(
     cdp_y = validate_variable(
         dataset,
         name="cdp_y",
-        dims=[("cdp", 512), (gather_domain, 36)],
+        dims=[("inline", 512), ("crossline", 768), (gather_domain, 36)],
         coords=["cdp_y"],
         dtype=ScalarType.FLOAT64,
     )
@@ -101,17 +109,17 @@ def validate_coordinates_headers_trace_mask(
 
 @pytest.mark.parametrize("data_domain", ["depth", "time"])
 @pytest.mark.parametrize("gather_domain", ["offset", "angle"])
-class TestSeismic2DPreStackCDPTemplate:
-    """Unit tests for Seismic2DPreStackCDPTemplate."""
+class TestSeismic3DCdpGathersTemplate:
+    """Unit tests for Seismic3DCdpGathersTemplate."""
 
     def test_configuration(self, data_domain: SeismicDataDomain, gather_domain: CdpGatherDomain) -> None:
-        """Unit tests for Seismic2DPreStackCDPTemplate."""
-        t = Seismic2DPreStackCDPTemplate(data_domain, gather_domain)
+        """Unit tests for Seismic3DCdpGathersTemplate."""
+        t = Seismic3DCdpGathersTemplate(data_domain, gather_domain)
 
         # Template attributes for prestack CDP
-        assert t._dim_names == ("cdp", gather_domain, data_domain)
+        assert t._dim_names == ("inline", "crossline", gather_domain, data_domain)
         assert t._physical_coord_names == ("cdp_x", "cdp_y")
-        assert t.full_chunk_shape == (16, 64, 1024)
+        assert t.full_chunk_shape == (8, 8, 32, 512)
 
         # Variables instantiated when build_dataset() is called
         assert t._builder is None
@@ -119,7 +127,7 @@ class TestSeismic2DPreStackCDPTemplate:
 
         # Verify prestack CDP attributes
         attrs = t._load_dataset_attributes()
-        assert attrs == {"surveyType": "2D", "gatherType": "cdp"}
+        assert attrs == {"surveyType": "3D", "gatherType": "cdp"}
         assert t.default_variable_name == "amplitude"
 
     def test_build_dataset(
@@ -128,19 +136,19 @@ class TestSeismic2DPreStackCDPTemplate:
         gather_domain: CdpGatherDomain,
         structured_headers: StructuredType,
     ) -> None:
-        """Unit tests for Seismic2DPreStackCDPDepthTemplate build."""
-        t = Seismic2DPreStackCDPTemplate(data_domain, gather_domain)
+        """Unit tests for Seismic3DCdpGathersDepthTemplate build."""
+        t = Seismic3DCdpGathersTemplate(data_domain, gather_domain)
         t.add_units({"cdp_x": UNITS_METER, "cdp_y": UNITS_METER})  # spatial domain units
         t.add_units({"offset": UNITS_METER, "angle": UNITS_DEGREE})  # gather domain units
         t.add_units({"time": UNITS_SECOND, "depth": UNITS_METER})  # data domain units
 
         gather_domain_suffix = gather_domain.capitalize()
         data_domain_suffix = data_domain.capitalize()
-        assert t.name == f"PreStackCdp{gather_domain_suffix}Gathers2D{data_domain_suffix}"
-        dataset = t.build_dataset("North Sea 2D Prestack", sizes=(512, 36, 1536), header_dtype=structured_headers)
+        assert t.name == f"Cdp{gather_domain_suffix}Gathers3D{data_domain_suffix}"
+        dataset = t.build_dataset("North Sea 3D Prestack", sizes=(512, 768, 36, 1536), header_dtype=structured_headers)
 
-        assert dataset.metadata.name == "North Sea 2D Prestack"
-        assert dataset.metadata.attributes["surveyType"] == "2D"
+        assert dataset.metadata.name == "North Sea 3D Prestack"
+        assert dataset.metadata.attributes["surveyType"] == "3D"
         assert dataset.metadata.attributes["gatherType"] == "cdp"
 
         validate_coordinates_headers_trace_mask(dataset, structured_headers, data_domain, gather_domain)
@@ -149,14 +157,14 @@ class TestSeismic2DPreStackCDPTemplate:
         seismic = validate_variable(
             dataset,
             name="amplitude",
-            dims=[("cdp", 512), (gather_domain, 36), (data_domain, 1536)],
+            dims=[("inline", 512), ("crossline", 768), (gather_domain, 36), (data_domain, 1536)],
             coords=["cdp_x", "cdp_y"],
             dtype=ScalarType.FLOAT32,
         )
         assert isinstance(seismic.compressor, Blosc)
         assert seismic.compressor.cname == BloscCname.zstd
         assert isinstance(seismic.metadata.chunk_grid, RegularChunkGrid)
-        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (16, 64, 1024)
+        assert seismic.metadata.chunk_grid.configuration.chunk_shape == (8, 8, 32, 512)
         assert seismic.metadata.stats_v1 is None
 
 
@@ -164,9 +172,9 @@ class TestSeismic2DPreStackCDPTemplate:
 @pytest.mark.parametrize("gather_domain", ["Offset", "OffSeT"])
 def test_domain_case_handling(data_domain: str, gather_domain: str) -> None:
     """Test that domain parameter handles different cases correctly."""
-    template = Seismic2DPreStackCDPTemplate(data_domain, gather_domain)
+    template = Seismic3DCdpGathersTemplate(data_domain, gather_domain)
     assert template._data_domain == data_domain.lower()
 
     gather_domain_suffix = gather_domain.lower().capitalize()
     data_domain_suffix = data_domain.lower().capitalize()
-    assert template.name == f"PreStackCdp{gather_domain_suffix}Gathers2D{data_domain_suffix}"
+    assert template.name == f"Cdp{gather_domain_suffix}Gathers3D{data_domain_suffix}"

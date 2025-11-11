@@ -116,7 +116,7 @@ STACK_3D_CONF = MaskedExportConfig(
 GATHER_2D_CONF = MaskedExportConfig(
     GridConfig(name="2d_gather", dims=[Dimension("cdp", 1, 40, 1), Dimension("offset", 25, 20, 25)]),
     SegyFactoryConfig(revision=1, header_byte_map={"cdp": 21, "offset": 37}, num_samples=201),
-    SegyToMdioConfig(chunks=[2, 12, 128], template="PreStackCdpOffsetGathers2DTime"),
+    SegyToMdioConfig(chunks=[2, 12, 128], template="CdpOffsetGathers2DTime"),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.9),
 )
 
@@ -126,14 +126,14 @@ GATHER_3D_CONF = MaskedExportConfig(
         dims=[Dimension("inline", 10, 8, 1), Dimension("crossline", 100, 10, 2), Dimension("offset", 25, 10, 25)],
     ),
     SegyFactoryConfig(revision=1, header_byte_map={"inline": 189, "crossline": 193, "offset": 37}, num_samples=201),
-    SegyToMdioConfig(chunks=[4, 4, 2, 128], template="PreStackCdpOffsetGathers3DTime"),
+    SegyToMdioConfig(chunks=[4, 4, 2, 128], template="CdpOffsetGathers3DTime"),
     SelectionMaskConfig(mask_num_dims=2, remove_frac=0.96),
 )
 
 STREAMER_2D_CONF = MaskedExportConfig(
     GridConfig(name="2d_streamer", dims=[Dimension("shot_point", 10, 10, 1), Dimension("channel", 25, 60, 25)]),
     SegyFactoryConfig(revision=1, header_byte_map={"shot_point": 7, "channel": 131}, num_samples=201),
-    SegyToMdioConfig(chunks=[2, 12, 128], template="PreStackShotGathers2DTime"),
+    SegyToMdioConfig(chunks=[2, 12, 128], template="StreamerShotGathers2D"),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.7),
 )
 
@@ -143,7 +143,7 @@ STREAMER_3D_CONF = MaskedExportConfig(
         dims=[Dimension("shot_point", 10, 5, 1), Dimension("cable", 1, 6, 1), Dimension("channel", 25, 60, 25)],
     ),
     SegyFactoryConfig(revision=1, header_byte_map={"shot_point": 7, "cable": 193, "channel": 131}, num_samples=201),
-    SegyToMdioConfig(chunks=[1, 2, 12, 128], template="PreStackShotGathers3DTime"),
+    SegyToMdioConfig(chunks=[1, 2, 12, 128], template="StreamerShotGathers3D"),
     SelectionMaskConfig(mask_num_dims=1, remove_frac=0.5),
 )
 
@@ -160,7 +160,7 @@ COCA_3D_CONF = MaskedExportConfig(
     SegyFactoryConfig(
         revision=1, header_byte_map={"inline": 189, "crossline": 193, "offset": 37, "azimuth": 232}, num_samples=201
     ),
-    SegyToMdioConfig(chunks=[4, 4, 4, 1, 128], template="PreStackCocaGathers3DTime"),
+    SegyToMdioConfig(chunks=[4, 4, 4, 1, 128], template="CocaGathers3DTime"),
     SelectionMaskConfig(mask_num_dims=2, remove_frac=0.9),
 )
 # fmt: on
@@ -301,11 +301,11 @@ def raw_headers_env(request: pytest.FixtureRequest) -> None:
     template_names = [
         "PostStack2DTime",
         "PostStack3DTime",
-        "PreStackCdpOffsetGathers2DTime",
-        "PreStackCdpOffsetGathers3DTime",
-        "PreStackShotGathers2DTime",
-        "PreStackShotGathers3DTime",
-        "PreStackCocaGathers3DTime",
+        "CdpOffsetGathers2DTime",
+        "CdpOffsetGathers3DTime",
+        "StreamerShotGathers2D",
+        "StreamerShotGathers3D",
+        "CocaGathers3DTime",
     ]
 
     for template_name in template_names:

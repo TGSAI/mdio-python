@@ -39,6 +39,7 @@ class AbstractDatasetTemplate(ABC):
             raise ValueError(msg)
 
         self._dim_names: tuple[str, ...] = ()
+        self._calculated_dims: tuple[str, ...] = ()
         self._physical_coord_names: tuple[str, ...] = ()
         self._logical_coord_names: tuple[str, ...] = ()
         self._var_chunk_shape: tuple[int, ...] = ()
@@ -146,6 +147,11 @@ class AbstractDatasetTemplate(ABC):
     def dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions."""
         return copy.deepcopy(self._dim_names)
+
+    @property
+    def calculated_dimension_names(self) -> tuple[str, ...]:
+        """Returns the names of the dimensions."""
+        return copy.deepcopy(self._calculated_dims)
 
     @property
     def physical_coordinate_names(self) -> tuple[str, ...]:

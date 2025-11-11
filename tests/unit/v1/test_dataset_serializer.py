@@ -19,7 +19,7 @@ from mdio.builder.schemas.v1.dataset import DatasetMetadata
 from mdio.builder.schemas.v1.variable import Coordinate
 from mdio.builder.schemas.v1.variable import Variable
 from mdio.builder.schemas.v1.variable import VariableMetadata
-from mdio.builder.xarray_builder import _convert_compressor
+from mdio.builder.xarray_builder import _compressor_to_encoding
 from mdio.builder.xarray_builder import _get_all_named_dimensions
 from mdio.builder.xarray_builder import _get_coord_names
 from mdio.builder.xarray_builder import _get_dimension_names
@@ -226,43 +226,49 @@ def test_get_fill_value() -> None:
     assert result_none_input is None
 
 
-def test_convert_compressor() -> None:
-    """Simple test for _convert_compressor function covering basic scenarios."""
+def test_compressor_to_encoding() -> None:
+    """Simple test for _compressor_to_encoding function covering basic scenarios."""
     # Test 1: None input - should return None
-    result_none = _convert_compressor(None)
+    result_none = _compressor_to_encoding(None)
     assert result_none is None
 
     # Test 2: mdio_Blosc compressor - should return nc_Blosc
     mdio_compressor = mdio_Blosc(cname=BloscCname.lz4, clevel=5, shuffle=BloscShuffle.bitshuffle, blocksize=1024)
-    result_blosc = _convert_compressor(mdio_compressor)
+    result_blosc = _compressor_to_encoding(mdio_compressor)
 
-    assert isinstance(result_blosc, BloscCodec)
-    assert result_blosc.cname == BloscCname.lz4
-    assert result_blosc.clevel == 5
-    assert result_blosc.shuffle == BloscShuffle.bitshuffle
-    assert result_blosc.blocksize == 1024
+    assert isinstance(result_blosc, dict)
+    assert "compressors" in result_blosc
+    assert isinstance(result_blosc["compressors"], BloscCodec)
+    assert result_blosc["compressors"].cname == BloscCname.lz4
+    assert result_blosc["compressors"].clevel == 5
+    assert result_blosc["compressors"].shuffle == BloscShuffle.bitshuffle
+    assert result_blosc["compressors"].blocksize == 1024
 
     # Test 3: mdio_ZFP compressor - should return zfpy_ZFPY if available
     zfp_compressor = MDIO_ZFP(mode=mdio_ZFPMode.FIXED_RATE, tolerance=0.01, rate=8.0, precision=16)
 
+    # TODO(BrianMichell): Update to also test zfp compression.
+    # https://github.com/TGSAI/mdio-python/issues/747
     if HAS_ZFPY:  # pragma: no cover
-        result_zfp = _convert_compressor(zfp_compressor)
-        assert isinstance(result_zfp, ZFPY)
-        assert result_zfp.mode == 1  # ZFPMode.FIXED_RATE.value = "fixed_rate"
-        assert result_zfp.tolerance == 0.01
-        assert result_zfp.rate == 8.0
-        assert result_zfp.precision == 16
+        result_zfp = _compressor_to_encoding(zfp_compressor)
+        assert isinstance(result_zfp, dict)
+        assert "compressors" not in result_zfp
+        assert isinstance(result_zfp["serializer"], ZFPY)
+        assert result_zfp["serializer"].mode == 1  # ZFPMode.FIXED_RATE.value = "fixed_rate"
+        assert result_zfp["serializer"].tolerance == 0.01
+        assert result_zfp["serializer"].rate == 8.0
+        assert result_zfp["serializer"].precision == 16
     else:
         # Test 5: mdio_ZFP without zfpy installed - should raise ImportError
         with pytest.raises(ImportError) as exc_info:
-            _convert_compressor(zfp_compressor)
+            _compressor_to_encoding(zfp_compressor)
         error_message = str(exc_info.value)
         assert "zfpy and numcodecs are required to use ZFP compression" in error_message
 
     # Test 6: Unsupported compressor type - should raise TypeError
     unsupported_compressor = "invalid_compressor"
     with pytest.raises(TypeError) as exc_info:
-        _convert_compressor(unsupported_compressor)
+        _compressor_to_encoding(unsupported_compressor)
     error_message = str(exc_info.value)
     assert "Unsupported compressor model" in error_message
     assert "<class 'str'>" in error_message

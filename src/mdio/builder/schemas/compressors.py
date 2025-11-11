@@ -71,11 +71,6 @@ class ZFP(CamelCaseStrictModel):
         description="Fixed precision in terms of number of uncompressed bits per value.",
     )
 
-    write_header: bool = Field(
-        default=True,
-        description="Encode array shape, scalar type, and compression parameters.",
-    )
-
     @model_validator(mode="after")
     def check_requirements(self) -> ZFP:
         """Check if ZFP parameters make sense."""
