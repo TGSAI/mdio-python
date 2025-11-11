@@ -110,8 +110,6 @@ def get_grid_plan(  # noqa:  C901, PLR0913
             final_spatial_dims.append(name)
             final_spatial_chunks.append(dim_to_chunk[name])
 
-    chunksize = tuple(final_spatial_chunks + [template.full_chunk_shape[-1]])
-
     if len(computed_fields) > 0 and not computed_fields.issubset(headers_subset.dtype.names):
         err = (
             f"Required computed fields {sorted(computed_fields)} for template {template.name} "
@@ -119,8 +117,36 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         )
         raise ValueError(err)
 
+    # Create dimensions from final_spatial_dims plus any computed fields that were added by grid overrides
+    all_dimension_names = list(final_spatial_dims)
+    added_computed_fields = []
+    for computed_field in computed_fields:
+        if computed_field in headers_subset.dtype.names and computed_field not in all_dimension_names:
+            # Insert in template order
+            if computed_field in template.spatial_dimension_names:
+                insert_idx = template.spatial_dimension_names.index(computed_field)
+                # Find position in all_dimension_names that corresponds to this template position
+                actual_idx = min(insert_idx, len(all_dimension_names))
+                all_dimension_names.insert(actual_idx, computed_field)
+                # Track where we inserted and what chunk size it should have
+                template_chunk_idx = template.spatial_dimension_names.index(computed_field)
+                chunk_val = template.full_chunk_shape[template_chunk_idx]
+                added_computed_fields.append((actual_idx, chunk_val))
+            else:
+                all_dimension_names.append(computed_field)
+                added_computed_fields.append((len(all_dimension_names) - 1, 1))
+
+    # Build chunksize including chunks for computed fields
+    if added_computed_fields:
+        chunk_list = list(final_spatial_chunks)
+        for insert_idx, chunk_val in sorted(added_computed_fields, reverse=True):
+            chunk_list.insert(insert_idx, chunk_val)
+        chunksize = tuple(chunk_list + [template.full_chunk_shape[-1]])
+    else:
+        chunksize = tuple(final_spatial_chunks + [template.full_chunk_shape[-1]])
+
     dimensions = []
-    for dim_name in final_spatial_dims:
+    for dim_name in all_dimension_names:
         if dim_name not in headers_subset.dtype.names:
             continue
         dim_unique = np.unique(headers_subset[dim_name])
