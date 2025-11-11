@@ -130,23 +130,23 @@ def _compressor_to_encoding(
     if compressor is None:
         return None
 
+    is_v2 = zarr.config.get("default_zarr_format") == ZarrFormat.V2
+    kwargs = compressor.model_dump(exclude={"name"}, mode="json")
+
     if isinstance(compressor, mdio_Blosc):
-        blosc_kwargs = compressor.model_dump(exclude={"name"}, mode="json")
-        if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
-            blosc_kwargs["shuffle"] = -1 if blosc_kwargs["shuffle"] is None else blosc_kwargs["shuffle"]
-            return {"compressors": Blosc(**blosc_kwargs)}
-        return {"compressors": BloscCodec(**blosc_kwargs)}
+        if is_v2 and kwargs["shuffle"] is None:
+            kwargs["shuffle"] = -1
+        codec_cls = Blosc if is_v2 else BloscCodec
+        return {"compressors": codec_cls(**kwargs)}
 
     if isinstance(compressor, mdio_ZFP):
         if zfpy_ZFPY is None:
             msg = "zfpy and numcodecs are required to use ZFP compression"
             raise ImportError(msg)
-        zfp_kwargs = compressor.model_dump(exclude={"name"}, mode="json")
-        # Convert string mode to integer for numcodecs compatibility
-        zfp_kwargs["mode"] = compressor.mode.int_code
-        if zarr.config.get("default_zarr_format") == ZarrFormat.V2:
-            return {"compressors": zfpy_ZFPY(**zfp_kwargs)}
-        return {"serializer": zarr_ZFPY(**zfp_kwargs), "compressors": None}
+        kwargs["mode"] = compressor.mode.int_code
+        if is_v2:
+            return {"compressors": zfpy_ZFPY(**kwargs)}
+        return {"serializer": zarr_ZFPY(**kwargs), "compressors": None}
 
     msg = f"Unsupported compressor model: {type(compressor)}"
     raise TypeError(msg)
