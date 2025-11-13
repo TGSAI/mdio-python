@@ -8,8 +8,8 @@ from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
 from mdio.api.io import _normalize_path
 from mdio.builder.xarray_builder import _compressor_to_encoding
-from dask.array import zeros_like
-from xarray import DataArray as da
+from dask import array as dask_array
+from xarray import DataArray
 
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,14 @@ def _normalize_chunks(
         return new_chunks
 
     return tuple(max(a, b) for a, b in zip(original_chunks, new_chunks, strict=True))
+
+
+def _remove_fillvalue_attrs(dataset: Any) -> None:
+    """Remove _FillValue from all variable attrs to avoid conflicts with consolidated metadata."""
+    # This is only relevant for Zarr v2 format.
+    for var_name in list(dataset) + list(dataset.coords):
+        if "_FillValue" in dataset[var_name].attrs:
+            del dataset[var_name].attrs["_FillValue"]
     
 
 def _validate_inputs(
@@ -80,11 +88,10 @@ def from_variable(
     _validate_inputs(new_variable, chunk_grid, compressor)
 
     normed_path = _normalize_path(dataset_path)
-    original_ds = open_mdio(normed_path)
+    ds = open_mdio(normed_path)
 
-    dims = original_ds[source_variable].dims
-
-    original_chunks = original_ds[source_variable].encoding.get("chunks", None)
+    dims = ds[source_variable].dims
+    original_chunks = ds[source_variable].encoding.get("chunks", None)
 
     # TODO: This needs to be looped over for full function support
     new_chunks = chunk_grid.configuration.chunk_shape
@@ -96,62 +103,61 @@ def from_variable(
         if chunk is None:
             logger.warning(f"Original chunk {chunk} is None. Undefined behavior for now.")
 
-    normalized_chunks = _normalize_chunks(original_chunks, new_chunks)
+    logger.debug(f"Original chunks: {original_chunks}, New chunks: {new_chunks}")
 
-    print(f"Original chunks: {original_chunks}")
-    print(f"New chunks: {new_chunks}")
-    print(f"Normalized chunks: {normalized_chunks}")
-
-    reopen_chunks = dict(zip(dims, normalized_chunks))
-
-    # Step 1: Create new variable with lazy array
-    source_var = original_ds[source_variable]
-    lazy_array = zeros_like(source_var, chunks=new_chunks)
-    
-    # Step 2: Create new variable with specified encoding
-    original_ds[new_variable] = da(lazy_array, dims=source_var.dims)
+    # Create new variable with lazy dask array (no data materialization)
+    source_var = ds[source_variable]
+    lazy_array = dask_array.empty(
+        shape=source_var.shape,
+        dtype=source_var.dtype,
+        chunks=new_chunks,
+    )
+    ds[new_variable] = DataArray(lazy_array, dims=source_var.dims)
     
     if copy_metadata:
-        original_ds[new_variable].attrs = source_var.attrs.copy()
+        ds[new_variable].attrs = source_var.attrs.copy()
     
-    # Prepare encoding
-    original_ds[new_variable].encoding = source_var.encoding.copy() if copy_metadata else {}
-    original_ds[new_variable].encoding["chunks"] = new_chunks
-    
+    # Set up encoding with new chunks and optional compressor
+    ds[new_variable].encoding = source_var.encoding.copy() if copy_metadata else {}
+    ds[new_variable].encoding["chunks"] = new_chunks
     if compressor is not None:
-        original_ds[new_variable].encoding.update(_compressor_to_encoding(compressor))
+        ds[new_variable].encoding.update(_compressor_to_encoding(compressor))
     
-    # Step 3: Remove _FillValue from attrs to avoid conflicts
-    for var_name in list(original_ds) + list(original_ds.coords):
-        if "_FillValue" in original_ds[var_name].attrs:
-            del original_ds[var_name].attrs["_FillValue"]
+    # Write new variable structure (metadata only, don't include source variable)
+    _remove_fillvalue_attrs(ds)
+    write_metadata_ds = ds[[new_variable]]
+    coords_to_drop = [coord for coord in write_metadata_ds.coords if coord not in write_metadata_ds.dims]
+    if coords_to_drop:
+        write_metadata_ds = write_metadata_ds.drop_vars(coords_to_drop)
+    to_mdio(write_metadata_ds, normed_path, mode="a", compute=False)
     
-    # Step 4: Write new variable structure (metadata only)
-    to_mdio(original_ds, normed_path, mode="a", compute=False)
+    # Reopen dataset with optimized chunking for the copy operation
+    normalized_chunks = _normalize_chunks(original_chunks, new_chunks)
+    optimal_chunks = dict(zip(dims, normalized_chunks, strict=True))
+    ds_copy = open_mdio(normed_path, chunks=optimal_chunks)
     
-    # Step 5: Reopen dataset for data copy
-    ds_reopen = open_mdio(normed_path, chunks=reopen_chunks)
+    # Perform lazy rechunked copy from source to destination
+    src_rechunked = ds_copy[source_variable].chunk(ds_copy[new_variable].chunks)
+    ds_copy[new_variable][:] = src_rechunked
     
-    # Remove _FillValue from attrs in reopened dataset to avoid conflicts
-    for var_name in list(ds_reopen) + list(ds_reopen.coords):
-        if "_FillValue" in ds_reopen[var_name].attrs:
-            del ds_reopen[var_name].attrs["_FillValue"]
-    
-    # Step 6: Align chunks and lazy assignment from source to destination
-    src = ds_reopen[source_variable]
-    dst = ds_reopen[new_variable]
-    
-    # Rechunk source to match destination chunks for aligned copy
-    src_rechunked = src.chunk(dst.chunks)
-    ds_reopen[new_variable][:] = src_rechunked
-    
-    # Step 7: Compute and write the data (only the new variable)
-    # Select only the new variable, drop coordinates to avoid chunk conflicts
-    write_ds = ds_reopen[[new_variable]]
+    # Write only the new variable data (drop non-dimensional coordinates to avoid chunk conflicts)
+    _remove_fillvalue_attrs(ds_copy)
+    write_ds = ds_copy[[new_variable]]
     coords_to_drop = [coord for coord in write_ds.coords if coord not in write_ds.dims]
     if coords_to_drop:
         write_ds = write_ds.drop_vars(coords_to_drop)
-    to_mdio(write_ds, normed_path, mode="a", compute=True)
     
-    logger.info("Variable copy complete")
+    to_mdio(write_ds, normed_path, mode="a", compute=True)
+    # TODO: I don't want to have to explicitly use Dask like this. It would be nice to just configure the scheduler and let to_mdio handle it on the backend
+    # import dask
+    # from dask.diagnostics import ProgressBar
+    # with dask.config.set(scheduler="processes", num_workers=16):
+    #     with ProgressBar():
+    #         write_ds[[new_variable]].to_zarr(
+    #             normed_path,
+    #             mode="a",
+    #             compute=True,
+    #         )
+    
+    logger.info(f"Variable copy complete: '{source_variable}' -> '{new_variable}'")
     
