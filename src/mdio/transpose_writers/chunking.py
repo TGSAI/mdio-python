@@ -73,120 +73,127 @@ def _validate_inputs(
 def from_variable(
     dataset_path: UPath | Path | str,
     source_variable: str,
-    new_variable: str | list[str],
-    chunk_grid: RegularChunkGrid | RectilinearChunkGrid | list[RegularChunkGrid | RectilinearChunkGrid],
-    compressor: ZFP | Blosc | list[ZFP | Blosc] | None = None,
+    new_variable: str,
+    chunk_grid: RegularChunkGrid | RectilinearChunkGrid,
+    compressor: ZFP | Blosc | None = None,
     copy_metadata: bool = True,
     num_workers: int = 4,
     scheduler: str = "processes",
     show_progress: bool = True,
 ) -> None:
-    """Add new Variable(s) to the Dataset with different chunking and compression.
+    """Add a new Variable to the Dataset with different chunking and compression.
 
-    Copies data from the source Variable to the new Variable(s) to create different access patterns.
-
-    Args:
-        dataset_path: The path to a pre-existing MDIO Dataset.
-        source_variable: The name of the existing Variable to copy data from.
-        new_variable: The name(s) of the new Variable(s) to create.
-        chunk_grid: The chunk grid to use for the new Variable(s). Length must match the number of new variables.
-        compressor: The compressor to use for the new Variable(s). Length must match the number of new variables or be a single compressor.
-        copy_metadata: Whether to copy the metadata from the source Variable to the new Variable(s).
-        num_workers: Number of parallel workers for the copy operation.
-        scheduler: Dask scheduler to use ('processes', 'threads', 'synchronous').
-        show_progress: Whether to show a progress bar during the copy operation.
+    Copies data from the source Variable to the new Variable to create a different access pattern.
     """
+
+    # --- Validation (unchanged-ish) -----------------------------------------
     _validate_inputs(new_variable, chunk_grid, compressor)
 
     normed_path = _normalize_path(dataset_path)
     ds = open_mdio(normed_path)
 
-    dims = ds[source_variable].dims
-    original_chunks = ds[source_variable].encoding.get("chunks", None)
+    source_var = ds[source_variable]
+    dims = source_var.dims
 
-    # TODO: This needs to be looped over for full function support
-    new_chunks = chunk_grid.configuration.chunk_shape
+    # New chunk shape from the chunk grid
+    new_chunks = tuple(chunk_grid.configuration.chunk_shape)
 
     if len(dims) != len(new_chunks):
-        logger.warning(f"Original variable {source_variable} has dimensions {dims}, but new chunk shape {new_chunks} were provided. Undefined behavior for now.")
+        logger.warning(
+            "Original variable %r has dimensions %r, but new chunk shape %r was provided. "
+            "Behavior is currently undefined.",
+            source_variable,
+            dims,
+            new_chunks,
+        )
 
-    for chunk in original_chunks:
-        if chunk is None:
-            logger.warning(f"Original chunk {chunk} is None. Undefined behavior for now.")
+    original_chunks = source_var.encoding.get("chunks", None)
 
-    # Get source variable reference
-    source_var = ds[source_variable]
-    
-    # Calculate memory requirements
-    original_chunk_size_mb = np.prod(original_chunks) * source_var.dtype.itemsize / (1024**2)
+    if original_chunks is not None:
+        for chunk in original_chunks:
+            if chunk is None:
+                logger.warning(
+                    "Original chunk %r is None. Behavior is currently undefined.", chunk
+                )
+
+        original_chunk_size_mb = (
+            np.prod(original_chunks) * source_var.dtype.itemsize / (1024**2)
+        )
+    else:
+        original_chunk_size_mb = float("nan")
+
     new_chunk_size_mb = np.prod(new_chunks) * source_var.dtype.itemsize / (1024**2)
-    
+
     logger.info(f"Original chunks: {original_chunks} (~{original_chunk_size_mb:.1f} MB)")
     logger.info(f"New chunks: {new_chunks} (~{new_chunk_size_mb:.1f} MB)")
-    logger.info(f"Estimated memory per worker: ~{new_chunk_size_mb * 3:.1f} MB (includes rechunking overhead)")
+    logger.info(
+        "Estimated memory per worker: ~%.1f MB (includes rechunking overhead)",
+        new_chunk_size_mb * 3,
+    )
 
-    # Create new variable with lazy dask array (no data materialization)
-    lazy_array = dask_array.empty(
-        shape=source_var.shape,
-        dtype=source_var.dtype,
-        chunks=new_chunks,
-    )
-    ds[new_variable] = DataArray(lazy_array, dims=source_var.dims)
-    
+    # --- Build rechunked view of the source data ----------------------------
+    # Construct a chunk mapping for xarray/dask
+    chunk_mapping: dict[Hashable, int] = dict(zip(dims, new_chunks, strict=True))
+
+    # Lazily rechunk the source variable to the *target* zarr chunks
+    # This creates a dask graph that reads original chunks, assembles them
+    # into new_chunks, and yields fresh ndarray blocks (already C-contiguous).
+    source_rechunked = source_var.chunk(chunk_mapping)
+
+    # --- Build the new variable DataArray -----------------------------------
+    # Data is the rechunked dask array; coords/dims match the source.
     if copy_metadata:
-        ds[new_variable].attrs = source_var.attrs.copy()
-    
-    # Set up encoding with new chunks and optional compressor
-    ds[new_variable].encoding = source_var.encoding.copy() if copy_metadata else {}
-    ds[new_variable].encoding["chunks"] = new_chunks
-    if compressor is not None:
-        ds[new_variable].encoding.update(_compressor_to_encoding(compressor))
-    
-    # Write new variable structure (metadata only, don't include source variable)
-    _remove_fillvalue_attrs(ds)
-    write_metadata_ds = ds[[new_variable]]
-    coords_to_drop = [coord for coord in write_metadata_ds.coords if coord not in write_metadata_ds.dims]
-    if coords_to_drop:
-        write_metadata_ds = write_metadata_ds.drop_vars(coords_to_drop)
-    to_mdio(write_metadata_ds, normed_path, mode="a", compute=False)
-    
-    # Reopen dataset with optimized chunking for the copy operation
-    normalized_chunks = _normalize_chunks(original_chunks, new_chunks)
-    optimal_chunks = dict(zip(dims, normalized_chunks, strict=True))
-    ds_copy = open_mdio(normed_path, chunks=optimal_chunks)
-    
-    # Perform lazy rechunked copy from source to destination
-    src_rechunked = ds_copy[source_variable].chunk(ds_copy[new_variable].chunks)
-    
-    # Ensure arrays are C-contiguous for codecs like ZFP that require it
-    # This is especially important when rechunking creates non-contiguous views
-    src_rechunked = src_rechunked.map_blocks(
-        np.ascontiguousarray,
-        template=src_rechunked,
+        new_attrs = source_var.attrs.copy()
+    else:
+        new_attrs = {}
+
+    new_da = DataArray(
+        data=source_rechunked.data,
+        dims=source_var.dims,
+        coords=source_var.coords,
+        attrs=new_attrs,
+        name=new_variable,
     )
-    
-    ds_copy[new_variable][:] = src_rechunked
-    
-    # Write only the new variable data (drop non-dimensional coordinates to avoid chunk conflicts)
-    _remove_fillvalue_attrs(ds_copy)
-    write_ds = ds_copy[[new_variable]]
-    coords_to_drop = [coord for coord in write_ds.coords if coord not in write_ds.dims]
+
+    # Wrap into a Dataset so we can write just this variable
+    new_ds = new_da.to_dataset(name=new_variable)
+
+    # --- Encoding (chunks + compressor) -------------------------------------
+    if copy_metadata:
+        new_encoding: dict[str, Any] = source_var.encoding.copy()
+    else:
+        new_encoding = {}
+
+    # Ensure encoding chunks match the rechunked dask chunks
+    new_encoding["chunks"] = new_chunks
+
+    if compressor is not None:
+        new_encoding.update(_compressor_to_encoding(compressor))
+
+    new_ds[new_variable].encoding = new_encoding
+
+    # --- Clean up attrs that conflict with consolidated metadata ------------
+    _remove_fillvalue_attrs(new_ds)
+
+    # Drop non-dimensional coords to avoid chunk conflicts
+    coords_to_drop = [coord for coord in new_ds.coords if coord not in new_ds.dims]
     if coords_to_drop:
-        write_ds = write_ds.drop_vars(coords_to_drop)
-    
-    # Configure Dask scheduler for parallel write
-    dask_config = {"scheduler": scheduler}
+        new_ds = new_ds.drop_vars(coords_to_drop)
+
+    # --- Configure Dask and write to MDIO -----------------------------------
+    dask_config: dict[str, Any] = {"scheduler": scheduler}
     if scheduler in ("processes", "threads"):
         dask_config["num_workers"] = num_workers
-    
-    logger.info(f"Writing data with {num_workers} {scheduler} workers")
-    
+
+    logger.info("Writing data with %d %s workers", num_workers, scheduler)
+
     with dask.config.set(**dask_config):
         if show_progress:
             with ProgressBar():
-                to_mdio(write_ds, normed_path, mode="a", compute=True)
+                to_mdio(new_ds, normed_path, mode="a", compute=True)
         else:
-            to_mdio(write_ds, normed_path, mode="a", compute=True)
-    
-    logger.info(f"Variable copy complete: '{source_variable}' -> '{new_variable}'")
+            to_mdio(new_ds, normed_path, mode="a", compute=True)
+
+    logger.info("Variable copy complete: %r -> %r", source_variable, new_variable)
+
     
