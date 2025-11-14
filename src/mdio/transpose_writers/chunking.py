@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Any, Hashable
+from typing import TYPE_CHECKING, Any, Hashable
 import logging
+
+import numpy as np
+import dask
+from dask import array as dask_array
+from dask.diagnostics import ProgressBar
+from xarray import DataArray
+
 from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
 from mdio.api.io import _normalize_path
 from mdio.builder.xarray_builder import _compressor_to_encoding
-from dask import array as dask_array
-from xarray import DataArray
 
 
 logger = logging.getLogger(__name__)
@@ -72,6 +77,9 @@ def from_variable(
     chunk_grid: RegularChunkGrid | RectilinearChunkGrid | list[RegularChunkGrid | RectilinearChunkGrid],
     compressor: ZFP | Blosc | list[ZFP | Blosc] | None = None,
     copy_metadata: bool = True,
+    num_workers: int = 4,
+    scheduler: str = "processes",
+    show_progress: bool = True,
 ) -> None:
     """Add new Variable(s) to the Dataset with different chunking and compression.
 
@@ -84,6 +92,9 @@ def from_variable(
         chunk_grid: The chunk grid to use for the new Variable(s). Length must match the number of new variables.
         compressor: The compressor to use for the new Variable(s). Length must match the number of new variables or be a single compressor.
         copy_metadata: Whether to copy the metadata from the source Variable to the new Variable(s).
+        num_workers: Number of parallel workers for the copy operation.
+        scheduler: Dask scheduler to use ('processes', 'threads', 'synchronous').
+        show_progress: Whether to show a progress bar during the copy operation.
     """
     _validate_inputs(new_variable, chunk_grid, compressor)
 
@@ -103,10 +114,18 @@ def from_variable(
         if chunk is None:
             logger.warning(f"Original chunk {chunk} is None. Undefined behavior for now.")
 
-    logger.debug(f"Original chunks: {original_chunks}, New chunks: {new_chunks}")
+    # Get source variable reference
+    source_var = ds[source_variable]
+    
+    # Calculate memory requirements
+    original_chunk_size_mb = np.prod(original_chunks) * source_var.dtype.itemsize / (1024**2)
+    new_chunk_size_mb = np.prod(new_chunks) * source_var.dtype.itemsize / (1024**2)
+    
+    logger.info(f"Original chunks: {original_chunks} (~{original_chunk_size_mb:.1f} MB)")
+    logger.info(f"New chunks: {new_chunks} (~{new_chunk_size_mb:.1f} MB)")
+    logger.info(f"Estimated memory per worker: ~{new_chunk_size_mb * 3:.1f} MB (includes rechunking overhead)")
 
     # Create new variable with lazy dask array (no data materialization)
-    source_var = ds[source_variable]
     lazy_array = dask_array.empty(
         shape=source_var.shape,
         dtype=source_var.dtype,
@@ -138,6 +157,14 @@ def from_variable(
     
     # Perform lazy rechunked copy from source to destination
     src_rechunked = ds_copy[source_variable].chunk(ds_copy[new_variable].chunks)
+    
+    # Ensure arrays are C-contiguous for codecs like ZFP that require it
+    # This is especially important when rechunking creates non-contiguous views
+    src_rechunked = src_rechunked.map_blocks(
+        np.ascontiguousarray,
+        template=src_rechunked,
+    )
+    
     ds_copy[new_variable][:] = src_rechunked
     
     # Write only the new variable data (drop non-dimensional coordinates to avoid chunk conflicts)
@@ -147,17 +174,19 @@ def from_variable(
     if coords_to_drop:
         write_ds = write_ds.drop_vars(coords_to_drop)
     
-    to_mdio(write_ds, normed_path, mode="a", compute=True)
-    # TODO: I don't want to have to explicitly use Dask like this. It would be nice to just configure the scheduler and let to_mdio handle it on the backend
-    # import dask
-    # from dask.diagnostics import ProgressBar
-    # with dask.config.set(scheduler="processes", num_workers=16):
-    #     with ProgressBar():
-    #         write_ds[[new_variable]].to_zarr(
-    #             normed_path,
-    #             mode="a",
-    #             compute=True,
-    #         )
+    # Configure Dask scheduler for parallel write
+    dask_config = {"scheduler": scheduler}
+    if scheduler in ("processes", "threads"):
+        dask_config["num_workers"] = num_workers
+    
+    logger.info(f"Writing data with {num_workers} {scheduler} workers")
+    
+    with dask.config.set(**dask_config):
+        if show_progress:
+            with ProgressBar():
+                to_mdio(write_ds, normed_path, mode="a", compute=True)
+        else:
+            to_mdio(write_ds, normed_path, mode="a", compute=True)
     
     logger.info(f"Variable copy complete: '{source_variable}' -> '{new_variable}'")
     
