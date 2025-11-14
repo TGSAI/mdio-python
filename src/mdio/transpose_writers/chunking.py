@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Hashable
+from typing import Any
+from typing import TYPE_CHECKING
 import logging
 
 import numpy as np
 import dask
-from dask import array as dask_array
 from dask.diagnostics import ProgressBar
 from xarray import DataArray
 
@@ -30,170 +30,278 @@ if TYPE_CHECKING:
     from mdio.builder.schemas.chunk_grid import RegularChunkGrid
     from mdio.builder.schemas.chunk_grid import RectilinearChunkGrid
 
+
 def _normalize_chunks(
     original_chunks: tuple[int, ...] | None,
-    new_chunks: tuple[int, ...] | None,
+    target_chunks: tuple[int, ...],
 ) -> tuple[int, ...]:
-    if original_chunks is None:
-        return new_chunks
+    """Choose a 'work chunk' shape per dim from original and target.
 
-    return tuple(max(a, b) for a, b in zip(original_chunks, new_chunks, strict=True))
+    If original_chunks is known, pick max(original, target) per dimension.
+    Otherwise, just use target_chunks.
+    """
+    if original_chunks is None:
+        return target_chunks
+
+    return tuple(
+        max(o, t) for o, t in zip(original_chunks, target_chunks, strict=True)
+    )
 
 
 def _remove_fillvalue_attrs(dataset: Any) -> None:
-    """Remove _FillValue from all variable attrs to avoid conflicts with consolidated metadata."""
-    # This is only relevant for Zarr v2 format.
-    for var_name in list(dataset) + list(dataset.coords):
+    """Remove _FillValue from all variable attrs to avoid conflicts with consolidated metadata.
+
+    This is only relevant for Zarr v2 format.
+    """
+    for var_name in list(dataset.data_vars) + list(dataset.coords):
         if "_FillValue" in dataset[var_name].attrs:
             del dataset[var_name].attrs["_FillValue"]
-    
+
 
 def _validate_inputs(
     new_variable: str | list[str],
-    chunk_grid: RegularChunkGrid | RectilinearChunkGrid | list[RegularChunkGrid | RectilinearChunkGrid],
-    compressor: ZFP | Blosc | list[ZFP | Blosc] | None,
+    chunk_grid: "RegularChunkGrid"
+    | "RectilinearChunkGrid"
+    | list["RegularChunkGrid" | "RectilinearChunkGrid"],
+    compressor: "ZFP" | "Blosc" | list["ZFP" | "Blosc"] | None,
 ) -> None:
-    if isinstance(chunk_grid, list):
-        if len(new_variable) != len(chunk_grid.chunk_shape):
-            raise ValueError("new_variable and chunk_grid must have the same length")
-    # if compressor is not None and len(compressor) != len(chunk_grid) or len(compressor) != 1:
-    #     raise ValueError("chunk_grid and compressor must have the same length or be a single compressor")
+    """Validate basic shapes/types (no broadcasting here)."""
 
-    # TODO (BrianMichell): Remove task scoping validation
-    # #0000
+    # new_variable must be str or non-empty list[str]
+    if isinstance(new_variable, str):
+        pass
+    elif isinstance(new_variable, list):
+        if not new_variable:
+            raise ValueError("new_variable list must not be empty")
+        if not all(isinstance(v, str) for v in new_variable):
+            raise TypeError("All entries in new_variable must be strings")
+    else:
+        raise TypeError("new_variable must be a string or a list of strings")
+
+    # chunk_grid can be a single grid or non-empty list of grids
+    if isinstance(chunk_grid, list) and not chunk_grid:
+        raise ValueError("chunk_grid list must not be empty")
+
+    # compressor can be None, a single compressor, or non-empty list
+    if isinstance(compressor, list) and not compressor:
+        raise ValueError("compressor list must not be empty")
+
+
+def _normalize_new_variable(
+    new_variable: str | list[str],
+) -> list[str]:
+    """Normalize new_variable to a list of names."""
+    if isinstance(new_variable, str):
+        return [new_variable]
+    # At this point _validate_inputs already ensured this is non-empty list[str]
+    return list(new_variable)
+
+
+def _normalize_chunk_grid(
+    chunk_grid: "RegularChunkGrid"
+    | "RectilinearChunkGrid"
+    | list["RegularChunkGrid" | "RectilinearChunkGrid"],
+    num_variables: int,
+) -> list["RegularChunkGrid" | "RectilinearChunkGrid"]:
+    """Broadcast chunk_grid to match num_variables."""
     if isinstance(chunk_grid, list):
-        raise NotImplementedError("List of chunk grids is not supported yet")
-    
+        if len(chunk_grid) == 1 and num_variables > 1:
+            return chunk_grid * num_variables
+        if len(chunk_grid) == num_variables:
+            return list(chunk_grid)
+        raise ValueError(
+            "chunk_grid list length must be 1 or equal to the number of new variables"
+        )
+    # single grid reused for all variables
+    return [chunk_grid] * num_variables
+
+
+def _normalize_compressor(
+    compressor: "ZFP" | "Blosc" | list["ZFP" | "Blosc"] | None,
+    num_variables: int,
+) -> list["ZFP" | "Blosc" | None]:
+    """Broadcast compressor to match num_variables."""
+    if compressor is None:
+        return [None] * num_variables
+
     if isinstance(compressor, list):
-        if compressor is not None and len(compressor) != len(chunk_grid) or len(compressor) != 1:
-            raise ValueError("chunk_grid and compressor must have the same length or be a single compressor")
-        raise NotImplementedError("List of compressors is not supported yet")
+        if len(compressor) == 1 and num_variables > 1:
+            return compressor * num_variables
+        if len(compressor) == num_variables:
+            return list(compressor)
+        raise ValueError(
+            "compressor list length must be 1 or equal to the number of new variables"
+        )
+
+    # single compressor reused for all variables
+    return [compressor] * num_variables
 
 
 def from_variable(
-    dataset_path: UPath | Path | str,
+    dataset_path: "UPath | Path | str",
     source_variable: str,
-    new_variable: str,
-    chunk_grid: RegularChunkGrid | RectilinearChunkGrid,
-    compressor: ZFP | Blosc | None = None,
+    new_variable: str | list[str],
+    chunk_grid: "RegularChunkGrid"
+    | "RectilinearChunkGrid"
+    | list["RegularChunkGrid" | "RectilinearChunkGrid"],
+    compressor: "ZFP" | "Blosc" | list["ZFP" | "Blosc"] | None = None,
     copy_metadata: bool = True,
     num_workers: int = 4,
     scheduler: str = "processes",
     show_progress: bool = True,
 ) -> None:
-    """Add a new Variable to the Dataset with different chunking and compression.
+    """Add new Variable(s) to the Dataset with different chunking and compression.
 
-    Copies data from the source Variable to the new Variable to create a different access pattern.
+    Copies data from the source Variable to the new Variable(s) to create different
+    access patterns.
+
+    Args:
+        dataset_path: The path to a pre-existing MDIO Dataset.
+        source_variable: The name of the existing Variable to copy data from.
+        new_variable: The name(s) of the new Variable(s) to create.
+        chunk_grid:
+            Chunk grid(s) to use for the new Variable(s).
+            - Single grid: applied to all new variables.
+            - List of grids: length must be 1 (broadcast) or match len(new_variable).
+        compressor:
+            Compressor(s) for the new Variable(s).
+            - None: use source encoding compressor if present.
+            - Single compressor: applied to all new variables.
+            - List of compressors: length must be 1 (broadcast) or match len(new_variable).
+        copy_metadata: Whether to copy attrs/encoding from the source Variable.
+        num_workers: Number of parallel workers for the copy operation.
+        scheduler: Dask scheduler to use ('processes', 'threads', 'synchronous').
+        show_progress: Whether to show a progress bar during the copy operation.
     """
-
-    # --- Validation (unchanged-ish) -----------------------------------------
+    # 1) Basic validation (types, emptiness)
     _validate_inputs(new_variable, chunk_grid, compressor)
+
+    # 2) Normalize/broadcast each argument
+    new_variables = _normalize_new_variable(new_variable)
+    num_vars = len(new_variables)
+    chunk_grids = _normalize_chunk_grid(chunk_grid, num_vars)
+    compressors = _normalize_compressor(compressor, num_vars)
 
     normed_path = _normalize_path(dataset_path)
     ds = open_mdio(normed_path)
 
     source_var = ds[source_variable]
     dims = source_var.dims
+    dtype = source_var.dtype
 
-    # New chunk shape from the chunk grid
-    new_chunks = tuple(chunk_grid.configuration.chunk_shape)
-
-    if len(dims) != len(new_chunks):
-        logger.warning(
-            "Original variable %r has dimensions %r, but new chunk shape %r was provided. "
-            "Behavior is currently undefined.",
-            source_variable,
-            dims,
-            new_chunks,
-        )
-
-    original_chunks = source_var.encoding.get("chunks", None)
-
-    if original_chunks is not None:
-        for chunk in original_chunks:
-            if chunk is None:
-                logger.warning(
-                    "Original chunk %r is None. Behavior is currently undefined.", chunk
-                )
-
-        original_chunk_size_mb = (
-            np.prod(original_chunks) * source_var.dtype.itemsize / (1024**2)
-        )
+    store_chunks = source_var.encoding.get("chunks", None)
+    if store_chunks is not None:
+        try:
+            original_chunk_size_mb = (
+                np.prod(store_chunks) * dtype.itemsize / (1024**2)
+            )
+        except TypeError:
+            original_chunk_size_mb = float("nan")
     else:
         original_chunk_size_mb = float("nan")
 
-    new_chunk_size_mb = np.prod(new_chunks) * source_var.dtype.itemsize / (1024**2)
-
-    logger.info(f"Original chunks: {original_chunks} (~{original_chunk_size_mb:.1f} MB)")
-    logger.info(f"New chunks: {new_chunks} (~{new_chunk_size_mb:.1f} MB)")
     logger.info(
-        "Estimated memory per worker: ~%.1f MB (includes rechunking overhead)",
-        new_chunk_size_mb * 3,
+        "Original chunks for %r: %r (~%.1f MB)",
+        source_variable,
+        store_chunks,
+        original_chunk_size_mb,
     )
 
-    # --- Build rechunked view of the source data ----------------------------
-    # Construct a chunk mapping for xarray/dask
-    chunk_mapping: dict[Hashable, int] = dict(zip(dims, new_chunks, strict=True))
-
-    # Lazily rechunk the source variable to the *target* zarr chunks
-    # This creates a dask graph that reads original chunks, assembles them
-    # into new_chunks, and yields fresh ndarray blocks (already C-contiguous).
-    source_rechunked = source_var.chunk(chunk_mapping)
-
-    # --- Build the new variable DataArray -----------------------------------
-    # Data is the rechunked dask array; coords/dims match the source.
-    if copy_metadata:
-        new_attrs = source_var.attrs.copy()
-    else:
-        new_attrs = {}
-
-    new_da = DataArray(
-        data=source_rechunked.data,
-        dims=source_var.dims,
-        coords=source_var.coords,
-        attrs=new_attrs,
-        name=new_variable,
-    )
-
-    # Wrap into a Dataset so we can write just this variable
-    new_ds = new_da.to_dataset(name=new_variable)
-
-    # --- Encoding (chunks + compressor) -------------------------------------
-    if copy_metadata:
-        new_encoding: dict[str, Any] = source_var.encoding.copy()
-    else:
-        new_encoding = {}
-
-    # Ensure encoding chunks match the rechunked dask chunks
-    new_encoding["chunks"] = new_chunks
-
-    if compressor is not None:
-        new_encoding.update(_compressor_to_encoding(compressor))
-
-    new_ds[new_variable].encoding = new_encoding
-
-    # --- Clean up attrs that conflict with consolidated metadata ------------
-    _remove_fillvalue_attrs(new_ds)
-
-    # Drop non-dimensional coords to avoid chunk conflicts
-    coords_to_drop = [coord for coord in new_ds.coords if coord not in new_ds.dims]
-    if coords_to_drop:
-        new_ds = new_ds.drop_vars(coords_to_drop)
-
-    # --- Configure Dask and write to MDIO -----------------------------------
     dask_config: dict[str, Any] = {"scheduler": scheduler}
     if scheduler in ("processes", "threads"):
         dask_config["num_workers"] = num_workers
 
-    logger.info("Writing data with %d %s workers", num_workers, scheduler)
+    logger.info("Using Dask config: %s", dask_config)
 
+    # 3) One Dask config context, write each new variable sequentially
     with dask.config.set(**dask_config):
-        if show_progress:
-            with ProgressBar():
+        for name, grid, comp in zip(new_variables, chunk_grids, compressors, strict=True):
+            new_chunks = tuple(grid.configuration.chunk_shape)
+
+            if len(dims) != len(new_chunks):
+                logger.warning(
+                    "Original variable %r has dimensions %r, but new chunk shape %r "
+                    "was provided for new variable %r. Behavior is currently undefined.",
+                    source_variable,
+                    dims,
+                    new_chunks,
+                    name,
+                )
+
+            # Compute a 'work chunk' that is compatible with both source and dest
+            work_chunks = _normalize_chunks(store_chunks, new_chunks)
+
+            # Estimate memory based on work_chunks (what a worker is likely to hold)
+            work_chunk_size_mb = np.prod(work_chunks) * dtype.itemsize / (1024**2)
+            logger.info(
+                "New variable %r: work_chunks=%r (~%.1f MB), dest_chunks=%r. "
+                "Estimated memory per worker: ~%.1f MB",
+                name,
+                work_chunks,
+                new_chunks,
+                work_chunk_size_mb * 3,
+            )
+
+            # Build Dask chunk mappings
+            work_mapping = dict(zip(dims, work_chunks, strict=True))
+            dest_mapping = dict(zip(dims, new_chunks, strict=True))
+
+            # Step 1: chunk to 'work' shape if needed
+            # If store_chunks is None, this will just chunk from whatever dask sees
+            if store_chunks is not None and tuple(store_chunks) == work_chunks:
+                source_work = source_var
+            else:
+                source_work = source_var.chunk(work_mapping)
+
+            # Step 2: ensure final chunks match destination encoding
+            if work_chunks == new_chunks:
+                rechunked = source_work
+            else:
+                rechunked = source_work.chunk(dest_mapping)
+
+            # Build DataArray for the new variable
+            attrs = source_var.attrs.copy() if copy_metadata else {}
+            new_da = DataArray(
+                data=rechunked.data,
+                dims=dims,
+                coords=source_var.coords,
+                attrs=attrs,
+                name=name,
+            )
+            new_ds = new_da.to_dataset(name=name)
+
+            # Per-variable encoding
+            encoding: dict[str, Any] = (
+                source_var.encoding.copy() if copy_metadata else {}
+            )
+            encoding["chunks"] = new_chunks
+            if comp is not None:
+                encoding.update(_compressor_to_encoding(comp))
+            new_ds[name].encoding = encoding
+
+            # Clean up attrs that can conflict with consolidated metadata
+            _remove_fillvalue_attrs(new_ds)
+
+            # Drop non-dimensional coordinates to avoid chunk conflicts
+            coords_to_drop = [coord for coord in new_ds.coords if coord not in new_ds.dims]
+            if coords_to_drop:
+                new_ds = new_ds.drop_vars(coords_to_drop)
+
+            logger.info(
+                "Writing data for new variable %r with %d %s workers",
+                name,
+                num_workers,
+                scheduler,
+            )
+
+            if show_progress:
+                with ProgressBar():
+                    to_mdio(new_ds, normed_path, mode="a", compute=True)
+            else:
                 to_mdio(new_ds, normed_path, mode="a", compute=True)
-        else:
-            to_mdio(new_ds, normed_path, mode="a", compute=True)
 
-    logger.info("Variable copy complete: %r -> %r", source_variable, new_variable)
-
-    
+    logger.info(
+        "Variable copy complete: %r -> %s",
+        source_variable,
+        ", ".join(new_variables),
+    )
