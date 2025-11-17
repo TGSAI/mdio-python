@@ -8,7 +8,8 @@ import logging
 
 import numpy as np
 import dask
-from dask.diagnostics import ProgressBar
+from tqdm.auto import tqdm
+from tqdm.dask import TqdmCallback
 from xarray import DataArray
 
 from mdio.api.io import open_mdio
@@ -194,7 +195,12 @@ def from_variable(
 
     # 3) One Dask config context, write each new variable sequentially
     with dask.config.set(**dask_config):
-        for name, grid, comp in zip(new_variables, chunk_grids, compressors, strict=True):
+        for name, grid, comp in tqdm(
+            zip(new_variables, chunk_grids, compressors, strict=True),
+            total=len(new_variables),
+            desc="Generating newly chunked Variables",
+            unit="variable"
+        ):
             new_chunks = tuple(grid.configuration.chunk_shape)
 
             if len(dims) != len(new_chunks):
@@ -255,7 +261,7 @@ def from_variable(
             if coords_to_drop:
                 new_ds = new_ds.drop_vars(coords_to_drop)
 
-            with ProgressBar():
+            with TqdmCallback(desc=f"Writing variable '{name}'", unit="chunk"):
                 to_mdio(new_ds, normed_path, mode="a", compute=True)
 
     logger.info(
