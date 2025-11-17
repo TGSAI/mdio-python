@@ -2,7 +2,8 @@
 
 from typing import Any
 
-from mdio.builder.schemas import compressors
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
@@ -55,7 +56,7 @@ class Seismic2DCdpGathersTemplate(AbstractDatasetTemplate):
         )
 
         # Add non-dimension coordinates
-        compressor = compressors.Blosc(cname=compressors.BloscCname.zstd)
+        compressor = Blosc(cname=BloscCname.zstd)
         self._builder.add_coordinate(
             "cdp_x",
             dimensions=("cdp",),
