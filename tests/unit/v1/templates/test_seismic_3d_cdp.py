@@ -91,7 +91,7 @@ def validate_coordinates_headers_trace_mask(
     cdp_x = validate_variable(
         dataset,
         name="cdp_x",
-        dims=[("inline", 512), ("crossline", 768), (gather_domain, 36)],
+        dims=[("inline", 512), ("crossline", 768)],
         coords=["cdp_x"],
         dtype=ScalarType.FLOAT64,
     )
@@ -100,7 +100,7 @@ def validate_coordinates_headers_trace_mask(
     cdp_y = validate_variable(
         dataset,
         name="cdp_y",
-        dims=[("inline", 512), ("crossline", 768), (gather_domain, 36)],
+        dims=[("inline", 512), ("crossline", 768)],
         coords=["cdp_y"],
         dtype=ScalarType.FLOAT64,
     )
