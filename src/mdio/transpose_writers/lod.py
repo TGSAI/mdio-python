@@ -28,7 +28,7 @@ def from_variable(
         A downsampled copy of the input data.
 
     Raises:
-        ValueError: If reduction_factor contains invalid dimensions.
         NotImplementedError: If method is not supported.
     """
-    raise NotImplementedError("Level of Detail operations are not yet implemented")
+    msg = "Level of Detail operations are not yet implemented"
+    raise NotImplementedError(msg)

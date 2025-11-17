@@ -26,6 +26,7 @@ def from_variable(
         List of Variable shards.
 
     Raises:
-        ValueError: If num_shards is invalid or shard_dimension doesn't exist.
+        NotImplementedError: If sharding operations are not yet implemented.
     """
-    raise NotImplementedError("Sharding operations are not yet implemented")
+    msg = "Sharding operations are not yet implemented"
+    raise NotImplementedError(msg)

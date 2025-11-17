@@ -2,38 +2,37 @@
 
 from __future__ import annotations
 
-from typing import Any
-from typing import TYPE_CHECKING
 import logging
+from typing import TYPE_CHECKING
+from typing import Any
 
-import numpy as np
 import dask
 from tqdm.auto import tqdm
 from tqdm.dask import TqdmCallback
 from xarray import DataArray
 
+from mdio.api.io import _normalize_path
 from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
-from mdio.api.io import _normalize_path
 from mdio.builder.xarray_builder import _compressor_to_encoding
 from mdio.core.config import MDIOSettings
-
 
 logger = logging.getLogger(__name__)
 
 
 if TYPE_CHECKING:
-    from collections.abc import Mapping
     from pathlib import Path
-    from upath import UPath
 
+    from upath import UPath
+    from xarray import Dataset
+
+    from mdio.builder.schemas.chunk_grid import RectilinearChunkGrid
+    from mdio.builder.schemas.chunk_grid import RegularChunkGrid
     from mdio.builder.schemas.compressors import ZFP
     from mdio.builder.schemas.compressors import Blosc
-    from mdio.builder.schemas.chunk_grid import RegularChunkGrid
-    from mdio.builder.schemas.chunk_grid import RectilinearChunkGrid
 
 
-def _remove_fillvalue_attrs(dataset: Any) -> None:
+def _remove_fillvalue_attrs(dataset: Dataset) -> None:
     """Remove _FillValue from all variable attrs to avoid conflicts with consolidated metadata.
 
     This is only relevant for Zarr v2 format.
@@ -45,31 +44,33 @@ def _remove_fillvalue_attrs(dataset: Any) -> None:
 
 def _validate_inputs(
     new_variable: str | list[str],
-    chunk_grid: "RegularChunkGrid"
-    | "RectilinearChunkGrid"
-    | list["RegularChunkGrid" | "RectilinearChunkGrid"],
-    compressor: "ZFP" | "Blosc" | list["ZFP" | "Blosc"] | None,
+    chunk_grid: RegularChunkGrid | RectilinearChunkGrid | list[RegularChunkGrid | RectilinearChunkGrid],
+    compressor: ZFP | Blosc | list[ZFP | Blosc] | None,
 ) -> None:
     """Validate basic shapes/types (no broadcasting here)."""
-
     # new_variable must be str or non-empty list[str]
     if isinstance(new_variable, str):
         pass
     elif isinstance(new_variable, list):
         if not new_variable:
-            raise ValueError("new_variable list must not be empty")
+            msg = "new_variable list must not be empty"
+            raise ValueError(msg)
         if not all(isinstance(v, str) for v in new_variable):
-            raise TypeError("All entries in new_variable must be strings")
+            msg = "All entries in new_variable must be strings"
+            raise TypeError(msg)
     else:
-        raise TypeError("new_variable must be a string or a list of strings")
+        msg = "new_variable must be a string or a list of strings"
+        raise TypeError(msg)
 
     # chunk_grid can be a single grid or non-empty list of grids
     if isinstance(chunk_grid, list) and not chunk_grid:
-        raise ValueError("chunk_grid list must not be empty")
+        msg = "chunk_grid list must not be empty"
+        raise ValueError(msg)
 
     # compressor can be None, a single compressor, or non-empty list
     if isinstance(compressor, list) and not compressor:
-        raise ValueError("compressor list must not be empty")
+        msg = "compressor list must not be empty"
+        raise ValueError(msg)
 
 
 def _normalize_new_variable(
@@ -83,28 +84,25 @@ def _normalize_new_variable(
 
 
 def _normalize_chunk_grid(
-    chunk_grid: "RegularChunkGrid"
-    | "RectilinearChunkGrid"
-    | list["RegularChunkGrid" | "RectilinearChunkGrid"],
+    chunk_grid: RegularChunkGrid | RectilinearChunkGrid | list[RegularChunkGrid | RectilinearChunkGrid],
     num_variables: int,
-) -> list["RegularChunkGrid" | "RectilinearChunkGrid"]:
+) -> list[RegularChunkGrid | RectilinearChunkGrid]:
     """Broadcast chunk_grid to match num_variables."""
     if isinstance(chunk_grid, list):
         if len(chunk_grid) == 1 and num_variables > 1:
             return chunk_grid * num_variables
         if len(chunk_grid) == num_variables:
             return list(chunk_grid)
-        raise ValueError(
-            "chunk_grid list length must be 1 or equal to the number of new variables"
-        )
+        msg = "chunk_grid list length must be 1 or equal to the number of new variables"
+        raise ValueError(msg)
     # single grid reused for all variables
     return [chunk_grid] * num_variables
 
 
 def _normalize_compressor(
-    compressor: "ZFP" | "Blosc" | list["ZFP" | "Blosc"] | None,
+    compressor: ZFP | Blosc | list[ZFP | Blosc] | None,
     num_variables: int,
-) -> list["ZFP" | "Blosc" | None]:
+) -> list[ZFP | Blosc | None]:
     """Broadcast compressor to match num_variables."""
     if compressor is None:
         return [None] * num_variables
@@ -114,22 +112,19 @@ def _normalize_compressor(
             return compressor * num_variables
         if len(compressor) == num_variables:
             return list(compressor)
-        raise ValueError(
-            "compressor list length must be 1 or equal to the number of new variables"
-        )
+        msg = "compressor list length must be 1 or equal to the number of new variables"
+        raise ValueError(msg)
 
     # single compressor reused for all variables
     return [compressor] * num_variables
 
 
-def from_variable(
-    dataset_path: "UPath | Path | str",
+def from_variable(  # noqa: PLR0913
+    dataset_path: UPath | Path | str,
     source_variable: str,
     new_variable: str | list[str],
-    chunk_grid: "RegularChunkGrid"
-    | "RectilinearChunkGrid"
-    | list["RegularChunkGrid" | "RectilinearChunkGrid"],
-    compressor: "ZFP" | "Blosc" | list["ZFP" | "Blosc"] | None = None,
+    chunk_grid: RegularChunkGrid | RectilinearChunkGrid | list[RegularChunkGrid | RectilinearChunkGrid],
+    compressor: ZFP | Blosc | list[ZFP | Blosc] | None = None,
     copy_metadata: bool = True,
 ) -> None:
     """Add new Variable(s) to the Dataset with different chunking and compression.
@@ -169,8 +164,7 @@ def from_variable(
     shape = source_var.shape
     store_chunks = source_var.encoding.get("chunks", None)
 
-    logger.debug("Source variable %r: dims=%r, shape=%r, store_chunks=%r",
-                 source_variable, dims, shape, store_chunks)
+    logger.debug("Source variable %r: dims=%r, shape=%r, store_chunks=%r", source_variable, dims, shape, store_chunks)
 
     settings = MDIOSettings()
     num_workers = settings.export_cpus
@@ -183,7 +177,7 @@ def from_variable(
             zip(new_variables, chunk_grids, compressors, strict=True),
             total=len(new_variables),
             desc="Generating newly chunked Variables",
-            unit="variable"
+            unit="variable",
         ):
             new_chunks = tuple(grid.configuration.chunk_shape)
 
@@ -206,10 +200,12 @@ def from_variable(
             else:
                 rechunked = source_var.chunk(dest_mapping)
 
-            logger.debug("Variable %r: nominal_chunks=%r, task graph has %d tasks",
-                         name,
-                         tuple(dim_chunks[0] for dim_chunks in rechunked.chunks),
-                         len(rechunked.__dask_graph__()))
+            logger.debug(
+                "Variable %r: nominal_chunks=%r, task graph has %d tasks",
+                name,
+                tuple(dim_chunks[0] for dim_chunks in rechunked.chunks),
+                len(rechunked.__dask_graph__()),
+            )
 
             # Build DataArray for the new variable
             attrs = source_var.attrs.copy() if copy_metadata else {}
@@ -223,9 +219,7 @@ def from_variable(
             new_ds = new_da.to_dataset(name=name)
 
             # Per-variable encoding
-            encoding: dict[str, Any] = (
-                source_var.encoding.copy() if copy_metadata else {}
-            )
+            encoding: dict[str, Any] = source_var.encoding.copy() if copy_metadata else {}
             encoding["chunks"] = new_chunks
             if comp is not None:
                 compressor_encoding = _compressor_to_encoding(comp)
