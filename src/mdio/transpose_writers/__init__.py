@@ -14,4 +14,3 @@ __all__ = [
     "lod_variable",
     "shard_variable",
 ]
-
