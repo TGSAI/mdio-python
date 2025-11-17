@@ -187,31 +187,14 @@ def from_variable(
 
     source_var = ds[source_variable]
     dims = source_var.dims
-    dtype = source_var.dtype
 
     store_chunks = source_var.encoding.get("chunks", None)
-    if store_chunks is not None:
-        try:
-            original_chunk_size_mb = (
-                np.prod(store_chunks) * dtype.itemsize / (1024**2)
-            )
-        except TypeError:
-            original_chunk_size_mb = float("nan")
-    else:
-        original_chunk_size_mb = float("nan")
-
-    logger.info(
-        "Original chunks for %r: %r (~%.1f MB)",
-        source_variable,
-        store_chunks,
-        original_chunk_size_mb,
-    )
 
     dask_config: dict[str, Any] = {"scheduler": scheduler}
     if scheduler in ("processes", "threads"):
         dask_config["num_workers"] = num_workers
 
-    logger.info("Using Dask config: %s", dask_config)
+    logger.debug("Using Dask config: %s", dask_config)
 
     # 3) One Dask config context, write each new variable sequentially
     with dask.config.set(**dask_config):
@@ -230,17 +213,6 @@ def from_variable(
 
             # Compute a 'work chunk' that is compatible with both source and dest
             work_chunks = _normalize_chunks(store_chunks, new_chunks)
-
-            # Estimate memory based on work_chunks (what a worker is likely to hold)
-            work_chunk_size_mb = np.prod(work_chunks) * dtype.itemsize / (1024**2)
-            logger.info(
-                "New variable %r: work_chunks=%r (~%.1f MB), dest_chunks=%r. "
-                "Estimated memory per worker: ~%.1f MB",
-                name,
-                work_chunks,
-                new_chunks,
-                work_chunk_size_mb * 3,
-            )
 
             # Build Dask chunk mappings
             work_mapping = dict(zip(dims, work_chunks, strict=True))
@@ -286,13 +258,6 @@ def from_variable(
             coords_to_drop = [coord for coord in new_ds.coords if coord not in new_ds.dims]
             if coords_to_drop:
                 new_ds = new_ds.drop_vars(coords_to_drop)
-
-            logger.info(
-                "Writing data for new variable %r with %d %s workers",
-                name,
-                num_workers,
-                scheduler,
-            )
 
             if show_progress:
                 with ProgressBar():
