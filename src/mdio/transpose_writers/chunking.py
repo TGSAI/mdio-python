@@ -15,6 +15,7 @@ from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
 from mdio.api.io import _normalize_path
 from mdio.builder.xarray_builder import _compressor_to_encoding
+from mdio.core.config import MDIOSettings
 
 
 logger = logging.getLogger(__name__)
@@ -146,9 +147,6 @@ def from_variable(
     | list["RegularChunkGrid" | "RectilinearChunkGrid"],
     compressor: "ZFP" | "Blosc" | list["ZFP" | "Blosc"] | None = None,
     copy_metadata: bool = True,
-    num_workers: int = 4,
-    scheduler: str = "processes",
-    show_progress: bool = True,
 ) -> None:
     """Add new Variable(s) to the Dataset with different chunking and compression.
 
@@ -169,9 +167,6 @@ def from_variable(
             - Single compressor: applied to all new variables.
             - List of compressors: length must be 1 (broadcast) or match len(new_variable).
         copy_metadata: Whether to copy attrs/encoding from the source Variable.
-        num_workers: Number of parallel workers for the copy operation.
-        scheduler: Dask scheduler to use ('processes', 'threads', 'synchronous').
-        show_progress: Whether to show a progress bar during the copy operation.
     """
     # 1) Basic validation (types, emptiness)
     _validate_inputs(new_variable, chunk_grid, compressor)
@@ -190,9 +185,10 @@ def from_variable(
 
     store_chunks = source_var.encoding.get("chunks", None)
 
-    dask_config: dict[str, Any] = {"scheduler": scheduler}
-    if scheduler in ("processes", "threads"):
-        dask_config["num_workers"] = num_workers
+    settings = MDIOSettings()
+    num_workers = settings.export_cpus
+
+    dask_config: dict[str, Any] = {"scheduler": "processes", "num_workers": num_workers}
 
     logger.debug("Using Dask config: %s", dask_config)
 
@@ -259,10 +255,7 @@ def from_variable(
             if coords_to_drop:
                 new_ds = new_ds.drop_vars(coords_to_drop)
 
-            if show_progress:
-                with ProgressBar():
-                    to_mdio(new_ds, normed_path, mode="a", compute=True)
-            else:
+            with ProgressBar():
                 to_mdio(new_ds, normed_path, mode="a", compute=True)
 
     logger.info(
