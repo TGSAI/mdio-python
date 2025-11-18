@@ -143,3 +143,134 @@ def test_multiple_variables_with_broadcasting(mdio_dataset: Path) -> None:
 
         # Metadata should not be copied
         assert len(ds[var_name].attrs) == 0 or ds[var_name].attrs != ds["amplitude"].attrs
+
+
+def test_dimension_mismatch_warning(mdio_dataset: Path, caplog: pytest.LogCaptureFixture) -> None:
+    """Test that dimension mismatch triggers a warning."""
+    # Use 2D chunk shape for 3D data to trigger warning
+    chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(8, 16)))
+    compressor = Blosc(cname="zstd", clevel=5, shuffle="shuffle")
+
+    with caplog.at_level("WARNING"):
+        with pytest.raises(ValueError, match="zip\\(\\) argument 2 is shorter than argument 1"):
+            from_variable(
+                dataset_path=mdio_dataset,
+                source_variable="amplitude",
+                new_variable="mismatched_dims",
+                chunk_grid=chunk_grid,
+                compressor=compressor,
+                copy_metadata=True,
+            )
+
+    # Check that warning was logged before the error
+    assert any("Original variable" in record.message and "dimensions" in record.message
+               for record in caplog.records)
+
+
+def test_compressor_encoding_with_copy_metadata(mdio_dataset: Path) -> None:
+    """Test compressor encoding logic with copy_metadata=True."""
+    chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(8, 16, 8)))
+    compressor = Blosc(cname="zstd", clevel=5, shuffle="shuffle")
+
+    from_variable(
+        dataset_path=mdio_dataset,
+        source_variable="amplitude",
+        new_variable="compressed_copy",
+        chunk_grid=chunk_grid,
+        compressor=compressor,
+        copy_metadata=True,  # This ensures source encoding is copied
+    )
+
+    ds = open_mdio(mdio_dataset)
+
+    # Verify compressor encoding was applied
+    assert "compressed_copy" in ds.data_vars
+    assert "compressors" in ds["compressed_copy"].encoding
+    # Verify chunks are set
+    assert ds["compressed_copy"].encoding["chunks"] == (8, 16, 8)
+
+
+def test_coordinate_dropping_with_extra_coords(mdio_dataset: Path) -> None:
+    """Test coordinate dropping when non-dimensional coordinates exist."""
+    chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(2, 16, 64)))
+
+    # Read the dataset and add a non-dimensional coordinate, then write it back
+    ds = open_mdio(mdio_dataset)
+    ds = ds.assign_coords(extra_coord=("inline", ds.inline.values * 2.0))
+    # Use to_mdio to write the modified dataset
+    from mdio.api.io import to_mdio
+    to_mdio(ds, mdio_dataset, mode="w")
+
+    from_variable(
+        dataset_path=mdio_dataset,
+        source_variable="amplitude",
+        new_variable="dropped_extra_coords",
+        chunk_grid=chunk_grid,
+        compressor=None,
+        copy_metadata=True,
+    )
+
+    ds_final = open_mdio(mdio_dataset)
+
+    # Verify the new variable exists
+    assert "dropped_extra_coords" in ds_final.data_vars
+
+    # Check that the extra coordinate we added was dropped from the dataset
+    # The coordinate dropping logic removes coords that are not dimensions
+    # Our added 'extra_coord' should not be in the final dataset coords
+    assert "extra_coord" not in ds_final.coords, "Extra coordinate should have been dropped"
+
+    # Verify the variable still has its dimensional coordinates
+    new_var_coords = list(ds_final["dropped_extra_coords"].coords.keys())
+    assert "inline" in new_var_coords
+    assert "crossline" in new_var_coords
+    assert "time" in new_var_coords
+
+
+def test_store_chunks_optimization_exact_match(mdio_dataset: Path) -> None:
+    """Test store_chunks optimization when chunks exactly match."""
+    # Create a variable with known chunking
+    source_chunks = (4, 8, 16)
+    chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=source_chunks))
+
+    from_variable(
+        dataset_path=mdio_dataset,
+        source_variable="amplitude",
+        new_variable="source_exact",
+        chunk_grid=chunk_grid,
+        compressor=None,
+        copy_metadata=True,
+    )
+
+    # Now modify the encoding to simulate exact chunk match and write back
+    ds = open_mdio(mdio_dataset)
+    # Set the store_chunks to exactly match what we'll request
+    target_chunks = (4, 8, 16)
+    ds["source_exact"].encoding["chunks"] = target_chunks
+    # Use to_mdio to write the modified dataset
+    from mdio.api.io import to_mdio
+    to_mdio(ds, mdio_dataset, mode="w")
+
+    # Create another variable with the same chunking - should hit optimization
+    from_variable(
+        dataset_path=mdio_dataset,
+        source_variable="source_exact",
+        new_variable="optimized_exact",
+        chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=target_chunks)),
+        compressor=None,
+        copy_metadata=True,
+    )
+
+    ds_final = open_mdio(mdio_dataset)
+
+    # Verify both variables exist with correct chunks
+    assert "source_exact" in ds_final.data_vars
+    assert "optimized_exact" in ds_final.data_vars
+    assert ds_final["source_exact"].encoding["chunks"] == target_chunks
+    assert ds_final["optimized_exact"].encoding["chunks"] == target_chunks
+
+    # Verify data integrity
+    np.testing.assert_array_equal(ds_final["amplitude"].values, ds_final["source_exact"].values)
+    np.testing.assert_array_equal(ds_final["amplitude"].values, ds_final["optimized_exact"].values)
+
+

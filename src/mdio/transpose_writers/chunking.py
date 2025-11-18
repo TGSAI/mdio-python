@@ -203,8 +203,8 @@ def from_variable(  # noqa: PLR0913
             logger.debug(
                 "Variable %r: nominal_chunks=%r, task graph has %d tasks",
                 name,
-                tuple(dim_chunks[0] for dim_chunks in rechunked.chunks),
-                len(rechunked.__dask_graph__()),
+                tuple(dim_chunks[0] for dim_chunks in rechunked.chunks) if rechunked.chunks is not None else new_chunks,
+                len(rechunked.__dask_graph__()) if rechunked.__dask_graph__() is not None else 0,
             )
 
             # Build DataArray for the new variable
