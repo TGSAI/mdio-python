@@ -66,6 +66,7 @@ class TestValidateInputs:
             ("var1", "grid", None, True),
             (123, "grid", "comp", False),
             ([], "grid", "comp", False),
+            (["var1", 123], "grid", "comp", False),  # non-string in list
             ("var1", [], "comp", False),
             ("var1", "grid", [], False),
         ],
@@ -121,6 +122,11 @@ class TestNormalizeChunkGrid:
         # Single grid broadcasts
         assert len(_normalize_chunk_grid(grid, 3)) == 3
 
+        # Single-element list broadcasts
+        result = _normalize_chunk_grid([grid], 3)
+        assert len(result) == 3
+        assert result == grids
+
         # List matches length
         result = _normalize_chunk_grid(grids, 3)
         assert len(result) == 3
@@ -143,6 +149,11 @@ class TestNormalizeCompressor:
 
         # Single compressor broadcasts
         assert len(_normalize_compressor(comp, 3)) == 3
+
+        # Single-element list broadcasts
+        result = _normalize_compressor([comp], 3)
+        assert len(result) == 3
+        assert all(c == comp for c in result)
 
         # List with None entries
         result = _normalize_compressor([comp, None, comp], 3)
