@@ -82,6 +82,9 @@ class AbstractDatasetTemplate(ABC):
 
         Returns:
             Dataset: The constructed dataset
+
+        Raises:
+            ValueError: If coordinate already exists from subclass override.
         """
         self._dim_sizes = sizes
 
@@ -90,6 +93,20 @@ class AbstractDatasetTemplate(ABC):
         self._builder = MDIODatasetBuilder(name=name, attributes=attributes)
         self._add_dimensions()
         self._add_coordinates()
+        # Ensure any coordinates declared on the template but not added by _add_coordinates
+        # are materialized with generic defaults. This handles coordinates added by grid overrides.
+        for coord_name in self.coordinate_names:
+            try:
+                self._builder.add_coordinate(
+                    name=coord_name,
+                    dimensions=self.spatial_dimension_names,
+                    data_type=ScalarType.FLOAT64,
+                    compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
+                    metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(coord_name)),
+                )
+            except ValueError as exc:  # coordinate may already exist
+                if "same name twice" not in str(exc):
+                    raise
         self._add_variables()
         self._add_trace_mask()
 
@@ -241,14 +258,21 @@ class AbstractDatasetTemplate(ABC):
             )
 
         # Add non-dimension coordinates
+        # Note: coordinate_names may be modified at runtime by grid overrides,
+        # so we need to handle dynamic additions gracefully
         for name in self.coordinate_names:
-            self._builder.add_coordinate(
-                name=name,
-                dimensions=self.spatial_dimension_names,
-                data_type=ScalarType.FLOAT64,
-                compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
-                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
-            )
+            try:
+                self._builder.add_coordinate(
+                    name=name,
+                    dimensions=self.spatial_dimension_names,
+                    data_type=ScalarType.FLOAT64,
+                    compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
+                    metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
+                )
+            except ValueError as exc:
+                # Coordinate may already exist from subclass override
+                if "same name twice" not in str(exc):
+                    raise
 
     def _add_trace_mask(self) -> None:
         """Add trace mask variables."""
