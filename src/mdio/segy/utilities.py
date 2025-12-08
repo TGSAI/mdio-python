@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def get_grid_plan(  # noqa:  C901, PLR0913
+def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
     segy_file_kwargs: SegyFileArguments,
     segy_file_info: SegyFileInfo,
     chunksize: tuple[int, ...] | None,
@@ -61,15 +61,23 @@ def get_grid_plan(  # noqa:  C901, PLR0913
     # Keep only dimension and non-dimension coordinates excluding the vertical axis
     horizontal_dimensions = template.spatial_dimension_names
     horizontal_coordinates = horizontal_dimensions + template.coordinate_names
+    # Exclude calculated dimensions - they don't exist in SEG-Y headers
+    calculated_dims = set(template.calculated_dimension_names)
 
-    # Remove any to be computed fields
+    # Remove any to be computed fields - preserve order by using list comprehension instead of set operations
     computed_fields = set(template.calculated_dimension_names)
-    horizontal_coordinates = tuple(set(horizontal_coordinates) - computed_fields)
+    horizontal_coordinates = tuple(c for c in horizontal_coordinates if c not in computed_fields)
+
+    # Ensure non_binned_dims are included in the headers to parse, even if not in template
+    if grid_overrides and "non_binned_dims" in grid_overrides:
+        for dim in grid_overrides["non_binned_dims"]:
+            if dim not in horizontal_coordinates:
+                horizontal_coordinates = horizontal_coordinates + (dim,)
 
     headers_subset = parse_headers(
         segy_file_kwargs=segy_file_kwargs,
         num_traces=segy_file_info.num_traces,
-        subset=horizontal_coordinates,
+        subset=tuple(c for c in horizontal_coordinates if c not in calculated_dims),
     )
 
     # Handle grid overrides.
@@ -79,7 +87,34 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         horizontal_coordinates,
         chunksize=chunksize,
         grid_overrides=grid_overrides,
+        template=template,
     )
+
+    # After grid overrides, determine final spatial dimensions and their chunk sizes
+    non_binned_dims = set()
+    if "NonBinned" in grid_overrides and "non_binned_dims" in grid_overrides:
+        non_binned_dims = set(grid_overrides["non_binned_dims"])
+
+    # Create mapping from dimension name to original chunk size for easy lookup
+    original_spatial_dims = list(template.spatial_dimension_names)
+    original_chunks = list(template.full_chunk_shape[:-1])  # Exclude vertical (sample/time) dimension
+    dim_to_chunk = dict(zip(original_spatial_dims, original_chunks, strict=True))
+
+    # Final spatial dimensions: keep trace and original dims, exclude non-binned dims
+    final_spatial_dims = []
+    final_spatial_chunks = []
+    for name in horizontal_coordinates:
+        if name in non_binned_dims:
+            continue  # Skip dimensions that became coordinates
+        if name == "trace":
+            # Special handling for trace dimension
+            chunk_val = int(grid_overrides.get("chunksize", 1)) if "NonBinned" in grid_overrides else 1
+            final_spatial_dims.append(name)
+            final_spatial_chunks.append(chunk_val)
+        elif name in dim_to_chunk:
+            # Use original chunk size for known dimensions
+            final_spatial_dims.append(name)
+            final_spatial_chunks.append(dim_to_chunk[name])
 
     if len(computed_fields) > 0 and not computed_fields.issubset(headers_subset.dtype.names):
         err = (
@@ -88,8 +123,38 @@ def get_grid_plan(  # noqa:  C901, PLR0913
         )
         raise ValueError(err)
 
+    # Create dimensions from final_spatial_dims plus any computed fields that were added by grid overrides
+    all_dimension_names = list(final_spatial_dims)
+    added_computed_fields = []
+    for computed_field in computed_fields:
+        if computed_field in headers_subset.dtype.names and computed_field not in all_dimension_names:
+            # Insert in template order
+            if computed_field in template.spatial_dimension_names:
+                insert_idx = template.spatial_dimension_names.index(computed_field)
+                # Find position in all_dimension_names that corresponds to this template position
+                actual_idx = min(insert_idx, len(all_dimension_names))
+                all_dimension_names.insert(actual_idx, computed_field)
+                # Track where we inserted and what chunk size it should have
+                template_chunk_idx = template.spatial_dimension_names.index(computed_field)
+                chunk_val = template.full_chunk_shape[template_chunk_idx]
+                added_computed_fields.append((actual_idx, chunk_val))
+            else:
+                all_dimension_names.append(computed_field)
+                added_computed_fields.append((len(all_dimension_names) - 1, 1))
+
+    # Build chunksize including chunks for computed fields
+    if added_computed_fields:
+        chunk_list = list(final_spatial_chunks)
+        for insert_idx, chunk_val in sorted(added_computed_fields, reverse=True):
+            chunk_list.insert(insert_idx, chunk_val)
+        chunksize = tuple(chunk_list + [template.full_chunk_shape[-1]])
+    else:
+        chunksize = tuple(final_spatial_chunks + [template.full_chunk_shape[-1]])
+
     dimensions = []
-    for dim_name in horizontal_dimensions:
+    for dim_name in all_dimension_names:
+        if dim_name not in headers_subset.dtype.names:
+            continue
         dim_unique = np.unique(headers_subset[dim_name])
         dimensions.append(Dimension(coords=dim_unique, name=dim_name))
 

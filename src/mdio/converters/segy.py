@@ -134,6 +134,70 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
+def _update_template_from_grid_overrides(
+    template: AbstractDatasetTemplate,
+    grid_overrides: dict[str, Any] | None,
+    segy_dimensions: list[Dimension],
+    full_chunk_shape: tuple[int, ...],
+    chunk_size: tuple[int, ...],
+) -> None:
+    """Update template attributes to match grid plan results after grid overrides.
+
+    This function modifies the template in-place to reflect changes from grid overrides:
+    - Updates chunk shape if it changed due to overrides
+    - Updates dimension names if they changed due to overrides
+    - Adds non-binned dimensions as coordinates for NonBinned override
+
+    Args:
+        template: The template to update
+        grid_overrides: Grid override configuration
+        segy_dimensions: Dimensions returned from grid planning
+        full_chunk_shape: Original template chunk shape
+        chunk_size: Chunk size returned from grid planning
+    """
+    # Update template to match grid_plan results after grid overrides
+    # Extract actual spatial dimensions from segy_dimensions (excluding vertical dimension)
+    actual_spatial_dims = tuple(dim.name for dim in segy_dimensions[:-1])
+
+    # Align chunk_size with actual dimensions - truncate if dimensions were filtered out
+    num_actual_spatial = len(actual_spatial_dims)
+    num_chunk_spatial = len(chunk_size) - 1  # Exclude vertical dimension chunk
+    if num_actual_spatial != num_chunk_spatial:
+        # Truncate chunk_size to match actual dimensions
+        chunk_size = chunk_size[:num_actual_spatial] + (chunk_size[-1],)
+
+    if full_chunk_shape != chunk_size:
+        logger.debug(
+            "Adjusting template chunk shape from %s to %s to match grid after overrides",
+            full_chunk_shape,
+            chunk_size,
+        )
+        template._var_chunk_shape = chunk_size
+
+    # Update dimensions if they don't match grid_plan results
+    if template.spatial_dimension_names != actual_spatial_dims:
+        logger.debug(
+            "Adjusting template dimensions from %s to %s to match grid after overrides",
+            template.spatial_dimension_names,
+            actual_spatial_dims,
+        )
+        template._dim_names = actual_spatial_dims + (template.trace_domain,)
+
+    # If using NonBinned override, expose non-binned dims as logical coordinates on the template instance
+    if grid_overrides and "NonBinned" in grid_overrides and "non_binned_dims" in grid_overrides:
+        non_binned_dims = tuple(grid_overrides["non_binned_dims"])
+        if non_binned_dims:
+            logger.debug(
+                "NonBinned grid override: exposing non-binned dims as coordinates: %s",
+                non_binned_dims,
+            )
+            # Append any missing names; keep existing order and avoid duplicates
+            existing = set(template.coordinate_names)
+            to_add = tuple(n for n in non_binned_dims if n not in existing)
+            if to_add:
+                template._logical_coord_names = template._logical_coord_names + to_add
+
+
 def _scan_for_headers(
     segy_file_kwargs: SegyFileArguments,
     segy_file_info: SegyFileInfo,
@@ -143,7 +207,11 @@ def _scan_for_headers(
     """Extract trace dimensions and index headers from the SEG-Y file.
 
     This is an expensive operation.
-    It scans the SEG-Y file in chunks by using ProcessPoolExecutor
+    It scans the SEG-Y file in chunks by using ProcessPoolExecutor.
+
+    Note:
+        If grid_overrides are applied to the template before calling this function,
+        the chunk_size returned from get_grid_plan should match the template's chunk shape.
     """
     full_chunk_shape = template.full_chunk_shape
     segy_dimensions, chunk_size, segy_headers = get_grid_plan(
@@ -154,13 +222,15 @@ def _scan_for_headers(
         chunksize=full_chunk_shape,
         grid_overrides=grid_overrides,
     )
-    if full_chunk_shape != chunk_size:
-        # TODO(Dmitriy): implement grid overrides
-        # https://github.com/TGSAI/mdio-python/issues/585
-        # The returned 'chunksize' is used only for grid_overrides. We will need to use it when full
-        # support for grid overrides is implemented
-        err = "Support for changing full_chunk_shape in grid overrides is not yet implemented"
-        raise NotImplementedError(err)
+
+    _update_template_from_grid_overrides(
+        template=template,
+        grid_overrides=grid_overrides,
+        segy_dimensions=segy_dimensions,
+        full_chunk_shape=full_chunk_shape,
+        chunk_size=chunk_size,
+    )
+
     return segy_dimensions, segy_headers
 
 
