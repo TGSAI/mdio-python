@@ -68,6 +68,12 @@ def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
     computed_fields = set(template.calculated_dimension_names)
     horizontal_coordinates = tuple(c for c in horizontal_coordinates if c not in computed_fields)
 
+    # Ensure non_binned_dims are included in the headers to parse, even if not in template
+    if grid_overrides and "non_binned_dims" in grid_overrides:
+        for dim in grid_overrides["non_binned_dims"]:
+            if dim not in horizontal_coordinates:
+                horizontal_coordinates = horizontal_coordinates + (dim,)
+
     headers_subset = parse_headers(
         segy_file_kwargs=segy_file_kwargs,
         num_traces=segy_file_info.num_traces,

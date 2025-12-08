@@ -389,7 +389,17 @@ class DuplicateIndex(GridOverrideCommand):
 
         # Filter out coordinate fields, keep only dimensions for trace indexing
         coord_fields = set(template.coordinate_names) if template else set()
-        dim_fields = [name for name in index_headers.dtype.names if name != "trace" and name not in coord_fields]
+
+        # For NonBinned: non_binned_dims should be excluded from trace indexing grouping
+        # because they become coordinates indexed by the trace dimension, not grouping keys.
+        # The trace index should count all traces per remaining dimension combination.
+        non_binned_dims = set(grid_overrides.get("non_binned_dims", [])) if grid_overrides else set()
+
+        dim_fields = [
+            name
+            for name in index_headers.dtype.names
+            if name != "trace" and name not in coord_fields and name not in non_binned_dims
+        ]
 
         # Create trace indices on dimension fields only
         dim_headers = index_headers[dim_fields] if dim_fields else index_headers
