@@ -15,7 +15,8 @@ from dask.array import map_blocks
 from segy import SegyFile
 from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
-from zarr.storage import FsspecStore
+from zarr.core.sync import sync
+from zarr.storage._common import make_store
 
 from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
@@ -84,7 +85,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     zarr_format = zarr.config.get("default_zarr_format")
 
     # Open zarr group once in main process
-    store = FsspecStore.from_upath(output_path)
+    store = sync(make_store(output_path.as_posix(), storage_options=output_path.storage_options))
     zarr_group = zarr_open_group(
         store,
         mode="r+",
