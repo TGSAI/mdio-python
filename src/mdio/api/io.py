@@ -11,6 +11,7 @@ from xarray import Dataset as xr_Dataset
 from xarray import open_zarr as xr_open_zarr
 from xarray.backends.writers import to_zarr as xr_to_zarr
 from zarr.storage import FsspecStore
+from zarr.storage import LocalStore
 from zarr.storage import ObjectStore
 
 from mdio.constants import ZarrFormat
@@ -41,15 +42,20 @@ def _normalize_path(path: UPath | Path | str) -> UPath:
 
 
 def _get_store(upath: UPath, storage_backend: StorageBackendT) -> Store:
+    uri = upath.as_posix()
     if storage_backend == "obstore":
         if obstore_from_url is None:
             msg = "Optional dependency 'obstore' is not installed. Install it with `pip install multidimio[cloud]`."
             raise RuntimeError(msg)
 
-        uri = upath.as_posix()
         storage_options: Mapping[str, Any] = getattr(upath, "storage_options", {})
         return ObjectStore(obstore_from_url(uri, **storage_options))
-    return FsspecStore.from_upath(upath)
+
+    is_fsspec = "://" in uri or ("::" in uri and "local://" not in uri)
+    if is_fsspec:
+        return FsspecStore.from_upath(upath)
+
+    return LocalStore(uri)
 
 
 def open_mdio(
