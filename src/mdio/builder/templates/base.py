@@ -16,8 +16,10 @@ from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.dtype import StructuredType
 from mdio.builder.schemas.v1.units import AllUnitModel
-from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
+from mdio.core.utils_write import get_constrained_chunksize
 
 if TYPE_CHECKING:
     from mdio.builder.schemas.v1.dataset import Dataset
@@ -72,6 +74,7 @@ class AbstractDatasetTemplate(ABC):
         name: str,
         sizes: tuple[int, ...],
         header_dtype: StructuredType = None,
+        include_raw_headers: bool = False,
     ) -> Dataset:
         """Template method that builds the dataset.
 
@@ -79,6 +82,8 @@ class AbstractDatasetTemplate(ABC):
             name: The name of the dataset.
             sizes: The sizes of the dimensions.
             header_dtype: Optional structured headers for the dataset.
+            include_raw_headers: Whether to include raw binary headers variable. Only supported
+                in Zarr v3 format. Defaults to False.
 
         Returns:
             Dataset: The constructed dataset
@@ -95,6 +100,9 @@ class AbstractDatasetTemplate(ABC):
 
         if header_dtype is not None:
             self._add_trace_headers(header_dtype)
+
+        if include_raw_headers:
+            self._add_raw_headers()
 
         return self._builder.build()
 
@@ -237,31 +245,50 @@ class AbstractDatasetTemplate(ABC):
                 name,
                 dimensions=(name,),
                 data_type=ScalarType.INT32,
-                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
+                metadata=VariableMetadata(units_v1=self.get_unit_by_key(name)),
             )
 
-        # Add non-dimension coordinates
+        # Add non-dimension coordinates with computed chunk sizes
         for name in self.coordinate_names:
+            # Compute optimal chunk size for coordinates (spatial dimensions only)
+            spatial_shape = self._dim_sizes[:-1]  # Exclude vertical dimension
+            coord_chunk_shape = get_constrained_chunksize(
+                spatial_shape,
+                ScalarType.FLOAT64,
+                MAX_COORDINATES_BYTES,
+            )
+            chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=coord_chunk_shape))
+
             self._builder.add_coordinate(
                 name=name,
                 dimensions=self.spatial_dimension_names,
                 data_type=ScalarType.FLOAT64,
                 compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
-                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
+                metadata=VariableMetadata(units_v1=self.get_unit_by_key(name), chunk_grid=chunk_grid),
             )
 
     def _add_trace_mask(self) -> None:
-        """Add trace mask variables."""
+        """Add trace mask variables with computed chunk sizes."""
+        # Compute optimal chunk size for trace mask (spatial dimensions only)
+        spatial_shape = self._dim_sizes[:-1]  # Exclude vertical dimension
+        mask_chunk_shape = get_constrained_chunksize(
+            spatial_shape,
+            ScalarType.BOOL,
+            MAX_SIZE_LIVE_MASK,
+        )
+        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=mask_chunk_shape))
+
         self._builder.add_variable(
             name="trace_mask",
             dimensions=self.spatial_dimension_names,
             data_type=ScalarType.BOOL,
             compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self.coordinate_names,
+            metadata=VariableMetadata(chunk_grid=chunk_grid),
         )
 
     def _add_trace_headers(self, header_dtype: StructuredType) -> None:
-        """Add trace mask variables."""
+        """Add trace headers variable."""
         chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.full_chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",
@@ -269,6 +296,33 @@ class AbstractDatasetTemplate(ABC):
             data_type=header_dtype,
             compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),  # also default in zarr3
             coordinates=self.coordinate_names,
+            metadata=VariableMetadata(chunk_grid=chunk_grid),
+        )
+
+    def _add_raw_headers(self) -> None:
+        """Add raw binary headers variable.
+
+        This variable stores the raw binary header bytes for each trace, which can be useful
+        for preserving original SEG-Y header information. Only supported in Zarr v3 format.
+
+        The raw headers variable has:
+        - Same spatial dimensions as trace headers (all dimensions except vertical)
+        - Name: "raw_headers"
+        - Type: BYTES240 (240 bytes for SEG-Y trace headers)
+        - Compressor: zstd via Blosc
+        - No coordinates
+        - Chunked the same as trace headers
+        """
+        chunk_shape = self.full_chunk_shape[:-1]  # Spatial dimensions only
+        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=chunk_shape))
+
+        self._builder.add_variable(
+            name="raw_headers",
+            long_name="Raw Binary Trace Headers",
+            dimensions=self.spatial_dimension_names,
+            data_type=ScalarType.BYTES240,
+            compressor=compressors.Blosc(cname=compressors.BloscCname.zstd),
+            coordinates=None,  # No coordinates for raw headers
             metadata=VariableMetadata(chunk_grid=chunk_grid),
         )
 

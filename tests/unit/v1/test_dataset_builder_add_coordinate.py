@@ -9,7 +9,6 @@ from mdio.builder.schemas.compressors import Blosc
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
-from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
 
 from .helpers import validate_builder
@@ -91,7 +90,7 @@ def test_coordinate_with_full_parameters() -> None:
     builder.add_dimension("crossline", 200)
 
     # Add coordinate with all metadata
-    metadata = CoordinateMetadata(
+    metadata = VariableMetadata(
         units_v1=LengthUnitModel(length=LengthUnitEnum.FOOT),
         attributes={"MGA": 51, "UnitSystem": "Imperial"},
     )

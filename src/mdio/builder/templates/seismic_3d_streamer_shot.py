@@ -3,10 +3,14 @@
 from typing import Any
 
 from mdio.builder.schemas import compressors
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.dtype import ScalarType
-from mdio.builder.schemas.v1.variable import CoordinateMetadata
+from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import get_constrained_chunksize
 
 
 class Seismic3DStreamerShotGathersTemplate(AbstractDatasetTemplate):
@@ -34,10 +38,32 @@ class Seismic3DStreamerShotGathersTemplate(AbstractDatasetTemplate):
                 name,
                 dimensions=(name,),
                 data_type=ScalarType.INT32,
-                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
+                metadata=VariableMetadata(units_v1=self.get_unit_by_key(name)),
             )
 
-        # Add non-dimension coordinates
+        # Add non-dimension coordinates with computed chunk sizes
+        # For 1D coordinates (over shot_point only)
+        coord_spatial_shape_1d = (self._dim_sizes[0],)  # shot_point only
+        coord_chunk_shape_1d = get_constrained_chunksize(
+            coord_spatial_shape_1d,
+            ScalarType.FLOAT64,
+            MAX_COORDINATES_BYTES,
+        )
+        chunk_grid_1d = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=coord_chunk_shape_1d))
+
+        # For 3D coordinates (over shot_point, cable, channel)
+        coord_spatial_shape_3d = (
+            self._dim_sizes[0],
+            self._dim_sizes[1],
+            self._dim_sizes[2],
+        )  # shot_point, cable, channel
+        coord_chunk_shape_3d = get_constrained_chunksize(
+            coord_spatial_shape_3d,
+            ScalarType.FLOAT64,
+            MAX_COORDINATES_BYTES,
+        )
+        chunk_grid_3d = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=coord_chunk_shape_3d))
+
         compressor = compressors.Blosc(cname=compressors.BloscCname.zstd)
         self._builder.add_coordinate(
             "gun",
@@ -50,26 +76,26 @@ class Seismic3DStreamerShotGathersTemplate(AbstractDatasetTemplate):
             dimensions=("shot_point",),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_x")),
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("source_coord_x"), chunk_grid=chunk_grid_1d),
         )
         self._builder.add_coordinate(
             "source_coord_y",
             dimensions=("shot_point",),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_y")),
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("source_coord_y"), chunk_grid=chunk_grid_1d),
         )
         self._builder.add_coordinate(
             "group_coord_x",
             dimensions=("shot_point", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_x")),
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("group_coord_x"), chunk_grid=chunk_grid_3d),
         )
         self._builder.add_coordinate(
             "group_coord_y",
             dimensions=("shot_point", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_y")),
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("group_coord_y"), chunk_grid=chunk_grid_3d),
         )

@@ -2,13 +2,17 @@
 
 from typing import Any
 
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.compressors import Blosc
 from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.schemas.dtype import ScalarType
-from mdio.builder.schemas.v1.variable import CoordinateMetadata
+from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import CdpGatherDomain
 from mdio.builder.templates.types import SeismicDataDomain
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import get_constrained_chunksize
 
 
 class Seismic2DCdpGathersTemplate(AbstractDatasetTemplate):
@@ -46,28 +50,37 @@ class Seismic2DCdpGathersTemplate(AbstractDatasetTemplate):
             self._gather_domain,
             dimensions=(self._gather_domain,),
             data_type=ScalarType.INT32,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self._gather_domain)),
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key(self._gather_domain)),
         )
         self._builder.add_coordinate(
             self.trace_domain,
             dimensions=(self.trace_domain,),
             data_type=ScalarType.INT32,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
         )
 
-        # Add non-dimension coordinates
+        # Add non-dimension coordinates with computed chunk sizes
+        # For 2D CDP, coordinates are only over cdp dimension
+        coord_spatial_shape = (self._dim_sizes[0],)  # cdp only
+        coord_chunk_shape = get_constrained_chunksize(
+            coord_spatial_shape,
+            ScalarType.FLOAT64,
+            MAX_COORDINATES_BYTES,
+        )
+        chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=coord_chunk_shape))
+
         compressor = Blosc(cname=BloscCname.zstd)
         self._builder.add_coordinate(
             "cdp_x",
             dimensions=("cdp",),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("cdp_x")),
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("cdp_x"), chunk_grid=chunk_grid),
         )
         self._builder.add_coordinate(
             "cdp_y",
             dimensions=("cdp",),
             data_type=ScalarType.FLOAT64,
             compressor=compressor,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("cdp_y")),
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("cdp_y"), chunk_grid=chunk_grid),
         )

@@ -11,7 +11,7 @@ from segy.schema import HeaderField
 from segy.standards import SegyStandard
 from segy.standards import get_segy_standard
 
-from mdio.segy.geometry import StreamerShotGeometryType
+from mdio.ingestion.header_analysis import StreamerShotGeometryType
 
 if TYPE_CHECKING:
     from pathlib import Path

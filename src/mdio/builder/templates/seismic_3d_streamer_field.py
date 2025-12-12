@@ -2,10 +2,16 @@
 
 from typing import Any
 
+from mdio.builder.schemas.chunk_grid import RegularChunkGrid
+from mdio.builder.schemas.chunk_grid import RegularChunkShape
+from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.schemas.dtype import ScalarType
-from mdio.builder.schemas.v1.variable import CoordinateMetadata
+from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import SeismicDataDomain
+from mdio.core.utils_write import MAX_COORDINATES_BYTES
+from mdio.core.utils_write import get_constrained_chunksize
 
 
 class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
@@ -67,38 +73,73 @@ class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
             data_type=ScalarType.INT32,
         )
 
-        # Add non-dimension coordinates
+        # Add non-dimension coordinates with computed chunk sizes
+        # For 3D coordinates (over sail_line, gun, shot_index)
+        coord_spatial_shape_3d = (
+            self._dim_sizes[0],
+            self._dim_sizes[1],
+            self._dim_sizes[2],
+        )  # sail_line, gun, shot_index
+        coord_chunk_shape_3d = get_constrained_chunksize(
+            coord_spatial_shape_3d,
+            ScalarType.FLOAT64,
+            MAX_COORDINATES_BYTES,
+        )
+        chunk_grid_3d = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=coord_chunk_shape_3d))
+
+        # For 5D coordinates (over sail_line, gun, shot_index, cable, channel)
+        coord_spatial_shape_5d = (
+            self._dim_sizes[0],
+            self._dim_sizes[1],
+            self._dim_sizes[2],
+            self._dim_sizes[3],
+            self._dim_sizes[4],
+        )  # sail_line, gun, shot_index, cable, channel
+        coord_chunk_shape_5d = get_constrained_chunksize(
+            coord_spatial_shape_5d,
+            ScalarType.FLOAT64,
+            MAX_COORDINATES_BYTES,
+        )
+        chunk_grid_5d = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=coord_chunk_shape_5d))
+
+        compressor = Blosc(cname=BloscCname.zstd)
         self._builder.add_coordinate(
             "orig_field_record_num",
             dimensions=("sail_line", "gun", "shot_index"),
             data_type=ScalarType.UINT32,
+            compressor=compressor,
         )
         self._builder.add_coordinate(
             "shot_point",
             dimensions=("sail_line", "gun", "shot_index"),
             data_type=ScalarType.UINT32,
+            compressor=compressor,
         )
         self._builder.add_coordinate(
             "source_coord_x",
             dimensions=("sail_line", "gun", "shot_index"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_x")),
+            compressor=compressor,
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("source_coord_x"), chunk_grid=chunk_grid_3d),
         )
         self._builder.add_coordinate(
             "source_coord_y",
             dimensions=("sail_line", "gun", "shot_index"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_y")),
+            compressor=compressor,
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("source_coord_y"), chunk_grid=chunk_grid_3d),
         )
         self._builder.add_coordinate(
             "group_coord_x",
             dimensions=("sail_line", "gun", "shot_index", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_x")),
+            compressor=compressor,
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("group_coord_x"), chunk_grid=chunk_grid_5d),
         )
         self._builder.add_coordinate(
             "group_coord_y",
             dimensions=("sail_line", "gun", "shot_index", "cable", "channel"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_y")),
+            compressor=compressor,
+            metadata=VariableMetadata(units_v1=self.get_unit_by_key("group_coord_y"), chunk_grid=chunk_grid_5d),
         )

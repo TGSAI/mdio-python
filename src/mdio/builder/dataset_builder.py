@@ -16,7 +16,6 @@ from mdio.builder.schemas.dtype import StructuredType
 from mdio.builder.schemas.v1.dataset import Dataset
 from mdio.builder.schemas.v1.dataset import DatasetMetadata
 from mdio.builder.schemas.v1.variable import Coordinate
-from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import Variable
 from mdio.builder.schemas.v1.variable import VariableMetadata
 
@@ -110,7 +109,7 @@ class MDIODatasetBuilder:
         dimensions: tuple[str, ...],
         data_type: ScalarType,
         compressor: Blosc | ZFP | None = None,
-        metadata: CoordinateMetadata | None = None,
+        metadata: VariableMetadata | None = None,
     ) -> "MDIODatasetBuilder":
         """Add a coordinate after adding at least one dimension.
 

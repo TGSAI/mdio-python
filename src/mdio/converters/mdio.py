@@ -77,7 +77,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     # We will re-open with `new_chunks` and Dask later in mdio_spec_to_segy
     dataset = open_mdio(input_path)
 
-    default_variable_name = dataset.attrs["attributes"]["defaultVariableName"]
+    default_variable_name = dataset.attrs.get("attributes", {}).get("defaultVariableName", "amplitude")
     amplitude = dataset[default_variable_name]
     chunks = amplitude.encoding["preferred_chunks"]
     sizes = amplitude.sizes

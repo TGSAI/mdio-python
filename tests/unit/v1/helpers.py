@@ -18,7 +18,6 @@ from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.units import SpeedUnitEnum
 from mdio.builder.schemas.v1.units import SpeedUnitModel
 from mdio.builder.schemas.v1.variable import Coordinate
-from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import Variable
 from mdio.builder.schemas.v1.variable import VariableMetadata
 
@@ -151,7 +150,7 @@ def make_seismic_poststack_3d_acceptance_dataset(dataset_name: str) -> Dataset:
     )
 
     # Add dimensions and dimension coordinates
-    units_meter = CoordinateMetadata(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
+    units_meter = VariableMetadata(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
 
     ds.add_dimension("inline", 256)
     ds.add_dimension("crossline", 512)

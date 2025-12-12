@@ -171,7 +171,7 @@ class TestTeapotRoundtrip:
             overwrite=True,
         )
 
-    @pytest.mark.dependency("test_3d_import")
+    @pytest.mark.dependency(depends=["TestTeapotRoundtrip::test_teapot_import"])
     def test_dataset_metadata(self, zarr_tmp: Path) -> None:
         """Metadata reading tests."""
         ds = open_mdio(zarr_tmp)

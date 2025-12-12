@@ -16,7 +16,7 @@ from mdio.api.io import open_mdio
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.segy import segy_to_mdio
-from mdio.segy.geometry import StreamerShotGeometryType
+from mdio.ingestion.header_analysis import StreamerShotGeometryType
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -28,12 +28,15 @@ dask.config.set(scheduler="synchronous")
 os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
 
 
-# TODO(Altay): Finish implementing these grid overrides.
-# https://github.com/TGSAI/mdio-python/issues/612
-@pytest.mark.skip(reason="NonBinned and HasDuplicates haven't been properly implemented yet.")
-@pytest.mark.parametrize("grid_override", [{"NonBinned": True}, {"HasDuplicates": True}])
+@pytest.mark.parametrize(
+    "grid_override",
+    [
+        {"NonBinned": True, "chunksize": 64},
+        {"HasDuplicates": True},
+    ],
+)
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
-class TestImport4DNonReg:  # pragma: no cover - tests is skipped
+class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
 
     def test_import_4d_segy(  # noqa: PLR0913

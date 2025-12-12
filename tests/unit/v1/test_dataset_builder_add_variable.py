@@ -13,7 +13,6 @@ from mdio.builder.schemas.v1.stats import CenteredBinHistogram
 from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
-from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
 
 from .helpers import validate_builder
@@ -134,7 +133,7 @@ def test_add_variable_with_defaults() -> None:
     builder.add_dimension("crossline", 200)
     builder.add_dimension("depth", 300)
     # Add dimension coordinates
-    depth_metadata = CoordinateMetadata(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
+    depth_metadata = VariableMetadata(units_v1=LengthUnitModel(length=LengthUnitEnum.METER))
     builder.add_coordinate("inline", dimensions=("inline",), data_type=ScalarType.UINT32)
     builder.add_coordinate("crossline", dimensions=("crossline",), data_type=ScalarType.UINT32)
     builder.add_coordinate("depth", dimensions=("depth",), data_type=ScalarType.UINT32, metadata=depth_metadata)

@@ -5,106 +5,13 @@ from __future__ import annotations
 import itertools
 import logging
 from typing import TYPE_CHECKING
-from typing import Any
 
-import numpy as np
 from dask.array.core import normalize_chunks
-
-from mdio.core import Dimension
-from mdio.segy.geometry import GridOverrider
-from mdio.segy.parsers import parse_headers
 
 if TYPE_CHECKING:
     from numpy.typing import DTypeLike
-    from segy.arrays import HeaderArray
-
-    from mdio.builder.templates.base import AbstractDatasetTemplate
-    from mdio.segy.file import SegyFileArguments
-    from mdio.segy.file import SegyFileInfo
 
 logger = logging.getLogger(__name__)
-
-
-def get_grid_plan(  # noqa:  C901, PLR0913
-    segy_file_kwargs: SegyFileArguments,
-    segy_file_info: SegyFileInfo,
-    chunksize: tuple[int, ...] | None,
-    template: AbstractDatasetTemplate,
-    return_headers: bool = False,
-    grid_overrides: dict[str, Any] | None = None,
-) -> tuple[list[Dimension], tuple[int, ...]] | tuple[list[Dimension], tuple[int, ...], HeaderArray]:
-    """Infer dimension ranges, and increments.
-
-    Generates multiple dimensions with the following steps:
-    1. Read index headers
-    2. Get min, max, and increments
-    3. Create `Dimension` with appropriate range, index, and description.
-    4. Create `Dimension` for sample axis using binary header.
-
-    Args:
-        segy_file_kwargs: SEG-Y file arguments.
-        segy_file_info: SegyFileInfo instance containing the num_traces and sample_labels.
-        chunksize:  Chunk sizes to be used in grid plan.
-        template: MDIO template where coordinate names and domain will be taken.
-        return_headers: Option to return parsed headers with `Dimension` objects. Default is False.
-        grid_overrides: Option to add grid overrides. See main documentation.
-
-    Returns:
-        All index dimensions and chunksize or dimensions and chunksize together with header values.
-
-    Raises:
-        ValueError: If computed fields are not found after grid overrides.
-    """
-    if grid_overrides is None:
-        grid_overrides = {}
-
-    # Keep only dimension and non-dimension coordinates excluding the vertical axis
-    horizontal_dimensions = template.spatial_dimension_names
-    horizontal_coordinates = horizontal_dimensions + template.coordinate_names
-
-    # Remove any to be computed fields
-    computed_fields = set(template.calculated_dimension_names)
-    horizontal_coordinates = tuple(set(horizontal_coordinates) - computed_fields)
-
-    headers_subset = parse_headers(
-        segy_file_kwargs=segy_file_kwargs,
-        num_traces=segy_file_info.num_traces,
-        subset=horizontal_coordinates,
-    )
-
-    # Handle grid overrides.
-    override_handler = GridOverrider()
-    headers_subset, horizontal_coordinates, chunksize = override_handler.run(
-        headers_subset,
-        horizontal_coordinates,
-        chunksize=chunksize,
-        grid_overrides=grid_overrides,
-    )
-
-    if len(computed_fields) > 0 and not computed_fields.issubset(headers_subset.dtype.names):
-        err = (
-            f"Required computed fields {sorted(computed_fields)} for template {template.name} "
-            f"not found after grid overrides. Please ensure correct overrides are applied."
-        )
-        raise ValueError(err)
-
-    dimensions = []
-    for dim_name in horizontal_dimensions:
-        dim_unique = np.unique(headers_subset[dim_name])
-        dimensions.append(Dimension(coords=dim_unique, name=dim_name))
-
-    sample_labels = segy_file_info.sample_labels / 1000  # normalize
-
-    if all(sample_labels.astype("int64") == sample_labels):
-        sample_labels = sample_labels.astype("int64")
-
-    vertical_dim = Dimension(coords=sample_labels, name=template.trace_domain)
-    dimensions.append(vertical_dim)
-
-    if return_headers:
-        return dimensions, chunksize, headers_subset
-
-    return dimensions, chunksize
 
 
 def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:

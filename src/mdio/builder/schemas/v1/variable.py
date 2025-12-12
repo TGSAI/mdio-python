@@ -24,16 +24,11 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.builder.schemas.v1.units import AllUnitModel
 
 
-class CoordinateMetadata(CamelCaseStrictModel):
-    """Reduced Metadata, perfect for simple Coordinates."""
+class VariableMetadata(CamelCaseStrictModel):
+    """Complete Metadata for Variables and complex or large Coordinates."""
 
     units_v1: AllUnitModel | None = Field(default=None)
     attributes: dict[str, Any] | None = Field(default=None)
-
-
-class VariableMetadata(CoordinateMetadata):
-    """Complete Metadata for Variables and complex or large Coordinates."""
-
     chunk_grid: RegularChunkGrid | RectilinearChunkGrid | None = Field(
         default=None,
         description="Chunk grid specification for the array.",
@@ -52,7 +47,7 @@ class Coordinate(NamedArray):
     """
 
     data_type: ScalarType = Field(..., description="Data type of Coordinate.")
-    metadata: CoordinateMetadata | None = Field(default=None, description="Coordinate Metadata.")
+    metadata: VariableMetadata | None = Field(default=None, description="Coordinate Metadata.")
 
 
 class Variable(NamedArray):
