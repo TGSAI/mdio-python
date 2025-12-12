@@ -35,7 +35,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-cloud = ["s3fs>=2025.9.0", "gcsfs>=2025.9.0", "adlfs>=2025.8.0"]
+cloud = ["s3fs>=2025.9.0", "gcsfs>=2025.9.0", "adlfs>=2025.8.0", "obstore>=0.8.2"]
 distributed = ["distributed>=2025.9.1", "bokeh>=3.8.0"]
 lossy = ["zfpy>=1.0.1"]
 

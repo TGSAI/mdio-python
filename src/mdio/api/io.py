@@ -3,14 +3,16 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import Literal
 
 import zarr
+from obstore.store import from_url as obstore_from_url
 from upath import UPath
 from xarray import Dataset as xr_Dataset
 from xarray import open_zarr as xr_open_zarr
 from xarray.backends.writers import to_zarr as xr_to_zarr
+from zarr.storage import FsspecStore
+from zarr.storage import ObjectStore
 
 from mdio.constants import ZarrFormat
 from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
@@ -18,21 +20,34 @@ from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
 if TYPE_CHECKING:
     from collections.abc import Mapping
     from pathlib import Path
+    from typing import Any
 
     from xarray import Dataset
     from xarray.core.types import T_Chunks
     from xarray.core.types import ZarrWriteModes
+    from zarr.abc.store import Store
+
+
+StorageBackendT = Literal["fsspec", "obstore"]
 
 
 def _normalize_path(path: UPath | Path | str) -> UPath:
     return UPath(path)
 
 
-def _normalize_storage_options(path: UPath) -> dict[str, Any] | None:
-    return None if len(path.storage_options) == 0 else path.storage_options
+def _get_store(upath: UPath, storage_backend: StorageBackendT) -> Store:
+    if storage_backend == "obstore":
+        uri = upath.as_posix()
+        storage_options: Mapping[str, Any] = getattr(upath, "storage_options", {})
+        return ObjectStore(obstore_from_url(uri, **storage_options))
+    return FsspecStore.from_upath(upath)
 
 
-def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dataset:
+def open_mdio(
+    input_path: UPath | Path | str,
+    chunks: T_Chunks = None,
+    storage_backend: StorageBackendT = "fsspec",
+) -> xr_Dataset:
     """Open a Zarr dataset from the specified universal file path.
 
     Args:
@@ -45,18 +60,19 @@ def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dat
             - ``chunks={dim: chunk, ...}`` loads the data with dask using the specified chunk size for each dimension.
 
             See dask chunking for more details.
+        storage_backend: The storage backend to use for reading the dataset. Defaults to "fsspec".
+            For faster reads use "obstore". However, it is not as broadly compatible as "fsspec".
 
     Returns:
         An Xarray dataset opened from the input path.
     """
     input_path = _normalize_path(input_path)
-    storage_options = _normalize_storage_options(input_path)
     zarr_format = zarr.config.get("default_zarr_format")
 
+    input_store = _get_store(input_path, storage_backend)
     return xr_open_zarr(
-        input_path.as_posix(),
+        input_store,
         chunks=chunks,
-        storage_options=storage_options,
         mask_and_scale=zarr_format == ZarrFormat.V3,  # off for v2, on for v3
         consolidated=zarr_format == ZarrFormat.V2,  # on for v2, off for v3
     )
@@ -69,6 +85,7 @@ def to_mdio(  # noqa: PLR0913
     *,
     compute: bool = True,
     region: Mapping[str, slice | Literal["auto"]] | Literal["auto"] | None = None,
+    storage_backend: StorageBackendT = "fsspec",
 ) -> None:
     """Write dataset contents to an MDIO output_path.
 
@@ -81,23 +98,24 @@ def to_mdio(  # noqa: PLR0913
             "a-" means only append those variables that have ``append_dim``.
             "r+" means modify existing array *values* only (raise an error if any metadata or shapes would change).
             The default mode is "r+" if ``region`` is set and ``w-`` otherwise.
-        compute: If True write array data immediately; otherwise return a ``dask.delayed.Delayed`` object that
+        compute: If True writes array data immediately; otherwise return a ``dask.delayed.Delayed`` object that
             can be computed to write array data later. Metadata is always updated eagerly.
         region: Optional mapping from dimension names to either a) ``"auto"``, or b) integer slices, indicating
             the region of existing MDIO array(s) in which to write this dataset's data.
+        storage_backend: The storage backend to use for reading the dataset. Defaults to "fsspec".
+            For faster reads use "obstore". However, it is not as broadly compatible as "fsspec".
     """
     output_path = _normalize_path(output_path)
-    storage_options = _normalize_storage_options(output_path)
     zarr_format = zarr.config.get("default_zarr_format")
 
+    output_store = _get_store(output_path, storage_backend)
     with zarr_warnings_suppress_unstable_structs_v3():
         xr_to_zarr(
             dataset,
-            store=output_path.as_posix(),  # xarray doesn't like URI when file:// is protocol
+            store=output_store,
             mode=mode,
             compute=compute,
             consolidated=zarr_format == ZarrFormat.V2,  # on for v2, off for v3
             region=region,
-            storage_options=storage_options,
             write_empty_chunks=False,
         )
