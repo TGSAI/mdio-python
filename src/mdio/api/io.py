@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 from typing import Literal
 
 import zarr
-from obstore.store import from_url as obstore_from_url
 from upath import UPath
 from xarray import Dataset as xr_Dataset
 from xarray import open_zarr as xr_open_zarr
@@ -16,6 +15,12 @@ from zarr.storage import ObjectStore
 
 from mdio.constants import ZarrFormat
 from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
+
+# optional runtime import
+try:
+    from obstore.store import from_url as obstore_from_url
+except ImportError:
+    obstore_from_url = None
 
 if TYPE_CHECKING:
     from collections.abc import Mapping
@@ -37,6 +42,10 @@ def _normalize_path(path: UPath | Path | str) -> UPath:
 
 def _get_store(upath: UPath, storage_backend: StorageBackendT) -> Store:
     if storage_backend == "obstore":
+        if obstore_from_url is None:
+            msg = "Optional dependency 'obstore' is not installed. Install it with `pip install multidimio[cloud]`."
+            raise RuntimeError(msg)
+
         uri = upath.as_posix()
         storage_options: Mapping[str, Any] = getattr(upath, "storage_options", {})
         return ObjectStore(obstore_from_url(uri, **storage_options))
