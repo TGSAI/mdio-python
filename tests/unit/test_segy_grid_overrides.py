@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -14,9 +12,7 @@ from numpy import unique
 from numpy.testing import assert_array_equal
 
 from mdio.core import Dimension
-from mdio.ingestion import DuplicateHandlingStrategy
 from mdio.ingestion import IndexStrategyFactory
-from mdio.ingestion import NonBinnedStrategy
 from mdio.ingestion import SchemaResolver
 from mdio.segy.geometry import GridOverrides
 
@@ -118,11 +114,7 @@ class TestAutoGridOverrides:
 
     def test_non_binned_with_replace_dims(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
         """Test the NonBinned Grid Override with replace_dims parameter."""
-        grid_overrides = GridOverrides(
-            non_binned=True,
-            chunksize=8,
-            replace_dims=["cable", "channel"]
-        )
+        grid_overrides = GridOverrides(non_binned=True, chunksize=8, replace_dims=["cable", "channel"])
 
         new_headers, new_names = run_override_strategies(grid_overrides, mock_streamer_headers)
 
@@ -212,11 +204,7 @@ class TestTemplateTransformations:
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
 
         resolver = SchemaResolver()
-        grid_overrides = GridOverrides(
-            non_binned=True,
-            chunksize=256,
-            replace_dims=["shot_point", "cable", "channel"]
-        )
+        grid_overrides = GridOverrides(non_binned=True, chunksize=256, replace_dims=["shot_point", "cable", "channel"])
         schema = resolver.resolve(template, grid_overrides=grid_overrides)
 
         # Should replace all spatial dims with trace

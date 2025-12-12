@@ -8,7 +8,6 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
-from pydantic.alias_generators import to_pascal
 
 
 class GridOverrides(BaseModel):
@@ -60,7 +59,9 @@ class GridOverrides(BaseModel):
 
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    auto_channel_wrap: bool = Field(default=False, alias="AutoChannelWrap", description="Enable automatic channel wrapping")
+    auto_channel_wrap: bool = Field(
+        default=False, alias="AutoChannelWrap", description="Enable automatic channel wrapping"
+    )
     auto_shot_wrap: bool = Field(default=False, alias="AutoShotWrap", description="Enable automatic shot wrapping")
     non_binned: bool = Field(default=False, alias="NonBinned", description="Use non-binned indexing")
     has_duplicates: bool = Field(default=False, alias="HasDuplicates", description="Handle duplicate indices")
