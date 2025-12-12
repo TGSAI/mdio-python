@@ -10,9 +10,9 @@ from upath import UPath
 from xarray import Dataset as xr_Dataset
 from xarray import open_zarr as xr_open_zarr
 from xarray.backends.writers import to_zarr as xr_to_zarr
-from zarr.storage import FsspecStore
-from zarr.storage import LocalStore
+from zarr.core.sync import sync
 from zarr.storage import ObjectStore
+from zarr.storage._common import make_store
 
 from mdio.constants import ZarrFormat
 from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
@@ -51,11 +51,7 @@ def _get_store(upath: UPath, storage_backend: StorageBackendT) -> Store:
         storage_options: Mapping[str, Any] = getattr(upath, "storage_options", {})
         return ObjectStore(obstore_from_url(uri, **storage_options))
 
-    is_fsspec = "://" in uri or ("::" in uri and "local://" not in uri)
-    if is_fsspec:
-        return FsspecStore.from_upath(upath)
-
-    return LocalStore(uri)
+    return sync(make_store(uri))
 
 
 def open_mdio(
