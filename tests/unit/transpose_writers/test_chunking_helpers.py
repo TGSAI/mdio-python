@@ -133,7 +133,9 @@ class TestNormalizeChunkGrid:
         assert result == grids
 
         # Mismatch raises error
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="chunk_grid list length must be 1 or equal to the number of new variables"
+        ):
             _normalize_chunk_grid([grid, grid], 3)
 
 
@@ -160,5 +162,7 @@ class TestNormalizeCompressor:
         assert result[1] is None
 
         # Mismatch raises error
-        with pytest.raises(ValueError):
+        with pytest.raises(
+            ValueError, match="compressor list length must be 1 or equal to the number of new variables"
+        ):
             _normalize_compressor([comp, comp], 3)
