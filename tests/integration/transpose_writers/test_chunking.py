@@ -13,6 +13,7 @@ from segy.schema import ScalarType
 from segy.standards import get_segy_standard
 
 from mdio.api.io import open_mdio
+from mdio.api.io import to_mdio
 from mdio.builder.schemas.chunk_grid import RegularChunkGrid
 from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.compressors import Blosc
@@ -197,8 +198,6 @@ def test_coordinate_dropping_with_extra_coords(mdio_dataset: Path) -> None:
     # Read the dataset and add a non-dimensional coordinate, then write it back
     ds = open_mdio(mdio_dataset)
     ds = ds.assign_coords(extra_coord=("inline", ds.inline.values * 2.0))
-    # Use to_mdio to write the modified dataset
-    from mdio.api.io import to_mdio
     to_mdio(ds, mdio_dataset, mode="w")
 
     from_variable(
@@ -247,8 +246,6 @@ def test_store_chunks_optimization_exact_match(mdio_dataset: Path) -> None:
     # Set the store_chunks to exactly match what we'll request
     target_chunks = (4, 8, 16)
     ds["source_exact"].encoding["chunks"] = target_chunks
-    # Use to_mdio to write the modified dataset
-    from mdio.api.io import to_mdio
     to_mdio(ds, mdio_dataset, mode="w")
 
     # Create another variable with the same chunking - should hit optimization
