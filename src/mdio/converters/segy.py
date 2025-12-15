@@ -134,6 +134,75 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
         raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
+def _patch_add_coordinates_for_non_binned(
+    template: AbstractDatasetTemplate,
+    non_binned_dims: set[str],
+) -> None:
+    """Patch template's _add_coordinates to skip adding non-binned dims as dimension coordinates.
+
+    When NonBinned override is used, dimensions like 'offset' or 'azimuth' become coordinates
+    instead of dimensions. However, template subclasses may still try to add them as 1D
+    dimension coordinates (e.g., with dimensions=("offset",)). Since 'offset' is no longer
+    a dimension, the builder substitutes 'trace', resulting in wrong coordinate dimensions.
+
+    This function patches the template's _add_coordinates method to intercept calls to
+    builder.add_coordinate and skip adding coordinates that are non-binned dims with
+    single-element dimension tuples. These coordinates will be added later by build_dataset
+    with the correct spatial_dimension_names (e.g., (inline, crossline, trace)).
+
+    Args:
+        template: The template to patch
+        non_binned_dims: Set of dimension names that became coordinates due to NonBinned override
+    """
+    # Check if already patched to avoid duplicate patching
+    if hasattr(template, "_mdio_non_binned_patched"):
+        return
+
+    # Store the original _add_coordinates method
+    original_add_coordinates = template._add_coordinates
+
+    def patched_add_coordinates() -> None:
+        """Wrapper that intercepts builder.add_coordinate calls for non-binned dims."""
+        # Store the original add_coordinate method from the builder
+        original_builder_add_coordinate = template._builder.add_coordinate
+
+        def filtered_add_coordinate(  # noqa: ANN202
+            name: str,
+            *,
+            dimensions: tuple[str, ...],
+            **kwargs,  # noqa: ANN003
+        ):
+            """Skip adding non-binned dims as 1D dimension coordinates."""
+            # Check if this is a non-binned dim being added as a 1D dimension coordinate
+            # (i.e., the coordinate name matches a non-binned dim and has only 1 dimension)
+            if name in non_binned_dims and len(dimensions) == 1:
+                logger.debug(
+                    "Skipping 1D coordinate '%s' with dims %s - will be added with full spatial dims",
+                    name,
+                    dimensions,
+                )
+                return template._builder  # Return builder for chaining, but don't add
+
+            # Otherwise, call the original method
+            return original_builder_add_coordinate(name, dimensions=dimensions, **kwargs)
+
+        # Temporarily replace builder's add_coordinate
+        template._builder.add_coordinate = filtered_add_coordinate
+
+        try:
+            # Call the original _add_coordinates
+            original_add_coordinates()
+        finally:
+            # Restore the original add_coordinate method
+            template._builder.add_coordinate = original_builder_add_coordinate
+
+    # Replace the template's _add_coordinates method
+    template._add_coordinates = patched_add_coordinates
+
+    # Mark as patched to prevent duplicate patching
+    template._mdio_non_binned_patched = True
+
+
 def _update_template_from_grid_overrides(
     template: AbstractDatasetTemplate,
     grid_overrides: dict[str, Any] | None,
@@ -147,6 +216,7 @@ def _update_template_from_grid_overrides(
     - Updates chunk shape if it changed due to overrides
     - Updates dimension names if they changed due to overrides
     - Adds non-binned dimensions as coordinates for NonBinned override
+    - Patches _add_coordinates to skip adding non-binned dims as dimension coordinates
 
     Args:
         template: The template to update
@@ -184,6 +254,7 @@ def _update_template_from_grid_overrides(
         template._dim_names = actual_spatial_dims + (template.trace_domain,)
 
     # If using NonBinned override, expose non-binned dims as logical coordinates on the template instance
+    # and patch _add_coordinates to skip adding them as 1D dimension coordinates
     if grid_overrides and "NonBinned" in grid_overrides and "non_binned_dims" in grid_overrides:
         non_binned_dims = tuple(grid_overrides["non_binned_dims"])
         if non_binned_dims:
@@ -196,6 +267,11 @@ def _update_template_from_grid_overrides(
             to_add = tuple(n for n in non_binned_dims if n not in existing)
             if to_add:
                 template._logical_coord_names = template._logical_coord_names + to_add
+
+            # Patch _add_coordinates to skip adding non-binned dims as 1D dimension coordinates
+            # This prevents them from being added with wrong dimensions (e.g., just "trace")
+            # They will be added later by build_dataset with full spatial_dimension_names
+            _patch_add_coordinates_for_non_binned(template, set(non_binned_dims))
 
 
 def _scan_for_headers(
@@ -303,7 +379,8 @@ def _get_coordinates(
         if coord_name not in segy_headers.dtype.names:
             err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
             raise ValueError(err)
-        non_dim_coords[coord_name] = segy_headers[coord_name]
+        # Copy the data to allow segy_headers to be garbage collected
+        non_dim_coords[coord_name] = np.array(segy_headers[coord_name])
 
     return dimensions_coords, non_dim_coords
 
@@ -325,24 +402,53 @@ def populate_non_dim_coordinates(
     drop_vars_delayed: list[str],
     spatial_coordinate_scalar: int,
 ) -> tuple[xr_Dataset, list[str]]:
-    """Populate the xarray dataset with coordinate variables."""
-    non_data_domain_dims = grid.dim_names[:-1]  # minus the data domain dimension
-    for coord_name, coord_values in coordinates.items():
-        da_coord = dataset[coord_name]
-        tmp_coord_values = dataset[coord_name].values
+    """Populate the xarray dataset with coordinate variables.
 
+    Memory optimization: Processes coordinates one at a time and explicitly
+    releases intermediate arrays to reduce peak memory usage.
+    """
+    non_data_domain_dims = grid.dim_names[:-1]  # minus the data domain dimension
+
+    # Process coordinates one at a time to minimize peak memory
+    coord_names = list(coordinates.keys())
+    for coord_name in coord_names:
+        coord_values = coordinates.pop(coord_name)  # Remove from dict to free memory
+        da_coord = dataset[coord_name]
+
+        # Get coordinate shape from dataset (uses dask shape, no memory allocation)
+        coord_shape = da_coord.shape
+
+        # Create output array with fill value
+        fill_value = da_coord.encoding.get("_FillValue") or da_coord.encoding.get("fill_value")
+        if fill_value is None:
+            fill_value = np.nan
+        tmp_coord_values = np.full(coord_shape, fill_value, dtype=da_coord.dtype)
+
+        # Compute slices for this coordinate's dimensions
         coord_axes = tuple(non_data_domain_dims.index(coord_dim) for coord_dim in da_coord.dims)
         coord_slices = tuple(slice(None) if idx in coord_axes else 0 for idx in range(len(non_data_domain_dims)))
-        coord_trace_indices = grid.map[coord_slices]
 
+        # Read only the required slice from grid map
+        coord_trace_indices = np.asarray(grid.map[coord_slices])
+
+        # Find valid (non-null) indices
         not_null = coord_trace_indices != grid.map.fill_value
-        tmp_coord_values[not_null] = coord_values[coord_trace_indices[not_null]]
 
+        # Populate values efficiently
+        if not_null.any():
+            valid_indices = coord_trace_indices[not_null]
+            tmp_coord_values[not_null] = coord_values[valid_indices]
+
+        # Apply scalar if needed
         if coord_name in SCALE_COORDINATE_KEYS:
             tmp_coord_values = _apply_coordinate_scalar(tmp_coord_values, spatial_coordinate_scalar)
 
+        # Assign to dataset
         dataset[coord_name][:] = tmp_coord_values
         drop_vars_delayed.append(coord_name)
+
+        # Explicitly release intermediate arrays
+        del tmp_coord_values, coord_trace_indices, not_null, coord_values
 
         # TODO(Altay): Add verification of reduced coordinates being the same as the first
         # https://github.com/TGSAI/mdio-python/issues/645
@@ -624,6 +730,10 @@ def segy_to_mdio(  # noqa PLR0913
     grid = _build_and_check_grid(segy_dimensions, segy_file_info, segy_headers)
 
     _, non_dim_coords = _get_coordinates(grid, segy_headers, mdio_template)
+
+    # Explicitly delete segy_headers to free memory - coordinate values have been copied
+    del segy_headers
+
     header_dtype = to_structured_type(segy_spec.trace.header.dtype)
 
     if settings.raw_headers:
