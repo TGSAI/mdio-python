@@ -164,8 +164,7 @@ def test_dimension_mismatch_warning(mdio_dataset: Path, caplog: pytest.LogCaptur
             )
 
     # Check that warning was logged before the error
-    assert any("Original variable" in record.message and "dimensions" in record.message
-               for record in caplog.records)
+    assert any("Original variable" in record.message and "dimensions" in record.message for record in caplog.records)
 
 
 def test_compressor_encoding_with_copy_metadata(mdio_dataset: Path) -> None:
@@ -269,5 +268,3 @@ def test_store_chunks_optimization_exact_match(mdio_dataset: Path) -> None:
     # Verify data integrity
     np.testing.assert_array_equal(ds_final["amplitude"].values, ds_final["source_exact"].values)
     np.testing.assert_array_equal(ds_final["amplitude"].values, ds_final["optimized_exact"].values)
-
-
