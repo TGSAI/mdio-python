@@ -152,16 +152,15 @@ def test_dimension_mismatch_warning(mdio_dataset: Path, caplog: pytest.LogCaptur
     chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(8, 16)))
     compressor = Blosc(cname="zstd", clevel=5, shuffle="shuffle")
 
-    with caplog.at_level("WARNING"):
-        with pytest.raises(ValueError, match="zip\\(\\) argument 2 is shorter than argument 1"):
-            from_variable(
-                dataset_path=mdio_dataset,
-                source_variable="amplitude",
-                new_variable="mismatched_dims",
-                chunk_grid=chunk_grid,
-                compressor=compressor,
-                copy_metadata=True,
-            )
+    with caplog.at_level("WARNING"), pytest.raises(ValueError, match="zip\\(\\) argument 2 is shorter than argument 1"):
+        from_variable(
+            dataset_path=mdio_dataset,
+            source_variable="amplitude",
+            new_variable="mismatched_dims",
+            chunk_grid=chunk_grid,
+            compressor=compressor,
+            copy_metadata=True,
+        )
 
     # Check that warning was logged before the error
     assert any("Original variable" in record.message and "dimensions" in record.message for record in caplog.records)
