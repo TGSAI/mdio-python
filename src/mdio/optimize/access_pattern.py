@@ -19,7 +19,6 @@ from mdio.builder.schemas.v1.stats import SummaryStatistics
 from mdio.optimize.common import apply_zfp_encoding
 from mdio.optimize.common import get_or_create_client
 from mdio.optimize.common import get_zfp_encoding
-from mdio.optimize.patch import MonkeyPatchZfpDaskPlugin
 
 if TYPE_CHECKING:
     from mdio.optimize.common import ZfpQuality
@@ -107,7 +106,9 @@ def optimize_access_patterns(
 
     with get_or_create_client(n_workers=n_workers, threads_per_worker=threads_per_worker) as client:
         # The context manager ensures distributed is installed so we can try to register the plugin
-        # safely. The plugin is conditionally imported based on the installation status of distributed
+        # safely. The plugin is conditionally created based on the installation status of distributed
+        from mdio.optimize.patch import MonkeyPatchZfpDaskPlugin  # noqa: PLC0415
+
         client.register_plugin(MonkeyPatchZfpDaskPlugin())
         logger.info("Starting optimization with quality %s.", config.quality.name)
         to_mdio(optimized_dataset, source_path, mode="a")
