@@ -83,7 +83,7 @@ class TestOptimizeAccessPattern:
         """Test optimization of access patterns."""
         conf = OptimizedAccessPatternConfig(
             quality=ZfpQuality.HIGH,
-            optimize_dimensions={"time": (512, 512, 4), "inline": (4, 512, 512)},
+            optimize_dimensions={"time": (512, 512, 4), "inline": (8, 256, 256)},
             processing_chunks={"inline": 512, "crossline": 512, "time": 512},
         )
         ds = open_mdio(mdio_dataset_path)
@@ -96,7 +96,7 @@ class TestOptimizeAccessPattern:
         assert isinstance(ds["fast_time"].encoding["serializer"], ZFPY)
 
         assert "inline" in ds.variables
-        assert ds["fast_inline"].encoding["chunks"] == (4, 512, 512)
+        assert ds["fast_inline"].encoding["chunks"] == (8, 256, 256)
         assert isinstance(ds["fast_inline"].encoding["serializer"], ZFPY)
 
     def test_missing_default_variable_name(self, mdio_dataset_path: str) -> None:
