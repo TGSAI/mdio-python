@@ -10,6 +10,7 @@ from xarray import Dataset as xr_Dataset
 from zarr.codecs import BloscCodec
 
 from mdio.converters.type_converter import to_numpy_dtype
+from mdio.core.zarr_io import zarr_warnings_suppress_unstable_numcodecs_v3
 
 try:
     # zfpy is an optional dependency for ZFP compression
@@ -150,7 +151,9 @@ def _compressor_to_encoding(
     kwargs["mode"] = compressor.mode.int_code
     if is_v2:
         return {"compressors": zfpy_ZFPY(**kwargs)}
-    return {"serializer": zarr_ZFPY(**kwargs), "compressors": None}
+    with zarr_warnings_suppress_unstable_numcodecs_v3():
+        serializer = zarr_ZFPY(**kwargs)
+    return {"serializer": serializer, "compressors": None}
 
 
 def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
