@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+from distributed import Client
 from segy import SegyFactory
 from segy.standards import get_segy_standard
 from zarr.codecs import ZFPY
@@ -134,4 +135,16 @@ class TestOptimizeAccessPattern:
         ds = open_mdio(mdio_dataset_path)
 
         with pytest.raises(ValueError, match="Dimension to optimize 'invalid' not found"):
+            optimize_access_patterns(ds, conf)
+
+    def test_user_provided_client(self, mdio_dataset_path: str) -> None:
+        """Test when user provides a dask client is present."""
+        conf = OptimizedAccessPatternConfig(
+            quality=ZfpQuality.HIGH,
+            optimize_dimensions={"time": (512, 512, 4)},
+            processing_chunks={"inline": 512, "crossline": 512, "time": 512},
+        )
+        ds = open_mdio(mdio_dataset_path)
+
+        with Client(processes=False):
             optimize_access_patterns(ds, conf)
