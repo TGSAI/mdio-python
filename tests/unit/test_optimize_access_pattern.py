@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 from typing import TYPE_CHECKING
+from unittest.mock import patch
 
 import numpy as np
 import pytest
@@ -28,7 +30,7 @@ NUM_SAMPLES = 64
 SPEC = get_segy_standard(1)
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def test_segy_path(fake_segy_tmp: Path) -> Path:
     """Create a small synthetic 3D SEG-Y file."""
     segy_path = fake_segy_tmp / "optimize_ap_test_3d.sgy"
@@ -53,10 +55,16 @@ def test_segy_path(fake_segy_tmp: Path) -> Path:
     return segy_path
 
 
-@pytest.fixture
+@pytest.fixture(scope="class")
 def mdio_dataset_path(test_segy_path: Path, zarr_tmp: Path) -> Path:
     """Convert synthetic SEG-Y to MDIO."""
     test_mdio_path = zarr_tmp / "optimize_ap_test_3d.mdio"
+
+    env = {
+        "MDIO__IMPORT__CPU_COUNT": "1",
+        "MDIO__IMPORT__CLOUD_NATIVE": "1",
+    }
+    patch.dict(os.environ, env)
     segy_to_mdio(
         segy_spec=SPEC,
         mdio_template=get_template("PostStack3DTime"),
