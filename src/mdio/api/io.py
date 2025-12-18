@@ -92,7 +92,7 @@ def to_mdio(  # noqa: PLR0913
     storage_options = _normalize_storage_options(output_path)
     zarr_format = zarr.config.get("default_zarr_format")
 
-    with zarr_warnings_suppress_unstable_structs_v3() and zarr_warnings_suppress_unstable_numcodecs_v3():
+    with zarr_warnings_suppress_unstable_structs_v3(), zarr_warnings_suppress_unstable_numcodecs_v3():
         xr_to_zarr(
             dataset,
             store=output_path.as_posix(),  # xarray doesn't like URI when file:// is protocol
