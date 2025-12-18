@@ -10,7 +10,6 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-import distributed
 import numpy as np
 from numcodecs import blosc
 from zarr.codecs import numcodecs
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
 
 try:
     import distributed
-except ImportError:
+except ModuleNotFoundError:
     distributed = None
 
 
