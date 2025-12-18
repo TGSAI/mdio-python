@@ -170,7 +170,7 @@ def tests(session: Session) -> None:
     """Run the test suite."""
     session_install_uv(session)
     session_install_uv_package(
-        session, ["coverage[toml]", "pytest", "pygments", "pytest-dependency", "s3fs", "distributed"]
+        session, ["coverage[toml]", "pytest", "pygments", "pytest-dependency", "s3fs", "distributed", "zfpy"]
     )
 
     try:
