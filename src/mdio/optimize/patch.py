@@ -11,8 +11,6 @@ import asyncio
 from typing import TYPE_CHECKING
 
 import numpy as np
-from dask.distributed import Worker
-from dask.distributed import WorkerPlugin
 from numcodecs import blosc
 from zarr.codecs import numcodecs
 
@@ -22,7 +20,13 @@ if TYPE_CHECKING:
     from zarr.core.buffer import NDBuffer
 
 
-class ZFPY(numcodecs._NumcodecsArrayBytesCodec, codec_name="zfpy"):
+try:
+    import distributed
+except ImportError:
+    distributed = None
+
+
+class ZFPY(numcodecs.ZFPY, codec_name="zfpy"):
     """Monkey patch ZFP codec to make input array contiguous before encoding."""
 
     async def _encode_single(self, chunk_data: NDBuffer, chunk_spec: ArraySpec) -> Buffer:
@@ -33,10 +37,10 @@ class ZFPY(numcodecs._NumcodecsArrayBytesCodec, codec_name="zfpy"):
         return chunk_spec.prototype.buffer.from_bytes(out)
 
 
-class MonkeyPatchZfpDaskPlugin(WorkerPlugin):
+class MonkeyPatchZfpDaskPlugin(distributed.WorkerPlugin):
     """Monkey patch ZFP codec and disable Blosc threading for Dask workers."""
 
-    def setup(self, worker: Worker) -> None:  # noqa: ARG002
+    def setup(self, worker: distributed.Worker) -> None:  # noqa: ARG002
         """Monkey patch ZFP codec and disable Blosc threading."""
         numcodecs._codecs.ZFPY = ZFPY
         blosc.set_nthreads(1)
