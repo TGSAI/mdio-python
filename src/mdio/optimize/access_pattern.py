@@ -8,7 +8,6 @@ supports parallel processing with Dask Distributed.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
 from pydantic import Field
@@ -16,13 +15,10 @@ from xarray import Dataset as xr_Dataset
 
 from mdio import to_mdio
 from mdio.builder.schemas.v1.stats import SummaryStatistics
+from mdio.optimize.common import ZfpQuality
 from mdio.optimize.common import apply_zfp_encoding
 from mdio.optimize.common import get_or_create_client
 from mdio.optimize.common import get_zfp_encoding
-
-if TYPE_CHECKING:
-    from mdio.optimize.common import ZfpQuality
-
 
 logger = logging.getLogger(__name__)
 
