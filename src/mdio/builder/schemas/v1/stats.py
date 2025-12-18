@@ -56,3 +56,18 @@ class SummaryStatistics(CamelCaseStrictModel):
     min: float = Field(..., description="The smallest value in the variable.")
     max: float = Field(..., description="The largest value in the variable.")
     histogram: Histogram = Field(..., description="Binned frequency distribution.")
+
+    @property
+    def mean(self) -> float:
+        """Returns the mean of the data."""
+        return self.sum / self.count
+
+    @property
+    def variance(self) -> float:
+        """Returns the variance of the data."""
+        return (self.sum_squares / self.count) - (self.mean**2)
+
+    @property
+    def std(self) -> float:
+        """Returns the standard deviation of the data."""
+        return self.variance**0.5
