@@ -31,7 +31,7 @@ class OptimizedAccessPatternConfig(BaseModel):
     """Configuration for fast access pattern optimization."""
 
     quality: ZfpQuality = Field(..., description="Compression quality.")
-    access_patterns: dict[str, dict[str, tuple[int, ...]]] = Field(..., description="New variables and chunk sizes.")
+    optimize_dimensions: dict[str, tuple[int, ...]] = Field(..., description="Optimize dims and desired chunks.")
     processing_chunks: dict[str, int] = Field(..., description="Chunk sizes for processing the original variable.")
 
 
@@ -67,10 +67,10 @@ def optimize_access_patterns(
         >>>
         >>> conf = OptimizedAccessPatternConfig(
         >>>     quality=MdioZfpQuality.LOW,
-        >>>     access_patterns={
-        >>>         "fast_inline": {"chunks": (4, 512, 512)},
-        >>>         "fast_crossline": {"chunks": (512, 4, 512)},
-        >>>         "fast_time": {"chunks": (512, 512, 4)},
+        >>>     optimize_dimensions={
+        >>>         "inline": (4, 512, 512),
+        >>>         "crossline": (512, 4, 512),
+        >>>         "time": (512, 512, 4),
         >>>     },
         >>>     processing_chunks= {"inline": 512, "crossline": 512, "time": 512}
         >>> )
@@ -96,10 +96,13 @@ def optimize_access_patterns(
     zfp_encoding = get_zfp_encoding(stats, config.quality)
 
     optimized_variables = {}
-    for pattern_name, pattern_config in config.access_patterns.items():
-        optimized_var = apply_zfp_encoding(chunked_var, pattern_config["chunks"], zfp_encoding)
-        optimized_var.name = pattern_name
-        optimized_variables[pattern_name] = optimized_var
+    for dim_name, dim_new_chunks in config.optimize_dimensions.items():
+        if dim_name not in chunked_var.dims:
+            msg = f"Dimension to optimize '{dim_name}' not found in original dataset dims: {chunked_var.dims}."
+            raise ValueError(msg)
+        optimized_var = apply_zfp_encoding(chunked_var, dim_new_chunks, zfp_encoding)
+        optimized_var.name = f"fast_{dim_name}"
+        optimized_variables[optimized_var.name] = optimized_var
 
     optimized_dataset = xr_Dataset(optimized_variables, attrs=dataset.attrs)
     source_path = dataset.encoding["source"]
