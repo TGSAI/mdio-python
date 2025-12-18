@@ -106,6 +106,8 @@ def optimize_access_patterns(
     source_path = dataset.encoding["source"]
 
     with get_or_create_client(n_workers=n_workers, threads_per_worker=threads_per_worker) as client:
+        # The context manager ensures distributed is installed so we can try to register the plugin
+        # safely. The plugin is conditionally imported based on the installation status of distributed
         client.register_plugin(MonkeyPatchZfpDaskPlugin())
         logger.info("Starting optimization with quality %s.", config.quality.name)
         to_mdio(optimized_dataset, source_path, mode="a")

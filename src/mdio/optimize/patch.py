@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
+import distributed
 import numpy as np
 from numcodecs import blosc
 from zarr.codecs import numcodecs
@@ -37,10 +38,16 @@ class ZFPY(numcodecs.ZFPY, codec_name="zfpy"):
         return chunk_spec.prototype.buffer.from_bytes(out)
 
 
-class MonkeyPatchZfpDaskPlugin(distributed.WorkerPlugin):
-    """Monkey patch ZFP codec and disable Blosc threading for Dask workers."""
+if distributed is not None:
 
-    def setup(self, worker: distributed.Worker) -> None:  # noqa: ARG002
-        """Monkey patch ZFP codec and disable Blosc threading."""
-        numcodecs._codecs.ZFPY = ZFPY
-        blosc.set_nthreads(1)
+    class MonkeyPatchZfpDaskPlugin(distributed.WorkerPlugin):
+        """Monkey patch ZFP codec and disable Blosc threading for Dask workers.
+
+        Note that this is class is only importable if distributed is installed. However, in the caller
+        function we have a context manager that checks if distributed is installed, so it is safe (for now).
+        """
+
+        def setup(self, worker: distributed.Worker) -> None:  # noqa: ARG002
+            """Monkey patch ZFP codec and disable Blosc threading."""
+            numcodecs._codecs.ZFPY = ZFPY
+            blosc.set_nthreads(1)
