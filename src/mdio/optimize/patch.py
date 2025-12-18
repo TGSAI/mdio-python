@@ -1,0 +1,42 @@
+"""Dask worker plugins for monkey patching ZFP due to bug.
+
+We can remove this once the fix is upstreamed:
+https://github.com/zarr-developers/numcodecs/issues/812
+https://github.com/zarr-developers/numcodecs/pull/811
+"""
+
+from __future__ import annotations
+
+import asyncio
+from typing import TYPE_CHECKING
+
+import numpy as np
+from dask.distributed import Worker
+from dask.distributed import WorkerPlugin
+from numcodecs import blosc
+from zarr.codecs import numcodecs
+
+if TYPE_CHECKING:
+    from zarr.core.array_spec import ArraySpec
+    from zarr.core.buffer import Buffer
+    from zarr.core.buffer import NDBuffer
+
+
+class ZFPY(numcodecs._NumcodecsArrayBytesCodec, codec_name="zfpy"):
+    """Monkey patch ZFP codec to make input array contiguous before encoding."""
+
+    async def _encode_single(self, chunk_data: NDBuffer, chunk_spec: ArraySpec) -> Buffer:
+        chunk_ndarray = chunk_data.as_ndarray_like()
+        if not chunk_ndarray.flags.c_contiguous:
+            chunk_ndarray = np.ascontiguousarray(chunk_ndarray)
+        out = await asyncio.to_thread(self._codec.encode, chunk_ndarray)
+        return chunk_spec.prototype.buffer.from_bytes(out)
+
+
+class MonkeyPatchZfpDaskPlugin(WorkerPlugin):
+    """Monkey patch ZFP codec and disable Blosc threading for Dask workers."""
+
+    def setup(self, worker: Worker) -> None:  # noqa: ARG002
+        """Monkey patch ZFP codec and disable Blosc threading."""
+        numcodecs._codecs.ZFPY = ZFPY
+        blosc.set_nthreads(1)
