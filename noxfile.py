@@ -169,7 +169,9 @@ def mypy(session: Session) -> None:
 def tests(session: Session) -> None:
     """Run the test suite."""
     session_install_uv(session)
-    session_install_uv_package(session, ["coverage[toml]", "pytest", "pygments", "pytest-dependency", "s3fs"])
+    session_install_uv_package(
+        session, ["coverage[toml]", "pytest", "pygments", "pytest-dependency", "s3fs", "distributed", "zfpy"]
+    )
 
     try:
         session.run("coverage", "run", "--parallel", "-m", "pytest", *session.posargs)
