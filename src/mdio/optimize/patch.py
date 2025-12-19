@@ -11,7 +11,6 @@ import asyncio
 from typing import TYPE_CHECKING
 
 import numpy as np
-import zarr
 from numcodecs import blosc
 from zarr.codecs import numcodecs
 
@@ -48,7 +47,6 @@ if distributed is not None:
         """
 
         def setup(self, worker: distributed.Worker) -> None:  # noqa: ARG002
-            """Monkey patch ZFP codec and disable Blosc threading and zarr concurrency."""
+            """Monkey patch ZFP codec and disable Blosc threading."""
             numcodecs._codecs.ZFPY = ZFPY
-            zarr.config.set({"async.concurrency": 1})
             blosc.set_nthreads(1)
