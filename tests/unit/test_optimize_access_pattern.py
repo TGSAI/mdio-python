@@ -62,8 +62,8 @@ def mdio_dataset_path(test_segy_path: Path, zarr_tmp: Path) -> Path:
     test_mdio_path = zarr_tmp / "optimize_ap_test_3d.mdio"
 
     env = {
-        "MDIO__IMPORT__CPU_COUNT": "1",
-        "MDIO__IMPORT__CLOUD_NATIVE": "1",
+        "MDIO__IMPORT__CPU_COUNT": "true",
+        "MDIO__IMPORT__CLOUD_NATIVE": "true",
     }
     patch.dict(os.environ, env)
     segy_to_mdio(
