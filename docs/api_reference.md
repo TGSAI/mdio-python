@@ -40,3 +40,10 @@ and
 .. automodule:: mdio.core.dimension
    :members:
 ```
+
+## Optimization
+
+```{eval-rst}
+.. automodule:: mdio.optimize.access_pattern
+   :members:
+```

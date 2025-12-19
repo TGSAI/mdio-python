@@ -8,9 +8,8 @@ from enum import Enum
 from typing import TYPE_CHECKING
 from typing import Any
 
-from mdio.builder.schemas.compressors import ZFP as MDIO_ZFP
+from mdio.builder.schemas.compressors import ZFP
 from mdio.builder.schemas.compressors import ZFPMode
-from mdio.builder.xarray_builder import _compressor_to_encoding
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -40,22 +39,23 @@ class ZfpQuality(float, Enum):
     ULTRA = 0.001
 
 
-def get_zfp_encoding(
+def get_default_zfp(
     stats: SummaryStatistics,
-    quality: ZfpQuality,
-) -> dict[str, Any]:
+    quality: ZfpQuality = ZfpQuality.LOW,
+) -> ZFP:
     """Compute ZFP encoding based on data statistics and quality level."""
     if stats.std is None or stats.std <= 0:
         msg = "Standard deviation must be positive for tolerance calculation."
         raise ValueError(msg)
 
     tolerance = quality.value * stats.std
-    zfp_schema = MDIO_ZFP(mode=ZFPMode.FIXED_ACCURACY, tolerance=tolerance)
     logger.info("Computed ZFP tolerance: %s (quality: %s, std: %s)", tolerance, quality.name, stats.std)
-    return _compressor_to_encoding(zfp_schema)
+    return ZFP(mode=ZFPMode.FIXED_ACCURACY, tolerance=tolerance)
 
 
-def apply_zfp_encoding(data_array: DataArray, chunks: tuple[int, ...], zfp_encoding: dict[str, Any]) -> DataArray:
+def apply_compressor_encoding(
+    data_array: DataArray, chunks: tuple[int, ...], zfp_encoding: dict[str, Any]
+) -> DataArray:
     """Apply ZFP encoding and custom chunks to a DataArray copy."""
     # Drop coordinates to avoid re-writing them and avoid rechunking issues in views
     data_array = data_array.copy().reset_coords(drop=True)

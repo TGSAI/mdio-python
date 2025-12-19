@@ -5,8 +5,6 @@ access along dataset dimensions. It uses configurable ZFP compression based on d
 supports parallel processing with Dask Distributed.
 """
 
-from __future__ import annotations
-
 import logging
 
 from pydantic import BaseModel
@@ -14,11 +12,13 @@ from pydantic import Field
 from xarray import Dataset as xr_Dataset
 
 from mdio import to_mdio
+from mdio.builder.schemas.compressors import ZFP
+from mdio.builder.schemas.compressors import Blosc
 from mdio.builder.schemas.v1.stats import SummaryStatistics
-from mdio.optimize.common import ZfpQuality
-from mdio.optimize.common import apply_zfp_encoding
+from mdio.builder.xarray_builder import _compressor_to_encoding
+from mdio.optimize.common import apply_compressor_encoding
+from mdio.optimize.common import get_default_zfp
 from mdio.optimize.common import get_or_create_client
-from mdio.optimize.common import get_zfp_encoding
 
 logger = logging.getLogger(__name__)
 
@@ -26,9 +26,9 @@ logger = logging.getLogger(__name__)
 class OptimizedAccessPatternConfig(BaseModel):
     """Configuration for fast access pattern optimization."""
 
-    quality: ZfpQuality = Field(..., description="Compression quality.")
     optimize_dimensions: dict[str, tuple[int, ...]] = Field(..., description="Optimize dims and desired chunks.")
     processing_chunks: dict[str, int] = Field(..., description="Chunk sizes for processing the original variable.")
+    compressor: Blosc | ZFP | None = Field(default=None, description="Compressor to use for access patterns.")
 
 
 def optimize_access_patterns(
@@ -58,11 +58,10 @@ def optimize_access_patterns(
     Examples:
         For Post-Stack 3D seismic data, we can optimize the inline, crossline, and depth dimensions.
 
-        >>> from mdio import optimize_access_patterns, OptimizedAccessPatternConfig, ZfpQuality
+        >>> from mdio import optimize_access_patterns, OptimizedAccessPatternConfig
         >>> from mdio import open_mdio
         >>>
         >>> conf = OptimizedAccessPatternConfig(
-        >>>     quality=MdioZfpQuality.LOW,
         >>>     optimize_dimensions={
         >>>         "inline": (4, 512, 512),
         >>>         "crossline": (512, 4, 512),
@@ -88,15 +87,20 @@ def optimize_access_patterns(
         msg = "Statistics are missing from data. Std. dev. is required for compression."
         raise ValueError(msg)
 
-    stats = SummaryStatistics.model_validate_json(variable.attrs["statsV1"])
-    zfp_encoding = get_zfp_encoding(stats, config.quality)
+    if config.compressor is None:
+        logger.info("No compressor provided, using default ZFP compression with MEDIUM quality.")
+        stats = SummaryStatistics.model_validate_json(variable.attrs["statsV1"])
+        default_zfp = get_default_zfp(stats)
+        config.compressor = default_zfp
+
+    compressor_encoding = _compressor_to_encoding(config.compressor)
 
     optimized_variables = {}
     for dim_name, dim_new_chunks in config.optimize_dimensions.items():
         if dim_name not in chunked_var.dims:
             msg = f"Dimension to optimize '{dim_name}' not found in original dataset dims: {chunked_var.dims}."
             raise ValueError(msg)
-        optimized_var = apply_zfp_encoding(chunked_var, dim_new_chunks, zfp_encoding)
+        optimized_var = apply_compressor_encoding(chunked_var, dim_new_chunks, compressor_encoding)
         optimized_var.name = f"fast_{dim_name}"
         optimized_variables[optimized_var.name] = optimized_var
 
@@ -109,6 +113,6 @@ def optimize_access_patterns(
         from mdio.optimize.patch import MonkeyPatchZfpDaskPlugin  # noqa: PLC0415
 
         client.register_plugin(MonkeyPatchZfpDaskPlugin())
-        logger.info("Starting optimization with quality %s.", config.quality.name)
+        logger.info("Starting optimization with compressor %s.", compressor_encoding)
         to_mdio(optimized_dataset, source_path, mode="a")
         logger.info("Optimization completed successfully.")

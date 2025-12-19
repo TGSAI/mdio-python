@@ -11,14 +11,16 @@ import pytest
 from distributed import Client
 from segy import SegyFactory
 from segy.standards import get_segy_standard
-from zarr.codecs import ZFPY
+from zarr.codecs import ZFPY as zarr_ZFPY  # noqa: N811
+from zarr.codecs import BloscCodec as zarr_BloscCodec
 
 from mdio import open_mdio
 from mdio import segy_to_mdio
+from mdio.builder.schemas.compressors import Blosc as mdio_Blosc
+from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.template_registry import get_template
 from mdio.optimize.access_pattern import OptimizedAccessPatternConfig
 from mdio.optimize.access_pattern import optimize_access_patterns
-from mdio.optimize.common import ZfpQuality
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -31,7 +33,7 @@ NUM_SAMPLES = 64
 SPEC = get_segy_standard(1)
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="module")
 def test_segy_path(fake_segy_tmp: Path) -> Path:
     """Create a small synthetic 3D SEG-Y file."""
     segy_path = fake_segy_tmp / "optimize_ap_test_3d.sgy"
@@ -56,7 +58,7 @@ def test_segy_path(fake_segy_tmp: Path) -> Path:
     return segy_path
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="module")
 def mdio_dataset_path(test_segy_path: Path, zarr_tmp: Path) -> Path:
     """Convert synthetic SEG-Y to MDIO."""
     test_mdio_path = zarr_tmp / "optimize_ap_test_3d.mdio"
@@ -82,9 +84,8 @@ class TestOptimizeAccessPattern:
     def test_optimize_access_patterns(self, mdio_dataset_path: str) -> None:
         """Test optimization of access patterns."""
         conf = OptimizedAccessPatternConfig(
-            quality=ZfpQuality.HIGH,
-            optimize_dimensions={"time": (512, 512, 4), "inline": (8, 256, 256)},
-            processing_chunks={"inline": 512, "crossline": 512, "time": 512},
+            optimize_dimensions={"time": (128, 128, 4), "inline": (2, 64, 64)},
+            processing_chunks={"inline": 128, "crossline": 128, "time": 128},
         )
         ds = open_mdio(mdio_dataset_path)
         optimize_access_patterns(ds, conf)
@@ -92,19 +93,48 @@ class TestOptimizeAccessPattern:
         ds = open_mdio(mdio_dataset_path)
 
         assert "fast_time" in ds.variables
-        assert ds["fast_time"].encoding["chunks"] == (512, 512, 4)
-        assert isinstance(ds["fast_time"].encoding["serializer"], ZFPY)
+        assert ds["fast_time"].encoding["chunks"] == (128, 128, 4)
+        assert isinstance(ds["fast_time"].encoding["serializer"], zarr_ZFPY)
 
         assert "inline" in ds.variables
-        assert ds["fast_inline"].encoding["chunks"] == (8, 256, 256)
-        assert isinstance(ds["fast_inline"].encoding["serializer"], ZFPY)
+        assert ds["fast_inline"].encoding["chunks"] == (2, 64, 64)
+        assert isinstance(ds["fast_inline"].encoding["serializer"], zarr_ZFPY)
+
+    def test_optimize_access_patterns_custom_compressor(self, mdio_dataset_path: str) -> None:
+        """Test optimization of access patterns with custom compressor."""
+        conf = OptimizedAccessPatternConfig(
+            optimize_dimensions={"crossline": (32, 8, 32)},
+            processing_chunks={"inline": 512, "crossline": 512, "time": 512},
+            compressor=mdio_Blosc(cname=BloscCname.blosclz, clevel=1),
+        )
+        ds = open_mdio(mdio_dataset_path)
+        optimize_access_patterns(ds, conf)
+
+        ds = open_mdio(mdio_dataset_path)
+
+        actual_compressor = ds["fast_crossline"].encoding["compressors"][0]
+        assert "fast_crossline" in ds.variables
+        assert ds["fast_crossline"].encoding["chunks"] == (32, 8, 32)
+        assert isinstance(actual_compressor, zarr_BloscCodec)
+        assert actual_compressor.cname == BloscCname.blosclz
+        assert actual_compressor.clevel == 1
+
+    def test_user_provided_client(self, mdio_dataset_path: str) -> None:
+        """Test when user provides a dask client is present."""
+        conf = OptimizedAccessPatternConfig(
+            optimize_dimensions={"time": (128, 128, 4)},
+            processing_chunks={"inline": 128, "crossline": 128, "time": 128},
+        )
+        ds = open_mdio(mdio_dataset_path)
+
+        with Client(processes=False):
+            optimize_access_patterns(ds, conf)
 
     def test_missing_default_variable_name(self, mdio_dataset_path: str) -> None:
         """Test case where default variable name is missing from dataset attributes."""
         conf = OptimizedAccessPatternConfig(
-            quality=ZfpQuality.HIGH,
-            optimize_dimensions={"time": (512, 512, 4)},
-            processing_chunks={"inline": 512, "crossline": 512, "time": 512},
+            optimize_dimensions={"time": (128, 128, 4)},
+            processing_chunks={"inline": 128, "crossline": 128, "time": 128},
         )
         ds = open_mdio(mdio_dataset_path)
         del ds.attrs["attributes"]
@@ -115,9 +145,8 @@ class TestOptimizeAccessPattern:
     def test_missing_stats(self, mdio_dataset_path: str) -> None:
         """Test case where statistics are missing from default variable."""
         conf = OptimizedAccessPatternConfig(
-            quality=ZfpQuality.HIGH,
-            optimize_dimensions={"time": (512, 512, 4)},
-            processing_chunks={"inline": 512, "crossline": 512, "time": 512},
+            optimize_dimensions={"time": (128, 128, 4)},
+            processing_chunks={"inline": 128, "crossline": 128, "time": 128},
         )
         ds = open_mdio(mdio_dataset_path)
         del ds["amplitude"].attrs["statsV1"]
@@ -128,23 +157,10 @@ class TestOptimizeAccessPattern:
     def test_invalid_optimize_access_patterns(self, mdio_dataset_path: str) -> None:
         """Test when optimize_dimensions contains invalid dimensions."""
         conf = OptimizedAccessPatternConfig(
-            quality=ZfpQuality.HIGH,
-            optimize_dimensions={"time": (512, 512, 4), "invalid": (4, 512, 512)},
-            processing_chunks={"inline": 512, "crossline": 512, "time": 512},
+            optimize_dimensions={"time": (128, 128, 4), "invalid": (4, 2, 44)},
+            processing_chunks={"inline": 128, "crossline": 128, "time": 128},
         )
         ds = open_mdio(mdio_dataset_path)
 
         with pytest.raises(ValueError, match="Dimension to optimize 'invalid' not found"):
-            optimize_access_patterns(ds, conf)
-
-    def test_user_provided_client(self, mdio_dataset_path: str) -> None:
-        """Test when user provides a dask client is present."""
-        conf = OptimizedAccessPatternConfig(
-            quality=ZfpQuality.HIGH,
-            optimize_dimensions={"time": (512, 512, 4)},
-            processing_chunks={"inline": 512, "crossline": 512, "time": 512},
-        )
-        ds = open_mdio(mdio_dataset_path)
-
-        with Client(processes=False):
             optimize_access_patterns(ds, conf)
