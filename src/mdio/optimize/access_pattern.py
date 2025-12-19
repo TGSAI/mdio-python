@@ -83,11 +83,11 @@ def optimize_access_patterns(
     variable = dataset[var_name]
     chunked_var = variable.chunk(**config.processing_chunks, inline_array=True)
 
-    if "statsV1" not in variable.attrs:
-        msg = "Statistics are missing from data. Std. dev. is required for compression."
-        raise ValueError(msg)
-
     if config.compressor is None:
+        if "statsV1" not in variable.attrs:
+            msg = "Statistics are missing from data. Std. dev. is required for compression."
+            raise ValueError(msg)
+
         logger.info("No compressor provided, using default ZFP compression with MEDIUM quality.")
         stats = SummaryStatistics.model_validate_json(variable.attrs["statsV1"])
         default_zfp = get_default_zfp(stats)
