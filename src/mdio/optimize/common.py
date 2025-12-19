@@ -68,7 +68,7 @@ def apply_zfp_encoding(data_array: DataArray, chunks: tuple[int, ...], zfp_encod
 def get_or_create_client(n_workers: int, threads_per_worker: int) -> Generator[distributed.Client, None, None]:
     """Get or create a Dask Distributed Client."""
     if distributed is None:
-        msg = "The 'distributed' package is required for parallel processing. Install: 'pip install mdio[distributed]'."
+        msg = "The 'distributed' package is required for parallel processing. Install: 'pip install multidimio[distributed]'."
         raise ImportError(msg)
 
     created = False
