@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING
 
 import dask
 import numpy as np
-import numpy.testing as npt
 import pytest
 import xarray.testing as xrt
 from tests.integration.conftest import get_segy_mock_4d_spec
@@ -28,12 +27,11 @@ dask.config.set(scheduler="synchronous")
 os.environ["MDIO__IMPORT__SAVE_SEGY_FILE_HEADER"] = "true"
 
 
-# TODO(Altay): Finish implementing these grid overrides.
-# https://github.com/TGSAI/mdio-python/issues/612
-@pytest.mark.skip(reason="NonBinned and HasDuplicates haven't been properly implemented yet.")
-@pytest.mark.parametrize("grid_override", [{"NonBinned": True}, {"HasDuplicates": True}])
+@pytest.mark.parametrize(
+    "grid_override", [{"NonBinned": True, "chunksize": 4, "non_binned_dims": ["channel"]}, {"HasDuplicates": True}]
+)
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.C])
-class TestImport4DNonReg:  # pragma: no cover - tests is skipped
+class TestImport4DNonReg:
     """Test for 4D segy import with grid overrides."""
 
     def test_import_4d_segy(  # noqa: PLR0913
@@ -59,7 +57,7 @@ class TestImport4DNonReg:  # pragma: no cover - tests is skipped
         # Expected values
         num_samples = 25
         shots = [2, 3, 5, 6, 7, 8, 9]
-        cables = [0, 101, 201, 301]
+        cables = [0, 3, 5, 7]
         receivers_per_cable = [1, 5, 7, 5]
 
         ds = open_mdio(zarr_tmp)
@@ -67,15 +65,26 @@ class TestImport4DNonReg:  # pragma: no cover - tests is skipped
         assert ds["segy_file_header"].attrs["binaryHeader"]["samples_per_trace"] == num_samples
         assert ds.attrs["attributes"]["gridOverrides"] == grid_override
 
-        assert npt.assert_array_equal(ds["shot_point"], shots)
+        xrt.assert_duckarray_equal(ds["shot_point"], shots)
         xrt.assert_duckarray_equal(ds["cable"], cables)
 
-        # assert grid.select_dim("trace") == Dimension(range(1, np.amax(receivers_per_cable) + 1), "trace")
+        # Both HasDuplicates and NonBinned should create a trace dimension
         expected = list(range(1, np.amax(receivers_per_cable) + 1))
         xrt.assert_duckarray_equal(ds["trace"], expected)
 
         times_expected = list(range(0, num_samples, 1))
         xrt.assert_duckarray_equal(ds["time"], times_expected)
+
+        # Check trace chunk size based on grid override
+        trace_chunks = ds["amplitude"].chunksizes.get("trace", None)
+        if trace_chunks is not None:
+            if "NonBinned" in grid_override:
+                # NonBinned uses specified chunksize for trace dimension
+                expected_chunksize = grid_override.get("chunksize", 1)
+                assert all(chunk == expected_chunksize for chunk in trace_chunks)
+            else:
+                # HasDuplicates uses chunksize of 1 for trace dimension
+                assert all(chunk == 1 for chunk in trace_chunks)
 
 
 @pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True}, None])
@@ -106,7 +115,7 @@ class TestImport4D:
         # Expected values
         num_samples = 25
         shots = [2, 3, 5, 6, 7, 8, 9]
-        cables = [0, 101, 201, 301]
+        cables = [0, 3, 5, 7]
         receivers_per_cable = [1, 5, 7, 5]
 
         ds = open_mdio(zarr_tmp)
@@ -156,12 +165,9 @@ class TestImport4DSparse:
         assert "This grid is very sparse and most likely user error with indexing." in str(execinfo.value)
 
 
-# TODO(Altay): Finish implementing these grid overrides.
-# https://github.com/TGSAI/mdio-python/issues/612
-@pytest.mark.skip(reason="AutoShotWrap requires a template that is not implemented yet.")
-@pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True}, {"AutoShotWrap": True}, None])
+@pytest.mark.parametrize("grid_override", [{"AutoChannelWrap": True, "AutoShotWrap": True}, {"AutoShotWrap": True}])
 @pytest.mark.parametrize("chan_header_type", [StreamerShotGeometryType.A, StreamerShotGeometryType.B])
-class TestImport6D:  # pragma: no cover - tests is skipped
+class TestImport6D:
     """Test for 6D segy import with grid overrides."""
 
     def test_import_6d_segy(  # noqa: PLR0913
@@ -177,7 +183,7 @@ class TestImport6D:  # pragma: no cover - tests is skipped
 
         segy_to_mdio(
             segy_spec=segy_spec,
-            mdio_template=TemplateRegistry().get("XYZ"),  # Placeholder for the template
+            mdio_template=TemplateRegistry().get("StreamerFieldRecords3D"),
             input_path=segy_path,
             output_path=zarr_tmp,
             overwrite=True,
@@ -186,26 +192,33 @@ class TestImport6D:  # pragma: no cover - tests is skipped
 
         # Expected values
         num_samples = 25
-        shots = [2, 3, 5, 6, 7, 8, 9]  # original shot list
-        if grid_override is not None and "AutoShotWrap" in grid_override:
-            shots_new = [int(shot / 2) for shot in shots]  # Updated shot index when ingesting with 2 guns
-            shots_set = set(shots_new)  # remove duplicates
-            shots = list(shots_set)  # Unique shot points for 6D indexed with gun
-        cables = [0, 101, 201, 301]
+        shot_points = [2, 3, 5, 6, 7, 8, 9]  # original shot list, missing shot ~ 4.
+
+        shot_index = [int(sp / 2) for sp in shot_points]  # Updated shot index when ingesting with 2 guns
+        shot_index = np.unique(shot_index) - 1  # Unique shot point indices for 6D indexed with gun
+        cables = [0, 3, 5, 7]
         guns = [1, 2]
         receivers_per_cable = [1, 5, 7, 5]
 
         ds = open_mdio(zarr_tmp)
 
         xrt.assert_duckarray_equal(ds["gun"], guns)
-        xrt.assert_duckarray_equal(ds["shot_point"], shots)
+        xrt.assert_duckarray_equal(ds["shot_index"], shot_index)
         xrt.assert_duckarray_equal(ds["cable"], cables)
 
-        if chan_header_type == StreamerShotGeometryType.B and grid_override is None:
+        if chan_header_type == StreamerShotGeometryType.B and "AutoChannelWrap" not in grid_override:
             expected = list(range(1, np.sum(receivers_per_cable) + 1))
         else:
             expected = list(range(1, np.amax(receivers_per_cable) + 1))
         xrt.assert_duckarray_equal(ds["channel"], expected)
+
+        expected_shot_points = [
+            [
+                [2, 4294967295, 6, 8],  # gun = 1
+                [3, 5, 7, 9],  # gun = 2
+            ],  # sail_line = 1
+        ]
+        xrt.assert_duckarray_equal(ds["shot_point"], expected_shot_points)
 
         times_expected = list(range(0, num_samples, 1))
         xrt.assert_duckarray_equal(ds["time"], times_expected)

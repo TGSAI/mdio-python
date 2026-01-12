@@ -24,6 +24,8 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
     from segy.arrays import HeaderArray
 
+    from mdio.builder.templates.base import AbstractDatasetTemplate
+
 
 logger = logging.getLogger(__name__)
 
@@ -149,7 +151,7 @@ def analyze_streamer_headers(
     return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
 
-def analyze_shotlines_for_guns(
+def analyze_saillines_for_guns(
     index_headers: HeaderArray,
 ) -> tuple[NDArray, dict[str, list], ShotGunGeometryType]:
     """Check input headers for SEG-Y input to help determine geometry of shots and guns.
@@ -161,27 +163,27 @@ def analyze_shotlines_for_guns(
         index_headers: numpy array with index headers
 
     Returns:
-        tuple of unique_shot_lines, unique_guns_in_shot_line, geom_type
+        tuple of unique_sail_lines, unique_guns_in_sail_line, geom_type
     """
     # Find unique cable ids
-    unique_shot_lines = np.sort(np.unique(index_headers["shot_line"]))
+    unique_sail_lines = np.sort(np.unique(index_headers["sail_line"]))
     unique_guns = np.sort(np.unique(index_headers["gun"]))
-    logger.info("unique_shot_lines: %s", unique_shot_lines)
+    logger.info("unique_sail_lines: %s", unique_sail_lines)
     logger.info("unique_guns: %s", unique_guns)
 
     # Find channel min and max values for each cable
-    unique_guns_in_shot_line = {}
+    unique_guns_in_sail_line = {}
 
     geom_type = ShotGunGeometryType.B
     # Check shot numbers are still unique if div/num_guns
-    for shot_line in unique_shot_lines:
-        shot_line_mask = index_headers["shot_line"] == shot_line
-        shot_current_sl = index_headers["shot_point"][shot_line_mask]
-        gun_current_sl = index_headers["gun"][shot_line_mask]
+    for sail_line in unique_sail_lines:
+        sail_line_mask = index_headers["sail_line"] == sail_line
+        shot_current_sl = index_headers["shot_point"][sail_line_mask]
+        gun_current_sl = index_headers["gun"][sail_line_mask]
 
         unique_guns_sl = np.sort(np.unique(gun_current_sl))
         num_guns_sl = unique_guns_sl.shape[0]
-        unique_guns_in_shot_line[str(shot_line)] = list(unique_guns_sl)
+        unique_guns_in_sail_line[str(sail_line)] = list(unique_guns_sl)
 
         for gun in unique_guns_sl:
             gun_mask = gun_current_sl == gun
@@ -190,10 +192,10 @@ def analyze_shotlines_for_guns(
             mod_shots = np.floor(shots_current_sl_gun / num_guns_sl)
             if len(np.unique(mod_shots)) != num_shots_sl:
                 msg = "Shot line %s has %s when using div by %s %s has %s unique mod shots."
-                logger.info(msg, shot_line, num_shots_sl, num_guns_sl, np.unique(mod_shots))
+                logger.info(msg, sail_line, num_shots_sl, num_guns_sl, np.unique(mod_shots))
                 geom_type = ShotGunGeometryType.A
-                return unique_shot_lines, unique_guns_in_shot_line, geom_type
-    return unique_shot_lines, unique_guns_in_shot_line, geom_type
+                return unique_sail_lines, unique_guns_in_sail_line, geom_type
+    return unique_sail_lines, unique_guns_in_sail_line, geom_type
 
 
 def create_counter(
@@ -267,7 +269,8 @@ def analyze_non_indexed_headers(index_headers: HeaderArray, dtype: DTypeLike = n
     header_names = []
     for header_key in index_headers.dtype.names:
         if header_key != "trace":
-            unique_headers[header_key] = np.sort(np.unique(index_headers[header_key]))
+            unique_vals = np.sort(np.unique(index_headers[header_key]))
+            unique_headers[header_key] = unique_vals
             header_names.append(header_key)
             total_depth += 1
 
@@ -302,6 +305,7 @@ class GridOverrideCommand(ABC):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
 
@@ -378,11 +382,35 @@ class DuplicateIndex(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
-        return analyze_non_indexed_headers(index_headers)
+        # Filter out coordinate fields, keep only dimensions for trace indexing
+        coord_fields = set(template.coordinate_names) if template else set()
+
+        # For NonBinned: non_binned_dims should be excluded from trace indexing grouping
+        # because they become coordinates indexed by the trace dimension, not grouping keys.
+        # The trace index should count all traces per remaining dimension combination.
+        non_binned_dims = set(grid_overrides.get("non_binned_dims", [])) if grid_overrides else set()
+
+        dim_fields = [
+            name
+            for name in index_headers.dtype.names
+            if name != "trace" and name not in coord_fields and name not in non_binned_dims
+        ]
+
+        # Create trace indices on dimension fields only
+        dim_headers = index_headers[dim_fields] if dim_fields else index_headers
+        dim_headers_with_trace = analyze_non_indexed_headers(dim_headers)
+
+        # Add trace field back to full headers
+        if dim_headers_with_trace is not None and "trace" in dim_headers_with_trace.dtype.names:
+            trace_values = np.array(dim_headers_with_trace["trace"])
+            index_headers = rfn.append_fields(index_headers, "trace", trace_values, usemask=False)
+
+        return index_headers
 
     def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
         """Insert dimension "trace" to the sample-1 dimension."""
@@ -403,19 +431,51 @@ class DuplicateIndex(GridOverrideCommand):
 
 
 class NonBinned(DuplicateIndex):
-    """Automatically index traces in a single specified axis - trace."""
+    """Handle non-binned dimensions by converting them to a trace dimension with coordinates.
+
+    This override takes dimensions that are not regularly sampled (non-binned) and converts
+    them into a single 'trace' dimension. The original non-binned dimensions become coordinates
+    indexed by the trace dimension.
+
+    Example:
+        Template with dimensions [shot_point, cable, channel, azimuth, offset, sample]
+        and non_binned_dims=['azimuth', 'offset'] becomes:
+        - dimensions: [shot_point, cable, channel, trace, sample]
+        - coordinates: azimuth and offset with dimensions [shot_point, cable, channel, trace]
+
+    Attributes:
+        required_keys: No required keys for this override.
+        required_parameters: Set containing 'chunksize' and 'non_binned_dims'.
+    """
 
     required_keys = None
-    required_parameters = {"chunksize"}
+    required_parameters = {"chunksize", "non_binned_dims"}
+
+    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
+        """Validate if this transform should run on the type of data."""
+        self.check_required_params(grid_overrides)
+
+        # Validate that non_binned_dims is a list
+        non_binned_dims = grid_overrides.get("non_binned_dims", [])
+        if not isinstance(non_binned_dims, list):
+            msg = f"non_binned_dims must be a list, got {type(non_binned_dims)}"
+            raise ValueError(msg)
+
+        # Validate that all non-binned dimensions exist in headers
+        missing_dims = set(non_binned_dims) - set(index_headers.dtype.names)
+        if missing_dims:
+            msg = f"Non-binned dimensions {missing_dims} not found in index headers"
+            raise ValueError(msg)
 
     def transform_chunksize(
         self,
         chunksize: Sequence[int],
         grid_overrides: dict[str, bool | int],
     ) -> Sequence[int]:
-        """Perform the transform of chunksize."""
+        """Insert chunksize for trace dimension at N-1 position."""
         new_chunks = list(chunksize)
-        new_chunks.insert(-1, grid_overrides["chunksize"])
+        trace_chunksize = grid_overrides["chunksize"]
+        new_chunks.insert(-1, trace_chunksize)
         return tuple(new_chunks)
 
 
@@ -434,6 +494,7 @@ class AutoChannelWrap(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
@@ -459,7 +520,7 @@ class AutoChannelWrap(GridOverrideCommand):
 class AutoShotWrap(GridOverrideCommand):
     """Automatically determine ShotGun acquisition type."""
 
-    required_keys = {"shot_line", "gun", "shot_point", "cable", "channel"}
+    required_keys = {"sail_line", "gun", "shot_point", "cable", "channel"}
     required_parameters = None
 
     def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
@@ -471,28 +532,33 @@ class AutoShotWrap(GridOverrideCommand):
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,  # noqa: ARG002
     ) -> NDArray:
         """Perform the grid transform."""
         self.validate(index_headers, grid_overrides)
 
-        result = analyze_shotlines_for_guns(index_headers)
-        unique_shot_lines, unique_guns_in_shot_line, geom_type = result
+        result = analyze_saillines_for_guns(index_headers)
+        unique_sail_lines, unique_guns_in_sail_line, geom_type = result
         logger.info("Ingesting dataset as shot type: %s", geom_type.name)
 
         max_num_guns = 1
-        for shot_line in unique_shot_lines:
-            logger.info("shot_line: %s has guns: %s", shot_line, unique_guns_in_shot_line[str(shot_line)])
-            num_guns = len(unique_guns_in_shot_line[str(shot_line)])
+        for sail_line in unique_sail_lines:
+            logger.info("sail_line: %s has guns: %s", sail_line, unique_guns_in_sail_line[str(sail_line)])
+            num_guns = len(unique_guns_in_sail_line[str(sail_line)])
             max_num_guns = max(num_guns, max_num_guns)
 
         # This might be slow and potentially could be improved with a rewrite
         # to prevent so many lookups
         if geom_type == ShotGunGeometryType.B:
-            for shot_line in unique_shot_lines:
-                shot_line_idxs = np.where(index_headers["shot_line"][:] == shot_line)
-                index_headers["shot_point"][shot_line_idxs] = np.floor(
-                    index_headers["shot_point"][shot_line_idxs] / max_num_guns
+            shot_index = np.empty(len(index_headers), dtype="uint32")
+            index_headers = rfn.append_fields(index_headers.base, "shot_index", shot_index)
+            for sail_line in unique_sail_lines:
+                sail_line_idxs = np.where(index_headers["sail_line"][:] == sail_line)
+                index_headers["shot_index"][sail_line_idxs] = np.floor(
+                    index_headers["shot_point"][sail_line_idxs] / max_num_guns
                 )
+                # Make shot index zero-based PER sail line
+                index_headers["shot_index"][sail_line_idxs] -= index_headers["shot_index"][sail_line_idxs].min()
         return index_headers
 
 
@@ -524,6 +590,9 @@ class GridOverrider:
 
             parameters.update(command.required_parameters)
 
+        # Add optional parameters that are not strictly required but are valid
+        parameters.add("non_binned_dims")
+
         return parameters
 
     def run(
@@ -532,6 +601,7 @@ class GridOverrider:
         index_names: Sequence[str],
         grid_overrides: dict[str, bool],
         chunksize: Sequence[int] | None = None,
+        template: AbstractDatasetTemplate | None = None,
     ) -> tuple[HeaderArray, tuple[str], tuple[int]]:
         """Run grid overrides and return result."""
         for override in grid_overrides:
@@ -542,7 +612,7 @@ class GridOverrider:
                 raise GridOverrideUnknownError(override)
 
             function = self.commands[override].transform
-            index_headers = function(index_headers, grid_overrides=grid_overrides)
+            index_headers = function(index_headers, grid_overrides=grid_overrides, template=template)
 
             function = self.commands[override].transform_index_names
             index_names = function(index_names)

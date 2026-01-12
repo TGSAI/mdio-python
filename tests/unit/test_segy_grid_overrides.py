@@ -103,10 +103,10 @@ class TestAutoGridOverrides:
     def test_non_binned(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
         """Test the NonBinned Grid Override command."""
         index_names = ("shot_point", "cable")
-        grid_overrides = {"NonBinned": True, "chunksize": 4}
+        grid_overrides = {"NonBinned": True, "chunksize": 4, "non_binned_dims": ["channel"]}
 
-        # Remove channel header
-        streamer_headers = mock_streamer_headers[list(index_names)]
+        # Keep channel header for non-binned processing
+        streamer_headers = mock_streamer_headers
         chunksize = (4, 4, 8)
 
         new_headers, new_names, new_chunks = run_override(
@@ -123,7 +123,9 @@ class TestAutoGridOverrides:
 
         assert_array_equal(dims[0].coords, SHOTS)
         assert_array_equal(dims[1].coords, CABLES)
-        assert_array_equal(dims[2].coords, RECEIVERS)
+        # Trace coords are the unique channel values (1-20)
+        expected_trace_coords = np.arange(1, 21, dtype="int32")
+        assert_array_equal(dims[2].coords, expected_trace_coords)
 
 
 class TestStreamerGridOverrides:

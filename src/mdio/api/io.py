@@ -13,6 +13,7 @@ from xarray import open_zarr as xr_open_zarr
 from xarray.backends.writers import to_zarr as xr_to_zarr
 
 from mdio.constants import ZarrFormat
+from mdio.core.zarr_io import zarr_warnings_suppress_unstable_numcodecs_v3
 from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
 
 if TYPE_CHECKING:
@@ -53,13 +54,14 @@ def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dat
     storage_options = _normalize_storage_options(input_path)
     zarr_format = zarr.config.get("default_zarr_format")
 
-    return xr_open_zarr(
-        input_path.as_posix(),
-        chunks=chunks,
-        storage_options=storage_options,
-        mask_and_scale=zarr_format == ZarrFormat.V3,  # off for v2, on for v3
-        consolidated=zarr_format == ZarrFormat.V2,  # on for v2, off for v3
-    )
+    with zarr_warnings_suppress_unstable_numcodecs_v3():
+        return xr_open_zarr(
+            input_path.as_posix(),
+            chunks=chunks,
+            storage_options=storage_options,
+            mask_and_scale=zarr_format == ZarrFormat.V3,  # off for v2, on for v3
+            consolidated=zarr_format == ZarrFormat.V2,  # on for v2, off for v3
+        )
 
 
 def to_mdio(  # noqa: PLR0913
@@ -90,7 +92,7 @@ def to_mdio(  # noqa: PLR0913
     storage_options = _normalize_storage_options(output_path)
     zarr_format = zarr.config.get("default_zarr_format")
 
-    with zarr_warnings_suppress_unstable_structs_v3():
+    with zarr_warnings_suppress_unstable_structs_v3(), zarr_warnings_suppress_unstable_numcodecs_v3():
         xr_to_zarr(
             dataset,
             store=output_path.as_posix(),  # xarray doesn't like URI when file:// is protocol
