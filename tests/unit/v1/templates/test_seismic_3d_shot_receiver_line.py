@@ -34,8 +34,8 @@ DATASET_DTYPE_MAP = {
 EXPECTED_COORDINATES = [
     "source_coord_x",
     "source_coord_y",
-    "receiver_coord_x",
-    "receiver_coord_y",
+    "group_coord_x",
+    "group_coord_y",
     "orig_field_record_num",
 ]
 
@@ -87,7 +87,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
 
     # Verify receiver coordinate variables
     receiver_dims = [(k, v) for k, v in DATASET_SIZE_MAP.items() if k in ["receiver_line", "receiver"]]
-    for coord_name in ["receiver_coord_x", "receiver_coord_y"]:
+    for coord_name in ["group_coord_x", "group_coord_y"]:
         coord = validate_variable(
             dataset,
             name=coord_name,
@@ -110,8 +110,8 @@ class TestSeismic3DShotReceiverLineGathersTemplate:
         assert t._physical_coord_names == (
             "source_coord_x",
             "source_coord_y",
-            "receiver_coord_x",
-            "receiver_coord_y",
+            "group_coord_x",
+            "group_coord_y",
         )
         assert t._logical_coord_names == ("orig_field_record_num",)
         assert t._var_chunk_shape == (1, 32, 1, 32, 2048)
@@ -157,7 +157,7 @@ class TestSeismic3DShotReceiverLineGathersTemplate:
         t = Seismic3DShotReceiverLineGathersTemplate(data_domain="time")
 
         t.add_units({"source_coord_x": UNITS_METER, "source_coord_y": UNITS_METER})
-        t.add_units({"receiver_coord_x": UNITS_METER, "receiver_coord_y": UNITS_METER})
+        t.add_units({"group_coord_x": UNITS_METER, "group_coord_y": UNITS_METER})
         t.add_units({"time": UNITS_SECOND})
 
         sizes = tuple(DATASET_SIZE_MAP.values())

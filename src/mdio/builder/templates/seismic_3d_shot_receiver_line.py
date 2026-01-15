@@ -29,8 +29,8 @@ class Seismic3DShotReceiverLineGathersTemplate(AbstractDatasetTemplate):
         self._physical_coord_names = (
             "source_coord_x",
             "source_coord_y",
-            "receiver_coord_x",
-            "receiver_coord_y",
+            "group_coord_x",
+            "group_coord_y",
         )
         self._logical_coord_names = ("orig_field_record_num",)
         self._var_chunk_shape = (1, 32, 1, 32, 2048)
@@ -85,16 +85,16 @@ class Seismic3DShotReceiverLineGathersTemplate(AbstractDatasetTemplate):
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_coord_y")),
         )
         self._builder.add_coordinate(
-            "receiver_coord_x",
+            "group_coord_x",
             dimensions=("receiver_line", "receiver"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("receiver_coord_x")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_x")),
         )
         self._builder.add_coordinate(
-            "receiver_coord_y",
+            "group_coord_y",
             dimensions=("receiver_line", "receiver"),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("receiver_coord_y")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_y")),
         )
         self._builder.add_coordinate(
             "orig_field_record_num",

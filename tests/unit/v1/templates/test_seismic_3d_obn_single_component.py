@@ -26,8 +26,8 @@ DATASET_DTYPE_MAP = {
     "time": "int32",
 }
 EXPECTED_COORDINATES = [
-    "receiver_coord_x",
-    "receiver_coord_y",
+    "group_coord_x",
+    "group_coord_y",
     "source_coord_x",
     "source_coord_y",
     "orig_field_record_num",
@@ -68,7 +68,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         )
 
     # Verify receiver coordinate variables
-    for coord_name in ["receiver_coord_x", "receiver_coord_y"]:
+    for coord_name in ["group_coord_x", "group_coord_y"]:
         coord = validate_variable(
             dataset,
             name=coord_name,
@@ -101,8 +101,8 @@ class TestSeismic3DObnSingleComponentGathersTemplate:
         assert t.name == "ObnSingleComponentGathers3D"
         assert t._dim_names == ("receiver", "shot_line", "gun", "shot_point", "time")
         assert t._physical_coord_names == (
-            "receiver_coord_x",
-            "receiver_coord_y",
+            "group_coord_x",
+            "group_coord_y",
             "source_coord_x",
             "source_coord_y",
         )
@@ -149,7 +149,7 @@ class TestSeismic3DObnSingleComponentGathersTemplate:
         """Test building a complete dataset with the template."""
         t = Seismic3DObnSingleComponentGathersTemplate(data_domain="time")
 
-        t.add_units({"receiver_coord_x": UNITS_METER, "receiver_coord_y": UNITS_METER})
+        t.add_units({"group_coord_x": UNITS_METER, "group_coord_y": UNITS_METER})
         t.add_units({"source_coord_x": UNITS_METER, "source_coord_y": UNITS_METER})
         t.add_units({"time": UNITS_SECOND})
 

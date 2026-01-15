@@ -27,8 +27,8 @@ class Seismic3DObnSingleComponentGathersTemplate(AbstractDatasetTemplate):
         self._spatial_dim_names = ("receiver", "shot_line", "gun", "shot_point")
         self._dim_names = (*self._spatial_dim_names, self._data_domain)
         self._physical_coord_names = (
-            "receiver_coord_x",
-            "receiver_coord_y",
+            "group_coord_x",
+            "group_coord_y",
             "source_coord_x",
             "source_coord_y",
         )
@@ -73,16 +73,16 @@ class Seismic3DObnSingleComponentGathersTemplate(AbstractDatasetTemplate):
 
         # Add non-dimension coordinates
         self._builder.add_coordinate(
-            "receiver_coord_x",
+            "group_coord_x",
             dimensions=("receiver",),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("receiver_coord_x")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_x")),
         )
         self._builder.add_coordinate(
-            "receiver_coord_y",
+            "group_coord_y",
             dimensions=("receiver",),
             data_type=ScalarType.FLOAT64,
-            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("receiver_coord_y")),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("group_coord_y")),
         )
         self._builder.add_coordinate(
             "source_coord_x",
