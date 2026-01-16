@@ -30,7 +30,7 @@ class Seismic3DObnSingleComponentGathersTemplate(AbstractDatasetTemplate):
         return "ObnSingleComponentGathers3D"
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
-        return {"surveyDimensionality": "3D", "gatherType": "common_receiver"}
+        return {"surveyType": "3D", "gatherType": "common_receiver"}
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
