@@ -113,7 +113,7 @@ class TestSeismic3DObnSingleComponentGathersTemplate:
         assert t._dim_sizes == ()
 
         attrs = t._load_dataset_attributes()
-        assert attrs == {"surveyDimensionality": "3D", "gatherType": "common_receiver"}
+        assert attrs == {"surveyType": "3D", "gatherType": "common_receiver"}
         assert t.default_variable_name == "amplitude"
 
     def test_chunk_size_calculation(self) -> None:
@@ -157,7 +157,7 @@ class TestSeismic3DObnSingleComponentGathersTemplate:
         dataset = t.build_dataset("ObnSurvey3D", sizes=sizes, header_dtype=structured_headers)
 
         assert dataset.metadata.name == "ObnSurvey3D"
-        assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
+        assert dataset.metadata.attributes["surveyType"] == "3D"
         assert dataset.metadata.attributes["gatherType"] == "common_receiver"
         assert dataset.metadata.attributes["defaultVariableName"] == "amplitude"
 

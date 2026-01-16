@@ -120,7 +120,7 @@ class TestSeismic3DShotReceiverLineGathersTemplate:
         assert t._dim_sizes == ()
 
         attrs = t._load_dataset_attributes()
-        assert attrs == {"surveyDimensionality": "3D", "gatherType": "common_source"}
+        assert attrs == {"surveyType": "3D", "gatherType": "common_source"}
         assert t.default_variable_name == "amplitude"
 
     def test_chunk_size_calculation(self) -> None:
@@ -164,7 +164,7 @@ class TestSeismic3DShotReceiverLineGathersTemplate:
         dataset = t.build_dataset("LandSurvey3D", sizes=sizes, header_dtype=structured_headers)
 
         assert dataset.metadata.name == "LandSurvey3D"
-        assert dataset.metadata.attributes["surveyDimensionality"] == "3D"
+        assert dataset.metadata.attributes["surveyType"] == "3D"
         assert dataset.metadata.attributes["gatherType"] == "common_source"
         assert dataset.metadata.attributes["defaultVariableName"] == "amplitude"
 
