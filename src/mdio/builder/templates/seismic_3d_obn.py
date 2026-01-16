@@ -9,17 +9,7 @@ from mdio.builder.templates.types import SeismicDataDomain
 
 
 class Seismic3DObnReceiverGathersTemplate(AbstractDatasetTemplate):
-    """Seismic 3D OBN (Ocean Bottom Node) receiver gathers template.
-
-    A generalized template for OBN field records that are optimized for:
-        - Common-receiver access
-        - Common-shot access
-
-    It can also store all the shot-lines of a survey in one MDIO if needed.
-
-    Args:
-        data_domain: The domain of the dataset.
-    """
+    """Seismic 3D OBN (Ocean Bottom Node) receiver gathers template."""
 
     def __init__(self, data_domain: SeismicDataDomain = "time"):
         super().__init__(data_domain=data_domain)

@@ -9,17 +9,7 @@ from mdio.builder.templates.types import SeismicDataDomain
 
 
 class Seismic3DShotReceiverLineGathersTemplate(AbstractDatasetTemplate):
-    """Seismic 3D shot-ordered gathers with receiver lines template.
-
-    A generalized template for land or OBC field records that are optimized for:
-        - Common-shot access
-        - Common-receiver-line access
-
-    It can also store all the shot-lines of a survey in one MDIO if needed.
-
-    Args:
-        data_domain: The domain of the dataset.
-    """
+    """Seismic 3D shot-ordered gathers with receiver lines template."""
 
     def __init__(self, data_domain: SeismicDataDomain = "time"):
         super().__init__(data_domain=data_domain)
