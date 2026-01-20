@@ -23,7 +23,7 @@ class Seismic3DObnSingleComponentGathersTemplate(AbstractDatasetTemplate):
             "source_coord_y",
         )
         self._logical_coord_names = ("orig_field_record_num",)
-        self._var_chunk_shape = (16, 1, 2, 16, 4096)
+        self._var_chunk_shape = (1, 1, 3, 128, 4096)
 
     @property
     def _name(self) -> str:
