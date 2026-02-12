@@ -117,7 +117,7 @@ class TestSeismic3DReceiverGathersTemplate:
     """Unit tests for Seismic3DReceiverGathersTemplate."""
 
     def test_configuration(self) -> None:
-        """Unit tests for Seismic3DReceiverGathersTemplate configuration."""
+        """Test template configuration and attributes."""
         t = Seismic3DReceiverGathersTemplate()
 
         # Template attributes
@@ -137,8 +137,27 @@ class TestSeismic3DReceiverGathersTemplate:
         assert attrs == {"surveyType": "3D", "gatherType": "receiver_gathers"}
         assert t.default_variable_name == "amplitude"
 
+    def test_chunk_size_calculation(self) -> None:
+        """Test that chunk shape produces approximately 8 MiB chunks.
+
+        The chunk shape (1, 1, 512, 4096) produces:
+        1 * 1 * 512 * 4096 = 2,097,152 samples.
+        With float32 (4 bytes): 2,097,152 * 4 = 8,388,608 bytes = 8 MiB.
+        """
+        t = Seismic3DReceiverGathersTemplate()
+
+        chunk_shape = t.full_chunk_shape
+        assert chunk_shape == (1, 1, 512, 4096)
+
+        samples_per_chunk = 1
+        for dim_size in chunk_shape:
+            samples_per_chunk *= dim_size
+
+        bytes_per_chunk = samples_per_chunk * 4
+        assert bytes_per_chunk == 8 * 1024 * 1024  # 8 MiB
+
     def test_build_dataset(self, structured_headers: StructuredType) -> None:
-        """Unit tests for Seismic3DReceiverGathersTemplate build."""
+        """Test building a complete dataset with the template."""
         t = Seismic3DReceiverGathersTemplate()
         t.add_units({"receiver_x": UNITS_METER, "receiver_y": UNITS_METER})
         t.add_units({"source_coord_x": UNITS_METER, "source_coord_y": UNITS_METER})

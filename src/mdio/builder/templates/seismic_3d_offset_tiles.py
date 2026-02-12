@@ -10,32 +10,7 @@ from mdio.builder.templates.types import SeismicDataDomain
 
 
 class Seismic3DOffsetTilesTemplate(AbstractDatasetTemplate):
-    """Seismic Offset Tiles pre-stack 3D Dataset template.
-
-    A 5D template for wide-azimuth seismic data organized by offset vector tiles.
-    Data is binned by CDP location (inline, crossline) with offset vector
-    decomposition into inline and crossline offset tile components.
-
-    Dimensions:
-        - inline: Inline bin position
-        - crossline: Crossline bin position
-        - inline_offset_tile: Inline component of the offset vector tile
-        - crossline_offset_tile: Crossline component of the offset vector tile
-        - time/depth: Sample dimension
-
-    This organization is optimal for:
-        - Wide-azimuth data preservation
-        - 5D interpolation and regularization
-        - Azimuthal analysis and processing
-        - Offset vector filtering
-
-    The offset vector tiles partition the offset-azimuth space into a regular grid,
-    preserving both offset magnitude and azimuth information in a format suitable
-    for modern wide-azimuth processing workflows.
-
-    Args:
-        data_domain: The domain of the dataset ('time' or 'depth').
-    """
+    """Seismic 3D template for offset vector tile (OVT) binned gathers."""
 
     def __init__(self, data_domain: SeismicDataDomain = "time"):
         super().__init__(data_domain=data_domain)

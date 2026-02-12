@@ -110,7 +110,7 @@ class TestSeismic3DOffsetTilesTemplate:
     """Unit tests for Seismic3DOffsetTilesTemplate."""
 
     def test_configuration(self, data_domain: SeismicDataDomain) -> None:
-        """Unit tests for Seismic3DOffsetTilesTemplate configuration."""
+        """Test template configuration and attributes."""
         t = Seismic3DOffsetTilesTemplate(data_domain=data_domain)
 
         # Template attributes
@@ -128,19 +128,38 @@ class TestSeismic3DOffsetTilesTemplate:
         assert attrs == {"surveyType": "3D", "gatherType": "offset_tiles"}
         assert t.default_variable_name == "amplitude"
 
+    def test_chunk_size_calculation(self, data_domain: SeismicDataDomain) -> None:
+        """Test that chunk shape produces approximately 9 MiB chunks.
+
+        The chunk shape (4, 4, 6, 6, 4096) produces:
+        4 * 4 * 6 * 6 * 4096 = 2,359,296 samples.
+        With float32 (4 bytes): 2,359,296 * 4 = 9,437,184 bytes = 9 MiB.
+        """
+        t = Seismic3DOffsetTilesTemplate(data_domain=data_domain)
+
+        chunk_shape = t.full_chunk_shape
+        assert chunk_shape == (4, 4, 6, 6, 4096)
+
+        samples_per_chunk = 1
+        for dim_size in chunk_shape:
+            samples_per_chunk *= dim_size
+
+        bytes_per_chunk = samples_per_chunk * 4
+        assert bytes_per_chunk == 9 * 1024 * 1024  # 9 MiB
+
     def test_build_dataset(self, data_domain: SeismicDataDomain, structured_headers: StructuredType) -> None:
-        """Unit tests for Seismic3DOffsetTilesTemplate build."""
+        """Test building a complete dataset with the template."""
         t = Seismic3DOffsetTilesTemplate(data_domain=data_domain)
         t.add_units({"cdp_x": UNITS_METER, "cdp_y": UNITS_METER})
         t.add_units({"time": UNITS_SECOND, "depth": UNITS_METER})
 
         dataset = t.build_dataset(
-            "Wide Azimuth Offset Tiles",
+            "OVT Gathers",
             sizes=(256, 256, 12, 12, 2048),
             header_dtype=structured_headers,
         )
 
-        assert dataset.metadata.name == "Wide Azimuth Offset Tiles"
+        assert dataset.metadata.name == "OVT Gathers"
         assert dataset.metadata.attributes["surveyType"] == "3D"
         assert dataset.metadata.attributes["gatherType"] == "offset_tiles"
 

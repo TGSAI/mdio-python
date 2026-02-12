@@ -9,27 +9,7 @@ from mdio.builder.templates.base import AbstractDatasetTemplate
 
 
 class Seismic3DReceiverGathersTemplate(AbstractDatasetTemplate):
-    """Seismic receiver gather pre-stack 3D Dataset template.
-
-    A template for surveys with fixed receiver positions (OBN, OBC, land fixed-spread)
-    where data is organized by receiver position for receiver-side processing.
-    Shots are organized by shot lines with a calculated shot index.
-
-    This template is time-domain only as receiver gathers are typically used
-    for early-stage processing before depth conversion.
-
-    Dimensions:
-        - receiver: Index of the receiver node/station
-        - shot_line: Shot line or swath identifier
-        - shot_index: Sequential index of shots within the line (calculated, 0-N)
-        - time: Sample dimension
-
-    This organization is optimal for:
-        - Receiver-side wavefield separation (up/down)
-        - Receiver-consistent deconvolution
-        - Multi-component processing
-        - Mirror imaging from OBN
-    """
+    """Seismic 3D receiver gathers template with calculated shot index."""
 
     def __init__(self) -> None:
         super().__init__(data_domain="time")
