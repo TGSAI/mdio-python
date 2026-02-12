@@ -56,8 +56,12 @@ def session_install_uv_package(session: Session, packages: list[str]) -> None:
     export_args = ["uv", "export", "--only-dev", "--no-hashes", "-o", requirements_tmp]
     session.run_install(*export_args, silent=True, env=env)
 
+    # Build constraints to pin setuptools for packages with legacy setup.py
+    # See: https://github.com/RKrahl/pytest-dependency/issues/91
+    build_constraints = Path(__file__).parent / ".github/workflows/build-constraints.txt"
+
     # Install requested packages with requirements.txt constraints
-    session.install(*packages, "--constraint", requirements_tmp)
+    session.install(*packages, "--constraint", requirements_tmp, "--build-constraint", str(build_constraints))
 
 
 def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
