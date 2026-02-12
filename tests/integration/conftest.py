@@ -161,3 +161,184 @@ def segy_mock_4d_shots(fake_segy_tmp: Path) -> dict[StreamerShotGeometryType, Pa
         )
 
     return segy_paths
+
+
+def get_segy_mock_obn_spec(include_component: bool = True) -> SegySpec:
+    """Create a mock OBN SEG-Y specification.
+
+    Args:
+        include_component: Whether to include component header field.
+
+    Returns:
+        SegySpec configured for OBN data.
+    """
+    trace_header_fields = [
+        HeaderField(name="orig_field_record_num", byte=9, format="int32"),
+        HeaderField(name="receiver", byte=13, format="int32"),
+        HeaderField(name="shot_point", byte=17, format="int32"),
+        HeaderField(name="samples_per_trace", byte=115, format="int16"),
+        HeaderField(name="sample_interval", byte=117, format="int16"),
+        HeaderField(name="shot_line", byte=133, format="int16"),
+        HeaderField(name="gun", byte=171, format="int16"),
+        HeaderField(name="coordinate_scalar", byte=71, format="int16"),
+        HeaderField(name="source_coord_x", byte=73, format="int32"),
+        HeaderField(name="source_coord_y", byte=77, format="int32"),
+        HeaderField(name="group_coord_x", byte=81, format="int32"),
+        HeaderField(name="group_coord_y", byte=85, format="int32"),
+    ]
+
+    if include_component:
+        trace_header_fields.append(HeaderField(name="component", byte=189, format="int16"))
+
+    rev1_spec = get_segy_standard(1.0)
+    spec = rev1_spec.customize(trace_header_fields=trace_header_fields)
+    spec.segy_standard = SegyStandard.REV1
+    return spec
+
+
+def create_segy_mock_obn(  # noqa: PLR0913
+    fake_segy_tmp: Path,
+    num_samples: int,
+    receivers: list[int],
+    shot_lines: list[int],
+    guns: list[int],
+    shot_points_per_gun: dict[int, list[int]],
+    components: list[int] | None = None,
+    filename_suffix: str = "",
+) -> Path:
+    """Create a mock OBN SEG-Y file for use in tests.
+
+    Args:
+        fake_segy_tmp: Temporary directory for SEG-Y files.
+        num_samples: Number of samples per trace.
+        receivers: List of receiver IDs.
+        shot_lines: List of shot line IDs.
+        guns: List of gun IDs.
+        shot_points_per_gun: Dict mapping gun ID to list of shot points for that gun.
+        components: List of component IDs. If None, no component header is written.
+        filename_suffix: Optional suffix for the filename.
+
+    Returns:
+        Path to the created SEG-Y file.
+    """
+    include_component = components is not None
+    segy_path = fake_segy_tmp / f"obn{'_' + filename_suffix if filename_suffix else ''}.sgy"
+
+    # Calculate total trace count
+    total_shot_points = sum(len(sps) for sps in shot_points_per_gun.values())
+    trace_count = len(receivers) * len(shot_lines) * total_shot_points
+    if include_component:
+        trace_count *= len(components)
+
+    factory = SegyFactory(
+        spec=get_segy_mock_obn_spec(include_component=include_component),
+        sample_interval=1000,
+        samples_per_trace=num_samples,
+    )
+
+    headers = factory.create_trace_header_template(trace_count)
+    samples = factory.create_trace_sample_template(trace_count)
+
+    start_x = 700000
+    start_y = 4000000
+    step_x = 100
+    step_y = 100
+
+    trc_idx = 0
+    component_list = components if include_component else [None]
+
+    for component in component_list:
+        for receiver_idx, receiver in enumerate(receivers):
+            for shot_line_idx, shot_line in enumerate(shot_lines):
+                for gun in guns:
+                    for shot_point in shot_points_per_gun[gun]:
+                        # Base header fields
+                        headers["orig_field_record_num"][trc_idx] = shot_point
+                        headers["receiver"][trc_idx] = receiver
+                        headers["shot_point"][trc_idx] = shot_point
+                        headers["shot_line"][trc_idx] = shot_line
+                        headers["gun"][trc_idx] = gun
+
+                        if include_component:
+                            headers["component"][trc_idx] = component
+
+                        # Coordinate fields
+                        src_x = start_x + step_x * shot_line_idx
+                        src_y = start_y + step_y * shot_point
+                        grp_x = start_x + step_x * receiver_idx
+                        grp_y = start_y + step_y * receiver_idx
+
+                        headers["coordinate_scalar"][trc_idx] = -100
+                        headers["source_coord_x"][trc_idx] = src_x
+                        headers["source_coord_y"][trc_idx] = src_y
+                        headers["group_coord_x"][trc_idx] = grp_x
+                        headers["group_coord_y"][trc_idx] = grp_y
+
+                        # Sample data
+                        samples[trc_idx] = np.linspace(
+                            start=receiver + shot_point,
+                            stop=receiver + shot_point + 1,
+                            num=num_samples,
+                        )
+
+                        trc_idx += 1
+
+    with segy_path.open(mode="wb") as fp:
+        fp.write(factory.create_textual_header())
+        fp.write(factory.create_binary_header())
+        fp.write(factory.create_traces(headers, samples))
+
+    return segy_path
+
+
+@pytest.fixture(scope="module")
+def segy_mock_obn_with_component(fake_segy_tmp: Path) -> Path:
+    """Generate mock OBN SEG-Y file with component header."""
+    num_samples = 25
+    receivers = [101, 102, 103]
+    shot_lines = [1, 2]
+    guns = [1, 2]
+    components = [1, 2, 3, 4]  # X, Y, Z, Hydrophone
+
+    # Interleaved shot points: gun 1 gets odd, gun 2 gets even
+    shot_points_per_gun = {
+        1: [1, 3, 5],  # gun 1: odd shot points
+        2: [2, 4, 6],  # gun 2: even shot points
+    }
+
+    return create_segy_mock_obn(
+        fake_segy_tmp,
+        num_samples=num_samples,
+        receivers=receivers,
+        shot_lines=shot_lines,
+        guns=guns,
+        shot_points_per_gun=shot_points_per_gun,
+        components=components,
+        filename_suffix="with_component",
+    )
+
+
+@pytest.fixture(scope="module")
+def segy_mock_obn_no_component(fake_segy_tmp: Path) -> Path:
+    """Generate mock OBN SEG-Y file without component header."""
+    num_samples = 25
+    receivers = [101, 102, 103]
+    shot_lines = [1, 2]
+    guns = [1, 2]
+
+    # Interleaved shot points: gun 1 gets odd, gun 2 gets even
+    shot_points_per_gun = {
+        1: [1, 3, 5],  # gun 1: odd shot points
+        2: [2, 4, 6],  # gun 2: even shot points
+    }
+
+    return create_segy_mock_obn(
+        fake_segy_tmp,
+        num_samples=num_samples,
+        receivers=receivers,
+        shot_lines=shot_lines,
+        guns=guns,
+        shot_points_per_gun=shot_points_per_gun,
+        components=None,  # No component header
+        filename_suffix="no_component",
+    )
