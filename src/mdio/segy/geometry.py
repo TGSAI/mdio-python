@@ -151,51 +151,60 @@ def analyze_streamer_headers(
     return unique_cables, cable_chan_min, cable_chan_max, geom_type
 
 
-def analyze_saillines_for_guns(
+def analyze_lines_for_guns(
     index_headers: HeaderArray,
+    line_field: str = "sail_line",
 ) -> tuple[NDArray, dict[str, list], ShotGunGeometryType]:
     """Check input headers for SEG-Y input to help determine geometry of shots and guns.
 
-    This function reads in trace_qc_count headers and finds the unique gun values. The function
-    then checks to ensure shot numbers are dense.
+    This is a generalized function that works with any line field name (sail_line, shot_line, etc.)
+    to analyze multi-gun acquisition geometry and determine if shot points are interleaved.
 
     Args:
-        index_headers: numpy array with index headers
+        index_headers: Numpy array with index headers.
+        line_field: Name of the line field to use (e.g., 'sail_line', 'shot_line').
 
     Returns:
-        tuple of unique_sail_lines, unique_guns_in_sail_line, geom_type
+        tuple of (unique_lines, unique_guns_per_line, geom_type)
     """
-    # Find unique cable ids
-    unique_sail_lines = np.sort(np.unique(index_headers["sail_line"]))
+    unique_lines = np.sort(np.unique(index_headers[line_field]))
     unique_guns = np.sort(np.unique(index_headers["gun"]))
-    logger.info("unique_sail_lines: %s", unique_sail_lines)
+    logger.info("unique_%s values: %s", line_field, unique_lines)
     logger.info("unique_guns: %s", unique_guns)
 
-    # Find channel min and max values for each cable
-    unique_guns_in_sail_line = {}
+    unique_guns_per_line = {}
 
     geom_type = ShotGunGeometryType.B
     # Check shot numbers are still unique if div/num_guns
-    for sail_line in unique_sail_lines:
-        sail_line_mask = index_headers["sail_line"] == sail_line
-        shot_current_sl = index_headers["shot_point"][sail_line_mask]
-        gun_current_sl = index_headers["gun"][sail_line_mask]
+    for line_val in unique_lines:
+        line_mask = index_headers[line_field] == line_val
+        shot_current = index_headers["shot_point"][line_mask]
+        gun_current = index_headers["gun"][line_mask]
 
-        unique_guns_sl = np.sort(np.unique(gun_current_sl))
-        num_guns_sl = unique_guns_sl.shape[0]
-        unique_guns_in_sail_line[str(sail_line)] = list(unique_guns_sl)
+        unique_guns_in_line = np.sort(np.unique(gun_current))
+        num_guns = unique_guns_in_line.shape[0]
+        unique_guns_per_line[str(line_val)] = list(unique_guns_in_line)
 
-        for gun in unique_guns_sl:
-            gun_mask = gun_current_sl == gun
-            shots_current_sl_gun = shot_current_sl[gun_mask]
-            num_shots_sl = np.unique(shots_current_sl_gun).shape[0]
-            mod_shots = np.floor(shots_current_sl_gun / num_guns_sl)
-            if len(np.unique(mod_shots)) != num_shots_sl:
-                msg = "Shot line %s has %s when using div by %s %s has %s unique mod shots."
-                logger.info(msg, sail_line, num_shots_sl, num_guns_sl, np.unique(mod_shots))
+        for gun in unique_guns_in_line:
+            gun_mask = gun_current == gun
+            shots_for_gun = shot_current[gun_mask]
+            num_shots = np.unique(shots_for_gun).shape[0]
+            mod_shots = np.floor(shots_for_gun / num_guns)
+            if len(np.unique(mod_shots)) != num_shots:
+                msg = "%s %s has %s shots; div by %s guns gives %s unique mod shots."
+                logger.info(msg, line_field, line_val, num_shots, num_guns, len(np.unique(mod_shots)))
                 geom_type = ShotGunGeometryType.A
-                return unique_sail_lines, unique_guns_in_sail_line, geom_type
-    return unique_sail_lines, unique_guns_in_sail_line, geom_type
+                return unique_lines, unique_guns_per_line, geom_type
+
+    return unique_lines, unique_guns_per_line, geom_type
+
+
+# Backward-compatible aliases for existing code
+def analyze_saillines_for_guns(
+    index_headers: HeaderArray,
+) -> tuple[NDArray, dict[str, list], ShotGunGeometryType]:
+    """Analyze sail lines for gun geometry. See analyze_lines_for_guns for details."""
+    return analyze_lines_for_guns(index_headers, line_field="sail_line")
 
 
 def create_counter(
@@ -297,7 +306,12 @@ class GridOverrideCommand(ABC):
         """Get the set of required parameters for the grid override command."""
 
     @abstractmethod
-    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
+    def validate(
+        self,
+        index_headers: HeaderArray,
+        grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate | None = None,
+    ) -> None:
         """Validate if this transform should run on the type of data."""
 
     @abstractmethod
@@ -372,7 +386,12 @@ class DuplicateIndex(GridOverrideCommand):
     required_keys = None
     required_parameters = None
 
-    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
+    def validate(
+        self,
+        index_headers: HeaderArray,
+        grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate | None = None,  # noqa: ARG002
+    ) -> None:
         """Validate if this transform should run on the type of data."""
         if self.required_keys is not None:
             self.check_required_keys(index_headers)
@@ -451,7 +470,12 @@ class NonBinned(DuplicateIndex):
     required_keys = None
     required_parameters = {"chunksize", "non_binned_dims"}
 
-    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
+    def validate(
+        self,
+        index_headers: HeaderArray,
+        grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate | None = None,  # noqa: ARG002
+    ) -> None:
         """Validate if this transform should run on the type of data."""
         self.check_required_params(grid_overrides)
 
@@ -485,7 +509,12 @@ class AutoChannelWrap(GridOverrideCommand):
     required_keys = {"shot_point", "cable", "channel"}
     required_parameters = None
 
-    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
+    def validate(
+        self,
+        index_headers: HeaderArray,
+        grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate | None = None,  # noqa: ARG002
+    ) -> None:
         """Validate if this transform should run on the type of data."""
         self.check_required_keys(index_headers)
         self.check_required_params(grid_overrides)
@@ -517,48 +546,171 @@ class AutoChannelWrap(GridOverrideCommand):
         return index_headers
 
 
-class AutoShotWrap(GridOverrideCommand):
-    """Automatically determine ShotGun acquisition type."""
+class CalculateShotIndex(GridOverrideCommand):
+    """Calculate dense shot_index from shot_point values for OBN templates.
 
-    required_keys = {"sail_line", "gun", "shot_point", "cable", "channel"}
+    Creates a 0-based shot_index dimension from sparse or interleaved shot_point
+    values, grouping by shot_line and gun. This is required for the OBN template
+    which uses shot_index as a calculated dimension.
+
+    Required headers: shot_line, gun, shot_point
+
+    Attributes:
+        required_parameters: Set of required parameters (None for this class).
+    """
+
     required_parameters = None
 
-    def validate(self, index_headers: HeaderArray, grid_overrides: dict[str, bool | int]) -> None:
+    @property
+    def required_keys(self) -> set:
+        """Return required header keys for OBN shot index calculation."""
+        return {"shot_line", "gun", "shot_point"}
+
+    def validate(
+        self,
+        index_headers: HeaderArray,
+        grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate | None = None,
+    ) -> None:
         """Validate if this transform should run on the type of data."""
-        self.check_required_keys(index_headers)
+        # Import here to avoid circular imports at module load time
+        from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
+
+        if template is None:
+            msg = "CalculateShotIndex requires a template."
+            raise TypeError(msg)
+
+        if not isinstance(template, Seismic3DObnReceiverGathersTemplate):
+            msg = (
+                f"CalculateShotIndex only supports Seismic3DObnReceiverGathersTemplate, got {type(template).__name__}."
+            )
+            raise TypeError(msg)
+
+        index_names = set(index_headers.dtype.names)
+        if not self.required_keys.issubset(index_names):
+            raise GridOverrideKeysError(self.name, self.required_keys)
         self.check_required_params(grid_overrides)
 
     def transform(
         self,
         index_headers: HeaderArray,
         grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate,  # noqa: ARG002
+        template: AbstractDatasetTemplate,
     ) -> NDArray:
-        """Perform the grid transform."""
-        self.validate(index_headers, grid_overrides)
+        """Perform the grid transform to calculate shot_index from shot_point."""
+        self.validate(index_headers, grid_overrides, template)
 
-        result = analyze_saillines_for_guns(index_headers)
-        unique_sail_lines, unique_guns_in_sail_line, geom_type = result
-        logger.info("Ingesting dataset as shot type: %s", geom_type.name)
+        line_field = "shot_line"
+        result = analyze_lines_for_guns(index_headers, line_field=line_field)
+        unique_lines, unique_guns_per_line, geom_type = result
+        logger.info("Ingesting OBN dataset as shot type: %s", geom_type.name)
 
         max_num_guns = 1
-        for sail_line in unique_sail_lines:
-            logger.info("sail_line: %s has guns: %s", sail_line, unique_guns_in_sail_line[str(sail_line)])
-            num_guns = len(unique_guns_in_sail_line[str(sail_line)])
-            max_num_guns = max(num_guns, max_num_guns)
+        for line_val in unique_lines:
+            guns = unique_guns_per_line[str(line_val)]
+            logger.info("%s: %s has guns: %s", line_field, line_val, guns)
+            max_num_guns = max(len(guns), max_num_guns)
 
-        # This might be slow and potentially could be improved with a rewrite
-        # to prevent so many lookups
+        # Only calculate shot_index when shot points are interleaved across guns (Type B)
         if geom_type == ShotGunGeometryType.B:
             shot_index = np.empty(len(index_headers), dtype="uint32")
-            index_headers = rfn.append_fields(index_headers.base, "shot_index", shot_index)
-            for sail_line in unique_sail_lines:
-                sail_line_idxs = np.where(index_headers["sail_line"][:] == sail_line)
-                index_headers["shot_index"][sail_line_idxs] = np.floor(
-                    index_headers["shot_point"][sail_line_idxs] / max_num_guns
-                )
-                # Make shot index zero-based PER sail line
-                index_headers["shot_index"][sail_line_idxs] -= index_headers["shot_index"][sail_line_idxs].min()
+            # Use .base if available (view of another array), otherwise use the array directly
+            base_array = index_headers.base if index_headers.base is not None else index_headers
+            index_headers = rfn.append_fields(base_array, "shot_index", shot_index)
+
+            for line_val in unique_lines:
+                line_idxs = np.where(index_headers[line_field][:] == line_val)
+                index_headers["shot_index"][line_idxs] = np.floor(index_headers["shot_point"][line_idxs] / max_num_guns)
+                # Make shot index zero-based PER line
+                index_headers["shot_index"][line_idxs] -= index_headers["shot_index"][line_idxs].min()
+
+        return index_headers
+
+
+class AutoShotWrap(GridOverrideCommand):
+    """Automatic shot index calculation from interleaved shot points for Streamer templates.
+
+    This grid override handles multi-gun acquisition where shot points may be
+    interleaved across guns. It calculates a dense shot_index from sparse shot_point values.
+
+    Supported Templates:
+        - Seismic3DStreamerFieldRecordsTemplate: Uses sail_line, requires cable/channel
+
+    Note:
+        For OBN templates, use CalculateShotIndex instead.
+
+    Attributes:
+        required_parameters: Set of required parameters (None for this class).
+    """
+
+    required_parameters = None
+
+    @property
+    def required_keys(self) -> set:
+        """Return required header keys for streamer shot index calculation."""
+        return {"sail_line", "gun", "shot_point", "cable", "channel"}
+
+    def validate(
+        self,
+        index_headers: HeaderArray,
+        grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate | None = None,
+    ) -> None:
+        """Validate if this transform should run on the type of data."""
+        # Import here to avoid circular imports at module load time
+        from mdio.builder.templates.seismic_3d_streamer_field import (  # noqa: PLC0415
+            Seismic3DStreamerFieldRecordsTemplate,
+        )
+
+        if template is None:
+            msg = "AutoShotWrap requires a template."
+            raise TypeError(msg)
+
+        if not isinstance(template, Seismic3DStreamerFieldRecordsTemplate):
+            msg = (
+                f"AutoShotWrap only supports Seismic3DStreamerFieldRecordsTemplate, "
+                f"got {type(template).__name__}. For OBN templates, use CalculateShotIndex."
+            )
+            raise TypeError(msg)
+
+        index_names = set(index_headers.dtype.names)
+        if not self.required_keys.issubset(index_names):
+            raise GridOverrideKeysError(self.name, self.required_keys)
+        self.check_required_params(grid_overrides)
+
+    def transform(
+        self,
+        index_headers: HeaderArray,
+        grid_overrides: dict[str, bool | int],
+        template: AbstractDatasetTemplate,
+    ) -> NDArray:
+        """Perform the grid transform to calculate shot_index from shot_point."""
+        self.validate(index_headers, grid_overrides, template)
+
+        line_field = "sail_line"
+        result = analyze_lines_for_guns(index_headers, line_field=line_field)
+        unique_lines, unique_guns_per_line, geom_type = result
+        logger.info("Ingesting streamer dataset as shot type: %s", geom_type.name)
+
+        max_num_guns = 1
+        for line_val in unique_lines:
+            guns = unique_guns_per_line[str(line_val)]
+            logger.info("%s: %s has guns: %s", line_field, line_val, guns)
+            max_num_guns = max(len(guns), max_num_guns)
+
+        # Only calculate shot_index when shot points are interleaved across guns (Type B)
+        if geom_type == ShotGunGeometryType.B:
+            shot_index = np.empty(len(index_headers), dtype="uint32")
+            # Use .base if available (view of another array), otherwise use the array directly
+            base_array = index_headers.base if index_headers.base is not None else index_headers
+            index_headers = rfn.append_fields(base_array, "shot_index", shot_index)
+
+            for line_val in unique_lines:
+                line_idxs = np.where(index_headers[line_field][:] == line_val)
+                index_headers["shot_index"][line_idxs] = np.floor(index_headers["shot_point"][line_idxs] / max_num_guns)
+                # Make shot index zero-based PER line
+                index_headers["shot_index"][line_idxs] -= index_headers["shot_index"][line_idxs].min()
+
         return index_headers
 
 
@@ -575,6 +727,7 @@ class GridOverrider:
         self.commands = {
             "AutoChannelWrap": AutoChannelWrap(),
             "AutoShotWrap": AutoShotWrap(),
+            "CalculateShotIndex": CalculateShotIndex(),
             "NonBinned": NonBinned(),
             "HasDuplicates": DuplicateIndex(),
         }
@@ -595,6 +748,42 @@ class GridOverrider:
 
         return parameters
 
+    def _synthesize_obn_component(
+        self,
+        index_headers: HeaderArray,
+        template: AbstractDatasetTemplate | None,
+    ) -> HeaderArray:
+        """Synthesize component field for OBN template when missing from headers.
+
+        OBN data may not have a component field in the SEG-Y headers (e.g., single-component
+        data). When using Seismic3DObnReceiverGathersTemplate and component is missing,
+        this method synthesizes it with a constant value of 1.
+
+        Args:
+            index_headers: The parsed index headers from SEG-Y.
+            template: The dataset template.
+
+        Returns:
+            Headers with component field added if applicable.
+        """
+        # Import here to avoid circular imports at module load time
+        from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
+
+        if not isinstance(template, Seismic3DObnReceiverGathersTemplate):
+            return index_headers
+
+        if "component" in index_headers.dtype.names:
+            return index_headers
+
+        logger.warning(
+            "SEG-Y headers do not contain 'component' field required by template '%s'. "
+            "Synthesizing 'component' dimension with constant value 1 for all traces.",
+            template.name,
+        )
+        synthetic_col = np.full(len(index_headers), 1, dtype=np.int32)
+        base_array = index_headers.base if index_headers.base is not None else index_headers
+        return rfn.append_fields(base_array, "component", synthetic_col, usemask=False)
+
     def run(
         self,
         index_headers: HeaderArray,
@@ -604,6 +793,9 @@ class GridOverrider:
         template: AbstractDatasetTemplate | None = None,
     ) -> tuple[HeaderArray, tuple[str], tuple[int]]:
         """Run grid overrides and return result."""
+        # Synthesize component for OBN template if missing
+        index_headers = self._synthesize_obn_component(index_headers, template)
+
         for override in grid_overrides:
             if override in self.parameters:
                 continue

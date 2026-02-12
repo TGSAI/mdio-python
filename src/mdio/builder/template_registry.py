@@ -26,7 +26,6 @@ from mdio.builder.templates.seismic_2d_streamer_shot import Seismic2DStreamerSho
 from mdio.builder.templates.seismic_3d_cdp import Seismic3DCdpGathersTemplate
 from mdio.builder.templates.seismic_3d_coca import Seismic3DCocaGathersTemplate
 from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate
-from mdio.builder.templates.seismic_3d_obn_single_component import Seismic3DObnSingleComponentGathersTemplate
 from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
 from mdio.builder.templates.seismic_3d_shot_receiver_line import Seismic3DShotReceiverLineGathersTemplate
 from mdio.builder.templates.seismic_3d_streamer_field import Seismic3DStreamerFieldRecordsTemplate
@@ -143,7 +142,6 @@ class TemplateRegistry:
 
         # OBN (Ocean Bottom Node) data
         self.register(Seismic3DObnReceiverGathersTemplate())
-        self.register(Seismic3DObnSingleComponentGathersTemplate())
 
         # Land/OBC shot-receiver data
         self.register(Seismic3DShotReceiverLineGathersTemplate())

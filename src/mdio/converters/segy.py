@@ -665,6 +665,14 @@ def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatas
 
     required_fields = set(mdio_template.spatial_dimension_names) | set(mdio_template.coordinate_names)
     required_fields = required_fields - set(mdio_template.calculated_dimension_names)  # remove to be calculated
+
+    # For OBN template: 'component' is optional (will be synthesized if missing)
+    # Import here to avoid circular imports at module load time
+    from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
+
+    if isinstance(mdio_template, Seismic3DObnReceiverGathersTemplate):
+        required_fields.discard("component")
+
     required_fields = required_fields | {"coordinate_scalar"}  # ensure coordinate scalar is always present
     missing_fields = required_fields - header_fields
 
