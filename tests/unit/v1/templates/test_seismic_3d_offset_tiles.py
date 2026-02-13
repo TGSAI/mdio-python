@@ -154,12 +154,12 @@ class TestSeismic3DOffsetTilesTemplate:
         t.add_units({"time": UNITS_SECOND, "depth": UNITS_METER})
 
         dataset = t.build_dataset(
-            "OVT Gathers",
+            "Offset Tile Gathers",
             sizes=(256, 256, 12, 12, 2048),
             header_dtype=structured_headers,
         )
 
-        assert dataset.metadata.name == "OVT Gathers"
+        assert dataset.metadata.name == "Offset Tile Gathers"
         assert dataset.metadata.attributes["surveyType"] == "3D"
         assert dataset.metadata.attributes["gatherType"] == "offset_tiles"
 

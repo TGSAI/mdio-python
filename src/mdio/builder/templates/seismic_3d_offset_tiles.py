@@ -10,7 +10,7 @@ from mdio.builder.templates.types import SeismicDataDomain
 
 
 class Seismic3DOffsetTilesTemplate(AbstractDatasetTemplate):
-    """Seismic 3D template for offset vector tile (OVT) binned gathers."""
+    """Seismic 3D template for rectangular offset tile gathers."""
 
     def __init__(self, data_domain: SeismicDataDomain = "time"):
         super().__init__(data_domain=data_domain)
