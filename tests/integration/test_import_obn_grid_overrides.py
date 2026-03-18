@@ -158,3 +158,68 @@ class TestImportObnMissingCalculateShotIndex:
         error_message = str(exc_info.value)
         assert "shot_index" in error_message
         assert "ObnReceiverGathers3D" in error_message
+
+
+class TestImportObnMultilineTypeA:
+    """Test OBN SEG-Y import with multiple shot lines and Type A geometry.
+
+    This test class verifies the fix for a bug where analyze_lines_for_guns()
+    would return early upon detecting Type A geometry, leaving the
+    unique_guns_per_line dictionary incomplete. This caused KeyError when
+    CalculateShotIndex.transform() tried to access shot lines that weren't
+    in the dictionary.
+
+    Regression test for: KeyError when ingesting OBN data with multiple shot
+    lines where Type A geometry is detected on an earlier line.
+    """
+
+    def test_import_obn_multiline_type_a_all_lines_processed(
+        self,
+        segy_mock_obn_multiline_type_a: Path,
+        zarr_tmp: Path,
+    ) -> None:
+        """Test that all shot lines are processed with Type A geometry.
+
+        This test verifies that:
+        1. CalculateShotIndex works with Type A geometry (non-interleaved shots)
+        2. All shot lines are included in the output, not just the first one
+        3. shot_index is correctly calculated for Type A (0-based from unique values)
+        """
+        segy_spec = get_segy_mock_obn_spec(include_component=True)
+        grid_override = {"CalculateShotIndex": True}
+
+        segy_to_mdio(
+            segy_spec=segy_spec,
+            mdio_template=TemplateRegistry().get("ObnReceiverGathers3D"),
+            input_path=segy_mock_obn_multiline_type_a,
+            output_path=zarr_tmp,
+            overwrite=True,
+            grid_overrides=grid_override,
+        )
+
+        ds = open_mdio(zarr_tmp)
+
+        # Verify ALL shot lines are present (the bug would cause lines to be missing)
+        expected_shot_lines = [1, 2, 3]
+        xrt.assert_duckarray_equal(ds["shot_line"], expected_shot_lines)
+
+        # Verify guns are present
+        expected_guns = [1, 2]
+        xrt.assert_duckarray_equal(ds["gun"], expected_guns)
+
+        # Verify shot_index is calculated correctly for Type A geometry
+        # Type A: shot points [1, 2, 3] are already unique per gun
+        # shot_index should be 0-based indices: [0, 1, 2]
+        expected_shot_index = [0, 1, 2]
+        xrt.assert_duckarray_equal(ds["shot_index"], expected_shot_index)
+
+        # Verify other dimensions
+        expected_receivers = [101, 102]
+        xrt.assert_duckarray_equal(ds["receiver"], expected_receivers)
+
+        expected_components = [1]
+        xrt.assert_duckarray_equal(ds["component"], expected_components)
+
+        # Verify shot_point is preserved as a coordinate
+        assert "shot_point" in ds.coords
+        assert ds["shot_point"].dims == ("shot_line", "gun", "shot_index")
