@@ -185,6 +185,10 @@ def analyze_lines_for_guns(
         num_guns = unique_guns_in_line.shape[0]
         unique_guns_per_line[str(line_val)] = list(unique_guns_in_line)
 
+        # Skip geometry detection if we already know it's Type A
+        if geom_type == ShotGunGeometryType.A:
+            continue
+
         for gun in unique_guns_in_line:
             gun_mask = gun_current == gun
             shots_for_gun = shot_current[gun_mask]
@@ -194,7 +198,7 @@ def analyze_lines_for_guns(
                 msg = "%s %s has %s shots; div by %s guns gives %s unique mod shots."
                 logger.info(msg, line_field, line_val, num_shots, num_guns, len(np.unique(mod_shots)))
                 geom_type = ShotGunGeometryType.A
-                return unique_lines, unique_guns_per_line, geom_type
+                break  # No need to check more guns for this line
 
     return unique_lines, unique_guns_per_line, geom_type
 
@@ -611,18 +615,27 @@ class CalculateShotIndex(GridOverrideCommand):
             logger.info("%s: %s has guns: %s", line_field, line_val, guns)
             max_num_guns = max(len(guns), max_num_guns)
 
-        # Only calculate shot_index when shot points are interleaved across guns (Type B)
-        if geom_type == ShotGunGeometryType.B:
-            shot_index = np.empty(len(index_headers), dtype="uint32")
-            # Use .base if available (view of another array), otherwise use the array directly
-            base_array = index_headers.base if index_headers.base is not None else index_headers
-            index_headers = rfn.append_fields(base_array, "shot_index", shot_index)
+        # Always calculate shot_index - the OBN template requires it
+        shot_index = np.empty(len(index_headers), dtype="uint32")
+        # Use .base if available (view of another array), otherwise use the array directly
+        base_array = index_headers.base if index_headers.base is not None else index_headers
+        index_headers = rfn.append_fields(base_array, "shot_index", shot_index)
 
+        if geom_type == ShotGunGeometryType.B:
+            # Type B: shot points are interleaved across guns, divide to get dense index
             for line_val in unique_lines:
                 line_idxs = np.where(index_headers[line_field][:] == line_val)
                 index_headers["shot_index"][line_idxs] = np.floor(index_headers["shot_point"][line_idxs] / max_num_guns)
                 # Make shot index zero-based PER line
                 index_headers["shot_index"][line_idxs] -= index_headers["shot_index"][line_idxs].min()
+        else:
+            # Type A: shot points are already unique per gun, create 0-based index from unique values
+            for line_val in unique_lines:
+                line_idxs = np.where(index_headers[line_field][:] == line_val)
+                shot_points = index_headers["shot_point"][line_idxs]
+                # np.unique returns sorted values; searchsorted maps each shot_point to its 0-based index
+                unique_shots = np.unique(shot_points)
+                index_headers["shot_index"][line_idxs] = np.searchsorted(unique_shots, shot_points)
 
         return index_headers
 

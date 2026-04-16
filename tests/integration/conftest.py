@@ -342,3 +342,76 @@ def segy_mock_obn_no_component(fake_segy_tmp: Path) -> Path:
         components=None,  # No component header
         filename_suffix="no_component",
     )
+
+
+@pytest.fixture(scope="module")
+def segy_mock_obn_multiline_type_a(fake_segy_tmp: Path) -> Path:
+    """Generate mock OBN SEG-Y file with multiple shot lines and Type A geometry.
+
+    This fixture tests the scenario where:
+    - Multiple shot lines exist (3 lines)
+    - Shot points are NOT interleaved across guns (Type A geometry)
+    - Each gun has the same dense shot point values
+
+    This specifically tests the fix for the bug where an early return in
+    analyze_lines_for_guns() would skip populating unique_guns_per_line for
+    lines after the first Type A detection, causing KeyError when later
+    code tried to access those lines.
+    """
+    num_samples = 25
+    receivers = [101, 102]
+    shot_lines = [1, 2, 3]  # Multiple lines to test all are processed
+    guns = [1, 2]
+    components = [1]  # Single component for simplicity
+
+    # Non-interleaved (Type A): both guns have the same shot point values
+    # This triggers Type A detection because floor(shot_point / num_guns)
+    # produces duplicates when shot points are dense per gun
+    shot_points_per_gun = {
+        1: [1, 2, 3],  # gun 1: dense shot points
+        2: [1, 2, 3],  # gun 2: same dense shot points (Type A)
+    }
+
+    return create_segy_mock_obn(
+        fake_segy_tmp,
+        num_samples=num_samples,
+        receivers=receivers,
+        shot_lines=shot_lines,
+        guns=guns,
+        shot_points_per_gun=shot_points_per_gun,
+        components=components,
+        filename_suffix="multiline_type_a",
+    )
+
+
+@pytest.fixture(scope="module")
+def segy_mock_obn_multiline_type_a_sparse(fake_segy_tmp: Path) -> Path:
+    """Generate mock OBN SEG-Y file with Type A geometry and sparse shot points.
+
+    Variant of segy_mock_obn_multiline_type_a using non-contiguous shot point
+    values per gun. Exercises the vectorized Type A shot_index mapping
+    (np.searchsorted over np.unique) on sparse values to ensure indices are
+    assigned positionally within the sorted unique set, not by value.
+    """
+    num_samples = 25
+    receivers = [101, 102]
+    shot_lines = [1, 2]
+    guns = [1, 2]
+    components = [1]
+
+    # Sparse, non-contiguous shot points; same set per gun keeps geometry Type A
+    shot_points_per_gun = {
+        1: [10, 50, 100],
+        2: [10, 50, 100],
+    }
+
+    return create_segy_mock_obn(
+        fake_segy_tmp,
+        num_samples=num_samples,
+        receivers=receivers,
+        shot_lines=shot_lines,
+        guns=guns,
+        shot_points_per_gun=shot_points_per_gun,
+        components=components,
+        filename_suffix="multiline_type_a_sparse",
+    )
