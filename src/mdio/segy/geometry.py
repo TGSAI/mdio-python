@@ -631,13 +631,11 @@ class CalculateShotIndex(GridOverrideCommand):
         else:
             # Type A: shot points are already unique per gun, create 0-based index from unique values
             for line_val in unique_lines:
-                line_idxs = np.where(index_headers[line_field][:] == line_val)[0]
+                line_idxs = np.where(index_headers[line_field][:] == line_val)
                 shot_points = index_headers["shot_point"][line_idxs]
-                unique_shots = np.sort(np.unique(shot_points))
-                # Map each shot_point to its 0-based index
-                shot_to_idx = {sp: i for i, sp in enumerate(unique_shots)}
-                for i, idx in enumerate(line_idxs):
-                    index_headers["shot_index"][idx] = shot_to_idx[shot_points[i]]
+                # np.unique returns sorted values; searchsorted maps each shot_point to its 0-based index
+                unique_shots = np.unique(shot_points)
+                index_headers["shot_index"][line_idxs] = np.searchsorted(unique_shots, shot_points)
 
         return index_headers
 

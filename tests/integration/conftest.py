@@ -382,3 +382,36 @@ def segy_mock_obn_multiline_type_a(fake_segy_tmp: Path) -> Path:
         components=components,
         filename_suffix="multiline_type_a",
     )
+
+
+@pytest.fixture(scope="module")
+def segy_mock_obn_multiline_type_a_sparse(fake_segy_tmp: Path) -> Path:
+    """Generate mock OBN SEG-Y file with Type A geometry and sparse shot points.
+
+    Variant of segy_mock_obn_multiline_type_a using non-contiguous shot point
+    values per gun. Exercises the vectorized Type A shot_index mapping
+    (np.searchsorted over np.unique) on sparse values to ensure indices are
+    assigned positionally within the sorted unique set, not by value.
+    """
+    num_samples = 25
+    receivers = [101, 102]
+    shot_lines = [1, 2]
+    guns = [1, 2]
+    components = [1]
+
+    # Sparse, non-contiguous shot points; same set per gun keeps geometry Type A
+    shot_points_per_gun = {
+        1: [10, 50, 100],
+        2: [10, 50, 100],
+    }
+
+    return create_segy_mock_obn(
+        fake_segy_tmp,
+        num_samples=num_samples,
+        receivers=receivers,
+        shot_lines=shot_lines,
+        guns=guns,
+        shot_points_per_gun=shot_points_per_gun,
+        components=components,
+        filename_suffix="multiline_type_a_sparse",
+    )

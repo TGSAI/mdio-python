@@ -6,6 +6,7 @@ import os
 from typing import TYPE_CHECKING
 
 import dask
+import numpy as np
 import pytest
 import xarray.testing as xrt
 from tests.integration.conftest import get_segy_mock_obn_spec
@@ -223,3 +224,39 @@ class TestImportObnMultilineTypeA:
         # Verify shot_point is preserved as a coordinate
         assert "shot_point" in ds.coords
         assert ds["shot_point"].dims == ("shot_line", "gun", "shot_index")
+
+    def test_import_obn_multiline_type_a_sparse_shot_points(
+        self,
+        segy_mock_obn_multiline_type_a_sparse: Path,
+        zarr_tmp: Path,
+    ) -> None:
+        """Test Type A shot_index mapping with sparse, non-contiguous shot points.
+
+        Guards the vectorized Type A path (np.searchsorted over np.unique) by
+        using shot points that are not 0/1-based or contiguous. shot_index must
+        be a dense 0-based sequence over the sorted unique shot points, and the
+        original shot_point values must be preserved as a coordinate.
+        """
+        segy_spec = get_segy_mock_obn_spec(include_component=True)
+        grid_override = {"CalculateShotIndex": True}
+
+        segy_to_mdio(
+            segy_spec=segy_spec,
+            mdio_template=TemplateRegistry().get("ObnReceiverGathers3D"),
+            input_path=segy_mock_obn_multiline_type_a_sparse,
+            output_path=zarr_tmp,
+            overwrite=True,
+            grid_overrides=grid_override,
+        )
+
+        ds = open_mdio(zarr_tmp)
+
+        # Sparse shot points [10, 50, 100] map to dense 0-based indices [0, 1, 2]
+        expected_shot_index = [0, 1, 2]
+        xrt.assert_duckarray_equal(ds["shot_index"], expected_shot_index)
+
+        # Original shot_point values preserved as coordinate, not remapped
+        assert "shot_point" in ds.coords
+        assert ds["shot_point"].dims == ("shot_line", "gun", "shot_index")
+        unique_shot_points = np.unique(ds["shot_point"].values)
+        xrt.assert_duckarray_equal(unique_shot_points, [10, 50, 100])
