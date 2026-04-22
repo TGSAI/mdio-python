@@ -124,9 +124,7 @@ class TestProjectHeadersToSegySpec:
 
         spec_names = list(spec.trace.header.dtype.names)
         assert list(projected.dtype.names) == spec_names
-        packed_itemsize = sum(
-            spec.trace.header.dtype.fields[name][0].itemsize for name in spec_names
-        )
+        packed_itemsize = sum(spec.trace.header.dtype.fields[name][0].itemsize for name in spec_names)
         assert projected.dtype.itemsize == packed_itemsize
         for name in spec_names:
             spec_field_dtype = spec.trace.header.dtype.fields[name][0]
@@ -190,4 +188,3 @@ class TestProjectHeadersToSegySpec:
 
         # The exact same dask array object should be returned (no map_blocks overhead)
         assert projected_da is headers_da
-
