@@ -24,6 +24,7 @@ package = "mdio"
 python_versions = ["3.13", "3.12", "3.11"]
 nox.needs_version = ">=2025.2.9"
 nox.options.default_venv_backend = "uv"
+nox.options.reuse_venv = "yes"
 nox.options.sessions = ("pre-commit", "safety", "mypy", "tests", "typeguard", "xdoctest", "docs-build")
 
 
