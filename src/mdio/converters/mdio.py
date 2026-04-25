@@ -14,6 +14,7 @@ from mdio.core.config import MDIOSettings
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import mdio_spec_to_segy
+from mdio.segy.utilities import project_headers_to_segy_spec
 from mdio.segy.utilities import segy_export_rechunker
 
 try:
@@ -132,11 +133,13 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     out_dir = output_path.parent
     tmp_dir = TemporaryDirectory(dir=out_dir)
 
+    projected_headers = project_headers_to_segy_spec(dataset["headers"].data, segy_spec)
+
     with tmp_dir:
         with TqdmCallback(desc="Unwrapping MDIO Blocks"):
             block_records = to_segy(
                 samples=dataset[default_variable_name].data,
-                headers=dataset["headers"].data,
+                headers=projected_headers,
                 live_mask=dataset["trace_mask"].data,
                 segy_factory=segy_factory,
                 file_root=tmp_dir.name,
