@@ -24,6 +24,7 @@ package = "mdio"
 python_versions = ["3.13", "3.12", "3.11"]
 nox.needs_version = ">=2025.2.9"
 nox.options.default_venv_backend = "uv"
+nox.options.reuse_venv = "yes"
 nox.options.sessions = ("pre-commit", "safety", "mypy", "tests", "typeguard", "xdoctest", "docs-build")
 
 
@@ -56,8 +57,12 @@ def session_install_uv_package(session: Session, packages: list[str]) -> None:
     export_args = ["uv", "export", "--only-dev", "--no-hashes", "-o", requirements_tmp]
     session.run_install(*export_args, silent=True, env=env)
 
+    # Build constraints to pin setuptools for packages with legacy setup.py
+    # See: https://github.com/RKrahl/pytest-dependency/issues/91
+    build_constraints = Path(__file__).parent / ".github/workflows/build-constraints.txt"
+
     # Install requested packages with requirements.txt constraints
-    session.install(*packages, "--constraint", requirements_tmp)
+    session.install(*packages, "--constraint", requirements_tmp, "--build-constraint", str(build_constraints))
 
 
 def activate_virtualenv_in_precommit_hooks(session: Session) -> None:
@@ -180,7 +185,9 @@ def tests(session: Session) -> None:
             session.notify("coverage", posargs=[])
 
 
-@session(python=python_versions[0])
+# We must pass `--clear` due to different session options during pipeline runs
+# https://github.com/TGSAI/mdio-python/blob/3d01a6d8c93cabeaeff1829599327ae83c7d6593/.github/workflows/tests.yml#L123-L130
+@session(python=python_versions[0], venv_params=["--clear"])
 def coverage(session: Session) -> None:
     """Produce the coverage report."""
     args = session.posargs or ["report"]

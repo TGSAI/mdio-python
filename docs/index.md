@@ -29,6 +29,13 @@ api_reference
 
 ```{toctree}
 :hidden:
+:caption: Guides
+
+guides/index
+```
+
+```{toctree}
+:hidden:
 :caption: Core Concepts and Structures
 
 data_models/index

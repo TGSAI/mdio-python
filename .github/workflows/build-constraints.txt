@@ -1,0 +1,4 @@
+# Constraints for building source distributions
+# pytest-dependency uses a legacy setup.py incompatible with setuptools 81+
+# See: https://github.com/RKrahl/pytest-dependency/issues/91
+setuptools<81

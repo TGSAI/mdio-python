@@ -74,10 +74,21 @@ def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
             if dim not in horizontal_coordinates:
                 horizontal_coordinates = horizontal_coordinates + (dim,)
 
+    # For OBN template: skip 'component' if not in SEG-Y spec (will be synthesized later)
+    # Import here to avoid circular imports at module load time
+    from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
+
+    spec = segy_file_kwargs.get("spec")
+    spec_fields = {field.name for field in spec.trace.header.fields} if spec else set()
+    fields_to_skip = calculated_dims.copy()
+
+    if isinstance(template, Seismic3DObnReceiverGathersTemplate) and "component" not in spec_fields:
+        fields_to_skip.add("component")
+
     headers_subset = parse_headers(
         segy_file_kwargs=segy_file_kwargs,
         num_traces=segy_file_info.num_traces,
-        subset=tuple(c for c in horizontal_coordinates if c not in calculated_dims),
+        subset=tuple(c for c in horizontal_coordinates if c not in fields_to_skip),
     )
 
     # Handle grid overrides.
