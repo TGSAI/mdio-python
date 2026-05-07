@@ -18,7 +18,7 @@ You can find a summary of the available variables and their defaults below.
 | `MDIO__EXPORT__CPU_COUNT`             | `int`    | Number of logical CPUs available |
 | `MDIO__GRID__SPARSITY_RATIO_WARN`     | `float`  | `2.0`                            |
 | `MDIO__GRID__SPARSITY_RATIO_LIMIT`    | `float`  | `10.0`                           |
-| `MDIO__IMPORT__SAVE_SEGY_FILE_HEADER` | `bool`   | `False`                          |
+| `MDIO__IMPORT__SAVE_SEGY_FILE_HEADER` | `int`    | `0`                              |
 | `MDIO__IMPORT__CLOUD_NATIVE`          | `bool`   | `False`                          |
 | `MDIO__IMPORT__RAW_HEADERS`           | `bool`   | `False`                          |
 | `MDIO_IGNORE_CHECKS`                  | `bool`   | `False`                          |
@@ -71,13 +71,29 @@ $ export MDIO__GRID__SPARSITY_RATIO_LIMIT=15.0
 
 ### `MDIO__IMPORT__SAVE_SEGY_FILE_HEADER`
 
-**Accepted values:** `true`, `false`, `1`, `0`, `yes`, `no`, `on`, `off`
+**Accepted values:** `0`, `1`, `2`, `true`, `false`, `yes`, `no`, `on`, `off`
 
-When enabled, preserves the original SEG-Y textual file header during import.
-This is useful for maintaining full SEG-Y standard compliance and preserving survey metadata.
+Controls preservation of the original SEG-Y textual file header during import.
+The textual file header must be 40 lines of 80 printable characters per the
+SEG-Y standard; lossy EBCDIC decoding can produce headers that violate this
+layout. The variable selects how MDIO reacts:
+
+| Value         | Behavior                                                                                                                                                              |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `0` / `false` | Do not save SEG-Y file headers (default).                                                                                                                             |
+| `1` / `true`  | Save SEG-Y file headers and raise `ValueError` if the text header is not exactly 40x80 ASCII-printable characters (rejects e.g. `U+FFFD` from a lossy EBCDIC decode). |
+| `2`           | Save SEG-Y file headers; if the text header is malformed, log a warning and correct it (non-ASCII or non-printable characters become spaces and rows pad to 80x40).   |
+
+```{note}
+On export, `mdio_to_segy` always defensively validates the stored text header
+and, if it cannot be re-encoded as ASCII (for example because the store was
+written by an older version of MDIO that accepted lossy EBCDIC decodes),
+repairs it on the fly and emits a warning. Re-ingest the source SEG-Y with
+mode `1` or `2` to silence the warning permanently.
+```
 
 ```shell
-$ export MDIO__IMPORT__SAVE_SEGY_FILE_HEADER=true
+$ export MDIO__IMPORT__SAVE_SEGY_FILE_HEADER=1
 $ mdio segy import input.segy output.mdio --header-locations 189,193
 ```
 

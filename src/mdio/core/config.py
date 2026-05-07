@@ -1,9 +1,34 @@
 """Environment variable management for MDIO operations."""
 
+from typing import Literal
+
 from psutil import cpu_count
 from pydantic import Field
+from pydantic import field_validator
 from pydantic_settings import BaseSettings
 from pydantic_settings import SettingsConfigDict
+
+SAVE_SEGY_FILE_HEADER_OFF = 0
+SAVE_SEGY_FILE_HEADER_STRICT = 1
+SAVE_SEGY_FILE_HEADER_LENIENT = 2
+
+SaveSegyFileHeaderMode = Literal[
+    SAVE_SEGY_FILE_HEADER_OFF,
+    SAVE_SEGY_FILE_HEADER_STRICT,
+    SAVE_SEGY_FILE_HEADER_LENIENT,
+]
+"""Mode for ``MDIO__IMPORT__SAVE_SEGY_FILE_HEADER``.
+
+* ``0`` (also accepts ``False`` / ``"false"``): do not save SEG-Y file headers.
+* ``1`` (also accepts ``True`` / ``"true"``): save SEG-Y file headers and raise
+  on a malformed text header.
+* ``2``: save SEG-Y file headers and, on a malformed text header, log a
+  warning and correct it (non-ASCII or non-printable characters become spaces
+  and the header is padded to 80x40).
+"""
+
+_SAVE_HEADER_TRUE_STRINGS = frozenset({"true", "yes", "on"})
+_SAVE_HEADER_FALSE_STRINGS = frozenset({"false", "no", "off"})
 
 
 class MDIOSettings(BaseSettings):
@@ -34,9 +59,12 @@ class MDIOSettings(BaseSettings):
     )
 
     # Import configuration
-    save_segy_file_header: bool = Field(
-        default=False,
-        description="Whether to save SEG-Y file headers",
+    save_segy_file_header: SaveSegyFileHeaderMode = Field(
+        default=0,
+        description=(
+            "How to save SEG-Y file headers: 0 (or False) skips, 1 (or True) saves "
+            "and raises on malformed text header, 2 saves and corrects malformed text header."
+        ),
         alias="MDIO__IMPORT__SAVE_SEGY_FILE_HEADER",
     )
     raw_headers: bool = Field(
@@ -58,3 +86,21 @@ class MDIOSettings(BaseSettings):
     )
 
     model_config = SettingsConfigDict(case_sensitive=True)
+
+    @field_validator("save_segy_file_header", mode="before")
+    @classmethod
+    def _coerce_save_segy_file_header(cls, value: object) -> object:
+        """Accept legacy bool values and case-insensitive string aliases."""
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in _SAVE_HEADER_FALSE_STRINGS:
+                return SAVE_SEGY_FILE_HEADER_OFF
+            if normalized in _SAVE_HEADER_TRUE_STRINGS:
+                return SAVE_SEGY_FILE_HEADER_STRICT
+            try:
+                return int(value)
+            except ValueError:
+                pass
+        if isinstance(value, bool):
+            return int(value)
+        return value
