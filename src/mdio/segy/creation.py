@@ -31,32 +31,18 @@ logger = logging.getLogger(__name__)
 
 
 def _ensure_exportable_text_header(text_header: str) -> str:
-    """Validate the stored text header and repair it if it cannot be encoded.
-
-    MDIO stores the text header as a wrapped 40x80 string. Stores written by
-    older versions of MDIO may contain non-ASCII characters (typically
-    ``U+FFFD`` from a lossy EBCDIC import) that cannot be re-encoded to ASCII
-    by the SEG-Y factory. To keep export usable for those stores this helper
-    runs the validator and, on failure, sanitizes the header in place and logs
-    a warning rather than aborting the export.
+    """Validate the stored text header; repair and warn if it cannot be ASCII-encoded.
 
     Args:
         text_header: The ``textHeader`` attribute as stored on the MDIO dataset.
 
     Returns:
-        A text header string that satisfies
-        :func:`mdio.segy.text_header.validate_text_header` and is therefore
-        guaranteed to round-trip through ``factory.create_textual_header``.
+        A text header string that satisfies :func:`validate_text_header`.
     """
     try:
         validate_text_header(text_header)
     except ValueError as exc:
-        logger.warning(
-            "Stored MDIO text header is not exportable as-is and will be repaired: %s. "
-            "The repair replaces non-ASCII or non-printable characters with spaces and "
-            "forces the 80x40 card layout. Re-ingest the source SEG-Y to remove this warning.",
-            exc,
-        )
+        logger.warning("Stored MDIO text header is not exportable as-is and will be repaired: %s", exc)
         return sanitize_text_header(text_header)
     return text_header
 

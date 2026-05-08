@@ -17,15 +17,6 @@ SaveSegyFileHeaderMode = Literal[
     SAVE_SEGY_FILE_HEADER_STRICT,
     SAVE_SEGY_FILE_HEADER_LENIENT,
 ]
-"""Mode for ``MDIO__IMPORT__SAVE_SEGY_FILE_HEADER``.
-
-* ``0`` (also accepts ``False`` / ``"false"``): do not save SEG-Y file headers.
-* ``1`` (also accepts ``True`` / ``"true"``): save SEG-Y file headers and raise
-  on a malformed text header.
-* ``2``: save SEG-Y file headers and, on a malformed text header, log a
-  warning and correct it (non-ASCII or non-printable characters become spaces
-  and the header is padded to 80x40).
-"""
 
 _SAVE_HEADER_TRUE_STRINGS = frozenset({"true", "yes", "on"})
 _SAVE_HEADER_FALSE_STRINGS = frozenset({"false", "no", "off"})
