@@ -10,15 +10,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.lib import recfunctions as rfn
 
-# Re-exported for backward compatibility with `from mdio.segy.geometry import ...` callers.
-from mdio.ingestion.segy.header_analysis import ShotGunGeometryType  # noqa: F401
-from mdio.ingestion.segy.header_analysis import StreamerShotGeometryType  # noqa: F401
+from mdio.ingestion.segy.header_analysis import ShotGunGeometryType
+from mdio.ingestion.segy.header_analysis import StreamerShotGeometryType
 from mdio.ingestion.segy.header_analysis import analyze_lines_for_guns
 from mdio.ingestion.segy.header_analysis import analyze_non_indexed_headers
-from mdio.ingestion.segy.header_analysis import analyze_saillines_for_guns  # noqa: F401
 from mdio.ingestion.segy.header_analysis import analyze_streamer_headers
-from mdio.ingestion.segy.header_analysis import create_counter  # noqa: F401
-from mdio.ingestion.segy.header_analysis import create_trace_index  # noqa: F401
 from mdio.segy.exceptions import GridOverrideKeysError
 from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError

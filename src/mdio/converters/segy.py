@@ -27,8 +27,6 @@ from mdio.core.grid import Grid
 from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
-from mdio.ingestion.coordinates import populate_dim_coordinates  # noqa: F401  re-export for compat
-from mdio.ingestion.coordinates import populate_non_dim_coordinates  # noqa: F401  re-export for compat
 from mdio.ingestion.grid_qc import grid_density_qc
 from mdio.ingestion.metadata import _add_grid_override_to_metadata
 from mdio.ingestion.segy.coordinates import _get_coordinates
