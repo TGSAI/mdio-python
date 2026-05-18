@@ -198,7 +198,7 @@ class TestUpdateTemplateUnits:
             "offset",
         }
         assert set(added.keys()) == expected_keys
-        for key in {"cdp_x", "cdp_y", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y", "offset"}:
+        for key in ("cdp_x", "cdp_y", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y", "offset"):
             assert added[key] is unit
 
     def test_preserves_pre_existing_spatial_units(self, caplog: pytest.LogCaptureFixture) -> None:

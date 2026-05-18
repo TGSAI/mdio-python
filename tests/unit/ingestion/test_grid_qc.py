@@ -18,7 +18,9 @@ from mdio.ingestion.grid_qc import grid_density_qc
 def _make_grid(shape: tuple[int, ...]) -> Grid:
     """Build a Grid with named dimensions of the given size."""
     names = [f"dim_{idx}" for idx in range(len(shape) - 1)] + ["sample"]
-    dims = [Dimension(coords=np.arange(size, dtype=np.int32), name=name) for name, size in zip(names, shape, strict=True)]
+    dims = [
+        Dimension(coords=np.arange(size, dtype=np.int32), name=name) for name, size in zip(names, shape, strict=True)
+    ]
     return Grid(dims=dims)
 
 
@@ -69,8 +71,9 @@ class TestGridDensityQc:
     def test_ignore_checks_suppresses_error(self, caplog: pytest.LogCaptureFixture) -> None:
         """Setting MDIO_IGNORE_CHECKS still warns but never raises."""
         grid = _make_grid((10, 10, 100))
-        with patch.dict(os.environ, {"MDIO_IGNORE_CHECKS": "1"}), caplog.at_level(
-            logging.WARNING, logger="mdio.ingestion.grid_qc"
+        with (
+            patch.dict(os.environ, {"MDIO_IGNORE_CHECKS": "1"}),
+            caplog.at_level(logging.WARNING, logger="mdio.ingestion.grid_qc"),
         ):
             grid_density_qc(grid, num_traces=5)
 

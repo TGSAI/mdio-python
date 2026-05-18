@@ -82,15 +82,17 @@ class TestValidateSpecInTemplate:
 
         spec = get_segy_standard(1.0)
         # Add all required OBN fields except 'component'.
-        required = (
-            set(template.spatial_dimension_names) | set(template.coordinate_names)
-        ) - set(template.calculated_dimension_names)
+        required = (set(template.spatial_dimension_names) | set(template.coordinate_names)) - set(
+            template.calculated_dimension_names
+        )
         required.discard("component")
 
         extra = [HeaderField(name=name, byte=189, format="int32") for name in sorted(required)]
         # Spread bytes so they don't collide.
         spec = spec.customize(
-            trace_header_fields=[HeaderField(name=f.name, byte=189 + idx * 4, format="int32") for idx, f in enumerate(extra)]
+            trace_header_fields=[
+                HeaderField(name=f.name, byte=189 + idx * 4, format="int32") for idx, f in enumerate(extra)
+            ]
         )
 
         _validate_spec_in_template(spec, template)
