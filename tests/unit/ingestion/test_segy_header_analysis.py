@@ -44,11 +44,7 @@ class TestAnalyzeStreamerHeaders:
 
     def test_non_overlapping_channels_returns_type_b(self) -> None:
         """Non-overlapping cable channel ranges should produce Configuration B."""
-        records: list[tuple[int, int]] = []
-        for cable in (1, 2, 3):
-            for chan in range(1, 6):
-                records.append((cable, (cable - 1) * 5 + chan))
-
+        records = [(cable, (cable - 1) * 5 + chan) for cable in (1, 2, 3) for chan in range(1, 6)]
         headers = _streamer_headers(records)
 
         unique_cables, mins, maxs, geom = analyze_streamer_headers(headers)
@@ -60,11 +56,7 @@ class TestAnalyzeStreamerHeaders:
 
     def test_overlapping_channels_returns_type_a(self) -> None:
         """Overlapping channel ranges between cables should produce Configuration A."""
-        records: list[tuple[int, int]] = []
-        for cable in (1, 2):
-            for chan in range(1, 6):
-                records.append((cable, chan))
-
+        records = [(cable, chan) for cable in (1, 2) for chan in range(1, 6)]
         headers = _streamer_headers(records)
         unique_cables, _, _, geom = analyze_streamer_headers(headers)
 
@@ -102,11 +94,8 @@ class TestAnalyzeLinesForGuns:
     def test_interleaved_shots_returns_type_b(self) -> None:
         """Interleaved shot numbering (unique per line, sparse per gun) -> Configuration B."""
         # Gun 1: odd shots, gun 2: even shots, all unique within the same line.
-        records = []
-        for shot in (1, 3, 5):
-            records.append((200, shot, 1))
-        for shot in (2, 4, 6):
-            records.append((200, shot, 2))
+        records = [(200, shot, 1) for shot in (1, 3, 5)]
+        records.extend((200, shot, 2) for shot in (2, 4, 6))
         headers = _gun_headers(records)
 
         unique_lines, per_line, geom = analyze_lines_for_guns(headers, line_field="sail_line")

@@ -79,9 +79,11 @@ class TestAddSegyFileHeaders:
         bad_text = "\n".join(["X" * 80] * 39)
         info = _make_segy_info(text_header=bad_text)
         ds = _empty_dataset()
-        with patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "true"}):
-            with pytest.raises(ValueError, match="Invalid text header count"):
-                _add_segy_file_headers(ds, info)
+        with (
+            patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "true"}),
+            pytest.raises(ValueError, match="Invalid text header count"),
+        ):
+            _add_segy_file_headers(ds, info)
 
     def test_invalid_column_count_raises(self) -> None:
         """Text header rows shorter than 80 chars must raise."""
@@ -89,6 +91,8 @@ class TestAddSegyFileHeaders:
         bad_rows[5] = "X" * 79
         info = _make_segy_info(text_header="\n".join(bad_rows))
         ds = _empty_dataset()
-        with patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "true"}):
-            with pytest.raises(ValueError, match="Invalid text header columns"):
-                _add_segy_file_headers(ds, info)
+        with (
+            patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "true"}),
+            pytest.raises(ValueError, match="Invalid text header columns"),
+        ):
+            _add_segy_file_headers(ds, info)
