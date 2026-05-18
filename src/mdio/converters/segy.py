@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import logging
 from typing import TYPE_CHECKING
 
@@ -10,8 +9,6 @@ import numpy as np
 import zarr
 from segy.config import SegyFileSettings
 from segy.config import SegyHeaderOverrides
-from segy.standards.codes import MeasurementSystem as SegyMeasurementSystem
-from segy.standards.fields import binary as binary_header_fields
 
 from mdio.api.io import _normalize_path
 from mdio.api.io import to_mdio
@@ -20,25 +17,28 @@ from mdio.builder.schemas.chunk_grid import RegularChunkShape
 from mdio.builder.schemas.compressors import Blosc
 from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.schemas.dtype import ScalarType
-from mdio.builder.schemas.v1.units import AngleUnitEnum
-from mdio.builder.schemas.v1.units import AngleUnitModel
-from mdio.builder.schemas.v1.units import LengthUnitEnum
-from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.xarray_builder import to_xarray_dataset
 from mdio.constants import ZarrFormat
 from mdio.converters.exceptions import GridTraceCountError
-from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.type_converter import to_structured_type
 from mdio.core.config import MDIOSettings
 from mdio.core.grid import Grid
 from mdio.core.utils_write import MAX_COORDINATES_BYTES
 from mdio.core.utils_write import MAX_SIZE_LIVE_MASK
 from mdio.core.utils_write import get_constrained_chunksize
+from mdio.ingestion.coordinates import populate_dim_coordinates  # noqa: F401  re-export for compat
+from mdio.ingestion.coordinates import populate_non_dim_coordinates  # noqa: F401  re-export for compat
+from mdio.ingestion.grid_qc import grid_density_qc
+from mdio.ingestion.metadata import _add_grid_override_to_metadata
+from mdio.ingestion.segy.coordinates import _get_coordinates
+from mdio.ingestion.segy.coordinates import _get_spatial_coordinate_unit
+from mdio.ingestion.segy.coordinates import _populate_coordinates
+from mdio.ingestion.segy.coordinates import _update_template_units
+from mdio.ingestion.segy.file_headers import _add_segy_file_headers
+from mdio.ingestion.segy.validation import _validate_spec_in_template
 from mdio.segy import blocked_io
 from mdio.segy.file import get_segy_file_info
-from mdio.segy.scalar import SCALE_COORDINATE_KEYS
-from mdio.segy.scalar import _apply_coordinate_scalar
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
@@ -57,81 +57,6 @@ if TYPE_CHECKING:
     from mdio.segy.file import SegyFileInfo
 
 logger = logging.getLogger(__name__)
-
-
-MEASUREMENT_SYSTEM_KEY = binary_header_fields.Rev0.MEASUREMENT_SYSTEM_CODE.model.name
-ANGLE_UNIT_KEYS = ["angle", "azimuth"]
-SPATIAL_UNIT_KEYS = [
-    "cdp_x",
-    "cdp_y",
-    "source_coord_x",
-    "source_coord_y",
-    "group_coord_x",
-    "group_coord_y",
-    "offset",
-]
-
-
-def grid_density_qc(grid: Grid, num_traces: int) -> None:
-    """Quality control for sensible grid density during SEG-Y to MDIO conversion.
-
-    This function checks the density of the proposed grid by comparing the total possible traces
-    (`grid_traces`) to the actual number of traces in the SEG-Y file (`num_traces`). A warning is
-    logged if the sparsity ratio (`grid_traces / num_traces`) exceeds a configurable threshold,
-    indicating potential inefficiency or misconfiguration.
-
-    The warning threshold is set via the environment variable `MDIO__GRID__SPARSITY_RATIO_WARN`
-    (default 2), and the error threshold via `MDIO__GRID__SPARSITY_RATIO_LIMIT` (default 10). To
-    suppress the exception (but still log warnings), set `MDIO_IGNORE_CHECKS=1`.
-
-    Args:
-        grid: The Grid instance to check.
-        num_traces: Expected number of traces from the SEG-Y file.
-
-    Raises:
-        GridTraceSparsityError: If the sparsity ratio exceeds `MDIO__GRID__SPARSITY_RATIO_LIMIT`
-            and `MDIO_IGNORE_CHECKS` is not set to a truthy value (e.g., "1", "true").
-    """
-    settings = MDIOSettings()
-    # Calculate total possible traces in the grid (excluding sample dimension)
-    grid_traces = np.prod(grid.shape[:-1], dtype=np.uint64)
-
-    # Handle division by zero if num_traces is 0
-    sparsity_ratio = float("inf") if num_traces == 0 else grid_traces / num_traces
-
-    # Fetch and validate environment variables
-    warning_ratio = settings.grid_sparsity_ratio_warn
-    error_ratio = settings.grid_sparsity_ratio_limit
-    ignore_checks = settings.ignore_checks
-
-    # Check sparsity
-    should_warn = sparsity_ratio > warning_ratio
-    should_error = sparsity_ratio > error_ratio and not ignore_checks
-
-    # Early return if everything is OK
-    # Prepare message for warning or error
-    if not should_warn and not should_error:
-        return
-
-    # Build warning / error message
-    dims = dict(zip(grid.dim_names, grid.shape, strict=True))
-    msg = (
-        f"Ingestion grid is sparse. Sparsity ratio: {sparsity_ratio:.2f}. "
-        f"Ingestion grid: {dims}. "
-        f"SEG-Y trace count: {num_traces}, grid trace count: {grid_traces}."
-    )
-    for dim_name in grid.dim_names:
-        dim_min = grid.get_min(dim_name)
-        dim_max = grid.get_max(dim_name)
-        msg += f"\n{dim_name} min: {dim_min} max: {dim_max}"
-
-    # Log warning if sparsity exceeds warning threshold
-    if should_warn:
-        logger.warning(msg)
-
-    # Raise error if sparsity exceeds error threshold and checks are not ignored
-    if should_error:
-        raise GridTraceSparsityError(grid.shape, num_traces, msg)
 
 
 def _patch_add_coordinates_for_non_binned(
@@ -342,242 +267,6 @@ def _build_and_check_grid(
     return grid
 
 
-def _get_coordinates(
-    grid: Grid,
-    segy_headers: SegyHeaderArray,
-    mdio_template: AbstractDatasetTemplate,
-) -> tuple[list[Dimension], dict[str, SegyHeaderArray]]:
-    """Get the data dim and non-dim coordinates from the SEG-Y headers and MDIO template.
-
-    Select a subset of the segy_dimensions that corresponds to the MDIO dimensions
-    The dimensions are ordered as in the MDIO template.
-    The last dimension is always the vertical domain dimension
-
-    Args:
-        grid: Inferred MDIO grid for SEG-Y file.
-        segy_headers: Headers read in from SEG-Y file.
-        mdio_template: The MDIO template to use for the conversion.
-
-    Raises:
-        ValueError: If a dimension or coordinate name from the MDIO template is not found in
-                    the SEG-Y headers.
-
-    Returns:
-        A tuple containing:
-            - A list of dimension coordinates (1-D arrays).
-            - A dict of non-dimension coordinates (str: N-D arrays).
-    """
-    dimensions_coords = []
-    for dim_name in mdio_template.dimension_names:
-        if dim_name not in grid.dim_names:
-            err = f"Dimension '{dim_name}' was not found in SEG-Y dimensions."
-            raise ValueError(err)
-        dimensions_coords.append(grid.select_dim(dim_name))
-
-    non_dim_coords: dict[str, SegyHeaderArray] = {}
-    for coord_name in mdio_template.coordinate_names:
-        if coord_name not in segy_headers.dtype.names:
-            err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
-            raise ValueError(err)
-        # Copy the data to allow segy_headers to be garbage collected
-        non_dim_coords[coord_name] = np.array(segy_headers[coord_name])
-
-    return dimensions_coords, non_dim_coords
-
-
-def populate_dim_coordinates(
-    dataset: xr_Dataset, grid: Grid, drop_vars_delayed: list[str]
-) -> tuple[xr_Dataset, list[str]]:
-    """Populate the xarray dataset with dimension coordinate variables."""
-    for dim in grid.dims:
-        dataset[dim.name].values[:] = dim.coords
-        drop_vars_delayed.append(dim.name)
-    return dataset, drop_vars_delayed
-
-
-def populate_non_dim_coordinates(
-    dataset: xr_Dataset,
-    grid: Grid,
-    coordinates: dict[str, SegyHeaderArray],
-    drop_vars_delayed: list[str],
-    spatial_coordinate_scalar: int,
-) -> tuple[xr_Dataset, list[str]]:
-    """Populate the xarray dataset with coordinate variables.
-
-    Memory optimization: Processes coordinates one at a time and explicitly
-    releases intermediate arrays to reduce peak memory usage.
-    """
-    non_data_domain_dims = grid.dim_names[:-1]  # minus the data domain dimension
-
-    # Process coordinates one at a time to minimize peak memory
-    coord_names = list(coordinates.keys())
-    for coord_name in coord_names:
-        coord_values = coordinates.pop(coord_name)  # Remove from dict to free memory
-        da_coord = dataset[coord_name]
-
-        # Get coordinate shape from dataset (uses dask shape, no memory allocation)
-        coord_shape = da_coord.shape
-
-        # Create output array with fill value
-        fill_value = da_coord.encoding.get("_FillValue") or da_coord.encoding.get("fill_value")
-        if fill_value is None:
-            fill_value = np.nan
-        tmp_coord_values = np.full(coord_shape, fill_value, dtype=da_coord.dtype)
-
-        # Compute slices for this coordinate's dimensions
-        coord_axes = tuple(non_data_domain_dims.index(coord_dim) for coord_dim in da_coord.dims)
-        coord_slices = tuple(slice(None) if idx in coord_axes else 0 for idx in range(len(non_data_domain_dims)))
-
-        # Read only the required slice from grid map
-        coord_trace_indices = np.asarray(grid.map[coord_slices])
-
-        # Find valid (non-null) indices
-        not_null = coord_trace_indices != grid.map.fill_value
-
-        # Populate values efficiently
-        if not_null.any():
-            valid_indices = coord_trace_indices[not_null]
-            tmp_coord_values[not_null] = coord_values[valid_indices]
-
-        # Apply scalar if needed
-        if coord_name in SCALE_COORDINATE_KEYS:
-            tmp_coord_values = _apply_coordinate_scalar(tmp_coord_values, spatial_coordinate_scalar)
-
-        # Assign to dataset
-        dataset[coord_name][:] = tmp_coord_values
-        drop_vars_delayed.append(coord_name)
-
-        # Explicitly release intermediate arrays
-        del tmp_coord_values, coord_trace_indices, not_null, coord_values
-
-        # TODO(Altay): Add verification of reduced coordinates being the same as the first
-        # https://github.com/TGSAI/mdio-python/issues/645
-
-    return dataset, drop_vars_delayed
-
-
-def _get_spatial_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitModel | None:
-    """Get the coordinate unit from the SEG-Y headers."""
-    measurement_system_code = int(segy_file_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
-
-    if measurement_system_code not in (1, 2):
-        logger.warning(
-            "Unexpected value in coordinate unit (%s) header: %s. Can't extract coordinate unit and will "
-            "ingest without coordinate units.",
-            MEASUREMENT_SYSTEM_KEY,
-            measurement_system_code,
-        )
-        return None
-
-    if measurement_system_code == SegyMeasurementSystem.METERS:
-        unit = LengthUnitEnum.METER
-    if measurement_system_code == SegyMeasurementSystem.FEET:
-        unit = LengthUnitEnum.FOOT
-
-    return LengthUnitModel(length=unit)
-
-
-def _update_template_units(template: AbstractDatasetTemplate, unit: LengthUnitModel | None) -> AbstractDatasetTemplate:
-    """Update the template with dynamic and some pre-defined units."""
-    # Add units for pre-defined: angle and azimuth etc.
-    new_units = {key: AngleUnitModel(angle=AngleUnitEnum.DEGREES) for key in ANGLE_UNIT_KEYS}
-
-    # If a spatial unit is not provided, we return as is
-    if unit is None:
-        template.add_units(new_units)
-        return template
-
-    # Dynamically add units based on the spatial coordinate unit
-    for key in SPATIAL_UNIT_KEYS:
-        current_value = template.get_unit_by_key(key)
-        if current_value is not None:
-            logger.warning("Unit for %s already in template. Will keep the original unit: %s", key, current_value)
-            continue
-
-        new_units[key] = unit
-
-    template.add_units(new_units)
-    return template
-
-
-def _populate_coordinates(
-    dataset: xr_Dataset,
-    grid: Grid,
-    coords: dict[str, SegyHeaderArray],
-    spatial_coordinate_scalar: int,
-) -> tuple[xr_Dataset, list[str]]:
-    """Populate dim and non-dim coordinates in the xarray dataset and write to Zarr.
-
-    This will write the xr Dataset with coords and dimensions, but empty traces and headers.
-
-    Args:
-        dataset: The xarray dataset to populate.
-        grid: The grid object containing the grid map.
-        coords: The non-dim coordinates to populate.
-        spatial_coordinate_scalar: The X/Y coordinate scalar from the SEG-Y file.
-
-    Returns:
-        Xarray dataset with filled coordinates and updated variables to drop after writing
-    """
-    drop_vars_delayed = []
-    # Populate the dimension coordinate variables (1-D arrays)
-    dataset, drop_vars_delayed = populate_dim_coordinates(dataset, grid, drop_vars_delayed=drop_vars_delayed)
-
-    # Populate the non-dimension coordinate variables (N-dim arrays)
-    dataset, drop_vars_delayed = populate_non_dim_coordinates(
-        dataset,
-        grid,
-        coordinates=coords,
-        drop_vars_delayed=drop_vars_delayed,
-        spatial_coordinate_scalar=spatial_coordinate_scalar,
-    )
-
-    return dataset, drop_vars_delayed
-
-
-def _add_segy_file_headers(xr_dataset: xr_Dataset, segy_file_info: SegyFileInfo) -> xr_Dataset:
-    settings = MDIOSettings()
-
-    if not settings.save_segy_file_header:
-        return xr_dataset
-
-    expected_rows = 40
-    expected_cols = 80
-
-    text_header_rows = segy_file_info.text_header.splitlines()
-    text_header_cols_bad = [len(row) != expected_cols for row in text_header_rows]
-
-    if len(text_header_rows) != expected_rows:
-        err = f"Invalid text header count: expected {expected_rows}, got {len(segy_file_info.text_header)}"
-        raise ValueError(err)
-
-    if any(text_header_cols_bad):
-        err = f"Invalid text header columns: expected {expected_cols} per line."
-        raise ValueError(err)
-
-    xr_dataset["segy_file_header"] = ((), "")
-    xr_dataset["segy_file_header"].attrs.update(
-        {
-            "textHeader": segy_file_info.text_header,
-            "binaryHeader": segy_file_info.binary_header_dict,
-        }
-    )
-    if settings.raw_headers:
-        raw_binary_base64 = base64.b64encode(segy_file_info.raw_binary_headers).decode("ascii")
-        xr_dataset["segy_file_header"].attrs.update({"rawBinaryHeader": raw_binary_base64})
-
-    return xr_dataset
-
-
-def _add_grid_override_to_metadata(dataset: Dataset, grid_overrides: dict[str, Any] | None) -> None:
-    """Add grid override to Dataset metadata if needed."""
-    if dataset.metadata.attributes is None:
-        dataset.metadata.attributes = {}
-
-    if grid_overrides is not None:
-        dataset.metadata.attributes["gridOverrides"] = grid_overrides
-
-
 def _add_raw_headers_to_template(mdio_template: AbstractDatasetTemplate) -> AbstractDatasetTemplate:
     """Add raw headers capability to the MDIO template by monkey-patching its _add_variables method.
 
@@ -657,31 +346,6 @@ def _chunk_variable(ds: Dataset, target_variable_name: str) -> None:
         ds.variables[index].metadata = VariableMetadata()
 
     ds.variables[index].metadata.chunk_grid = chunk_grid
-
-
-def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatasetTemplate) -> None:
-    """Validate that the SegySpec has all required fields in the MDIO template."""
-    header_fields = {field.name for field in segy_spec.trace.header.fields}
-
-    required_fields = set(mdio_template.spatial_dimension_names) | set(mdio_template.coordinate_names)
-    required_fields = required_fields - set(mdio_template.calculated_dimension_names)  # remove to be calculated
-
-    # For OBN template: 'component' is optional (will be synthesized if missing)
-    # Import here to avoid circular imports at module load time
-    from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
-
-    if isinstance(mdio_template, Seismic3DObnReceiverGathersTemplate):
-        required_fields.discard("component")
-
-    required_fields = required_fields | {"coordinate_scalar"}  # ensure coordinate scalar is always present
-    missing_fields = required_fields - header_fields
-
-    if missing_fields:
-        err = (
-            f"Required fields {sorted(missing_fields)} for template {mdio_template.name} "
-            f"not found in the provided segy_spec"
-        )
-        raise ValueError(err)
 
 
 def segy_to_mdio(  # noqa PLR0913
