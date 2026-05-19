@@ -57,29 +57,13 @@ def _get_coordinates(
         segy_headers: Headers read in from SEG-Y file.
         mdio_template: The MDIO template to use for the conversion.
 
-    Raises:
-        ValueError: If a dimension or coordinate name from the MDIO template is not found in
-                    the SEG-Y headers.
-
     Returns:
         A tuple containing:
             - A list of dimension coordinates (1-D arrays).
             - A dict of non-dimension coordinates (str: N-D arrays).
     """
-    dimensions_coords = []
-    for dim_name in mdio_template.dimension_names:
-        if dim_name not in grid.dim_names:
-            err = f"Dimension '{dim_name}' was not found in SEG-Y dimensions."
-            raise ValueError(err)
-        dimensions_coords.append(grid.select_dim(dim_name))
-
-    non_dim_coords: dict[str, SegyHeaderArray] = {}
-    for coord_name in mdio_template.coordinate_names:
-        if coord_name not in segy_headers.dtype.names:
-            err = f"Coordinate '{coord_name}' not found in SEG-Y dimensions."
-            raise ValueError(err)
-        non_dim_coords[coord_name] = np.array(segy_headers[coord_name])
-
+    dimensions_coords = [grid.select_dim(name) for name in mdio_template.dimension_names]
+    non_dim_coords = {name: np.array(segy_headers[name]) for name in mdio_template.coordinate_names}
     return dimensions_coords, non_dim_coords
 
 

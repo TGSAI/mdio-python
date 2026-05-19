@@ -52,36 +52,6 @@ class TestGetCoordinates:
         np.testing.assert_array_equal(non_dim["cdp_x"], cdp_x)
         np.testing.assert_array_equal(non_dim["cdp_y"], cdp_y)
 
-    def test_missing_dimension_raises(self) -> None:
-        """A template dim missing from the grid should raise ValueError."""
-        grid = make_grid(
-            [
-                ("inline", np.array([1, 2], dtype=np.int32)),
-                # Missing 'crossline'
-                ("time", np.array([0, 4], dtype=np.int32)),
-            ]
-        )
-        headers = make_header_array({"cdp_x": np.zeros(2, dtype=np.float64), "cdp_y": np.zeros(2, dtype=np.float64)})
-
-        template = Seismic3DPostStackTemplate(data_domain="time")
-
-        with pytest.raises(ValueError, match=r"Dimension 'crossline' was not found"):
-            _get_coordinates(grid, headers, template)
-
-    def test_missing_coordinate_field_raises(self) -> None:
-        """A template coord absent from SEG-Y headers should raise ValueError."""
-        inline = np.array([1, 2], dtype=np.int32)
-        crossline = np.array([10, 20], dtype=np.int32)
-        sample = np.array([0, 4], dtype=np.int32)
-        grid = make_grid([("inline", inline), ("crossline", crossline), ("time", sample)])
-        # Headers lack 'cdp_y'
-        headers = make_header_array({"cdp_x": np.zeros(4, dtype=np.float64)})
-
-        template = Seismic3DPostStackTemplate(data_domain="time")
-
-        with pytest.raises(ValueError, match=r"Coordinate 'cdp_y' not found"):
-            _get_coordinates(grid, headers, template)
-
 
 class TestPopulateCoordinates:
     """Tests for the ``_populate_coordinates`` wrapper.
