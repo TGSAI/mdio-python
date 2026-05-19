@@ -15,8 +15,11 @@ from mdio.segy.geometry import GridOverrider
 from mdio.segy.parsers import parse_headers
 
 if TYPE_CHECKING:
+    from dask.array import Array as DaskArray
     from numpy.typing import DTypeLike
+    from numpy.typing import NDArray
     from segy.arrays import HeaderArray
+    from segy.schema import SegySpec
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
     from mdio.segy.file import SegyFileArguments
@@ -181,6 +184,51 @@ def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
         return dimensions, chunksize, headers_subset
 
     return dimensions, chunksize
+
+
+def project_headers_to_segy_spec(headers: DaskArray, segy_spec: SegySpec) -> DaskArray:
+    """Project stored MDIO trace headers onto the SegySpec trace header layout.
+
+    ``SegyFactory.create_traces`` assigns headers by numpy structured-array slot position,
+    not by field name, so the input must expose exactly the SegySpec fields in SegySpec
+    order. A packed (no-padding), native-byte-order dtype is used to avoid numpy byteswap
+    artifacts over padding bytes.
+
+    Args:
+        headers: Dask array holding MDIO trace headers with structured dtype.
+        segy_spec: Target SegySpec describing the output SEG-Y trace header layout.
+
+    Returns:
+        Dask array with a packed, native-byte-order dtype ordered like the SegySpec.
+
+    Raises:
+        ValueError: If SegySpec requests header fields that do not exist in MDIO headers.
+    """
+    spec_header_dtype = segy_spec.trace.header.dtype
+    target_names = list(spec_header_dtype.names)
+
+    source_names = headers.dtype.names
+    missing = [name for name in target_names if name not in source_names]
+    if missing:
+        msg = (
+            f"SegySpec requires trace header fields not present in MDIO: {missing}. "
+            f"Available MDIO header fields: {sorted(source_names)}."
+        )
+        raise ValueError(msg)
+
+    target_dtype = np.dtype([(name, spec_header_dtype.fields[name][0].newbyteorder("=")) for name in target_names])
+
+    # Don't actually project if the dtype is already the same as the target dtype.
+    if headers.dtype == target_dtype:
+        return headers
+
+    def _project_block(block: NDArray) -> NDArray:
+        out = np.empty(block.shape, dtype=target_dtype)
+        for name in target_names:
+            out[name] = block[name]
+        return out
+
+    return headers.map_blocks(_project_block, dtype=target_dtype)
 
 
 def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:
