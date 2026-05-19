@@ -17,6 +17,8 @@ from tqdm.auto import tqdm
 from mdio.api.io import open_mdio
 from mdio.exceptions import MDIOMissingVariableError
 from mdio.segy.compat import encode_segy_revision
+from mdio.segy.text_header import sanitize_text_header
+from mdio.segy.text_header import validate_text_header
 
 if TYPE_CHECKING:
     import xarray as xr
@@ -26,6 +28,23 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_exportable_text_header(text_header: str) -> str:
+    """Validate the stored text header; repair and warn if it cannot be ASCII-encoded.
+
+    Args:
+        text_header: The ``textHeader`` attribute as stored on the MDIO dataset.
+
+    Returns:
+        A text header string that satisfies :func:`validate_text_header`.
+    """
+    try:
+        validate_text_header(text_header)
+    except ValueError as exc:
+        logger.warning("Stored MDIO text header is not exportable as-is and will be repaired: %s", exc)
+        return sanitize_text_header(text_header)
+    return text_header
 
 
 def make_segy_factory(spec: SegySpec, binary_header: dict[str, int]) -> SegyFactory:
@@ -88,6 +107,7 @@ def mdio_spec_to_segy(
 
     factory = make_segy_factory(spec=segy_spec, binary_header=binary_header)
 
+    text_header = _ensure_exportable_text_header(text_header)
     text_header_bytes = factory.create_textual_header(text_header)
 
     # During MDIO SEGY import, TGSAI/segy always creates revision major/minor fields

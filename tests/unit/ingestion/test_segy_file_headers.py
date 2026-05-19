@@ -81,7 +81,7 @@ class TestAddSegyFileHeaders:
         ds = _empty_dataset()
         with (
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "true"}),
-            pytest.raises(ValueError, match="Invalid text header count"),
+            pytest.raises(ValueError, match="Invalid text header line count"),
         ):
             _add_segy_file_headers(ds, info)
 
@@ -93,6 +93,6 @@ class TestAddSegyFileHeaders:
         ds = _empty_dataset()
         with (
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "true"}),
-            pytest.raises(ValueError, match="Invalid text header columns"),
+            pytest.raises(ValueError, match="Invalid text header line widths"),
         ):
             _add_segy_file_headers(ds, info)
