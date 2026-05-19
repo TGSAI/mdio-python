@@ -104,7 +104,7 @@ def _get_spatial_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitMode
     """Get the coordinate unit from the SEG-Y headers."""
     measurement_system_code = int(segy_file_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
 
-    if measurement_system_code not in (1, 2):
+    if measurement_system_code not in {s.value for s in SegyMeasurementSystem}:
         logger.warning(
             "Unexpected value in coordinate unit (%s) header: %s. Can't extract coordinate unit and will "
             "ingest without coordinate units.",
