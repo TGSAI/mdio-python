@@ -186,7 +186,7 @@ def analyze_lines_for_guns(
                 msg = "%s %s has %s shots; div by %s guns gives %s unique mod shots."
                 logger.info(msg, line_field, line_val, num_shots, num_guns, len(np.unique(mod_shots)))
                 geom_type = ShotGunGeometryType.A
-                break # No need to check more guns for this line
+                break  # No need to check more guns for this line
 
     return unique_lines, unique_guns_per_line, geom_type
 
