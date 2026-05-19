@@ -105,6 +105,7 @@ def analyze_streamer_headers(
         cable_chan_min[idx] = np.min(current_cable)
         cable_chan_max[idx] = np.max(current_cable)
 
+    # Check channel numbers do not overlap for case B
     geom_type = StreamerShotGeometryType.B
 
     for idx1, cable1 in enumerate(unique_cables):
@@ -120,6 +121,7 @@ def analyze_streamer_headers(
             max_val2 = cable_chan_max[idx2]
             cable2_range = (min_val2, max_val2)
 
+            # Check for overlap and return early with Type A
             if min_val2 < max_val1 and max_val2 > min_val1:
                 geom_type = StreamerShotGeometryType.A
 
@@ -161,6 +163,7 @@ def analyze_lines_for_guns(
     unique_guns_per_line = {}
 
     geom_type = ShotGunGeometryType.B
+    # Check shot numbers are still unique if div/num_guns
     for line_val in unique_lines:
         line_mask = index_headers[line_field] == line_val
         shot_current = index_headers["shot_point"][line_mask]
@@ -170,6 +173,7 @@ def analyze_lines_for_guns(
         num_guns = unique_guns_in_line.shape[0]
         unique_guns_per_line[str(line_val)] = list(unique_guns_in_line)
 
+        # Skip gemoetry detection if we arlready know it's Type A
         if geom_type == ShotGunGeometryType.A:
             continue
 
@@ -182,11 +186,12 @@ def analyze_lines_for_guns(
                 msg = "%s %s has %s shots; div by %s guns gives %s unique mod shots."
                 logger.info(msg, line_field, line_val, num_shots, num_guns, len(np.unique(mod_shots)))
                 geom_type = ShotGunGeometryType.A
-                break
+                break # No need to check more guns for this line
 
     return unique_lines, unique_guns_per_line, geom_type
 
 
+# Backward-compatible aliases for existing code
 def analyze_saillines_for_guns(
     index_headers: HeaderArray,
 ) -> tuple[NDArray, dict[str, list], ShotGunGeometryType]:
@@ -222,11 +227,14 @@ def create_trace_index(
 ) -> NDArray | None:
     """Update dictionary counter tree for counting trace key for auto index."""
     if depth == 0:
+        # If there's no hierarchical depth, no tracing needed.
         return None
 
+    # Add index header
     trace_no_field = np.zeros(index_headers.shape, dtype=dtype)
     index_headers = rfn.append_fields(index_headers, "trace", trace_no_field, usemask=False)
 
+    # Extract the relevant columns upfront
     headers = [index_headers[name] for name in header_names[:depth]]
     for idx, idx_values in enumerate(zip(*headers, strict=True)):
         if depth == 1:
@@ -255,6 +263,7 @@ def analyze_non_indexed_headers(index_headers: HeaderArray, dtype: DTypeLike = n
     Returns:
         Dict container header name as key and numpy array of values as value
     """
+    # Find unique cable ids
     t_start = time.perf_counter()
     unique_headers = {}
     total_depth = 0
