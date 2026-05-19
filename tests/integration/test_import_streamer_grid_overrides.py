@@ -15,7 +15,7 @@ from mdio.api.io import open_mdio
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.converters.exceptions import GridTraceSparsityError
 from mdio.converters.segy import segy_to_mdio
-from mdio.segy.geometry import StreamerShotGeometryType
+from mdio.ingestion.segy.header_analysis import StreamerShotGeometryType
 
 if TYPE_CHECKING:
     from pathlib import Path
