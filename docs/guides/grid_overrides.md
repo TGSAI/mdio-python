@@ -10,6 +10,30 @@ Grid overrides are transformations applied during SEG-Y import that modify how t
 
 When importing SEG-Y data, MDIO maps trace header fields to dataset dimensions. However, real-world seismic data often has complexities that require additional processing. Grid overrides address these issues by transforming header values before indexing.
 
+## Configuring grid overrides
+
+Grid overrides are passed to {func}`mdio.segy_to_mdio` via the `grid_overrides` argument as an
+{class}`mdio.GridOverrides` instance:
+
+```python
+from mdio import GridOverrides
+from mdio import segy_to_mdio
+
+segy_to_mdio(
+    ...,
+    grid_overrides=GridOverrides(calculate_shot_index=True),
+)
+```
+
+Both modern `snake_case` field names and the legacy `CamelCase` aliases are accepted, so
+`GridOverrides(CalculateShotIndex=True)` is equivalent to the example above. Unknown keys
+are rejected at construction with a `pydantic.ValidationError`.
+
+```{deprecated} 1.2
+Passing `grid_overrides` as a `dict` still works but logs a deprecation warning and will be
+removed in a future release. Switch to `mdio.GridOverrides`.
+```
+
 ## CalculateShotIndex
 
 Calculates a dense `shot_index` dimension from sparse or interleaved `shot_point` values. Required for the `ObnReceiverGathers3D` template.
@@ -37,12 +61,15 @@ The override detects the geometry type and only applies the transformation when 
 **Usage:**
 
 ```python
+from mdio import GridOverrides
+from mdio import segy_to_mdio
+
 segy_to_mdio(
     input_path="obn_data.sgy",
     output_path="obn_data.mdio",
     segy_spec=obn_spec,
     mdio_template=get_template("ObnReceiverGathers3D"),
-    grid_overrides={"CalculateShotIndex": True},
+    grid_overrides=GridOverrides(calculate_shot_index=True),
 )
 ```
 

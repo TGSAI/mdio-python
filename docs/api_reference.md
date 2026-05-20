@@ -32,6 +32,12 @@ and
    :members:
 ```
 
+### Grid Overrides
+
+```{eval-rst}
+.. autopydantic_model:: mdio.GridOverrides
+```
+
 ## Core Functionality
 
 ### Dimensions
