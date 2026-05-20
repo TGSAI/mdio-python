@@ -5,7 +5,6 @@ from __future__ import annotations
 import itertools
 import logging
 from typing import TYPE_CHECKING
-from typing import Any
 
 import numpy as np
 from dask.array.core import normalize_chunks
@@ -24,6 +23,7 @@ if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
     from mdio.segy.file import SegyFileArguments
     from mdio.segy.file import SegyFileInfo
+    from mdio.segy.geometry import GridOverrides
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
     chunksize: tuple[int, ...] | None,
     template: AbstractDatasetTemplate,
     return_headers: bool = False,
-    grid_overrides: dict[str, Any] | None = None,
+    grid_overrides: GridOverrides | None = None,
 ) -> tuple[list[Dimension], tuple[int, ...]] | tuple[list[Dimension], tuple[int, ...], HeaderArray]:
     """Infer dimension ranges, and increments.
 
@@ -50,7 +50,7 @@ def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
         chunksize:  Chunk sizes to be used in grid plan.
         template: MDIO template where coordinate names and domain will be taken.
         return_headers: Option to return parsed headers with `Dimension` objects. Default is False.
-        grid_overrides: Option to add grid overrides. See main documentation.
+        grid_overrides: Typed grid override configuration, or ``None`` for no overrides.
 
     Returns:
         All index dimensions and chunksize or dimensions and chunksize together with header values.
@@ -58,9 +58,6 @@ def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
     Raises:
         ValueError: If computed fields are not found after grid overrides.
     """
-    if grid_overrides is None:
-        grid_overrides = {}
-
     # Keep only dimension and non-dimension coordinates excluding the vertical axis
     horizontal_dimensions = template.spatial_dimension_names
     horizontal_coordinates = horizontal_dimensions + template.coordinate_names
@@ -72,8 +69,8 @@ def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
     horizontal_coordinates = tuple(c for c in horizontal_coordinates if c not in computed_fields)
 
     # Ensure non_binned_dims are included in the headers to parse, even if not in template
-    if grid_overrides and "non_binned_dims" in grid_overrides:
-        for dim in grid_overrides["non_binned_dims"]:
+    if grid_overrides is not None and grid_overrides.non_binned_dims:
+        for dim in grid_overrides.non_binned_dims:
             if dim not in horizontal_coordinates:
                 horizontal_coordinates = horizontal_coordinates + (dim,)
 
@@ -94,20 +91,24 @@ def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
         subset=tuple(c for c in horizontal_coordinates if c not in fields_to_skip),
     )
 
-    # Handle grid overrides.
+    # The legacy GridOverrider still consumes the dict shape; dump only at this boundary.
+    # Future PR will replace GridOverrider.
     override_handler = GridOverrider()
     headers_subset, horizontal_coordinates, chunksize = override_handler.run(
         headers_subset,
         horizontal_coordinates,
         chunksize=chunksize,
-        grid_overrides=grid_overrides,
+        grid_overrides=grid_overrides.to_legacy_dict() if grid_overrides is not None else {},
         template=template,
     )
 
     # After grid overrides, determine final spatial dimensions and their chunk sizes
-    non_binned_dims = set()
-    if "NonBinned" in grid_overrides and "non_binned_dims" in grid_overrides:
-        non_binned_dims = set(grid_overrides["non_binned_dims"])
+    non_binned_active = grid_overrides is not None and grid_overrides.non_binned
+    non_binned_dims: set[str] = (
+        set(grid_overrides.non_binned_dims)
+        if non_binned_active and grid_overrides is not None and grid_overrides.non_binned_dims
+        else set()
+    )
 
     # Create mapping from dimension name to original chunk size for easy lookup
     original_spatial_dims = list(template.spatial_dimension_names)
@@ -121,8 +122,11 @@ def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
         if name in non_binned_dims:
             continue  # Skip dimensions that became coordinates
         if name == "trace":
-            # Special handling for trace dimension
-            chunk_val = int(grid_overrides.get("chunksize", 1)) if "NonBinned" in grid_overrides else 1
+            chunk_val = (
+                int(grid_overrides.chunksize)
+                if non_binned_active and grid_overrides is not None and grid_overrides.chunksize is not None
+                else 1
+            )
             final_spatial_dims.append(name)
             final_spatial_chunks.append(chunk_val)
         elif name in dim_to_chunk:
