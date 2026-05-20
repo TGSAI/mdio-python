@@ -6,9 +6,13 @@ import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
+from typing import Any
 
 import numpy as np
 from numpy.lib import recfunctions as rfn
+from pydantic import BaseModel
+from pydantic import ConfigDict
+from pydantic import Field
 
 from mdio.ingestion.segy.header_analysis import ShotGunGeometryType
 from mdio.ingestion.segy.header_analysis import StreamerShotGeometryType
@@ -29,6 +33,61 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+class GridOverrides(BaseModel):
+    """Type-safe configuration for grid override operations during SEG-Y ingestion."""
+
+    model_config = ConfigDict(extra="forbid", validate_by_name=True)
+
+    auto_channel_wrap: bool = Field(
+        default=False,
+        alias="AutoChannelWrap",
+        description="Streamer: auto-detect channel-wrap geometry (Type A vs B).",
+    )
+    auto_shot_wrap: bool = Field(
+        default=False,
+        alias="AutoShotWrap",
+        description="Streamer: derive dense shot_index from interleaved shot_point values.",
+    )
+    calculate_shot_index: bool = Field(
+        default=False,
+        alias="CalculateShotIndex",
+        description="OBN: derive dense shot_index from sparse shot_point values per shot_line.",
+    )
+    non_binned: bool = Field(
+        default=False,
+        alias="NonBinned",
+        description="Collapse selected dims into a single trace dimension without spatial binning.",
+    )
+    has_duplicates: bool = Field(
+        default=False,
+        alias="HasDuplicates",
+        description="Add a trace dimension (chunksize 1) to disambiguate duplicate trace indices.",
+    )
+    chunksize: int | None = Field(
+        default=None,
+        gt=0,
+        description="Chunk size for the trace dimension when `non_binned` is True.",
+    )
+    non_binned_dims: list[str] | None = Field(
+        default=None,
+        description="Dimension names to collapse into the trace dimension when `non_binned` is True.",
+    )
+
+    def __bool__(self) -> bool:
+        """Return True if any override flag is enabled."""
+        return (
+            self.auto_channel_wrap
+            or self.auto_shot_wrap
+            or self.calculate_shot_index
+            or self.non_binned
+            or self.has_duplicates
+        )
+
+    def to_legacy_dict(self) -> dict[str, Any]:
+        """Dump to the legacy ``CamelCase`` dict shape consumed by :class:`GridOverrider`."""
+        return self.model_dump(by_alias=True, exclude_defaults=True)
 
 
 class GridOverrideCommand(ABC):

@@ -37,6 +37,7 @@ from mdio.ingestion.segy.file_headers import _add_segy_file_headers
 from mdio.ingestion.segy.validation import _validate_spec_in_template
 from mdio.segy import blocked_io
 from mdio.segy.file import get_segy_file_info
+from mdio.segy.geometry import GridOverrides
 from mdio.segy.utilities import get_grid_plan
 
 if TYPE_CHECKING:
@@ -128,7 +129,7 @@ def _patch_add_coordinates_for_non_binned(
 
 def _update_template_from_grid_overrides(
     template: AbstractDatasetTemplate,
-    grid_overrides: dict[str, Any] | None,
+    grid_overrides: GridOverrides | None,
     segy_dimensions: list[Dimension],
     full_chunk_shape: tuple[int, ...],
     chunk_size: tuple[int, ...],
@@ -178,30 +179,29 @@ def _update_template_from_grid_overrides(
 
     # If using NonBinned override, expose non-binned dims as logical coordinates on the template instance
     # and patch _add_coordinates to skip adding them as 1D dimension coordinates
-    if grid_overrides and "NonBinned" in grid_overrides and "non_binned_dims" in grid_overrides:
-        non_binned_dims = tuple(grid_overrides["non_binned_dims"])
-        if non_binned_dims:
-            logger.debug(
-                "NonBinned grid override: exposing non-binned dims as coordinates: %s",
-                non_binned_dims,
-            )
-            # Append any missing names; keep existing order and avoid duplicates
-            existing = set(template.coordinate_names)
-            to_add = tuple(n for n in non_binned_dims if n not in existing)
-            if to_add:
-                template._logical_coord_names = template._logical_coord_names + to_add
+    if grid_overrides is not None and grid_overrides.non_binned and grid_overrides.non_binned_dims:
+        non_binned_dims = tuple(grid_overrides.non_binned_dims)
+        logger.debug(
+            "NonBinned grid override: exposing non-binned dims as coordinates: %s",
+            non_binned_dims,
+        )
+        # Append any missing names; keep existing order and avoid duplicates
+        existing = set(template.coordinate_names)
+        to_add = tuple(n for n in non_binned_dims if n not in existing)
+        if to_add:
+            template._logical_coord_names = template._logical_coord_names + to_add
 
-            # Patch _add_coordinates to skip adding non-binned dims as 1D dimension coordinates
-            # This prevents them from being added with wrong dimensions (e.g., just "trace")
-            # They will be added later by build_dataset with full spatial_dimension_names
-            _patch_add_coordinates_for_non_binned(template, set(non_binned_dims))
+        # Patch _add_coordinates to skip adding non-binned dims as 1D dimension coordinates
+        # This prevents them from being added with wrong dimensions (e.g., just "trace")
+        # They will be added later by build_dataset with full spatial_dimension_names
+        _patch_add_coordinates_for_non_binned(template, set(non_binned_dims))
 
 
 def _scan_for_headers(
     segy_file_kwargs: SegyFileArguments,
     segy_file_info: SegyFileInfo,
     template: AbstractDatasetTemplate,
-    grid_overrides: dict[str, Any] | None = None,
+    grid_overrides: GridOverrides | None = None,
 ) -> tuple[list[Dimension], SegyHeaderArray]:
     """Extract trace dimensions and index headers from the SEG-Y file.
 
@@ -346,13 +346,34 @@ def _chunk_variable(ds: Dataset, target_variable_name: str) -> None:
     ds.variables[index].metadata.chunk_grid = chunk_grid
 
 
+def _coerce_grid_overrides(
+    grid_overrides: GridOverrides | dict[str, Any] | None,
+) -> GridOverrides | None:
+    """Normalize public ``grid_overrides`` input into a :class:`GridOverrides` model.
+
+    The internal ingestion pipeline only accepts the typed model. A legacy ``dict`` is
+    converted via :meth:`GridOverrides.from_legacy_dict` and a deprecation message is logged.
+    """
+    if grid_overrides is None:
+        return None
+
+    if isinstance(grid_overrides, GridOverrides):
+        return grid_overrides
+
+    logger.warning(
+        "Passing `grid_overrides` as a dict is deprecated and will be removed in a "
+        "future release; pass a `mdio.GridOverrides` instance instead."
+    )
+    return GridOverrides.model_validate(grid_overrides)
+
+
 def segy_to_mdio(  # noqa PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
     input_path: UPath | Path | str,
     output_path: UPath | Path | str,
     overwrite: bool = False,
-    grid_overrides: dict[str, Any] | None = None,
+    grid_overrides: GridOverrides | dict[str, Any] | None = None,
     segy_header_overrides: SegyHeaderOverrides | None = None,
 ) -> None:
     """A function that converts a SEG-Y file to an MDIO v1 file.
@@ -365,12 +386,15 @@ def segy_to_mdio(  # noqa PLR0913
         input_path: The universal path of the input SEG-Y file.
         output_path: The universal path for the output MDIO v1 file.
         overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
-        grid_overrides: Option to add grid overrides.
+        grid_overrides: Option to add grid overrides. Prefer a :class:`mdio.GridOverrides`
+            instance; ``dict`` is still accepted but emits a :class:`DeprecationWarning`.
         segy_header_overrides: Option to override specific SEG-Y headers during ingestion.
 
     Raises:
         FileExistsError: If the output location already exists and overwrite is False.
     """
+    typed_grid_overrides = _coerce_grid_overrides(grid_overrides)
+
     settings = MDIOSettings()
 
     _validate_spec_in_template(segy_spec, mdio_template)
@@ -395,7 +419,7 @@ def segy_to_mdio(  # noqa PLR0913
         segy_file_kwargs,
         segy_file_info,
         template=mdio_template,
-        grid_overrides=grid_overrides,
+        grid_overrides=typed_grid_overrides,
     )
     grid = _build_and_check_grid(segy_dimensions, segy_file_info, segy_headers)
 
@@ -417,7 +441,7 @@ def segy_to_mdio(  # noqa PLR0913
     mdio_template = _update_template_units(mdio_template, spatial_unit)
     mdio_ds: Dataset = mdio_template.build_dataset(name=mdio_template.name, sizes=grid.shape, header_dtype=header_dtype)
 
-    _add_grid_override_to_metadata(dataset=mdio_ds, grid_overrides=grid_overrides)
+    _add_grid_override_to_metadata(dataset=mdio_ds, grid_overrides=typed_grid_overrides)
 
     # Dynamically chunk the variables based on their type
     _chunk_variable(ds=mdio_ds, target_variable_name="trace_mask")  # trace_mask is a Variable and not a Coordinate
