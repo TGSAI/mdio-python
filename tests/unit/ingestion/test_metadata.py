@@ -5,6 +5,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 
 from mdio.ingestion.metadata import _add_grid_override_to_metadata
+from mdio.segy.geometry import GridOverrides
 
 
 def _make_dataset(attributes: dict | None) -> SimpleNamespace:
@@ -22,18 +23,23 @@ class TestAddGridOverrideToMetadata:
         assert dataset.metadata.attributes == {}
 
     def test_adds_grid_overrides_when_provided(self) -> None:
-        """Grid overrides should land under the ``gridOverrides`` key."""
+        """Active grid overrides should serialize under the ``gridOverrides`` key."""
         dataset = _make_dataset(attributes=None)
-        overrides = {"HasDuplicates": True, "chunksize": 4}
+        overrides = GridOverrides(has_duplicates=True, chunksize=4)
         _add_grid_override_to_metadata(dataset, grid_overrides=overrides)
-        assert dataset.metadata.attributes == {"gridOverrides": overrides}
+        assert dataset.metadata.attributes == {
+            "gridOverrides": {"HasDuplicates": True, "chunksize": 4},
+        }
 
     def test_preserves_existing_attributes(self) -> None:
         """Existing attribute keys should be preserved when adding overrides."""
         dataset = _make_dataset(attributes={"existing": "value"})
-        overrides = {"NonBinned": True}
+        overrides = GridOverrides(non_binned=True)
         _add_grid_override_to_metadata(dataset, grid_overrides=overrides)
-        assert dataset.metadata.attributes == {"existing": "value", "gridOverrides": overrides}
+        assert dataset.metadata.attributes == {
+            "existing": "value",
+            "gridOverrides": {"NonBinned": True},
+        }
 
     def test_no_overrides_leaves_attributes_untouched(self) -> None:
         """Passing ``None`` overrides must not introduce a ``gridOverrides`` key."""
