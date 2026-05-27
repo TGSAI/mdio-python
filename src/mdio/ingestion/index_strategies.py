@@ -87,9 +87,7 @@ class IndexStrategy(ABC):
         ``GridOverrider`` post-processing step.
         """
         return [
-            Dimension(coords=np.unique(headers[name]), name=name)
-            for name in dim_names
-            if name in headers.dtype.names
+            Dimension(coords=np.unique(headers[name]), name=name) for name in dim_names if name in headers.dtype.names
         ]
 
     @property
