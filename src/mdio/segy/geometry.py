@@ -1,32 +1,28 @@
-"""SEG-Y geometry handling functions."""
+"""SEG-Y grid override configuration model and legacy executor shim.
+
+The Pydantic :class:`GridOverrides` model is the supported public API for configuring
+grid overrides. The :class:`GridOverrider` class is retained as a thin shim that
+delegates to :class:`mdio.ingestion.index_strategies.IndexStrategyRegistry`; it preserves
+the v1.1 ``run(...)`` contract for callers that still pass a legacy ``dict``.
+"""
 
 from __future__ import annotations
 
 import logging
-from abc import ABC
-from abc import abstractmethod
 from typing import TYPE_CHECKING
 from typing import Any
 
-import numpy as np
-from numpy.lib import recfunctions as rfn
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 
-from mdio.ingestion.segy.header_analysis import ShotGunGeometryType
-from mdio.ingestion.segy.header_analysis import StreamerShotGeometryType
-from mdio.ingestion.segy.header_analysis import analyze_lines_for_guns
-from mdio.ingestion.segy.header_analysis import analyze_non_indexed_headers
-from mdio.ingestion.segy.header_analysis import analyze_streamer_headers
-from mdio.segy.exceptions import GridOverrideKeysError
+from mdio.ingestion.index_strategies import IndexStrategyRegistry
 from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError
 
 if TYPE_CHECKING:
     from collections.abc import Sequence
 
-    from numpy.typing import NDArray
     from segy.arrays import HeaderArray
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
@@ -90,533 +86,157 @@ class GridOverrides(BaseModel):
         return self.model_dump(by_alias=True, exclude_defaults=True)
 
 
-class GridOverrideCommand(ABC):
-    """Abstract base class for grid override commands."""
+def _resolve_synthesize_dims(template: AbstractDatasetTemplate | None) -> tuple[str, ...]:
+    """Return dimension fields to synthesize when missing for a given template.
 
-    @property
-    @abstractmethod
-    def required_keys(self) -> set:
-        """Get the set of required keys for the grid override command."""
-
-    @property
-    @abstractmethod
-    def required_parameters(self) -> set:
-        """Get the set of required parameters for the grid override command."""
-
-    @abstractmethod
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate | None = None,
-    ) -> None:
-        """Validate if this transform should run on the type of data."""
-
-    @abstractmethod
-    def transform(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate,  # noqa: ARG002
-    ) -> NDArray:
-        """Perform the grid transform."""
-
-    def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
-        """Perform the transform of index names.
-
-        Optional method: Subclasses may override this method to provide custom behavior. If not
-        overridden, this default implementation will be used, which is a no-op.
-
-        Args:
-            index_names: List of index names to be modified.
-
-        Returns:
-            New tuple of index names after the transform.
-        """
-        return index_names
-
-    def transform_chunksize(
-        self,
-        chunksize: Sequence[int],
-        grid_overrides: dict[str, bool | int],
-    ) -> Sequence[int]:
-        """Perform the transform of chunksize.
-
-        Optional method: Subclasses may override this method to provide custom behavior. If not
-        overridden, this default implementation will be used, which is a no-op.
-
-        Args:
-            chunksize: List of chunk sizes to be modified.
-            grid_overrides: Full grid override parameterization.
-
-        Returns:
-            New tuple of chunk sizes after the transform.
-        """
-        _ = grid_overrides  # Unused, required for ABC compatibility
-        return chunksize
-
-    @property
-    def name(self) -> str:
-        """Convenience property to get the name of the command."""
-        return self.__class__.__name__
-
-    def check_required_keys(self, index_headers: HeaderArray) -> None:
-        """Check if all required keys are present in the index headers."""
-        index_names = index_headers.dtype.names
-        if not self.required_keys.issubset(index_names):
-            raise GridOverrideKeysError(self.name, self.required_keys)
-
-    def check_required_params(self, grid_overrides: dict[str, str | int]) -> None:
-        """Check if all required keys are present in the index headers."""
-        if self.required_parameters is None:
-            return
-
-        passed_parameters = set(grid_overrides.keys())
-
-        if not self.required_parameters.issubset(passed_parameters):
-            missing_params = self.required_parameters - passed_parameters
-            raise GridOverrideMissingParameterError(self.name, missing_params)
-
-
-class DuplicateIndex(GridOverrideCommand):
-    """Automatically handle duplicate traces in a new axis - trace with chunksize 1."""
-
-    required_keys = None
-    required_parameters = None
-
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate | None = None,  # noqa: ARG002
-    ) -> None:
-        """Validate if this transform should run on the type of data."""
-        if self.required_keys is not None:
-            self.check_required_keys(index_headers)
-        self.check_required_params(grid_overrides)
-
-    def transform(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate,
-    ) -> NDArray:
-        """Perform the grid transform."""
-        self.validate(index_headers, grid_overrides)
-
-        # Filter out coordinate fields, keep only dimensions for trace indexing
-        coord_fields = set(template.coordinate_names) if template else set()
-
-        # For NonBinned: non_binned_dims should be excluded from trace indexing grouping
-        # because they become coordinates indexed by the trace dimension, not grouping keys.
-        # The trace index should count all traces per remaining dimension combination.
-        non_binned_dims = set(grid_overrides.get("non_binned_dims", [])) if grid_overrides else set()
-
-        dim_fields = [
-            name
-            for name in index_headers.dtype.names
-            if name != "trace" and name not in coord_fields and name not in non_binned_dims
-        ]
-
-        # Create trace indices on dimension fields only
-        dim_headers = index_headers[dim_fields] if dim_fields else index_headers
-        dim_headers_with_trace = analyze_non_indexed_headers(dim_headers)
-
-        # Add trace field back to full headers
-        if dim_headers_with_trace is not None and "trace" in dim_headers_with_trace.dtype.names:
-            trace_values = np.array(dim_headers_with_trace["trace"])
-            index_headers = rfn.append_fields(index_headers, "trace", trace_values, usemask=False)
-
-        return index_headers
-
-    def transform_index_names(self, index_names: Sequence[str]) -> Sequence[str]:
-        """Insert dimension "trace" to the sample-1 dimension."""
-        new_names = list(index_names)
-        new_names.append("trace")
-        return tuple(new_names)
-
-    def transform_chunksize(
-        self,
-        chunksize: Sequence[int],
-        grid_overrides: dict[str, bool | int],
-    ) -> Sequence[int]:
-        """Insert chunksize of 1 to the sample-1 dimension."""
-        _ = grid_overrides  # Unused, required for ABC compatibility
-        new_chunks = list(chunksize)
-        new_chunks.insert(-1, 1)
-        return tuple(new_chunks)
-
-
-class NonBinned(DuplicateIndex):
-    """Handle non-binned dimensions by converting them to a trace dimension with coordinates.
-
-    This override takes dimensions that are not regularly sampled (non-binned) and converts
-    them into a single 'trace' dimension. The original non-binned dimensions become coordinates
-    indexed by the trace dimension.
-
-    Example:
-        Template with dimensions [shot_point, cable, channel, azimuth, offset, sample]
-        and non_binned_dims=['azimuth', 'offset'] becomes:
-        - dimensions: [shot_point, cable, channel, trace, sample]
-        - coordinates: azimuth and offset with dimensions [shot_point, cable, channel, trace]
-
-    Attributes:
-        required_keys: No required keys for this override.
-        required_parameters: Set containing 'chunksize' and 'non_binned_dims'.
+    Only the OBN receiver gathers template currently synthesizes ``component``; every
+    other template returns ``()`` so the strategy registry skips synthesis entirely.
     """
+    if template is None:
+        return ()
+    # Lazy import: builder templates pull in builder schemas that indirectly import this
+    # module's ``GridOverrides``, so a top-level import would cycle.
+    from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
 
-    required_keys = None
-    required_parameters = {"chunksize", "non_binned_dims"}
-
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate | None = None,  # noqa: ARG002
-    ) -> None:
-        """Validate if this transform should run on the type of data."""
-        self.check_required_params(grid_overrides)
-
-        # Validate that non_binned_dims is a list
-        non_binned_dims = grid_overrides.get("non_binned_dims", [])
-        if not isinstance(non_binned_dims, list):
-            msg = f"non_binned_dims must be a list, got {type(non_binned_dims)}"
-            raise ValueError(msg)
-
-        # Validate that all non-binned dimensions exist in headers
-        missing_dims = set(non_binned_dims) - set(index_headers.dtype.names)
-        if missing_dims:
-            msg = f"Non-binned dimensions {missing_dims} not found in index headers"
-            raise ValueError(msg)
-
-    def transform_chunksize(
-        self,
-        chunksize: Sequence[int],
-        grid_overrides: dict[str, bool | int],
-    ) -> Sequence[int]:
-        """Insert chunksize for trace dimension at N-1 position."""
-        new_chunks = list(chunksize)
-        trace_chunksize = grid_overrides["chunksize"]
-        new_chunks.insert(-1, trace_chunksize)
-        return tuple(new_chunks)
+    if isinstance(template, Seismic3DObnReceiverGathersTemplate):
+        return ("component",)
+    return ()
 
 
-class AutoChannelWrap(GridOverrideCommand):
-    """Automatically determine Streamer acquisition type."""
+def _validate_template_for_overrides(
+    config: GridOverrides,
+    template: AbstractDatasetTemplate | None,
+) -> None:
+    """Reject grid override / template pairings that v1.1 forbade.
 
-    required_keys = {"shot_point", "cable", "channel"}
-    required_parameters = None
+    ``auto_shot_wrap`` is streamer-only and ``calculate_shot_index`` is OBN-only; using
+    either with the wrong template silently produced wrong shot indices in v1.1 unless
+    the per-command validator caught it. This function restores that guard.
 
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate | None = None,  # noqa: ARG002
-    ) -> None:
-        """Validate if this transform should run on the type of data."""
-        self.check_required_keys(index_headers)
-        self.check_required_params(grid_overrides)
+    Args:
+        config: Typed grid overrides extracted from the user's legacy dict.
+        template: Template chosen by the caller, or ``None`` if omitted.
 
-    def transform(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate,  # noqa: ARG002
-    ) -> NDArray:
-        """Perform the grid transform."""
-        self.validate(index_headers, grid_overrides)
-
-        result = analyze_streamer_headers(index_headers)
-        unique_cables, cable_chan_min, cable_chan_max, geom_type = result
-        logger.info("Ingesting dataset as %s", geom_type.name)
-
-        for cable, chan_min, chan_max in zip(unique_cables, cable_chan_min, cable_chan_max, strict=True):
-            logger.info("Cable: %s has min chan: %s and max chan: %s", cable, chan_min, chan_max)
-
-        # This might be slow and could be improved with a rewrite to prevent so many lookups
-        if geom_type == StreamerShotGeometryType.B:
-            for idx, cable in enumerate(unique_cables):
-                cable_idxs = np.where(index_headers["cable"][:] == cable)
-                cc_min = cable_chan_min[idx]
-
-                index_headers["channel"][cable_idxs] = index_headers["channel"][cable_idxs] - cc_min + 1
-
-        return index_headers
-
-
-class CalculateShotIndex(GridOverrideCommand):
-    """Calculate dense shot_index from shot_point values for OBN templates.
-
-    Creates a 0-based shot_index dimension from sparse or interleaved shot_point
-    values, grouping by shot_line and gun. This is required for the OBN template
-    which uses shot_index as a calculated dimension.
-
-    Required headers: shot_line, gun, shot_point
-
-    Attributes:
-        required_parameters: Set of required parameters (None for this class).
+    Raises:
+        TypeError: When ``auto_shot_wrap`` is set without a streamer template, or
+            ``calculate_shot_index`` is set without an OBN receiver-gathers template.
     """
-
-    required_parameters = None
-
-    @property
-    def required_keys(self) -> set:
-        """Return required header keys for OBN shot index calculation."""
-        return {"shot_line", "gun", "shot_point"}
-
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate | None = None,
-    ) -> None:
-        """Validate if this transform should run on the type of data."""
-        # Import here to avoid circular imports at module load time
-        from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
-
-        if template is None:
-            msg = "CalculateShotIndex requires a template."
-            raise TypeError(msg)
-
-        if not isinstance(template, Seismic3DObnReceiverGathersTemplate):
-            msg = (
-                f"CalculateShotIndex only supports Seismic3DObnReceiverGathersTemplate, got {type(template).__name__}."
-            )
-            raise TypeError(msg)
-
-        index_names = set(index_headers.dtype.names)
-        if not self.required_keys.issubset(index_names):
-            raise GridOverrideKeysError(self.name, self.required_keys)
-        self.check_required_params(grid_overrides)
-
-    def transform(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate,
-    ) -> NDArray:
-        """Perform the grid transform to calculate shot_index from shot_point."""
-        self.validate(index_headers, grid_overrides, template)
-
-        line_field = "shot_line"
-        result = analyze_lines_for_guns(index_headers, line_field=line_field)
-        unique_lines, unique_guns_per_line, geom_type = result
-        logger.info("Ingesting OBN dataset as shot type: %s", geom_type.name)
-
-        max_num_guns = 1
-        for line_val in unique_lines:
-            guns = unique_guns_per_line[str(line_val)]
-            logger.info("%s: %s has guns: %s", line_field, line_val, guns)
-            max_num_guns = max(len(guns), max_num_guns)
-
-        # Always calculate shot_index - the OBN template requires it
-        shot_index = np.empty(len(index_headers), dtype="uint32")
-        # Use .base if available (view of another array), otherwise use the array directly
-        base_array = index_headers.base if index_headers.base is not None else index_headers
-        index_headers = rfn.append_fields(base_array, "shot_index", shot_index)
-
-        if geom_type == ShotGunGeometryType.B:
-            # Type B: shot points are interleaved across guns, divide to get dense index
-            for line_val in unique_lines:
-                line_idxs = np.where(index_headers[line_field][:] == line_val)
-                index_headers["shot_index"][line_idxs] = np.floor(index_headers["shot_point"][line_idxs] / max_num_guns)
-                # Make shot index zero-based PER line
-                index_headers["shot_index"][line_idxs] -= index_headers["shot_index"][line_idxs].min()
-        else:
-            # Type A: shot points are already unique per gun, create 0-based index from unique values
-            for line_val in unique_lines:
-                line_idxs = np.where(index_headers[line_field][:] == line_val)
-                shot_points = index_headers["shot_point"][line_idxs]
-                # np.unique returns sorted values; searchsorted maps each shot_point to its 0-based index
-                unique_shots = np.unique(shot_points)
-                index_headers["shot_index"][line_idxs] = np.searchsorted(unique_shots, shot_points)
-
-        return index_headers
-
-
-class AutoShotWrap(GridOverrideCommand):
-    """Automatic shot index calculation from interleaved shot points for Streamer templates.
-
-    This grid override handles multi-gun acquisition where shot points may be
-    interleaved across guns. It calculates a dense shot_index from sparse shot_point values.
-
-    Supported Templates:
-        - Seismic3DStreamerFieldRecordsTemplate: Uses sail_line, requires cable/channel
-
-    Note:
-        For OBN templates, use CalculateShotIndex instead.
-
-    Attributes:
-        required_parameters: Set of required parameters (None for this class).
-    """
-
-    required_parameters = None
-
-    @property
-    def required_keys(self) -> set:
-        """Return required header keys for streamer shot index calculation."""
-        return {"sail_line", "gun", "shot_point", "cable", "channel"}
-
-    def validate(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate | None = None,
-    ) -> None:
-        """Validate if this transform should run on the type of data."""
-        # Import here to avoid circular imports at module load time
+    if config.auto_shot_wrap:
+        # Lazy import: see ``_resolve_synthesize_dims`` for the cycle rationale.
         from mdio.builder.templates.seismic_3d_streamer_field import (  # noqa: PLC0415
             Seismic3DStreamerFieldRecordsTemplate,
         )
 
-        if template is None:
-            msg = "AutoShotWrap requires a template."
-            raise TypeError(msg)
-
         if not isinstance(template, Seismic3DStreamerFieldRecordsTemplate):
+            actual = type(template).__name__ if template is not None else "None"
             msg = (
-                f"AutoShotWrap only supports Seismic3DStreamerFieldRecordsTemplate, "
-                f"got {type(template).__name__}. For OBN templates, use CalculateShotIndex."
+                f"auto_shot_wrap only supports Seismic3DStreamerFieldRecordsTemplate, "
+                f"got {actual}. For OBN templates, use calculate_shot_index."
             )
             raise TypeError(msg)
 
-        index_names = set(index_headers.dtype.names)
-        if not self.required_keys.issubset(index_names):
-            raise GridOverrideKeysError(self.name, self.required_keys)
-        self.check_required_params(grid_overrides)
-
-    def transform(
-        self,
-        index_headers: HeaderArray,
-        grid_overrides: dict[str, bool | int],
-        template: AbstractDatasetTemplate,
-    ) -> NDArray:
-        """Perform the grid transform to calculate shot_index from shot_point."""
-        self.validate(index_headers, grid_overrides, template)
-
-        line_field = "sail_line"
-        result = analyze_lines_for_guns(index_headers, line_field=line_field)
-        unique_lines, unique_guns_per_line, geom_type = result
-        logger.info("Ingesting streamer dataset as shot type: %s", geom_type.name)
-
-        max_num_guns = 1
-        for line_val in unique_lines:
-            guns = unique_guns_per_line[str(line_val)]
-            logger.info("%s: %s has guns: %s", line_field, line_val, guns)
-            max_num_guns = max(len(guns), max_num_guns)
-
-        # Only calculate shot_index when shot points are interleaved across guns (Type B)
-        if geom_type == ShotGunGeometryType.B:
-            shot_index = np.empty(len(index_headers), dtype="uint32")
-            # Use .base if available (view of another array), otherwise use the array directly
-            base_array = index_headers.base if index_headers.base is not None else index_headers
-            index_headers = rfn.append_fields(base_array, "shot_index", shot_index)
-
-            for line_val in unique_lines:
-                line_idxs = np.where(index_headers[line_field][:] == line_val)
-                index_headers["shot_index"][line_idxs] = np.floor(index_headers["shot_point"][line_idxs] / max_num_guns)
-                # Make shot index zero-based PER line
-                index_headers["shot_index"][line_idxs] -= index_headers["shot_index"][line_idxs].min()
-
-        return index_headers
-
-
-class GridOverrider:
-    """Executor for grid overrides.
-
-    We support a certain type of grid overrides, and they have to be implemented following the
-    ABC's in this module.
-
-    This class applies the grid overrides if needed.
-    """
-
-    def __init__(self) -> None:
-        self.commands = {
-            "AutoChannelWrap": AutoChannelWrap(),
-            "AutoShotWrap": AutoShotWrap(),
-            "CalculateShotIndex": CalculateShotIndex(),
-            "NonBinned": NonBinned(),
-            "HasDuplicates": DuplicateIndex(),
-        }
-
-        self.parameters = self.get_allowed_parameters()
-
-    def get_allowed_parameters(self) -> set:
-        """Get list of allowed parameters from the allowed commands."""
-        parameters = set()
-        for command in self.commands.values():
-            if command.required_parameters is None:
-                continue
-
-            parameters.update(command.required_parameters)
-
-        # Add optional parameters that are not strictly required but are valid
-        parameters.add("non_binned_dims")
-
-        return parameters
-
-    def _synthesize_obn_component(
-        self,
-        index_headers: HeaderArray,
-        template: AbstractDatasetTemplate | None,
-    ) -> HeaderArray:
-        """Synthesize component field for OBN template when missing from headers.
-
-        OBN data may not have a component field in the SEG-Y headers (e.g., single-component
-        data). When using Seismic3DObnReceiverGathersTemplate and component is missing,
-        this method synthesizes it with a constant value of 1.
-
-        Args:
-            index_headers: The parsed index headers from SEG-Y.
-            template: The dataset template.
-
-        Returns:
-            Headers with component field added if applicable.
-        """
-        # Import here to avoid circular imports at module load time
+    if config.calculate_shot_index:
         from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
 
         if not isinstance(template, Seismic3DObnReceiverGathersTemplate):
-            return index_headers
+            actual = type(template).__name__ if template is not None else "None"
+            msg = f"calculate_shot_index only supports Seismic3DObnReceiverGathersTemplate, got {actual}."
+            raise TypeError(msg)
 
-        if "component" in index_headers.dtype.names:
-            return index_headers
 
-        logger.warning(
-            "SEG-Y headers do not contain 'component' field required by template '%s'. "
-            "Synthesizing 'component' dimension with constant value 1 for all traces.",
-            template.name,
-        )
-        synthetic_col = np.full(len(index_headers), 1, dtype=np.int32)
-        base_array = index_headers.base if index_headers.base is not None else index_headers
-        return rfn.append_fields(base_array, "component", synthetic_col, usemask=False)
+class GridOverrider:
+    """Legacy facade that adapts the dict-based v1.1 API onto :class:`IndexStrategyRegistry`.
+
+    Existing callers (notably :func:`mdio.segy.utilities.get_grid_plan`) still build a
+    legacy ``dict`` of grid overrides and call :meth:`run`. This class translates the dict
+    into a typed :class:`GridOverrides`, dispatches to the appropriate
+    :class:`IndexStrategy`, and returns the ``(headers, names, chunksize)`` tuple shape
+    those callers depend on. It will be removed once all callers move to the typed API.
+    """
+
+    def __init__(self) -> None:
+        self._registry = IndexStrategyRegistry()
 
     def run(
         self,
         index_headers: HeaderArray,
         index_names: Sequence[str],
-        grid_overrides: dict[str, bool],
+        grid_overrides: dict[str, Any] | None,
         chunksize: Sequence[int] | None = None,
         template: AbstractDatasetTemplate | None = None,
-    ) -> tuple[HeaderArray, tuple[str], tuple[int]]:
-        """Run grid overrides and return result."""
-        # Synthesize component for OBN template if missing
-        index_headers = self._synthesize_obn_component(index_headers, template)
+    ) -> tuple[HeaderArray, tuple[str, ...], tuple[int, ...] | None]:
+        """Run the configured grid overrides and return updated headers/names/chunks.
 
-        for override in grid_overrides:
-            if override in self.parameters:
-                continue
+        Args:
+            index_headers: Parsed SEG-Y trace headers; structured numpy array.
+            index_names: Names of the index dimensions before any override is applied.
+            grid_overrides: Legacy dict of overrides (CamelCase keys).
+            chunksize: Optional chunk shape that may be expanded by overrides that add a
+                ``trace`` dimension.
+            template: Optional dataset template; used to identify coordinate fields and
+                to drive component synthesis for OBN.
 
-            if override not in self.commands:
-                raise GridOverrideUnknownError(override)
+        Returns:
+            Tuple of ``(transformed_headers, new_index_names, new_chunksize)``. The
+            chunksize tuple is ``None`` when the caller did not pass a chunksize.
 
-            function = self.commands[override].transform
-            index_headers = function(index_headers, grid_overrides=grid_overrides, template=template)
+        Raises:
+            GridOverrideUnknownError: When ``grid_overrides`` contains an unknown key.
+            GridOverrideMissingParameterError: When ``NonBinned`` is enabled without
+                ``chunksize`` or ``non_binned_dims``.
 
-            function = self.commands[override].transform_index_names
-            index_names = function(index_names)
+        Notes:
+            Header-precondition checks (``GridOverrideKeysError``) are delegated to
+            :meth:`IndexStrategy.validate_headers`; template-compatibility checks
+            (``TypeError``) are delegated to :func:`_validate_template_for_overrides`.
+        """
+        grid_overrides = grid_overrides or {}
 
-            function = self.commands[override].transform_chunksize
-            chunksize = function(chunksize, grid_overrides=grid_overrides)
+        field_names = set(GridOverrides.model_fields.keys())
+        aliases = {field.alias for field in GridOverrides.model_fields.values() if field.alias}
+        valid_keys = field_names | aliases
+        for key in grid_overrides:
+            if key not in valid_keys:
+                raise GridOverrideUnknownError(key)
 
-        return index_headers, index_names, chunksize
+        config = GridOverrides.model_validate(grid_overrides)
+
+        if config.non_binned:
+            missing: set[str] = set()
+            if config.chunksize is None:
+                missing.add("chunksize")
+            if not config.non_binned_dims:
+                missing.add("non_binned_dims")
+            if missing:
+                command = "NonBinned"
+                raise GridOverrideMissingParameterError(command, missing)
+
+        _validate_template_for_overrides(config, template)
+
+        synthesize_dims = _resolve_synthesize_dims(template)
+        strategy = self._registry.create_strategy(
+            grid_overrides=config,
+            synthesize_dims=synthesize_dims,
+            template=template,
+        )
+        logger.debug("Selected grid override strategy: %s", strategy.name)
+
+        strategy.validate_headers(index_headers)
+        new_headers = strategy.transform_headers(index_headers)
+
+        new_names = list(index_names)
+        new_chunks = list(chunksize) if chunksize is not None else None
+
+        # Both NonBinned and HasDuplicates add a 'trace' dim at index -1; HasDuplicates
+        # always uses chunksize 1, NonBinned uses the user-supplied value.
+        if config.non_binned or config.has_duplicates:
+            new_names.append("trace")
+            if new_chunks is not None:
+                inserted_chunk = config.chunksize if config.non_binned else 1
+                new_chunks.insert(-1, inserted_chunk)
+
+        return (
+            new_headers,
+            tuple(new_names),
+            tuple(new_chunks) if new_chunks is not None else None,
+        )
