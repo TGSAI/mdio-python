@@ -18,6 +18,7 @@ from mdio.builder.schemas.dtype import StructuredType
 from mdio.builder.schemas.v1.units import AllUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
+from mdio.builder.templates.types import CoordinateSpec
 
 if TYPE_CHECKING:
     from mdio.builder.schemas.v1.dataset import Dataset
@@ -43,6 +44,13 @@ class AbstractDatasetTemplate(ABC):
         self._physical_coord_names: tuple[str, ...] = ()
         self._logical_coord_names: tuple[str, ...] = ()
         self._var_chunk_shape: tuple[int, ...] = ()
+        self.synthesize_missing_dims: tuple[str, ...] = ()
+
+        # TEMPORARY (removed with declare_coordinate_specs): set when grid overrides mutate this
+        # template in-place (dims collapsed into 'trace', extra coordinates added). Once mutated,
+        # the runtime layout intentionally diverges from the static declare_coordinate_specs()
+        # contract, so the drift guard in build_dataset() must not run.
+        self._grid_overrides_applied: bool = False
 
         self._builder: MDIODatasetBuilder | None = None
         self._dim_sizes: tuple[int, ...] = ()
@@ -66,6 +74,45 @@ class AbstractDatasetTemplate(ABC):
     def _repr_html_(self) -> str:
         """Return an HTML representation of the template for Jupyter notebooks."""
         return template_repr_html(self)
+
+    def declare_coordinate_specs(self) -> tuple[CoordinateSpec, ...]:
+        """Declare the non-dimension coordinate specs (name, dims, dtype) for this template.
+
+        The ingestion ``SchemaResolver`` uses these specs to determine which trace-header
+        fields to read and how to rewrite coordinate dimensions under grid overrides.
+
+        .. note::
+            TEMPORARY (to be removed before the next minor release): these specs currently
+            duplicate the non-dimension coordinates created in :meth:`_add_coordinates`.
+            :meth:`build_dataset` validates that the two stay in sync (see
+            :meth:`_validate_declared_coordinate_specs`). Once the ingestion pipeline builds
+            datasets directly from the resolved schema, ``_add_coordinates`` will be derived
+            from these specs and the duplication will disappear.
+
+            The default implementation assumes every non-dimension coordinate spans **all**
+            spatial dimensions. Subclasses whose coordinates span only a subset (or use a
+            non-default dtype) must override this method, otherwise ``build_dataset`` raises.
+
+        Returns:
+            The declared non-dimension coordinate specs.
+        """
+        specs = [
+            CoordinateSpec(
+                name=coord_name,
+                dimensions=self.spatial_dimension_names,
+                dtype=ScalarType.FLOAT64,
+            )
+            for coord_name in self.physical_coordinate_names
+        ]
+        specs.extend(
+            CoordinateSpec(
+                name=coord_name,
+                dimensions=self.spatial_dimension_names,
+                dtype=ScalarType.UINT8 if coord_name == "gun" else ScalarType.INT32,
+            )
+            for coord_name in self.logical_coordinate_names
+        )
+        return tuple(specs)
 
     def build_dataset(
         self,
@@ -107,6 +154,10 @@ class AbstractDatasetTemplate(ABC):
             except ValueError as exc:  # coordinate may already exist
                 if "same name twice" not in str(exc):
                     raise
+        # Skip the static drift guard when grid overrides have transformed the template: the
+        # runtime layout no longer matches the declared (override-free) specs by design.
+        if not self._grid_overrides_applied:
+            self._validate_declared_coordinate_specs()
         self._add_variables()
         self._add_trace_mask()
 
@@ -122,6 +173,80 @@ class AbstractDatasetTemplate(ABC):
                 msg = f"Unit {unit} is not an instance of `AllUnitModel`"
                 raise ValueError(msg)
         self._units |= units
+
+    def apply_resolved_dimensions(
+        self,
+        dim_names: tuple[str, ...],
+        chunk_shape: tuple[int, ...],
+    ) -> None:
+        """Update the template's dimension layout from a resolved schema.
+
+        Supported entry point for the ingestion pipeline to push back dimension names
+        and chunk shape after the SchemaResolver has applied grid overrides
+        (e.g. NonBinned, HasDuplicates), instead of mutating private attributes.
+
+        Args:
+            dim_names: Final ordered dimension names.
+            chunk_shape: Chunk shape matching ``dim_names`` length.
+
+        Raises:
+            ValueError: If ``len(chunk_shape) != len(dim_names)``.
+        """
+        if len(chunk_shape) != len(dim_names):
+            msg = f"chunk_shape length {len(chunk_shape)} does not match dim_names length {len(dim_names)}"
+            raise ValueError(msg)
+        self._dim_names = tuple(dim_names)
+        self._var_chunk_shape = tuple(chunk_shape)
+
+    def _validate_declared_coordinate_specs(self) -> None:
+        """Fail the build if :meth:`declare_coordinate_specs` drifted from the built coordinates.
+
+        TEMPORARY (to be removed before the next minor release): while
+        :meth:`declare_coordinate_specs` duplicates the non-dimension coordinates created in
+        :meth:`_add_coordinates`, this guard ensures the two never diverge in name, dimensions,
+        or dtype. The ingestion ``SchemaResolver`` trusts the declared specs, so silent drift
+        would corrupt resolved schemas. The check runs for every template (built-in and
+        user-defined) on every ``build_dataset`` call that does not apply grid overrides. Grid
+        overrides mutate the template in-place (collapsing dims into ``trace`` and adding
+        coordinates), so the runtime layout intentionally diverges from the declared specs and
+        the guard is skipped for those builds. It is removed once ``_add_coordinates`` is derived
+        from the resolved schema and the duplication no longer exists.
+
+        Raises:
+            ValueError: If the declared specs do not match the built non-dimension coordinates.
+        """
+        dim_names = set(self._dim_names)
+        built = {coord.name: coord for coord in self._builder._coordinates if coord.name not in dim_names}
+        declared = {spec.name: spec for spec in self.declare_coordinate_specs()}
+
+        if set(declared) != set(built):
+            built_only = sorted(set(built) - set(declared))
+            declared_only = sorted(set(declared) - set(built))
+            msg = (
+                f"declare_coordinate_specs() for template {self.name!r} is out of sync with the "
+                f"coordinates built by _add_coordinates(). Built but not declared: {built_only}. "
+                f"Declared but not built: {declared_only}. Override declare_coordinate_specs() so "
+                f"it matches the non-dimension coordinates this template creates."
+            )
+            raise ValueError(msg)
+
+        for coord_name, spec in declared.items():
+            coord = built[coord_name]
+            built_dims = tuple(dim.name for dim in coord.dimensions)
+            if built_dims != spec.dimensions:
+                msg = (
+                    f"declare_coordinate_specs() for template {self.name!r} declares coordinate "
+                    f"{coord_name!r} over dimensions {spec.dimensions}, but _add_coordinates() built "
+                    f"it over {built_dims}."
+                )
+                raise ValueError(msg)
+            if coord.data_type != spec.dtype:
+                msg = (
+                    f"declare_coordinate_specs() for template {self.name!r} declares coordinate "
+                    f"{coord_name!r} as {spec.dtype}, but _add_coordinates() built it as "
+                    f"{coord.data_type}."
+                )
+                raise ValueError(msg)
 
     @property
     def name(self) -> str:

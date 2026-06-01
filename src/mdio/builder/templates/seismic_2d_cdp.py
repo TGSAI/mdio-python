@@ -8,6 +8,7 @@ from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import CdpGatherDomain
+from mdio.builder.templates.types import CoordinateSpec
 from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -34,6 +35,13 @@ class Seismic2DCdpGathersTemplate(AbstractDatasetTemplate):
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
         return {"surveyType": "2D", "gatherType": "cdp"}
+
+    def declare_coordinate_specs(self) -> tuple[CoordinateSpec, ...]:
+        """Declare CDP-indexed X/Y coordinates for the 2D CDP gathers template."""
+        return (
+            CoordinateSpec(name="cdp_x", dimensions=("cdp",), dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="cdp_y", dimensions=("cdp",), dtype=ScalarType.FLOAT64),
+        )
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
