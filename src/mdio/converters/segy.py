@@ -176,6 +176,7 @@ def _update_template_from_grid_overrides(
             actual_spatial_dims,
         )
         template._dim_names = actual_spatial_dims + (template.trace_domain,)
+        template._grid_overrides_applied = True
 
     # If using NonBinned override, expose non-binned dims as logical coordinates on the template instance
     # and patch _add_coordinates to skip adding them as 1D dimension coordinates
@@ -190,6 +191,7 @@ def _update_template_from_grid_overrides(
         to_add = tuple(n for n in non_binned_dims if n not in existing)
         if to_add:
             template._logical_coord_names = template._logical_coord_names + to_add
+            template._grid_overrides_applied = True
 
         # Patch _add_coordinates to skip adding non-binned dims as 1D dimension coordinates
         # This prevents them from being added with wrong dimensions (e.g., just "trace")

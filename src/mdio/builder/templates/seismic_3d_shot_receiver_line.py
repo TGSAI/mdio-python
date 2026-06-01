@@ -5,6 +5,7 @@ from typing import Any
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
+from mdio.builder.templates.types import CoordinateSpec
 from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -31,6 +32,18 @@ class Seismic3DShotReceiverLineGathersTemplate(AbstractDatasetTemplate):
 
     def _load_dataset_attributes(self) -> dict[str, Any]:
         return {"surveyType": "3D", "gatherType": "common_source"}
+
+    def declare_coordinate_specs(self) -> tuple[CoordinateSpec, ...]:
+        """Declare shot-line- and receiver-line-indexed coordinates for the 3D shot/receiver-line template."""
+        source_dims = ("shot_line", "shot_point")
+        group_dims = ("receiver_line", "receiver")
+        return (
+            CoordinateSpec(name="source_coord_x", dimensions=source_dims, dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="source_coord_y", dimensions=source_dims, dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="group_coord_x", dimensions=group_dims, dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="group_coord_y", dimensions=group_dims, dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="orig_field_record_num", dimensions=source_dims, dtype=ScalarType.UINT32),
+        )
 
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
