@@ -18,6 +18,7 @@ from mdio.builder.schemas.v1.units import AllUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.templates.types import CoordinateSpec
+from mdio.builder.templates.types import DimCoordinateTypes
 
 if TYPE_CHECKING:
     from mdio.builder.schemas.v1.dataset import Dataset
@@ -113,8 +114,8 @@ class AbstractDatasetTemplate(ABC):
         )
         return tuple(specs)
 
-    def declare_dimension_specs(self) -> dict[str, ScalarType]:
-        """Declare data types for each dimension in this template.
+    def declare_dim_coordinate_types(self) -> DimCoordinateTypes:
+        """Declare data types for each dimension coordinate in this template.
 
         Returns:
             A dictionary mapping dimension name to ScalarType.
@@ -130,7 +131,7 @@ class AbstractDatasetTemplate(ABC):
         Returns:
             The declared ScalarType, defaulting to INT32.
         """
-        return self.declare_dimension_specs().get(name, ScalarType.INT32)
+        return self.declare_dim_coordinate_types().get(name, ScalarType.INT32)
 
     def _add_dimension_coordinate(self, name: str) -> None:
         """Add a single dimension coordinate.

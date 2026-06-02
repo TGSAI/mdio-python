@@ -6,6 +6,7 @@ from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import CoordinateSpec
+from mdio.builder.templates.types import DimCoordinateTypes
 from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -52,8 +53,8 @@ class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
             CoordinateSpec(name="group_coord_y", dimensions=receiver_dims, dtype=ScalarType.FLOAT64),
         )
 
-    def declare_dimension_specs(self) -> dict[str, ScalarType]:
-        """Declare the data types for each dimension in this template."""
+    def declare_dim_coordinate_types(self) -> DimCoordinateTypes:
+        """Declare the data types for each dimension coordinate in this template."""
         return {
             "sail_line": ScalarType.UINT32,
             "gun": ScalarType.UINT8,

@@ -11,6 +11,8 @@ SeismicDataDomain: TypeAlias = Literal["depth", "time"]
 
 CdpGatherDomain: TypeAlias = Literal["offset", "angle"]
 
+DimCoordinateTypes: TypeAlias = dict[str, ScalarType]
+
 
 class CoordinateSpec(BaseModel):
     """Specification for a non-dimension coordinate declared by a template.

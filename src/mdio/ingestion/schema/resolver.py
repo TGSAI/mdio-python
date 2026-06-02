@@ -59,7 +59,7 @@ class SchemaResolver:
     def _template_to_schema(self, template: AbstractDatasetTemplate) -> ResolvedSchema:
         """Convert a template to a resolved schema without overrides."""
         calculated = set(template.calculated_dimension_names)
-        dim_dtypes = template.declare_dimension_specs()
+        dim_dtypes = template.declare_dim_coordinate_types()
         dimensions = [
             DimensionSpec(
                 name=name,
