@@ -44,7 +44,7 @@ class Seismic2DStreamerShotGathersTemplate(AbstractDatasetTemplate):
             self._builder.add_coordinate(
                 name,
                 dimensions=(name,),
-                data_type=ScalarType.INT32,
+                data_type=self._dim_dtype(name),
                 metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
             )
 

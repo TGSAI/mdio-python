@@ -45,25 +45,33 @@ class Seismic3DReceiverGathersTemplate(AbstractDatasetTemplate):
             CoordinateSpec(name="source_coord_y", dimensions=shot_dims, dtype=ScalarType.FLOAT64),
         )
 
+    def declare_dimension_specs(self) -> dict[str, ScalarType]:
+        """Declare the data types for each dimension in this template."""
+        return {
+            "receiver": ScalarType.UINT32,
+            "shot_line": ScalarType.UINT32,
+            self._data_domain: ScalarType.INT32,
+        }
+
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
         # Note: shot_index is calculated (0-N), so we don't add a coordinate for it
         self._builder.add_coordinate(
             "receiver",
             dimensions=("receiver",),
-            data_type=ScalarType.UINT32,
+            data_type=self._dim_dtype("receiver"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("receiver")),
         )
         self._builder.add_coordinate(
             "shot_line",
             dimensions=("shot_line",),
-            data_type=ScalarType.UINT32,
+            data_type=self._dim_dtype("shot_line"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("shot_line")),
         )
         self._builder.add_coordinate(
             self.trace_domain,
             dimensions=(self.trace_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self.trace_domain),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
         )
 

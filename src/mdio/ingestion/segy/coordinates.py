@@ -5,10 +5,10 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import numpy as np
 from segy.standards.codes import MeasurementSystem as SegyMeasurementSystem
 from segy.standards.fields import binary as binary_header_fields
 
+from mdio.builder.schemas.v1.units import AllUnitModel
 from mdio.builder.schemas.v1.units import AngleUnitEnum
 from mdio.builder.schemas.v1.units import AngleUnitModel
 from mdio.builder.schemas.v1.units import LengthUnitEnum
@@ -21,7 +21,6 @@ if TYPE_CHECKING:
     from xarray import Dataset as xr_Dataset
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
-    from mdio.core.dimension import Dimension
     from mdio.core.grid import Grid
     from mdio.segy.file import SegyFileInfo
 
@@ -41,33 +40,7 @@ SPATIAL_UNIT_KEYS = [
 ]
 
 
-def _get_coordinates(
-    grid: Grid,
-    segy_headers: SegyHeaderArray,
-    mdio_template: AbstractDatasetTemplate,
-) -> tuple[list[Dimension], dict[str, SegyHeaderArray]]:
-    """Get the data dim and non-dim coordinates from the SEG-Y headers and MDIO template.
-
-    Select a subset of the segy_dimensions that corresponds to the MDIO dimensions
-    The dimensions are ordered as in the MDIO template.
-    The last dimension is always the vertical domain dimension
-
-    Args:
-        grid: Inferred MDIO grid for SEG-Y file.
-        segy_headers: Headers read in from SEG-Y file.
-        mdio_template: The MDIO template to use for the conversion.
-
-    Returns:
-        A tuple containing:
-            - A list of dimension coordinates (1-D arrays).
-            - A dict of non-dimension coordinates (str: N-D arrays).
-    """
-    dimensions_coords = [grid.select_dim(name) for name in mdio_template.dimension_names]
-    non_dim_coords = {name: np.array(segy_headers[name]) for name in mdio_template.coordinate_names}
-    return dimensions_coords, non_dim_coords
-
-
-def _populate_coordinates(
+def populate_coordinates(
     dataset: xr_Dataset,
     grid: Grid,
     coords: dict[str, SegyHeaderArray],
@@ -100,7 +73,7 @@ def _populate_coordinates(
     return dataset, drop_vars_delayed
 
 
-def _get_spatial_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitModel | None:
+def get_spatial_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitModel | None:
     """Get the coordinate unit from the SEG-Y headers."""
     measurement_system_code = int(segy_file_info.binary_header_dict[MEASUREMENT_SYSTEM_KEY])
 
@@ -121,21 +94,26 @@ def _get_spatial_coordinate_unit(segy_file_info: SegyFileInfo) -> LengthUnitMode
     return LengthUnitModel(length=unit)
 
 
-def _update_template_units(template: AbstractDatasetTemplate, unit: LengthUnitModel | None) -> AbstractDatasetTemplate:
-    """Update the template with dynamic and some pre-defined units."""
-    new_units = {key: AngleUnitModel(angle=AngleUnitEnum.DEGREES) for key in ANGLE_UNIT_KEYS}
+def resolve_units(
+    template: AbstractDatasetTemplate,
+    unit: LengthUnitModel | None,
+) -> dict[str, AllUnitModel]:
+    """Resolve the units for the template and dynamic SEG-Y units without mutating the template."""
+    resolved = dict(template.units)
 
-    if unit is None:
-        template.add_units(new_units)
-        return template
+    for key in ANGLE_UNIT_KEYS:
+        if key not in resolved:
+            resolved[key] = AngleUnitModel(angle=AngleUnitEnum.DEGREES)
 
-    for key in SPATIAL_UNIT_KEYS:
-        current_value = template.get_unit_by_key(key)
-        if current_value is not None:
-            logger.warning("Unit for %s already in template. Will keep the original unit: %s", key, current_value)
-            continue
+    if unit is not None:
+        for key in SPATIAL_UNIT_KEYS:
+            if key not in resolved:
+                resolved[key] = unit
+            else:
+                logger.warning(
+                    "Unit for %s already in template. Will keep the original unit: %s",
+                    key,
+                    resolved[key],
+                )
 
-        new_units[key] = unit
-
-    template.add_units(new_units)
-    return template
+    return resolved

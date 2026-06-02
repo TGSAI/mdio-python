@@ -41,36 +41,46 @@ class Seismic3DOffsetTilesTemplate(AbstractDatasetTemplate):
             CoordinateSpec(name="cdp_y", dimensions=("inline", "crossline"), dtype=ScalarType.FLOAT64),
         )
 
+    def declare_dimension_specs(self) -> dict[str, ScalarType]:
+        """Declare the data types for each dimension in this template."""
+        return {
+            "inline": ScalarType.INT32,
+            "crossline": ScalarType.INT32,
+            "inline_offset_tile": ScalarType.INT16,
+            "crossline_offset_tile": ScalarType.INT16,
+            self._data_domain: ScalarType.INT32,
+        }
+
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
         self._builder.add_coordinate(
             "inline",
             dimensions=("inline",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("inline"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("inline")),
         )
         self._builder.add_coordinate(
             "crossline",
             dimensions=("crossline",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("crossline"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("crossline")),
         )
         self._builder.add_coordinate(
             "inline_offset_tile",
             dimensions=("inline_offset_tile",),
-            data_type=ScalarType.INT16,
+            data_type=self._dim_dtype("inline_offset_tile"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("inline_offset_tile")),
         )
         self._builder.add_coordinate(
             "crossline_offset_tile",
             dimensions=("crossline_offset_tile",),
-            data_type=ScalarType.INT16,
+            data_type=self._dim_dtype("crossline_offset_tile"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("crossline_offset_tile")),
         )
         self._builder.add_coordinate(
             self.trace_domain,
             dimensions=(self.trace_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self.trace_domain),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
         )
 

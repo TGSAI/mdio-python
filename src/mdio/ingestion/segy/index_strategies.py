@@ -21,6 +21,8 @@ import numpy as np
 from numpy.lib import recfunctions as rfn
 
 from mdio.core import Dimension
+from mdio.ingestion.schema.models import CollapseToTraceEffect
+from mdio.ingestion.schema.models import InsertTraceDimEffect
 from mdio.ingestion.segy.header_analysis import ShotGunGeometryType
 from mdio.ingestion.segy.header_analysis import StreamerShotGeometryType
 from mdio.ingestion.segy.header_analysis import analyze_lines_for_guns
@@ -35,6 +37,7 @@ if TYPE_CHECKING:
     from segy.arrays import HeaderArray
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
+    from mdio.ingestion.schema.models import SchemaEffect
     from mdio.segy.geometry import GridOverrides
 
 logger = logging.getLogger(__name__)
@@ -351,7 +354,35 @@ class CompositeStrategy(IndexStrategy):
 
 
 class IndexStrategyRegistry:
-    """Picks the right :class:`IndexStrategy` from grid overrides + template hints."""
+    """Picks the right :class:`IndexStrategy` from grid overrides + template hints.
+
+    The registry is the single source of truth for override semantics: it maps a
+    :class:`~mdio.segy.geometry.GridOverrides` both to the header-transforming
+    :class:`IndexStrategy` (:meth:`create_strategy`) and to the schema-reshaping
+    :class:`~mdio.ingestion.schema.models.SchemaEffect` (:meth:`schema_effect`). Keeping
+    both derivations here prevents the header view and the schema view from drifting.
+    """
+
+    def schema_effect(self, grid_overrides: GridOverrides | None) -> SchemaEffect | None:
+        """Return the schema reshaping implied by ``grid_overrides``, if any.
+
+        Only ``non_binned`` and ``has_duplicates`` change the dimension/coordinate layout;
+        every other override transforms headers in place without reshaping the schema.
+
+        Args:
+            grid_overrides: Typed grid override configuration, or ``None``.
+
+        Returns:
+            The matching :class:`SchemaEffect`, or ``None`` when no layout change applies.
+        """
+        if not grid_overrides:
+            return None
+        if grid_overrides.non_binned:
+            collapse_dims = None if grid_overrides.non_binned_dims is None else tuple(grid_overrides.non_binned_dims)
+            return CollapseToTraceEffect(chunksize=grid_overrides.chunksize, collapse_dims=collapse_dims)
+        if grid_overrides.has_duplicates:
+            return InsertTraceDimEffect(chunksize=1)
+        return None
 
     def create_strategy(
         self,

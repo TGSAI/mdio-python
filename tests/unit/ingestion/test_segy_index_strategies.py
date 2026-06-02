@@ -1,6 +1,6 @@
 """Unit tests for the v1.2 ingestion index strategies and the strategy registry.
 
-These tests exercise individual :class:`mdio.ingestion.index_strategies.IndexStrategy`
+These tests exercise individual :class:`mdio.ingestion.segy.index_strategies.IndexStrategy`
 subclasses with synthetic structured numpy arrays (mimicking the shape semantics of
 :class:`segy.arrays.HeaderArray`) so they remain fast and do not require any real SEG-Y
 data.
@@ -8,21 +8,52 @@ data.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+from typing import Any
+
 import numpy as np
 import pytest
 
 from mdio.builder.template_registry import TemplateRegistry
-from mdio.ingestion.index_strategies import ChannelWrappingStrategy
-from mdio.ingestion.index_strategies import ComponentSynthesisStrategy
-from mdio.ingestion.index_strategies import CompositeStrategy
-from mdio.ingestion.index_strategies import DuplicateHandlingStrategy
-from mdio.ingestion.index_strategies import IndexStrategyRegistry
-from mdio.ingestion.index_strategies import NonBinnedStrategy
-from mdio.ingestion.index_strategies import RegularGridStrategy
-from mdio.ingestion.index_strategies import ShotWrappingStrategy
+from mdio.ingestion.segy.index_strategies import ChannelWrappingStrategy
+
+if TYPE_CHECKING:
+    from mdio.builder.templates.base import AbstractDatasetTemplate
+from mdio.ingestion.segy.index_strategies import ComponentSynthesisStrategy
+from mdio.ingestion.segy.index_strategies import CompositeStrategy
+from mdio.ingestion.segy.index_strategies import DuplicateHandlingStrategy
+from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
+from mdio.ingestion.segy.index_strategies import NonBinnedStrategy
+from mdio.ingestion.segy.index_strategies import RegularGridStrategy
+from mdio.ingestion.segy.index_strategies import ShotWrappingStrategy
 from mdio.segy.exceptions import GridOverrideKeysError
-from mdio.segy.geometry import GridOverrider
 from mdio.segy.geometry import GridOverrides
+from mdio.segy.geometry import _resolve_synthesize_dims
+from mdio.segy.geometry import _validate_template_for_overrides
+
+
+class GridOverrider:
+    """Mock GridOverrider shim for template and keys validation tests."""
+
+    def run(
+        self,
+        headers: np.ndarray,
+        index_names: tuple[str, ...],  # noqa: ARG002
+        grid_overrides: dict[str, Any],
+        template: AbstractDatasetTemplate | None,
+    ) -> np.ndarray:
+        """Run mock strategy validation and transform."""
+        config = GridOverrides.model_validate(grid_overrides)
+        _validate_template_for_overrides(config, template)
+        synthesize_dims = _resolve_synthesize_dims(template)
+        registry = IndexStrategyRegistry()
+        strategy = registry.create_strategy(
+            grid_overrides=config,
+            synthesize_dims=synthesize_dims,
+            template=template,
+        )
+        strategy.validate_headers(headers)
+        return strategy.transform_headers(headers)
 
 
 def _make_struct(data: dict[str, np.ndarray]) -> np.ndarray:

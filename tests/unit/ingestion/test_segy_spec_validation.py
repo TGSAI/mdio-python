@@ -9,11 +9,11 @@ from segy.schema import HeaderField
 from segy.standards import get_segy_standard
 
 from mdio.builder.templates.base import AbstractDatasetTemplate
-from mdio.converters.segy import _validate_spec_in_template
+from mdio.ingestion.segy.validation import validate_spec_in_template
 
 
 class TestValidateSpecInTemplate:
-    """Test cases for _validate_spec_in_template function."""
+    """Test cases for validate_spec_in_template function."""
 
     def test_validation_passes_with_all_required_fields(self) -> None:
         """Test that validation passes when all required fields are present."""
@@ -25,7 +25,7 @@ class TestValidateSpecInTemplate:
         segy_spec = get_segy_standard(1.0)
 
         # Should not raise any exception
-        _validate_spec_in_template(segy_spec, template)
+        validate_spec_in_template(segy_spec, template)
 
     def test_validation_fails_with_missing_fields(self) -> None:
         """Test that validation fails when required fields are missing."""
@@ -44,7 +44,7 @@ class TestValidateSpecInTemplate:
 
         # Should raise ValueError listing the missing fields
         with pytest.raises(ValueError, match=r"Required fields.*not found in.*segy_spec") as exc_info:
-            _validate_spec_in_template(segy_spec, template)
+            validate_spec_in_template(segy_spec, template)
 
         error_message = str(exc_info.value)
         assert "custom_dim2" in error_message
@@ -68,7 +68,7 @@ class TestValidateSpecInTemplate:
 
         # Should raise ValueError for missing coordinate_scalar
         with pytest.raises(ValueError, match=r"Required fields.*not found in.*segy_spec") as exc_info:
-            _validate_spec_in_template(segy_spec, template)
+            validate_spec_in_template(segy_spec, template)
 
         error_message = str(exc_info.value)
         assert "coordinate_scalar" in error_message

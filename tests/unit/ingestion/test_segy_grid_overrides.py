@@ -15,8 +15,12 @@ from numpy import unique
 from numpy.testing import assert_array_equal
 
 from mdio.core import Dimension
+from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
+from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError
-from mdio.segy.geometry import GridOverrider
+from mdio.segy.geometry import GridOverrides
+from mdio.segy.geometry import _resolve_synthesize_dims
+from mdio.segy.geometry import _validate_template_for_overrides
 
 if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
@@ -32,10 +36,58 @@ def run_override(
     headers: npt.NDArray,
     chunksize: tuple[int, ...] | None = None,
     template: AbstractDatasetTemplate | None = None,
-) -> tuple[dict[str, Any], tuple[str], tuple[int]]:
-    """Initialize and run overrider."""
-    overrider = GridOverrider()
-    return overrider.run(headers, index_names, grid_overrides, chunksize, template=template)
+) -> tuple[npt.NDArray, tuple[str, ...], tuple[int, ...] | None]:
+    """Initialize and run overrider using IndexStrategyRegistry."""
+    grid_overrides = grid_overrides or {}
+
+    field_names = set(GridOverrides.model_fields.keys())
+    aliases = {field.alias for field in GridOverrides.model_fields.values() if field.alias}
+    valid_keys = field_names | aliases
+    for key in grid_overrides:
+        if key not in valid_keys:
+            raise GridOverrideUnknownError(key)
+
+    config = GridOverrides.model_validate(grid_overrides)
+
+    if config.non_binned:
+        missing: set[str] = set()
+        if config.chunksize is None:
+            missing.add("chunksize")
+        if not config.non_binned_dims:
+            missing.add("non_binned_dims")
+        if missing:
+            command = "NonBinned"
+            raise GridOverrideMissingParameterError(command, missing)
+
+    _validate_template_for_overrides(config, template)
+
+    synthesize_dims = _resolve_synthesize_dims(template)
+    registry = IndexStrategyRegistry()
+    strategy = registry.create_strategy(
+        grid_overrides=config,
+        synthesize_dims=synthesize_dims,
+        template=template,
+    )
+
+    strategy.validate_headers(headers)
+    new_headers = strategy.transform_headers(headers)
+
+    new_names = list(index_names)
+    new_chunks = list(chunksize) if chunksize is not None else None
+
+    # Both NonBinned and HasDuplicates add a 'trace' dim at index -1; HasDuplicates
+    # always uses chunksize 1, NonBinned uses the user-supplied value.
+    if config.non_binned or config.has_duplicates:
+        new_names.append("trace")
+        if new_chunks is not None:
+            inserted_chunk = config.chunksize if config.non_binned else 1
+            new_chunks.insert(-1, inserted_chunk)
+
+    return (
+        new_headers,
+        tuple(new_names),
+        tuple(new_chunks) if new_chunks is not None else None,
+    )
 
 
 def get_dims(headers: npt.NDArray) -> list[Dimension]:
@@ -143,9 +195,8 @@ class TestStreamerGridOverrides:
         """Test exception if user provides a command that's not allowed."""
         index_names = ("shot_point", "cable", "channel")
         chunksize = None
-        overrider = GridOverrider()
         with pytest.raises(GridOverrideUnknownError):
-            overrider.run(mock_streamer_headers, index_names, {"WrongCommand": True}, chunksize)
+            run_override({"WrongCommand": True}, index_names, mock_streamer_headers, chunksize)
 
 
 # OBN test fixtures and tests
@@ -159,9 +210,10 @@ class TestObnGridOverrides:
     """Check grid overrides for OBN (Ocean Bottom Node) data.
 
     Note: The synthetic component behavior (when SEG-Y spec doesn't have a component field)
-    is handled by the template's internal `_synthetic_defaults` attribute in `utilities.get_grid_plan()`,
-    not by a grid override. See integration test `test_import_obn_synthetic_component` for
-    full flow coverage. These unit tests focus on grid override functionality.
+    is handled by ``ComponentSynthesisStrategy`` (driven by the template's
+    ``synthesize_missing_dims``) during header reading, not by a grid override. See integration
+    test `test_import_obn_synthetic_component` for full flow coverage. These unit tests focus on
+    grid override functionality.
     """
 
     def test_calculate_shot_index_obn(self) -> None:

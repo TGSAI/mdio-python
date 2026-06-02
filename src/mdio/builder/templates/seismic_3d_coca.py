@@ -34,34 +34,44 @@ class Seismic3DCocaGathersTemplate(AbstractDatasetTemplate):
             CoordinateSpec(name="cdp_y", dimensions=("inline", "crossline"), dtype=ScalarType.FLOAT64),
         )
 
+    def declare_dimension_specs(self) -> dict[str, ScalarType]:
+        """Declare the data types for each dimension in this template."""
+        return {
+            "inline": ScalarType.INT32,
+            "crossline": ScalarType.INT32,
+            "offset": ScalarType.INT32,
+            "azimuth": ScalarType.FLOAT32,
+            self._data_domain: ScalarType.INT32,
+        }
+
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
         self._builder.add_coordinate(
             "inline",
             dimensions=("inline",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("inline"),
         )
         self._builder.add_coordinate(
             "crossline",
             dimensions=("crossline",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("crossline"),
         )
         self._builder.add_coordinate(
             "offset",
             dimensions=("offset",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("offset"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("offset")),  # same unit as X/Y
         )
         self._builder.add_coordinate(
             "azimuth",
             dimensions=("azimuth",),
-            data_type=ScalarType.FLOAT32,
+            data_type=self._dim_dtype("azimuth"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("azimuth")),
         )
         self._builder.add_coordinate(
             self.trace_domain,
             dimensions=(self.trace_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self.trace_domain),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
         )
 

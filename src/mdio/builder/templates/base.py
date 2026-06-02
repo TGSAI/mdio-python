@@ -114,6 +114,46 @@ class AbstractDatasetTemplate(ABC):
         )
         return tuple(specs)
 
+    def declare_dimension_specs(self) -> dict[str, ScalarType]:
+        """Declare the data types for each dimension in this template.
+
+        This is the single source of truth for dimension-coordinate data types: both the
+        ingestion ``SchemaResolver`` and :meth:`_add_dimension_coordinate` read from it, so
+        the resolved schema and the built dataset cannot disagree.
+
+        Returns:
+            A dictionary mapping dimension name to ScalarType.
+        """
+        return dict.fromkeys(self.dimension_names, ScalarType.INT32)
+
+    def _dim_dtype(self, name: str) -> ScalarType:
+        """Return the declared dtype for a dimension coordinate.
+
+        Sourcing dimension-coordinate dtypes here (and in the ingestion ``SchemaResolver``)
+        from :meth:`declare_dimension_specs` keeps the built dataset and the resolved schema
+        from disagreeing without a separate post-build assertion.
+
+        Args:
+            name: The dimension name.
+
+        Returns:
+            The declared :class:`ScalarType`, defaulting to ``INT32`` when undeclared.
+        """
+        return self.declare_dimension_specs().get(name, ScalarType.INT32)
+
+    def _add_dimension_coordinate(self, name: str) -> None:
+        """Add a single dimension coordinate, sourcing its dtype from :meth:`declare_dimension_specs`.
+
+        Args:
+            name: The dimension name; also the coordinate name and its sole dimension.
+        """
+        self._builder.add_coordinate(
+            name,
+            dimensions=(name,),
+            data_type=self._dim_dtype(name),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
+        )
+
     def build_dataset(
         self,
         name: str,
@@ -354,6 +394,15 @@ class AbstractDatasetTemplate(ABC):
             The dataset attributes as a dictionary
         """
 
+    @property
+    def units(self) -> dict[str, AllUnitModel]:
+        """Return a copy of the template's configured units.
+
+        Read-only view for collaborators (e.g. ingestion unit resolution) so they do not
+        reach into the private ``_units`` mapping.
+        """
+        return dict(self._units)
+
     def get_unit_by_key(self, key: str) -> AllUnitModel | None:
         """Get units by variable/dimension/coordinate name. Returns None if not found."""
         return self._units.get(key, None)
@@ -375,12 +424,7 @@ class AbstractDatasetTemplate(ABC):
         """
         # Add dimension coordinates
         for name in self._dim_names:
-            self._builder.add_coordinate(
-                name,
-                dimensions=(name,),
-                data_type=ScalarType.INT32,
-                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
-            )
+            self._add_dimension_coordinate(name)
 
         # Add non-dimension coordinates
         # Note: coordinate_names may be modified at runtime by grid overrides,

@@ -5,7 +5,9 @@ from __future__ import annotations
 from mdio.builder.templates.seismic_3d_cdp import Seismic3DCdpGathersTemplate
 from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate
 from mdio.builder.templates.seismic_3d_streamer_shot import Seismic3DStreamerShotGathersTemplate
-from mdio.ingestion.schema_resolver import SchemaResolver
+from mdio.ingestion.schema import DimensionSpec
+from mdio.ingestion.schema import ResolvedSchema
+from mdio.ingestion.schema.resolver import SchemaResolver
 from mdio.segy.geometry import GridOverrides
 
 
@@ -77,13 +79,12 @@ class TestSchemaResolverNonBinned:
         group_coord_x = next(c for c in schema.coordinates if c.name == "group_coord_x")
         assert group_coord_x.dimensions == ("shot_point", "trace")
 
-    def test_non_binned_flag_recorded_in_metadata(self) -> None:
-        """The NonBinned flag is recorded under ``gridOverrides`` metadata."""
+    def test_grid_override_provenance_not_in_schema_metadata(self) -> None:
+        """The resolver is mechanics-only: override provenance is attached at the dataset level."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
         overrides = GridOverrides(non_binned=True, chunksize=64)
         schema = SchemaResolver().resolve(template, overrides)
-        assert "gridOverrides" in schema.metadata
-        assert schema.metadata["gridOverrides"].get("NonBinned") is True
+        assert "gridOverrides" not in schema.metadata
 
 
 class TestSchemaResolverHasDuplicates:
@@ -100,8 +101,40 @@ class TestSchemaResolverHasDuplicates:
         # before the vertical dim.
         assert schema.chunk_shape == (8, 1, 128, 1, 2048)
 
-    def test_has_duplicates_metadata(self) -> None:
-        """The HasDuplicates flag is recorded under ``gridOverrides`` metadata."""
+    def test_has_duplicates_provenance_not_in_schema_metadata(self) -> None:
+        """The resolver does not record override provenance in schema metadata."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
         schema = SchemaResolver().resolve(template, GridOverrides(has_duplicates=True))
-        assert schema.metadata["gridOverrides"].get("HasDuplicates") is True
+        assert "gridOverrides" not in schema.metadata
+
+
+class TestMissingCalculatedDimensions:
+    """Tests for ``ResolvedSchema.missing_calculated_dimensions``."""
+
+    def _schema(self) -> ResolvedSchema:
+        return ResolvedSchema(
+            name="Calc",
+            dimensions=[
+                DimensionSpec(name="receiver", is_spatial=True),
+                DimensionSpec(name="shot_index", is_spatial=True, is_calculated=True),
+                DimensionSpec(name="time", is_spatial=False),
+            ],
+            coordinates=[],
+            chunk_shape=(2, 2, 4),
+        )
+
+    def test_reports_missing_calculated_dim(self) -> None:
+        """A calculated dim absent from produced names is reported."""
+        schema = self._schema()
+        assert schema.missing_calculated_dimensions(["receiver", "time"]) == ["shot_index"]
+
+    def test_empty_when_calculated_dim_produced(self) -> None:
+        """Nothing is missing once the calculated dim is produced."""
+        schema = self._schema()
+        assert schema.missing_calculated_dimensions(["receiver", "shot_index", "time"]) == []
+
+    def test_non_calculated_dims_are_never_reported(self) -> None:
+        """A missing non-calculated spatial dim is not flagged by this check."""
+        schema = self._schema()
+        # 'receiver' is read from headers, not calculated, so its absence is not reported here.
+        assert schema.missing_calculated_dimensions(["time"]) == ["shot_index"]

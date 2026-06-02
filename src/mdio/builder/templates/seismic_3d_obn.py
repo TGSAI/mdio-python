@@ -33,6 +33,7 @@ class Seismic3DObnReceiverGathersTemplate(AbstractDatasetTemplate):
 
         self._spatial_dim_names = ("component", "receiver", "shot_line", "gun", "shot_index")
         self._calculated_dims = ("shot_index",)
+        self.synthesize_missing_dims = ("component",)
         self._dim_names = (*self._spatial_dim_names, self._data_domain)
         self._physical_coord_names = (
             "group_coord_x",
@@ -63,33 +64,43 @@ class Seismic3DObnReceiverGathersTemplate(AbstractDatasetTemplate):
             CoordinateSpec(name="source_coord_y", dimensions=shot_dims, dtype=ScalarType.FLOAT64),
         )
 
+    def declare_dimension_specs(self) -> dict[str, ScalarType]:
+        """Declare the data types for each dimension in this template."""
+        return {
+            "component": ScalarType.UINT8,
+            "receiver": ScalarType.UINT32,
+            "shot_line": ScalarType.UINT32,
+            "gun": ScalarType.UINT8,
+            self._data_domain: ScalarType.INT32,
+        }
+
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
         # EXCLUDE: `shot_index` since it's 0-N (calculated dimension)
         self._builder.add_coordinate(
             "component",
             dimensions=("component",),
-            data_type=ScalarType.UINT8,
+            data_type=self._dim_dtype("component"),
         )
         self._builder.add_coordinate(
             "receiver",
             dimensions=("receiver",),
-            data_type=ScalarType.UINT32,
+            data_type=self._dim_dtype("receiver"),
         )
         self._builder.add_coordinate(
             "shot_line",
             dimensions=("shot_line",),
-            data_type=ScalarType.UINT32,
+            data_type=self._dim_dtype("shot_line"),
         )
         self._builder.add_coordinate(
             "gun",
             dimensions=("gun",),
-            data_type=ScalarType.UINT8,
+            data_type=self._dim_dtype("gun"),
         )
         self._builder.add_coordinate(
             self._data_domain,
             dimensions=(self._data_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self._data_domain),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self._data_domain)),
         )
 

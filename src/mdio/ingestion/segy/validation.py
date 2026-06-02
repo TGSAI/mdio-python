@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
 
 
-def _validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatasetTemplate) -> None:
+def validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatasetTemplate) -> None:
     """Validate that the SegySpec has all required fields in the MDIO template."""
     # Import here to avoid circular imports at module load time
     from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
