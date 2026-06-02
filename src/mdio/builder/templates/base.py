@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import copy
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -298,32 +297,32 @@ class AbstractDatasetTemplate(ABC):
     @property
     def spatial_dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions excluding the last axis."""
-        return copy.deepcopy(self._dim_names[:-1])
+        return self._dim_names[:-1]
 
     @property
     def dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions."""
-        return copy.deepcopy(self._dim_names)
+        return self._dim_names
 
     @property
     def calculated_dimension_names(self) -> tuple[str, ...]:
-        """Returns the names of the dimensions."""
-        return copy.deepcopy(self._calculated_dims)
+        """Returns the names of the calculated dimensions."""
+        return self._calculated_dims
 
     @property
     def physical_coordinate_names(self) -> tuple[str, ...]:
         """Returns the names of the physical (world) coordinates."""
-        return copy.deepcopy(self._physical_coord_names)
+        return self._physical_coord_names
 
     @property
     def logical_coordinate_names(self) -> tuple[str, ...]:
         """Returns the names of the logical (grid) coordinates."""
-        return copy.deepcopy(self._logical_coord_names)
+        return self._logical_coord_names
 
     @property
     def coordinate_names(self) -> tuple[str, ...]:
         """Returns names of all coordinates."""
-        return copy.deepcopy(self._physical_coord_names + self._logical_coord_names)
+        return self._physical_coord_names + self._logical_coord_names
 
     @property
     def full_chunk_shape(self) -> tuple[int, ...]:
