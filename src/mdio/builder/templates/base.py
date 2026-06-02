@@ -115,11 +115,7 @@ class AbstractDatasetTemplate(ABC):
         return tuple(specs)
 
     def declare_dimension_specs(self) -> dict[str, ScalarType]:
-        """Declare the data types for each dimension in this template.
-
-        This is the single source of truth for dimension-coordinate data types: both the
-        ingestion ``SchemaResolver`` and :meth:`_add_dimension_coordinate` read from it, so
-        the resolved schema and the built dataset cannot disagree.
+        """Declare data types for each dimension in this template.
 
         Returns:
             A dictionary mapping dimension name to ScalarType.
@@ -129,23 +125,19 @@ class AbstractDatasetTemplate(ABC):
     def _dim_dtype(self, name: str) -> ScalarType:
         """Return the declared dtype for a dimension coordinate.
 
-        Sourcing dimension-coordinate dtypes here (and in the ingestion ``SchemaResolver``)
-        from :meth:`declare_dimension_specs` keeps the built dataset and the resolved schema
-        from disagreeing without a separate post-build assertion.
-
         Args:
             name: The dimension name.
 
         Returns:
-            The declared :class:`ScalarType`, defaulting to ``INT32`` when undeclared.
+            The declared ScalarType, defaulting to INT32.
         """
         return self.declare_dimension_specs().get(name, ScalarType.INT32)
 
     def _add_dimension_coordinate(self, name: str) -> None:
-        """Add a single dimension coordinate, sourcing its dtype from :meth:`declare_dimension_specs`.
+        """Add a single dimension coordinate.
 
         Args:
-            name: The dimension name; also the coordinate name and its sole dimension.
+            name: The dimension name.
         """
         self._builder.add_coordinate(
             name,
@@ -444,7 +436,7 @@ class AbstractDatasetTemplate(ABC):
                     raise
 
     def _add_trace_mask(self) -> None:
-        """Add trace mask variables."""
+        """Add trace mask variable."""
         self._builder.add_variable(
             name="trace_mask",
             dimensions=self.spatial_dimension_names,
@@ -454,7 +446,7 @@ class AbstractDatasetTemplate(ABC):
         )
 
     def _add_trace_headers(self, header_dtype: StructuredType) -> None:
-        """Add trace mask variables."""
+        """Add trace headers variable."""
         chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.full_chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",
