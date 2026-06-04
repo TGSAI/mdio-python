@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from mdio.ingestion.segy.pipeline import run_segy_ingestion
 from mdio.segy.geometry import GridOverrides
 
 logger = logging.getLogger(__name__)
@@ -67,7 +66,9 @@ def segy_to_mdio(  # noqa: PLR0913
     """
     typed_grid_overrides = _coerce_grid_overrides(grid_overrides)
 
-    return run_segy_ingestion(
+    from mdio.ingestion.segy.pipeline import segy_to_mdio as _ingest_segy_to_mdio  # noqa: PLC0415
+
+    return _ingest_segy_to_mdio(
         segy_spec=segy_spec,
         mdio_template=mdio_template,
         input_path=input_path,

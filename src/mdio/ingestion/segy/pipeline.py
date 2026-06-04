@@ -112,7 +112,7 @@ def _build_grid(dimensions: list[Dimension], indexed_headers: np.ndarray, num_tr
     return grid
 
 
-def run_segy_ingestion(  # noqa: PLR0913
+def segy_to_mdio(  # noqa: PLR0913
     segy_spec: SegySpec,
     mdio_template: AbstractDatasetTemplate,
     input_path: UPath | Path | str,
@@ -135,7 +135,7 @@ def run_segy_ingestion(  # noqa: PLR0913
         grid_overrides: Grid override configuration for non-standard geometries.
         segy_header_overrides: Option to override specific SEG-Y headers during ingestion.
 
-    Raises:
+    Raises:  # noqa: DOC502
         FileExistsError: If the output location already exists and overwrite is False.
         ValueError: If required fields are missing from segy_spec or required computed
             dimensions are not produced after grid overrides are applied.

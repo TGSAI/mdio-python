@@ -8,12 +8,12 @@ from mdio.ingestion.schema import DimensionSpec
 from mdio.ingestion.schema import ResolvedSchema
 from mdio.ingestion.segy.index_strategies import IndexStrategy
 from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
-from mdio.ingestion.segy.pipeline import run_segy_ingestion
+from mdio.ingestion.segy.pipeline import segy_to_mdio
 
 __all__ = [
     "DimensionSpec",
     "IndexStrategy",
     "IndexStrategyRegistry",
     "ResolvedSchema",
-    "run_segy_ingestion",
+    "segy_to_mdio",
 ]
