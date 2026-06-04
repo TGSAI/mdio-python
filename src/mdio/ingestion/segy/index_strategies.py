@@ -89,6 +89,16 @@ class IndexStrategy(ABC):
             Dimension(coords=np.unique(headers[name]), name=name) for name in dim_names if name in headers.dtype.names
         ]
 
+    def schema_effect(self) -> SchemaEffect | None:
+        """Schema reshape this strategy implies, or ``None`` if it leaves the layout unchanged.
+
+        Most strategies only transform headers. Only strategies that introduce a ``trace``
+        dimension the template did not declare (see :class:`DuplicateHandlingStrategy` and
+        :class:`NonBinnedStrategy`) reshape the resolved schema. Co-locating the reshape with
+        the header transform keeps the two views of an override from drifting.
+        """
+        return None
+
     @property
     def name(self) -> str:
         """Return the strategy's class name; useful for logging and tests."""
@@ -150,16 +160,22 @@ class DuplicateHandlingStrategy(IndexStrategy):
         trace_values = np.array(with_trace["trace"])
         return rfn.append_fields(headers, "trace", trace_values, usemask=False)
 
+    def schema_effect(self) -> SchemaEffect:
+        """Insert a chunksize-1 ``trace`` dimension to disambiguate duplicate index tuples."""
+        return InsertTraceDimEffect(chunksize=1)
+
 
 class NonBinnedStrategy(DuplicateHandlingStrategy):
     """Collapse selected non-binned dimensions into a single `trace` dimension.
 
     Inherits the per-tuple `trace` counter from `DuplicateHandlingStrategy`, excluding the
-    collapsed dims from the grouping so the counter only varies along the remaining dims.
-    The `trace` chunk size is owned by the schema reshaping (`CollapseToTraceEffect`), not
-    by this strategy.
+    collapsed dims from the grouping so the counter only varies along the remaining dims, and
+    owns the matching schema reshape (`CollapseToTraceEffect`). Both views of the override --
+    the header transform and the schema layout, including the `trace` chunk size -- are
+    therefore defined together here.
 
     Args:
+        chunksize: Chunk size assigned to the inserted `trace` dimension by the schema effect.
         non_binned_dims: Header fields collapsed into `trace`. They are excluded from
             the duplicate grouping so the counter only varies along the remaining dims.
         coord_fields: Template coordinate names to exclude from grouping.
@@ -168,15 +184,23 @@ class NonBinnedStrategy(DuplicateHandlingStrategy):
 
     def __init__(
         self,
+        chunksize: int,
         non_binned_dims: Iterable[str],
         coord_fields: Iterable[str] = (),
         dtype: DTypeLike = np.int16,
     ) -> None:
+        collapse_dims = tuple(non_binned_dims)
         super().__init__(
             coord_fields=coord_fields,
-            excluded_fields=tuple(non_binned_dims),
+            excluded_fields=collapse_dims,
             dtype=dtype,
         )
+        self._chunksize = chunksize
+        self._collapse_dims = collapse_dims
+
+    def schema_effect(self) -> SchemaEffect:
+        """Collapse the non-binned dims into a ``trace`` dimension sized by ``chunksize``."""
+        return CollapseToTraceEffect(chunksize=self._chunksize, collapse_dims=self._collapse_dims)
 
 
 class ChannelWrappingStrategy(IndexStrategy):
@@ -335,21 +359,30 @@ class CompositeStrategy(IndexStrategy):
         """Delegate to the final child strategy."""
         return self.strategies[-1].compute_dimensions(headers, dim_names)
 
+    def schema_effect(self) -> SchemaEffect | None:
+        """Return the single child reshape; at most one composed strategy produces one."""
+        for strategy in self.strategies:
+            effect = strategy.schema_effect()
+            if effect is not None:
+                return effect
+        return None
+
 
 class IndexStrategyRegistry:
     """Picks the right `IndexStrategy` from grid overrides and template hints.
 
-    The registry is the single source of truth for override semantics: it maps a
-    `GridOverrides` both to the header-transforming `IndexStrategy` (`create_strategy`)
-    and to the schema-reshaping `SchemaEffect` (`schema_effect`). Keeping both derivations
-    here prevents the header view and the schema view from drifting.
+    The registry maps a `GridOverrides` to the header-transforming `IndexStrategy` in one
+    place (`create_strategy`). The schema-reshaping `SchemaEffect` is not selected by a
+    second switch: it is read off that same strategy (`schema_effect`), so the header view
+    and the schema view of an override cannot drift.
     """
 
     def schema_effect(self, grid_overrides: GridOverrides | None) -> SchemaEffect | None:
         """Return the schema reshaping implied by `grid_overrides`, if any.
 
-        Only `non_binned` and `has_duplicates` change the dimension/coordinate layout;
-        every other override transforms headers in place without reshaping the schema.
+        Derived from the same strategy that will transform headers, so layout changes stay in
+        lock-step with the header transform. Template and synthesis hints do not affect the
+        reshape, so they are omitted when building the strategy here.
 
         Args:
             grid_overrides: Typed grid override configuration, or `None`.
@@ -359,12 +392,7 @@ class IndexStrategyRegistry:
         """
         if not grid_overrides:
             return None
-        if grid_overrides.non_binned:
-            collapse_dims = None if grid_overrides.non_binned_dims is None else tuple(grid_overrides.non_binned_dims)
-            return CollapseToTraceEffect(chunksize=grid_overrides.chunksize, collapse_dims=collapse_dims)
-        if grid_overrides.has_duplicates:
-            return InsertTraceDimEffect(chunksize=1)
-        return None
+        return self.create_strategy(grid_overrides).schema_effect()
 
     def create_strategy(
         self,
@@ -416,6 +444,7 @@ class IndexStrategyRegistry:
             if grid_overrides.non_binned:
                 strategies.append(
                     NonBinnedStrategy(
+                        chunksize=grid_overrides.chunksize,
                         non_binned_dims=grid_overrides.non_binned_dims or (),
                         coord_fields=coord_fields,
                     )

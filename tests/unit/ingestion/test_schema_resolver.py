@@ -49,11 +49,12 @@ class TestSchemaResolverNoOverrides:
 class TestSchemaResolverNonBinned:
     """NonBinned overrides collapse spatial dimensions into a single ``trace`` axis."""
 
-    def test_default_collapse_keeps_first_spatial_dim(self) -> None:
-        """Default NonBinned keeps the first spatial dim and collapses the rest into ``trace``."""
+    def test_collapses_named_dims_keeping_first_spatial_dim(self) -> None:
+        """NonBinned collapses the named trailing dims into ``trace``, keeping the leading dim."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
         # Streamer shot template default chunk shape is (8, 1, 128, 2048).
-        schema = SchemaResolver().resolve(template, GridOverrides(non_binned=True, chunksize=64))
+        overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["cable", "channel"])
+        schema = SchemaResolver().resolve(template, overrides)
 
         names = [d.name for d in schema.dimensions]
         assert names == ["shot_point", "trace", "time"]
@@ -74,7 +75,8 @@ class TestSchemaResolverNonBinned:
     def test_coordinate_dimensions_collapsed_when_referenced(self) -> None:
         """Coordinates referencing collapsed dims are rewritten to depend on ``trace``."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
-        schema = SchemaResolver().resolve(template, GridOverrides(non_binned=True, chunksize=64))
+        overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["cable", "channel"])
+        schema = SchemaResolver().resolve(template, overrides)
         # group_coord_x originally depends on (shot_point, cable, channel). After NonBinned
         # collapses cable+channel, it should depend on (shot_point, trace).
         group_coord_x = next(c for c in schema.coordinates if c.name == "group_coord_x")
@@ -83,7 +85,7 @@ class TestSchemaResolverNonBinned:
     def test_grid_override_provenance_not_in_schema_metadata(self) -> None:
         """The resolver is mechanics-only: override provenance is attached at the dataset level."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
-        overrides = GridOverrides(non_binned=True, chunksize=64)
+        overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["channel"])
         schema = SchemaResolver().resolve(template, overrides)
         assert "gridOverrides" not in schema.metadata
 

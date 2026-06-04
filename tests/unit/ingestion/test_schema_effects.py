@@ -47,18 +47,12 @@ class TestRegistrySchemaEffectSelection:
         registry = IndexStrategyRegistry()
         assert registry.schema_effect(GridOverrides(auto_channel_wrap=True)) is None
 
-    def test_non_binned_default_collapse(self) -> None:
-        """NonBinned without explicit dims yields a default (None) CollapseToTraceEffect."""
-        effect = IndexStrategyRegistry().schema_effect(GridOverrides(non_binned=True, chunksize=64))
-        assert isinstance(effect, CollapseToTraceEffect)
-        assert effect.chunksize == 64
-        assert effect.collapse_dims is None
-
-    def test_non_binned_explicit_dims(self) -> None:
-        """NonBinned with explicit dims preserves them on the effect."""
+    def test_non_binned_wires_chunksize_and_dims(self) -> None:
+        """NonBinned yields a CollapseToTraceEffect carrying the override's chunksize and dims."""
         overrides = GridOverrides(non_binned=True, chunksize=128, non_binned_dims=["channel"])
         effect = IndexStrategyRegistry().schema_effect(overrides)
         assert isinstance(effect, CollapseToTraceEffect)
+        assert effect.chunksize == 128
         assert effect.collapse_dims == ("channel",)
 
     def test_has_duplicates_inserts_trace(self) -> None:

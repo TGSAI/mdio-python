@@ -15,6 +15,8 @@ import numpy as np
 import pytest
 
 from mdio.builder.template_registry import TemplateRegistry
+from mdio.ingestion.schema import CollapseToTraceEffect
+from mdio.ingestion.schema import InsertTraceDimEffect
 from mdio.ingestion.segy.index_strategies import ChannelWrappingStrategy
 
 if TYPE_CHECKING:
@@ -249,6 +251,12 @@ class TestDuplicateHandlingStrategy:
         # shot_point alone so each row in the same shot_point gets a fresh counter.
         np.testing.assert_array_equal(out["trace"], [1, 2, 3])
 
+    def test_owns_insert_trace_dim_effect(self) -> None:
+        """The strategy owns its schema reshape: a chunksize-1 inserted ``trace`` dim."""
+        effect = DuplicateHandlingStrategy().schema_effect()
+        assert isinstance(effect, InsertTraceDimEffect)
+        assert effect.chunksize == 1
+
 
 # ---------------------------------------------------------------------------
 # NonBinnedStrategy
@@ -267,7 +275,7 @@ class TestNonBinnedStrategy:
                 "channel": np.array([10, 11, 10, 11], dtype=np.int32),
             }
         )
-        strategy = NonBinnedStrategy(non_binned_dims=("channel",))
+        strategy = NonBinnedStrategy(chunksize=4, non_binned_dims=("channel",))
         out = strategy.transform_headers(headers)
         # Each (shot_point, cable) tuple appears once -> counters all equal 1.
         assert "trace" in out.dtype.names
@@ -283,12 +291,20 @@ class TestNonBinnedStrategy:
             }
         )
         strategy = NonBinnedStrategy(
+            chunksize=4,
             non_binned_dims=("channel",),
             coord_fields=("cdp_x",),
         )
         out = strategy.transform_headers(headers)
         # Grouping is by shot_point only -> each shot_point has 2 rows -> counters {1, 2}.
         np.testing.assert_array_equal(out["trace"], [1, 2, 1, 2])
+
+    def test_owns_collapse_to_trace_effect(self) -> None:
+        """The strategy owns its schema reshape, carrying chunksize and collapse dims."""
+        effect = NonBinnedStrategy(chunksize=8, non_binned_dims=("channel",)).schema_effect()
+        assert isinstance(effect, CollapseToTraceEffect)
+        assert effect.chunksize == 8
+        assert effect.collapse_dims == ("channel",)
 
 
 # ---------------------------------------------------------------------------
@@ -473,7 +489,7 @@ class TestCompositeStrategy:
         composite = CompositeStrategy(
             [
                 ComponentSynthesisStrategy(("component",)),
-                NonBinnedStrategy(non_binned_dims=("channel",)),
+                NonBinnedStrategy(chunksize=4, non_binned_dims=("channel",)),
             ]
         )
         out = composite.transform_headers(headers)

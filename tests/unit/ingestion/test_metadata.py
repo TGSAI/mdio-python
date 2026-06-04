@@ -34,11 +34,11 @@ class TestAddGridOverrideToMetadata:
     def test_preserves_existing_attributes(self) -> None:
         """Existing attribute keys should be preserved when adding overrides."""
         dataset = _make_dataset(attributes={"existing": "value"})
-        overrides = GridOverrides(non_binned=True)
+        overrides = GridOverrides(has_duplicates=True)
         add_grid_override_to_metadata(dataset, grid_overrides=overrides)
         assert dataset.metadata.attributes == {
             "existing": "value",
-            "gridOverrides": {"NonBinned": True},
+            "gridOverrides": {"HasDuplicates": True},
         }
 
     def test_no_overrides_leaves_attributes_untouched(self) -> None:
