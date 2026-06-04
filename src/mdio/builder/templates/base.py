@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -24,6 +25,8 @@ if TYPE_CHECKING:
     from mdio.builder.schemas.v1.dataset import Dataset
     from mdio.builder.templates.types import SeismicDataDomain
 
+logger = logging.getLogger(__name__)
+
 
 class AbstractDatasetTemplate(ABC):
     """Abstract base class that defines the template method for Dataset building factory.
@@ -45,12 +48,6 @@ class AbstractDatasetTemplate(ABC):
         self._logical_coord_names: tuple[str, ...] = ()
         self._var_chunk_shape: tuple[int, ...] = ()
         self.synthesize_missing_dims: tuple[str, ...] = ()
-
-        # TEMPORARY (removed with declare_coordinate_specs): set when grid overrides mutate this
-        # template in-place (dims collapsed into 'trace', extra coordinates added). Once mutated,
-        # the runtime layout intentionally diverges from the static declare_coordinate_specs()
-        # contract, so the drift guard in build_dataset() must not run.
-        self._grid_overrides_applied: bool = False
 
         self._builder: MDIODatasetBuilder | None = None
         self._dim_sizes: tuple[int, ...] = ()
@@ -154,6 +151,12 @@ class AbstractDatasetTemplate(ABC):
     ) -> Dataset:
         """Template method that builds the dataset.
 
+        .. deprecated:: 1.2
+            ``build_dataset`` is deprecated and is planned for removal in 1.2.5. SEG-Y
+            ingestion now builds datasets from a resolved schema via the schema-driven
+            factory (:func:`mdio.ingestion.dataset_factory.build_mdio_dataset`); use
+            :func:`mdio.segy_to_mdio` for ingestion.
+
         Args:
             name: The name of the dataset.
             sizes: The sizes of the dimensions.
@@ -165,6 +168,11 @@ class AbstractDatasetTemplate(ABC):
         Raises:
             ValueError: If coordinate already exists from subclass override.
         """
+        logger.warning(
+            "AbstractDatasetTemplate.build_dataset is deprecated as of 1.2 and is planned for "
+            "removal in 1.2.5; SEG-Y ingestion builds datasets via the schema-driven factory. "
+            "Use `mdio.segy_to_mdio` for ingestion."
+        )
         self._dim_sizes = sizes
 
         attributes = self._load_dataset_attributes() or {}
@@ -186,10 +194,7 @@ class AbstractDatasetTemplate(ABC):
             except ValueError as exc:  # coordinate may already exist
                 if "same name twice" not in str(exc):
                     raise
-        # Skip the static drift guard when grid overrides have transformed the template: the
-        # runtime layout no longer matches the declared (override-free) specs by design.
-        if not self._grid_overrides_applied:
-            self._validate_declared_coordinate_specs()
+        self._validate_declared_coordinate_specs()
         self._add_variables()
         self._add_trace_mask()
 
@@ -206,30 +211,6 @@ class AbstractDatasetTemplate(ABC):
                 raise ValueError(msg)
         self._units |= units
 
-    def apply_resolved_dimensions(
-        self,
-        dim_names: tuple[str, ...],
-        chunk_shape: tuple[int, ...],
-    ) -> None:
-        """Update the template's dimension layout from a resolved schema.
-
-        Supported entry point for the ingestion pipeline to push back dimension names
-        and chunk shape after the SchemaResolver has applied grid overrides
-        (e.g. NonBinned, HasDuplicates), instead of mutating private attributes.
-
-        Args:
-            dim_names: Final ordered dimension names.
-            chunk_shape: Chunk shape matching ``dim_names`` length.
-
-        Raises:
-            ValueError: If ``len(chunk_shape) != len(dim_names)``.
-        """
-        if len(chunk_shape) != len(dim_names):
-            msg = f"chunk_shape length {len(chunk_shape)} does not match dim_names length {len(dim_names)}"
-            raise ValueError(msg)
-        self._dim_names = tuple(dim_names)
-        self._var_chunk_shape = tuple(chunk_shape)
-
     def _validate_declared_coordinate_specs(self) -> None:
         """Fail the build if :meth:`declare_coordinate_specs` drifted from the built coordinates.
 
@@ -238,11 +219,8 @@ class AbstractDatasetTemplate(ABC):
         :meth:`_add_coordinates`, this guard ensures the two never diverge in name, dimensions,
         or dtype. The ingestion ``SchemaResolver`` trusts the declared specs, so silent drift
         would corrupt resolved schemas. The check runs for every template (built-in and
-        user-defined) on every ``build_dataset`` call that does not apply grid overrides. Grid
-        overrides mutate the template in-place (collapsing dims into ``trace`` and adding
-        coordinates), so the runtime layout intentionally diverges from the declared specs and
-        the guard is skipped for those builds. It is removed once ``_add_coordinates`` is derived
-        from the resolved schema and the duplication no longer exists.
+        user-defined) on every ``build_dataset`` call. It is removed once ``_add_coordinates``
+        is derived from the resolved schema and the duplication no longer exists.
 
         Raises:
             ValueError: If the declared specs do not match the built non-dimension coordinates.

@@ -25,8 +25,8 @@ class Seismic3DObnReceiverGathersTemplate(AbstractDatasetTemplate):
     Special handling for component dimension:
         If the SEG-Y spec does not contain a 'component' field, the ingestion process
         will automatically synthesize a component dimension with constant value 1 for
-        all traces. A warning is logged when this occurs. This is handled explicitly
-        in GridOverrider._synthesize_obn_component().
+        all traces. A warning is logged when this occurs. This is driven by
+        ``synthesize_missing_dims`` and handled by ``ComponentSynthesisStrategy``.
     """
 
     def __init__(self, data_domain: SeismicDataDomain = "time"):

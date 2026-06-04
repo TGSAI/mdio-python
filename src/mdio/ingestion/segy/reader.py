@@ -71,6 +71,10 @@ def read_index_headers(  # noqa: PLR0913
     )
     logger.info("Using index strategy: %s", strategy.name)
 
+    # Validate up front so a missing required field surfaces as a clear GridOverrideKeysError
+    # naming the override, rather than a deep NumPy key error inside the transform. Composite
+    # strategies additionally re-validate each child against the running header array.
+    strategy.validate_headers(parsed_headers)
     indexed_headers = strategy.transform_headers(parsed_headers)
 
     # 4. Compute spatial dimensions

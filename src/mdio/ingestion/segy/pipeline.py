@@ -23,6 +23,7 @@ from mdio.ingestion.segy.reader import read_index_headers
 from mdio.ingestion.segy.serializer import serialize_to_mdio
 from mdio.ingestion.segy.validation import validate_spec_in_template
 from mdio.segy.file import get_segy_file_info
+from mdio.segy.geometry import validate_overrides_for_template
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -142,6 +143,7 @@ def segy_to_mdio(  # noqa: PLR0913
         GridTraceCountError: If the live trace count in the built grid does not match
             the number of traces reported by the SEG-Y file.
     """
+    validate_overrides_for_template(grid_overrides, mdio_template)
     validate_spec_in_template(segy_spec, mdio_template)
 
     input_path = _normalize_path(input_path)

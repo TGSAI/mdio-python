@@ -20,7 +20,7 @@ from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError
 from mdio.segy.geometry import GridOverrides
 from mdio.segy.geometry import _resolve_synthesize_dims
-from mdio.segy.geometry import _validate_template_for_overrides
+from mdio.segy.geometry import validate_overrides_for_template
 
 if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
@@ -47,19 +47,13 @@ def run_override(
         if key not in valid_keys:
             raise GridOverrideUnknownError(key)
 
+    # NonBinned parameter requirements are enforced by the GridOverrides model itself, so
+    # model_validate raises here for an under-specified NonBinned config (matching production).
     config = GridOverrides.model_validate(grid_overrides)
 
-    if config.non_binned:
-        missing: set[str] = set()
-        if config.chunksize is None:
-            missing.add("chunksize")
-        if not config.non_binned_dims:
-            missing.add("non_binned_dims")
-        if missing:
-            command = "NonBinned"
-            raise GridOverrideMissingParameterError(command, missing)
-
-    _validate_template_for_overrides(config, template)
+    # Template-compatibility is the one guard the model cannot self-enforce; mirror the
+    # production pipeline so this helper cannot drift from what `segy_to_mdio` runs.
+    validate_overrides_for_template(config, template)
 
     synthesize_dims = _resolve_synthesize_dims(template)
     registry = IndexStrategyRegistry()
@@ -183,6 +177,12 @@ class TestAutoGridOverrides:
         # Trace coords are the unique channel values (1-20)
         expected_trace_coords = np.arange(1, 21, dtype="int32")
         assert_array_equal(dims[2].coords, expected_trace_coords)
+
+    def test_non_binned_missing_parameters_raises(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
+        """NonBinned without `chunksize`/`non_binned_dims` raises GridOverrideMissingParameterError."""
+        index_names = ("shot_point", "cable")
+        with pytest.raises(GridOverrideMissingParameterError, match="chunksize"):
+            run_override({"NonBinned": True}, index_names, mock_streamer_headers)
 
 
 class TestStreamerGridOverrides:

@@ -15,6 +15,9 @@ from typing import Any
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import model_validator
+
+from mdio.segy.exceptions import GridOverrideMissingParameterError
 
 if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
@@ -63,6 +66,31 @@ class GridOverrides(BaseModel):
         description="Dimension names to collapse into the trace dimension when `non_binned` is True.",
     )
 
+    @model_validator(mode="after")
+    def _check_non_binned_parameters(self) -> GridOverrides:
+        """Require the parameters ``non_binned`` depends on.
+
+        ``chunksize`` and ``non_binned_dims`` are only meaningful when collapsing dims into a
+        ``trace`` axis. Enforcing the dependency on the model means every construction path
+        (typed instance or a coerced legacy dict) fails fast with the same error, so the
+        ingestion pipeline does not need to re-check it.
+
+        Raises:
+            GridOverrideMissingParameterError: When ``non_binned`` is set without both
+                ``chunksize`` and ``non_binned_dims``.
+        """
+        if not self.non_binned:
+            return self
+        missing: set[str] = set()
+        if self.chunksize is None:
+            missing.add("chunksize")
+        if not self.non_binned_dims:
+            missing.add("non_binned_dims")
+        if missing:
+            command = "NonBinned"
+            raise GridOverrideMissingParameterError(command, missing)
+        return self
+
     def __bool__(self) -> bool:
         """Return True if any override flag is enabled."""
         return (
@@ -74,7 +102,7 @@ class GridOverrides(BaseModel):
         )
 
     def to_legacy_dict(self) -> dict[str, Any]:
-        """Dump to the legacy ``CamelCase`` dict shape consumed by :class:`GridOverrider`."""
+        """Dump to the legacy ``CamelCase`` dict shape stored in dataset metadata."""
         return self.model_dump(by_alias=True, exclude_defaults=True)
 
 
@@ -95,24 +123,29 @@ def _resolve_synthesize_dims(template: AbstractDatasetTemplate | None) -> tuple[
     return ()
 
 
-def _validate_template_for_overrides(
-    config: GridOverrides,
+def validate_overrides_for_template(
+    config: GridOverrides | None,
     template: AbstractDatasetTemplate | None,
 ) -> None:
     """Reject grid override / template pairings that v1.1 forbade.
 
     ``auto_shot_wrap`` is streamer-only and ``calculate_shot_index`` is OBN-only; using
     either with the wrong template silently produced wrong shot indices in v1.1 unless
-    the per-command validator caught it. This function restores that guard.
+    the per-command validator caught it. This is the one guard the :class:`GridOverrides`
+    model cannot enforce on its own (it depends on the chosen template), so the ingestion
+    pipeline calls it before any header parsing.
 
     Args:
-        config: Typed grid overrides extracted from the user's legacy dict.
+        config: Typed grid overrides, or ``None`` when no overrides were requested.
         template: Template chosen by the caller, or ``None`` if omitted.
 
     Raises:
         TypeError: When ``auto_shot_wrap`` is set without a streamer template, or
             ``calculate_shot_index`` is set without an OBN receiver-gathers template.
     """
+    if not config:
+        return
+
     if config.auto_shot_wrap:
         # Lazy import: see ``_resolve_synthesize_dims`` for the cycle rationale.
         from mdio.builder.templates.seismic_3d_streamer_field import (  # noqa: PLC0415

@@ -4,8 +4,7 @@ This module replaces the monolithic `GridOverrider` command dispatch with a smal
 single-responsibility `IndexStrategy` objects that can be composed via `CompositeStrategy`.
 
 Strategies are selected by `IndexStrategyRegistry` from the typed `GridOverrides`
-configuration plus optional template hints. The public contract preserved by `GridOverrider`
-(a thin shim around this module) keeps end-to-end ingestion behavior identical.
+configuration plus optional template hints, preserving end-to-end ingestion behavior.
 """
 
 from __future__ import annotations
@@ -50,7 +49,7 @@ class IndexStrategy(ABC):
     header values; subclasses override only when they need different semantics
     (currently just `CompositeStrategy`).
 
-    Subclasses with header preconditions set `required_keys` so the shim and
+    Subclasses with header preconditions set `required_keys` so the ingestion reader and
     `CompositeStrategy` can raise `GridOverrideKeysError` with a clear
     "missing fields" message before NumPy fails on a deeper key lookup.
     """
@@ -66,7 +65,7 @@ class IndexStrategy(ABC):
     def validate_headers(self, headers: HeaderArray) -> None:
         """Raise `GridOverrideKeysError` if any required header field is missing.
 
-        Callers (the `GridOverrider` shim and `CompositeStrategy`) invoke this before each
+        Callers (the ingestion reader and `CompositeStrategy`) invoke this before each
         transform so failure points at the user-facing override name rather than at a NumPy
         structured-array key error.
         """
@@ -155,12 +154,12 @@ class DuplicateHandlingStrategy(IndexStrategy):
 class NonBinnedStrategy(DuplicateHandlingStrategy):
     """Collapse selected non-binned dimensions into a single `trace` dimension.
 
-    Inherits the per-tuple `trace` counter from `DuplicateHandlingStrategy` and
-    captures `chunksize` so the `GridOverrider` shim can size the new `trace` chunk correctly.
+    Inherits the per-tuple `trace` counter from `DuplicateHandlingStrategy`, excluding the
+    collapsed dims from the grouping so the counter only varies along the remaining dims.
+    The `trace` chunk size is owned by the schema reshaping (`CollapseToTraceEffect`), not
+    by this strategy.
 
     Args:
-        chunksize: Chunk size to assign to the `trace` dimension. The strategy itself
-            does not apply this value; the shim uses it when rewriting the chunksize tuple.
         non_binned_dims: Header fields collapsed into `trace`. They are excluded from
             the duplicate grouping so the counter only varies along the remaining dims.
         coord_fields: Template coordinate names to exclude from grouping.
@@ -169,19 +168,15 @@ class NonBinnedStrategy(DuplicateHandlingStrategy):
 
     def __init__(
         self,
-        chunksize: int,
         non_binned_dims: Iterable[str],
         coord_fields: Iterable[str] = (),
         dtype: DTypeLike = np.int16,
     ) -> None:
-        non_binned_dims = tuple(non_binned_dims)
         super().__init__(
             coord_fields=coord_fields,
-            excluded_fields=non_binned_dims,
+            excluded_fields=tuple(non_binned_dims),
             dtype=dtype,
         )
-        self.chunksize = chunksize
-        self.non_binned_dims = non_binned_dims
 
 
 class ChannelWrappingStrategy(IndexStrategy):
@@ -421,7 +416,6 @@ class IndexStrategyRegistry:
             if grid_overrides.non_binned:
                 strategies.append(
                     NonBinnedStrategy(
-                        chunksize=grid_overrides.chunksize,
                         non_binned_dims=grid_overrides.non_binned_dims or (),
                         coord_fields=coord_fields,
                     )

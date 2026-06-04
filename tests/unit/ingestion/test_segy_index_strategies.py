@@ -29,7 +29,7 @@ from mdio.ingestion.segy.index_strategies import ShotWrappingStrategy
 from mdio.segy.exceptions import GridOverrideKeysError
 from mdio.segy.geometry import GridOverrides
 from mdio.segy.geometry import _resolve_synthesize_dims
-from mdio.segy.geometry import _validate_template_for_overrides
+from mdio.segy.geometry import validate_overrides_for_template
 
 
 class GridOverrider:
@@ -44,7 +44,7 @@ class GridOverrider:
     ) -> np.ndarray:
         """Run mock strategy validation and transform."""
         config = GridOverrides.model_validate(grid_overrides)
-        _validate_template_for_overrides(config, template)
+        validate_overrides_for_template(config, template)
         synthesize_dims = _resolve_synthesize_dims(template)
         registry = IndexStrategyRegistry()
         strategy = registry.create_strategy(
@@ -93,12 +93,11 @@ class TestIndexStrategyRegistry:
         assert strategy.synthesize_dims == ("component",)
 
     def test_non_binned_only(self) -> None:
-        """``non_binned`` -> NonBinnedStrategy with chunksize and excluded dims wired."""
+        """``non_binned`` -> NonBinnedStrategy with the collapsed dims excluded from grouping."""
         overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["channel"])
         strategy = IndexStrategyRegistry().create_strategy(grid_overrides=overrides)
         assert isinstance(strategy, NonBinnedStrategy)
-        assert strategy.chunksize == 64
-        assert strategy.non_binned_dims == ("channel",)
+        assert strategy.excluded_fields == frozenset({"channel"})
 
     def test_has_duplicates_only(self) -> None:
         """``has_duplicates`` -> DuplicateHandlingStrategy."""
@@ -259,12 +258,6 @@ class TestDuplicateHandlingStrategy:
 class TestNonBinnedStrategy:
     """``NonBinned`` is the duplicate counter wired with explicit collapse dims."""
 
-    def test_chunksize_and_dims_recorded(self) -> None:
-        """Constructor stores both for the ``GridOverrider`` shim to use."""
-        strategy = NonBinnedStrategy(chunksize=4, non_binned_dims=("channel",))
-        assert strategy.chunksize == 4
-        assert strategy.non_binned_dims == ("channel",)
-
     def test_collapse_dim_excluded_from_counter(self) -> None:
         """The non-binned dim must NOT participate in the duplicate counter grouping."""
         headers = _make_struct(
@@ -274,7 +267,7 @@ class TestNonBinnedStrategy:
                 "channel": np.array([10, 11, 10, 11], dtype=np.int32),
             }
         )
-        strategy = NonBinnedStrategy(chunksize=4, non_binned_dims=("channel",))
+        strategy = NonBinnedStrategy(non_binned_dims=("channel",))
         out = strategy.transform_headers(headers)
         # Each (shot_point, cable) tuple appears once -> counters all equal 1.
         assert "trace" in out.dtype.names
@@ -290,7 +283,6 @@ class TestNonBinnedStrategy:
             }
         )
         strategy = NonBinnedStrategy(
-            chunksize=4,
             non_binned_dims=("channel",),
             coord_fields=("cdp_x",),
         )
@@ -481,7 +473,7 @@ class TestCompositeStrategy:
         composite = CompositeStrategy(
             [
                 ComponentSynthesisStrategy(("component",)),
-                NonBinnedStrategy(chunksize=4, non_binned_dims=("channel",)),
+                NonBinnedStrategy(non_binned_dims=("channel",)),
             ]
         )
         out = composite.transform_headers(headers)
