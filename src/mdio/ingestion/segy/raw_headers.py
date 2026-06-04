@@ -48,7 +48,7 @@ def build_raw_header_variables(schema: ResolvedSchema) -> list[dict[str, Any]]:
         logger.warning("Raw headers are only supported for Zarr v3. Skipping raw headers.")
         return []
 
-    logger.warning("MDIO__IMPORT__RAW_HEADERS is experimental and expected to change or be removed.")
+    logger.warning("MDIO__IMPORT__RAW_HEADERS is planned to be deprecated in release 1.3 and removed in release 1.4.")
     spatial_dim_names = tuple(dim.name for dim in schema.dimensions if dim.is_spatial)
     chunk_metadata = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=schema.chunk_shape[:-1]))
     return [
