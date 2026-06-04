@@ -1,13 +1,11 @@
 """Composable index strategies for transforming SEG-Y headers into indexable dimensions.
 
-This module replaces the monolithic :class:`mdio.segy.geometry.GridOverrider` command
-dispatch with a small set of single-responsibility :class:`IndexStrategy` objects that can
-be composed via :class:`CompositeStrategy`.
+This module replaces the monolithic `GridOverrider` command dispatch with a small set of
+single-responsibility `IndexStrategy` objects that can be composed via `CompositeStrategy`.
 
-Strategies are selected by :class:`IndexStrategyRegistry` from the typed
-:class:`mdio.segy.geometry.GridOverrides` configuration plus optional template hints. The
-public contract preserved by :class:`mdio.segy.geometry.GridOverrider` (a thin shim around
-this module) keeps end-to-end ingestion behavior identical to v1.1.x.
+Strategies are selected by `IndexStrategyRegistry` from the typed `GridOverrides`
+configuration plus optional template hints. The public contract preserved by `GridOverrider`
+(a thin shim around this module) keeps end-to-end ingestion behavior identical.
 """
 
 from __future__ import annotations
@@ -46,31 +44,31 @@ logger = logging.getLogger(__name__)
 class IndexStrategy(ABC):
     """Abstract base for header indexing strategies.
 
-    A strategy transforms a raw header array (e.g. add or rebase fields) and computes
-    the resulting :class:`Dimension` list. Strategies are composable through
-    :class:`CompositeStrategy`. The default :meth:`compute_dimensions` builds dimensions
-    from unique header values; subclasses override only when they need different
-    semantics (currently just :class:`CompositeStrategy`).
+    A strategy transforms a raw header array (e.g., adding or rebasing fields) and
+    computes the resulting `Dimension` list. Strategies are composable through
+    `CompositeStrategy`. The default `compute_dimensions` builds dimensions from unique
+    header values; subclasses override only when they need different semantics
+    (currently just `CompositeStrategy`).
 
-    Subclasses with header preconditions set :attr:`required_keys` so the shim and
-    :class:`CompositeStrategy` can raise :class:`GridOverrideKeysError` with a clear
-    "missing fields X, Y, Z" message before numpy fails on a deeper key lookup.
+    Subclasses with header preconditions set `required_keys` so the shim and
+    `CompositeStrategy` can raise `GridOverrideKeysError` with a clear
+    "missing fields" message before NumPy fails on a deeper key lookup.
     """
 
     @property
     def required_keys(self) -> frozenset[str]:
-        """Header field names that must be present before :meth:`transform_headers` runs.
+        """Header field names that must be present before `transform_headers` runs.
 
         Empty by default. Override on subclasses whose transform indexes specific fields.
         """
         return frozenset()
 
     def validate_headers(self, headers: HeaderArray) -> None:
-        """Raise :class:`GridOverrideKeysError` if any required header field is missing.
+        """Raise `GridOverrideKeysError` if any required header field is missing.
 
-        Callers (the :class:`mdio.segy.geometry.GridOverrider` shim and
-        :class:`CompositeStrategy`) invoke this before each transform so failure points
-        at the user-facing override name rather than at a numpy structured-array key error.
+        Callers (the `GridOverrider` shim and `CompositeStrategy`) invoke this before each
+        transform so failure points at the user-facing override name rather than at a NumPy
+        structured-array key error.
         """
         required = self.required_keys
         if not required:
@@ -84,10 +82,9 @@ class IndexStrategy(ABC):
         """Return a new header array with this strategy's transformation applied."""
 
     def compute_dimensions(self, headers: HeaderArray, dim_names: tuple[str, ...]) -> list[Dimension]:
-        """Build one :class:`Dimension` per requested name from unique header values.
+        """Build one `Dimension` per requested name from unique header values.
 
-        Names absent from ``headers.dtype.names`` are silently skipped, matching the v1.1
-        ``GridOverrider`` post-processing step.
+        Names absent from `headers.dtype.names` are silently skipped.
         """
         return [
             Dimension(coords=np.unique(headers[name]), name=name) for name in dim_names if name in headers.dtype.names
@@ -108,21 +105,20 @@ class RegularGridStrategy(IndexStrategy):
 
 
 class DuplicateHandlingStrategy(IndexStrategy):
-    """Disambiguate duplicate index tuples by appending a per-tuple ``trace`` counter.
+    """Disambiguate duplicate index tuples by appending a per-tuple `trace` counter.
 
-    Mirrors the v1.1 ``DuplicateIndex`` command: count occurrences of each unique
-    combination of dimension fields (excluding coordinate fields and any caller-declared
-    ``excluded_fields``), then attach the resulting 1-based counter as a new ``trace`` field
-    on the original headers.
+    Counts occurrences of each unique combination of dimension fields (excluding
+    coordinate fields and any caller-declared `excluded_fields`), then attaches the
+    resulting 1-based counter as a new `trace` field on the original headers.
 
     Args:
         coord_fields: Names of header fields that are template coordinates and must be
             excluded from the dimension grouping (their values vary independently of the
             grid index).
         excluded_fields: Additional fields to exclude from grouping. Used by
-            :class:`NonBinnedStrategy` to keep the explicit ``non_binned_dims`` from
+            `NonBinnedStrategy` to keep the explicit `non_binned_dims` from
             polluting the per-tuple counter.
-        dtype: NumPy dtype for the appended ``trace`` counter.
+        dtype: NumPy dtype for the appended `trace` counter.
     """
 
     def __init__(
@@ -144,7 +140,7 @@ class DuplicateHandlingStrategy(IndexStrategy):
         ]
 
     def transform_headers(self, headers: HeaderArray) -> HeaderArray:
-        """Append a per-(dim-tuple) ``trace`` counter to ``headers``."""
+        """Append a per-dimension-tuple `trace` counter to headers."""
         dim_fields = self._dim_fields(headers)
         dim_headers = headers[dim_fields] if dim_fields else headers
         with_trace = analyze_non_indexed_headers(dim_headers, dtype=self.dtype)
@@ -157,19 +153,18 @@ class DuplicateHandlingStrategy(IndexStrategy):
 
 
 class NonBinnedStrategy(DuplicateHandlingStrategy):
-    """Collapse selected non-binned dimensions into a single ``trace`` dimension.
+    """Collapse selected non-binned dimensions into a single `trace` dimension.
 
-    Inherits the per-tuple ``trace`` counter from :class:`DuplicateHandlingStrategy` and
-    captures ``chunksize`` so the :class:`mdio.segy.geometry.GridOverrider` shim can size
-    the new ``trace`` chunk correctly.
+    Inherits the per-tuple `trace` counter from `DuplicateHandlingStrategy` and
+    captures `chunksize` so the `GridOverrider` shim can size the new `trace` chunk correctly.
 
     Args:
-        chunksize: Chunk size to assign to the ``trace`` dimension. The strategy itself
+        chunksize: Chunk size to assign to the `trace` dimension. The strategy itself
             does not apply this value; the shim uses it when rewriting the chunksize tuple.
-        non_binned_dims: Header fields collapsed into ``trace``. They are excluded from
+        non_binned_dims: Header fields collapsed into `trace`. They are excluded from
             the duplicate grouping so the counter only varies along the remaining dims.
         coord_fields: Template coordinate names to exclude from grouping.
-        dtype: NumPy dtype for the appended ``trace`` counter.
+        dtype: NumPy dtype for the appended `trace` counter.
     """
 
     def __init__(
@@ -193,8 +188,7 @@ class ChannelWrappingStrategy(IndexStrategy):
     """Renumber streamer channels per cable when geometry is Type B.
 
     Detects whether channel numbering is per-cable (Type A; pass-through) or sequential
-    across cables (Type B; rebase to 1..N per cable). Mirrors the v1.1 ``AutoChannelWrap``
-    command.
+    across cables (Type B; rebase to 1..N per cable).
     """
 
     @property
@@ -203,7 +197,7 @@ class ChannelWrappingStrategy(IndexStrategy):
         return frozenset({"shot_point", "cable", "channel"})
 
     def transform_headers(self, headers: HeaderArray) -> HeaderArray:
-        """Rebase ``channel`` per cable for Type B geometry; pass through for Type A."""
+        """Rebase `channel` per cable for Type B geometry; pass through for Type A."""
         unique_cables, cable_chan_min, cable_chan_max, geom_type = analyze_streamer_headers(headers)
 
         logger.info("Ingesting dataset as %s", geom_type.name)
@@ -221,20 +215,19 @@ class ChannelWrappingStrategy(IndexStrategy):
 
 
 class ShotWrappingStrategy(IndexStrategy):
-    """Derive a dense ``shot_index`` field from sparse or interleaved ``shot_point`` values.
+    """Derive a dense `shot_index` field from sparse or interleaved `shot_point` values.
 
-    Replaces the v1.1 ``AutoShotWrap`` (streamer) and ``CalculateShotIndex`` (OBN)
-    commands. The two callers differ only in:
+    The two configurations differ in:
 
-    * ``line_field`` -- ``sail_line`` for streamer, ``shot_line`` for OBN.
-    * ``always_calculate`` -- streamer skips the transform entirely for Type A geometries
-      (per-gun shot points are already dense), OBN always emits ``shot_index`` because the
+    * `line_field` -- `sail_line` for streamer, `shot_line` for OBN.
+    * `always_calculate` -- streamer skips the transform entirely for Type A geometries
+      (per-gun shot points are already dense), OBN always emits `shot_index` because the
       template declares it as a calculated dimension.
 
     Args:
         line_field: Header field used to group shots into independent lines.
-        always_calculate: When ``True``, emit ``shot_index`` for every geometry type. For
-            Type A this builds a 0-based ``np.searchsorted`` over sorted unique shot
+        always_calculate: When `True`, emit `shot_index` for every geometry type. For
+            Type A this builds a 0-based `np.searchsorted` over sorted unique shot
             points per line.
     """
 
@@ -246,18 +239,14 @@ class ShotWrappingStrategy(IndexStrategy):
 
     @property
     def required_keys(self) -> frozenset[str]:
-        """Streamer (``sail_line``) needs cable+channel too; OBN (``shot_line``) does not.
-
-        Mirrors the v1.1 split between ``AutoShotWrap.required_keys`` and
-        ``CalculateShotIndex.required_keys``.
-        """
+        """Streamer (`sail_line`) needs cable and channel too; OBN (`shot_line`) does not."""
         base = {self.line_field, "gun", "shot_point"}
         if self.line_field == self._STREAMER_LINE_FIELD:
             base |= {"cable", "channel"}
         return frozenset(base)
 
     def transform_headers(self, headers: HeaderArray) -> HeaderArray:
-        """Append ``shot_index`` derived from ``shot_point`` per line."""
+        """Append `shot_index` derived from `shot_point` per line."""
         unique_lines, unique_guns_per_line, geom_type = analyze_lines_for_guns(headers, line_field=self.line_field)
 
         logger.info("Ingesting dataset as shot type: %s (line_field=%s)", geom_type.name, self.line_field)
@@ -294,9 +283,8 @@ class ShotWrappingStrategy(IndexStrategy):
 class ComponentSynthesisStrategy(IndexStrategy):
     """Synthesize template-required dimension fields that are absent from the headers.
 
-    Currently used to fill the ``component`` dimension with a constant value of 1 for
-    OBN templates whose SEG-Y spec does not include a component header. Mirrors the
-    v1.1 ``GridOverrider._synthesize_obn_component`` behavior.
+    Currently used to fill the `component` dimension with a constant value of 1 for
+    OBN templates whose SEG-Y spec does not include a component header.
 
     Args:
         synthesize_dims: Names of dimension fields to synthesize when missing.
@@ -338,8 +326,8 @@ class CompositeStrategy(IndexStrategy):
         """Validate then run each child strategy's transform in sequence.
 
         Each step re-validates against the running header array, so a strategy that
-        produces a field (e.g. :class:`ComponentSynthesisStrategy` adding ``component``)
-        can satisfy a later strategy's :attr:`required_keys`.
+        produces a field (e.g. `ComponentSynthesisStrategy` adding `component`)
+        can satisfy a later strategy's `required_keys`.
         """
         result = headers
         for strategy in self.strategies:
@@ -354,26 +342,25 @@ class CompositeStrategy(IndexStrategy):
 
 
 class IndexStrategyRegistry:
-    """Picks the right :class:`IndexStrategy` from grid overrides + template hints.
+    """Picks the right `IndexStrategy` from grid overrides and template hints.
 
     The registry is the single source of truth for override semantics: it maps a
-    :class:`~mdio.segy.geometry.GridOverrides` both to the header-transforming
-    :class:`IndexStrategy` (:meth:`create_strategy`) and to the schema-reshaping
-    :class:`~mdio.ingestion.schema.models.SchemaEffect` (:meth:`schema_effect`). Keeping
-    both derivations here prevents the header view and the schema view from drifting.
+    `GridOverrides` both to the header-transforming `IndexStrategy` (`create_strategy`)
+    and to the schema-reshaping `SchemaEffect` (`schema_effect`). Keeping both derivations
+    here prevents the header view and the schema view from drifting.
     """
 
     def schema_effect(self, grid_overrides: GridOverrides | None) -> SchemaEffect | None:
-        """Return the schema reshaping implied by ``grid_overrides``, if any.
+        """Return the schema reshaping implied by `grid_overrides`, if any.
 
-        Only ``non_binned`` and ``has_duplicates`` change the dimension/coordinate layout;
+        Only `non_binned` and `has_duplicates` change the dimension/coordinate layout;
         every other override transforms headers in place without reshaping the schema.
 
         Args:
-            grid_overrides: Typed grid override configuration, or ``None``.
+            grid_overrides: Typed grid override configuration, or `None`.
 
         Returns:
-            The matching :class:`SchemaEffect`, or ``None`` when no layout change applies.
+            The matching `SchemaEffect`, or `None` when no layout change applies.
         """
         if not grid_overrides:
             return None
@@ -392,27 +379,27 @@ class IndexStrategyRegistry:
     ) -> IndexStrategy:
         """Build a strategy (possibly composite) for the given config.
 
-        Strategy ordering, when multiple flags are set, mirrors v1.1 behavior:
+        Strategy ordering, when multiple flags are set, mirrors previous behavior:
 
-        1. ``ComponentSynthesisStrategy`` (so later strategies can rely on the synthesized
+        1. `ComponentSynthesisStrategy` (so later strategies can rely on the synthesized
            field being present).
-        2. ``ChannelWrappingStrategy`` (rebases ``channel`` before any shot calculation).
-        3. ``ShotWrappingStrategy`` for ``auto_shot_wrap`` (streamer; ``sail_line``).
-        4. ``ShotWrappingStrategy`` for ``calculate_shot_index`` (OBN; ``shot_line``,
-           ``always_calculate=True``).
-        5. ``NonBinnedStrategy`` or ``DuplicateHandlingStrategy`` (mutually exclusive;
-           ``non_binned`` wins when both are set, matching v1.x semantics).
+        2. `ChannelWrappingStrategy` (rebases `channel` before any shot calculation).
+        3. `ShotWrappingStrategy` for `auto_shot_wrap` (streamer; `sail_line`).
+        4. `ShotWrappingStrategy` for `calculate_shot_index` (OBN; `shot_line`,
+           `always_calculate=True`).
+        5. `NonBinnedStrategy` or `DuplicateHandlingStrategy` (mutually exclusive;
+           `non_binned` wins when both are set).
 
         Args:
-            grid_overrides: Typed grid override configuration, or ``None`` for no
+            grid_overrides: Typed grid override configuration, or `None` for no
                 user-driven overrides.
-            synthesize_dims: Dimensions to synthesize if missing (e.g. ``component``).
+            synthesize_dims: Dimensions to synthesize if missing (e.g., `component`).
             template: Optional dataset template; used to look up coordinate names so
                 duplicate-handling counters group on dimension fields only.
 
         Returns:
-            A single :class:`IndexStrategy` instance. Returns
-            :class:`RegularGridStrategy` when no overrides and no synthesis are required.
+            A single `IndexStrategy` instance. Returns `RegularGridStrategy` when no
+            overrides and no synthesis are required.
         """
         strategies: list[IndexStrategy] = []
 
