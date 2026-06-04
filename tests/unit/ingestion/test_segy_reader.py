@@ -92,7 +92,7 @@ class TestReadIndexHeaders:
         )
         headers = make_header_array({"inline": np.array([1, 2], dtype=np.int32)})
         # spec lacks 'component' on purpose.
-        segy_file_kwargs = {"spec": _spec_with_fields("inline", "coordinate_scalar")}
+        segy_file_kwargs = {"spec": _spec_with_fields("inline")}
 
         with patch(f"{_READER}.parse_headers", return_value=headers) as mock_parse:
             reader.read_index_headers(
@@ -105,7 +105,7 @@ class TestReadIndexHeaders:
 
         subset = set(mock_parse.call_args.kwargs["subset"])
         assert "component" not in subset
-        assert subset == {"inline", "coordinate_scalar"}
+        assert subset == {"inline"}
 
     def test_synthesize_dims_produces_missing_dimension(self) -> None:
         """A synthesized dim absent from headers is created and yields a dimension."""
@@ -118,7 +118,7 @@ class TestReadIndexHeaders:
             coordinates=[],
         )
         headers = make_header_array({"receiver": np.array([5, 6, 7], dtype=np.uint32)})
-        segy_file_kwargs = {"spec": _spec_with_fields("receiver", "coordinate_scalar")}
+        segy_file_kwargs = {"spec": _spec_with_fields("receiver")}
 
         with patch(f"{_READER}.parse_headers", return_value=headers):
             indexed, dimensions = reader.read_index_headers(

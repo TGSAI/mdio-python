@@ -35,14 +35,15 @@ class TestSchemaResolverNoOverrides:
         assert shot_index.is_calculated is True
         assert shot_index.is_spatial is True
 
-    def test_cdp_required_header_fields(self) -> None:
-        """Required header fields cover spatial dims, coordinates, and ``coordinate_scalar``."""
+    def test_cdp_required_fields(self) -> None:
+        """Required fields cover spatial dims and coordinates."""
         template = Seismic3DCdpGathersTemplate(data_domain="time", gather_domain="offset")
         schema = SchemaResolver().resolve(template, grid_overrides=None)
 
-        # Spatial dim header keys + coordinate header keys + always-present coordinate_scalar.
-        required = schema.required_header_fields()
-        assert {"inline", "crossline", "offset", "cdp_x", "cdp_y", "coordinate_scalar"}.issubset(required)
+        # Spatial dim keys + coordinate keys.
+        required = schema.required_fields()
+        assert {"inline", "crossline", "offset", "cdp_x", "cdp_y"}.issubset(required)
+        assert "coordinate_scalar" not in required
 
 
 class TestSchemaResolverNonBinned:

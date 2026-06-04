@@ -53,7 +53,7 @@ class TestValidateSpecInTemplate:
         assert "CustomTemplate" in error_message
 
     def test_validation_fails_with_missing_coordinate_scalar(self) -> None:
-        """Test that validation fails when coordinate_scalar is missing, even with all other fields."""
+        """Test that validation fails when coordinate_scalar is missing and fields require scaling."""
         template = MagicMock(spec=AbstractDatasetTemplate)
         template.name = "TestTemplate"
         template.spatial_dimension_names = ("inline", "crossline")
@@ -73,3 +73,20 @@ class TestValidateSpecInTemplate:
         error_message = str(exc_info.value)
         assert "coordinate_scalar" in error_message
         assert "TestTemplate" in error_message
+
+    def test_validation_passes_with_missing_coordinate_scalar_when_not_needed(self) -> None:
+        """Test that validation passes when coordinate_scalar is missing but no fields require scaling."""
+        template = MagicMock(spec=AbstractDatasetTemplate)
+        template.name = "TestTemplate"
+        template.spatial_dimension_names = ("inline", "crossline")
+        template.coordinate_names = ("source_to_receiver_distance",)
+
+        # Create SegySpec with all standard fields except coordinate_scalar
+        spec = get_segy_standard(1.0)
+        # Remove coordinate_scalar from the standard fields
+        standard_fields = [field for field in spec.trace.header.fields if field.name != "coordinate_scalar"]
+        standard_fields.append(HeaderField(name="not_coordinate_scalar", byte=71, format="int16"))
+        segy_spec = spec.customize(trace_header_fields=standard_fields)
+
+        # Should not raise any exception
+        validate_spec_in_template(segy_spec, template)

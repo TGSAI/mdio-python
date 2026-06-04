@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 from mdio.core.dimension import Dimension
 from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
 from mdio.segy.parsers import parse_headers
+from mdio.segy.scalar import SCALE_COORDINATE_KEYS
 
 if TYPE_CHECKING:
     import numpy as np
@@ -49,7 +50,11 @@ def read_index_headers(  # noqa: PLR0913
     spec_fields = {field.name for field in spec.trace.header.fields} if spec else set()
 
     # Drop any synthesized or missing dimensions/coordinates that aren't in the physical file spec
-    subset = tuple(f for f in schema.required_header_fields() if f in spec_fields)
+    required_fields = schema.required_fields()
+    if any(field in SCALE_COORDINATE_KEYS for field in required_fields):
+        required_fields = required_fields | {"coordinate_scalar"}
+
+    subset = tuple(f for f in required_fields if f in spec_fields)
 
     # 2. Parse headers
     parsed_headers = parse_headers(

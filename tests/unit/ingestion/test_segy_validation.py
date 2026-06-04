@@ -48,7 +48,7 @@ class TestValidateSpecInTemplate:
         assert "CustomTemplate" in msg
 
     def test_missing_coordinate_scalar_raises(self) -> None:
-        """A spec without ``coordinate_scalar`` must always fail."""
+        """A spec without ``coordinate_scalar`` must fail if fields require scaling."""
         template = MagicMock(spec=AbstractDatasetTemplate)
         template.name = "TestTemplate"
         template.spatial_dimension_names = ("inline", "crossline")
@@ -62,6 +62,22 @@ class TestValidateSpecInTemplate:
 
         with pytest.raises(ValueError, match=r"coordinate_scalar"):
             validate_spec_in_template(spec, template)
+
+    def test_missing_coordinate_scalar_passes_if_not_needed(self) -> None:
+        """A spec without ``coordinate_scalar`` passes if no fields require scaling."""
+        template = MagicMock(spec=AbstractDatasetTemplate)
+        template.name = "TestTemplate"
+        template.spatial_dimension_names = ("inline", "crossline")
+        template.coordinate_names = ("source_to_receiver_distance",)
+        template.calculated_dimension_names = ()
+
+        spec = get_segy_standard(1.0)
+        kept = [f for f in spec.trace.header.fields if f.name != "coordinate_scalar"]
+        kept.append(HeaderField(name="not_coordinate_scalar", byte=71, format="int16"))
+        spec = spec.customize(trace_header_fields=kept)
+
+        # Should not raise ValueError because 'offset' is not in SCALE_COORDINATE_KEYS
+        validate_spec_in_template(spec, template)
 
     def test_calculated_dimensions_are_not_required(self) -> None:
         """Dimensions in ``calculated_dimension_names`` should not be required from the spec."""

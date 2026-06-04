@@ -60,12 +60,10 @@ class ResolvedSchema(BaseModel):
     metadata: dict[str, Any] = Field(default_factory=dict)
     default_variable_name: str = "amplitude"
 
-    def required_header_fields(self) -> set[str]:
-        """Names that must be readable from SEG-Y trace headers to materialize this schema."""
+    def required_fields(self) -> set[str]:
+        """Names that must be readable from the source to materialize this schema."""
         fields = {dim.name for dim in self.dimensions if dim.is_spatial and not dim.is_calculated}
         fields.update(coord.name for coord in self.coordinates)
-        # coordinate_scalar is always needed to scale X/Y coordinates.
-        fields.add("coordinate_scalar")
         return fields
 
     def spatial_dimensions(self) -> list[DimensionSpec]:

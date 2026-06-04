@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from mdio.segy.scalar import SCALE_COORDINATE_KEYS
+
 if TYPE_CHECKING:
     from segy.schema import SegySpec
 
@@ -24,7 +26,8 @@ def validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatase
     if isinstance(mdio_template, Seismic3DObnReceiverGathersTemplate):
         required_fields.discard("component")
 
-    required_fields = required_fields | {"coordinate_scalar"}
+    if any(field in SCALE_COORDINATE_KEYS for field in required_fields):
+        required_fields = required_fields | {"coordinate_scalar"}
     missing_fields = required_fields - header_fields
 
     if missing_fields:
