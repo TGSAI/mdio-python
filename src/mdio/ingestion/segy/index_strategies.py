@@ -18,13 +18,13 @@ import numpy as np
 from numpy.lib import recfunctions as rfn
 
 from mdio.core import Dimension
-from mdio.ingestion.schema.models import CollapseToTraceEffect
-from mdio.ingestion.schema.models import InsertTraceDimEffect
 from mdio.ingestion.segy.header_analysis import ShotGunGeometryType
 from mdio.ingestion.segy.header_analysis import StreamerShotGeometryType
 from mdio.ingestion.segy.header_analysis import analyze_lines_for_guns
 from mdio.ingestion.segy.header_analysis import analyze_non_indexed_headers
 from mdio.ingestion.segy.header_analysis import analyze_streamer_headers
+from mdio.ingestion.segy.schema_effects import CollapseToTraceEffect
+from mdio.ingestion.segy.schema_effects import InsertTraceDimEffect
 from mdio.segy.exceptions import GridOverrideKeysError
 
 if TYPE_CHECKING:

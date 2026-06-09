@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.templates.types import CoordinateSpec
-from mdio.ingestion.schema import CollapseToTraceEffect
 from mdio.ingestion.schema import DimensionSpec
-from mdio.ingestion.schema import InsertTraceDimEffect
 from mdio.ingestion.schema import ResolvedSchema
 from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
+from mdio.ingestion.segy.schema_effects import CollapseToTraceEffect
+from mdio.ingestion.segy.schema_effects import InsertTraceDimEffect
 from mdio.segy.geometry import GridOverrides
 
 

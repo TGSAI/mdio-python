@@ -15,8 +15,6 @@ import numpy as np
 import pytest
 
 from mdio.builder.template_registry import TemplateRegistry
-from mdio.ingestion.schema import CollapseToTraceEffect
-from mdio.ingestion.schema import InsertTraceDimEffect
 from mdio.ingestion.segy.index_strategies import ChannelWrappingStrategy
 
 if TYPE_CHECKING:
@@ -28,6 +26,8 @@ from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
 from mdio.ingestion.segy.index_strategies import NonBinnedStrategy
 from mdio.ingestion.segy.index_strategies import RegularGridStrategy
 from mdio.ingestion.segy.index_strategies import ShotWrappingStrategy
+from mdio.ingestion.segy.schema_effects import CollapseToTraceEffect
+from mdio.ingestion.segy.schema_effects import InsertTraceDimEffect
 from mdio.segy.exceptions import GridOverrideKeysError
 from mdio.segy.geometry import GridOverrides
 from mdio.segy.geometry import _resolve_synthesize_dims

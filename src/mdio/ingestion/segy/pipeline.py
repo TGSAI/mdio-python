@@ -18,6 +18,7 @@ from mdio.ingestion.metadata import add_grid_override_to_metadata
 from mdio.ingestion.schema.resolver import SchemaResolver
 from mdio.ingestion.segy.coordinates import get_spatial_coordinate_unit
 from mdio.ingestion.segy.coordinates import resolve_units
+from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
 from mdio.ingestion.segy.raw_headers import build_raw_header_variables
 from mdio.ingestion.segy.reader import read_index_headers
 from mdio.ingestion.segy.serializer import serialize_to_mdio
@@ -155,7 +156,10 @@ def segy_to_mdio(  # noqa: PLR0913
     spatial_unit = get_spatial_coordinate_unit(segy_file_info)
     units = resolve_units(mdio_template, spatial_unit)
 
-    schema = SchemaResolver().resolve(mdio_template, grid_overrides)
+    # Grid overrides are SEG-Y specific: the registry maps them to a schema reshape that the
+    # format-agnostic resolver then applies.
+    schema_effect = IndexStrategyRegistry().schema_effect(grid_overrides)
+    schema = SchemaResolver().resolve(mdio_template, schema_effect)
 
     indexed_headers, dimensions = read_index_headers(
         segy_file_kwargs=segy_file_kwargs,

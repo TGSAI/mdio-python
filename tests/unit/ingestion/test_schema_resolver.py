@@ -2,13 +2,25 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from mdio.builder.templates.seismic_3d_cdp import Seismic3DCdpGathersTemplate
 from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate
 from mdio.builder.templates.seismic_3d_streamer_shot import Seismic3DStreamerShotGathersTemplate
 from mdio.ingestion.schema import DimensionSpec
 from mdio.ingestion.schema import ResolvedSchema
 from mdio.ingestion.schema.resolver import SchemaResolver
+from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
 from mdio.segy.geometry import GridOverrides
+
+if TYPE_CHECKING:
+    from mdio.builder.templates.base import AbstractDatasetTemplate
+
+
+def _resolve_with_overrides(template: AbstractDatasetTemplate, overrides: GridOverrides) -> ResolvedSchema:
+    """Resolve a template applying the schema effect the registry selects for ``overrides``."""
+    effect = IndexStrategyRegistry().schema_effect(overrides)
+    return SchemaResolver().resolve(template, effect)
 
 
 class TestSchemaResolverNoOverrides:
@@ -17,7 +29,7 @@ class TestSchemaResolverNoOverrides:
     def test_streamer_shot_template_basic(self) -> None:
         """A plain template resolves to its dimensions, vertical axis, and chunk shape."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
-        schema = SchemaResolver().resolve(template, grid_overrides=None)
+        schema = SchemaResolver().resolve(template)
 
         assert schema.name == "StreamerShotGathers3D"
         assert [d.name for d in schema.dimensions] == ["shot_point", "cable", "channel", "time"]
@@ -29,7 +41,7 @@ class TestSchemaResolverNoOverrides:
     def test_obn_template_marks_shot_index_as_calculated(self) -> None:
         """The OBN template's ``shot_index`` resolves as a calculated spatial dimension."""
         template = Seismic3DObnReceiverGathersTemplate(data_domain="time")
-        schema = SchemaResolver().resolve(template, grid_overrides=None)
+        schema = SchemaResolver().resolve(template)
 
         shot_index = next(d for d in schema.dimensions if d.name == "shot_index")
         assert shot_index.is_calculated is True
@@ -38,7 +50,7 @@ class TestSchemaResolverNoOverrides:
     def test_cdp_required_fields(self) -> None:
         """Required fields cover spatial dims and coordinates."""
         template = Seismic3DCdpGathersTemplate(data_domain="time", gather_domain="offset")
-        schema = SchemaResolver().resolve(template, grid_overrides=None)
+        schema = SchemaResolver().resolve(template)
 
         # Spatial dim keys + coordinate keys.
         required = schema.required_fields()
@@ -54,7 +66,7 @@ class TestSchemaResolverNonBinned:
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
         # Streamer shot template default chunk shape is (8, 1, 128, 2048).
         overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["cable", "channel"])
-        schema = SchemaResolver().resolve(template, overrides)
+        schema = _resolve_with_overrides(template, overrides)
 
         names = [d.name for d in schema.dimensions]
         assert names == ["shot_point", "trace", "time"]
@@ -65,7 +77,7 @@ class TestSchemaResolverNonBinned:
         """Explicit ``non_binned_dims`` collapse only the named dimensions into ``trace``."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
         overrides = GridOverrides(non_binned=True, chunksize=128, non_binned_dims=["channel"])
-        schema = SchemaResolver().resolve(template, overrides)
+        schema = _resolve_with_overrides(template, overrides)
 
         names = [d.name for d in schema.dimensions]
         assert names == ["shot_point", "cable", "trace", "time"]
@@ -76,7 +88,7 @@ class TestSchemaResolverNonBinned:
         """Coordinates referencing collapsed dims are rewritten to depend on ``trace``."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
         overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["cable", "channel"])
-        schema = SchemaResolver().resolve(template, overrides)
+        schema = _resolve_with_overrides(template, overrides)
         # group_coord_x originally depends on (shot_point, cable, channel). After NonBinned
         # collapses cable+channel, it should depend on (shot_point, trace).
         group_coord_x = next(c for c in schema.coordinates if c.name == "group_coord_x")
@@ -86,7 +98,7 @@ class TestSchemaResolverNonBinned:
         """The resolver is mechanics-only: override provenance is attached at the dataset level."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
         overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["channel"])
-        schema = SchemaResolver().resolve(template, overrides)
+        schema = _resolve_with_overrides(template, overrides)
         assert "gridOverrides" not in schema.metadata
 
 
@@ -96,7 +108,7 @@ class TestSchemaResolverHasDuplicates:
     def test_inserts_trace_dim_with_chunksize_one(self) -> None:
         """HasDuplicates inserts a ``trace`` dim with chunksize 1 before the vertical dim."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
-        schema = SchemaResolver().resolve(template, GridOverrides(has_duplicates=True))
+        schema = _resolve_with_overrides(template, GridOverrides(has_duplicates=True))
 
         names = [d.name for d in schema.dimensions]
         assert names == ["shot_point", "cable", "channel", "trace", "time"]
@@ -107,7 +119,7 @@ class TestSchemaResolverHasDuplicates:
     def test_has_duplicates_provenance_not_in_schema_metadata(self) -> None:
         """The resolver does not record override provenance in schema metadata."""
         template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
-        schema = SchemaResolver().resolve(template, GridOverrides(has_duplicates=True))
+        schema = _resolve_with_overrides(template, GridOverrides(has_duplicates=True))
         assert "gridOverrides" not in schema.metadata
 
 

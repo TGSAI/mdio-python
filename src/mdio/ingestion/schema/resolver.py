@@ -1,4 +1,4 @@
-"""Schema resolution: turn a template + grid overrides into a final, ingestion-ready schema."""
+"""Schema resolution: turn a template (and an optional reshape) into an ingestion-ready schema."""
 
 from __future__ import annotations
 
@@ -7,53 +7,41 @@ from typing import TYPE_CHECKING
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.ingestion.schema.models import DimensionSpec
 from mdio.ingestion.schema.models import ResolvedSchema
-from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
 
 if TYPE_CHECKING:
     from mdio.builder.templates.base import AbstractDatasetTemplate
-    from mdio.segy.geometry import GridOverrides
+    from mdio.ingestion.schema.models import SchemaEffect
 
 
 class SchemaResolver:
-    """Resolves template + grid overrides into a final schema.
+    """Resolves a template (and an optional layout effect) into a final schema.
 
-    This class takes a template and optional grid overrides and produces a
-    :class:`ResolvedSchema` that completely specifies the dataset structure before any data
-    is scanned or processed. All override semantics (which dimensions collapse, where a
-    ``trace`` dimension is inserted) are owned by
-    :class:`~mdio.ingestion.segy.index_strategies.IndexStrategyRegistry`; this resolver only
-    applies the resulting :class:`~mdio.ingestion.schema.models.SchemaEffect`.
+    This class converts a template into a :class:`ResolvedSchema` that completely specifies
+    the dataset structure before any data is scanned or processed. It is format-agnostic: it
+    knows nothing about SEG-Y or grid overrides. A caller that needs to reshape the layout
+    (e.g. to insert or collapse a ``trace`` dimension) selects the appropriate
+    :class:`~mdio.ingestion.schema.models.SchemaEffect` and passes it in; the resolver only
+    applies it. For SEG-Y, that selection is owned by
+    :class:`~mdio.ingestion.segy.index_strategies.IndexStrategyRegistry`.
     """
-
-    def __init__(self) -> None:
-        self._registry = IndexStrategyRegistry()
 
     def resolve(
         self,
         template: AbstractDatasetTemplate,
-        grid_overrides: GridOverrides | None = None,
+        effect: SchemaEffect | None = None,
     ) -> ResolvedSchema:
-        """Resolve template and overrides into final schema.
+        """Resolve a template and optional layout effect into a final schema.
 
         Args:
             template: The MDIO dataset template.
-            grid_overrides: Optional grid override configuration.
+            effect: Optional layout reshape to apply to the template-derived schema.
 
         Returns:
             ResolvedSchema with all dimensions, coordinates, and metadata resolved.
         """
         schema = self._template_to_schema(template)
-
-        if not grid_overrides:
-            return schema
-
-        # Grid-override provenance is attached to the dataset at assembly time
-        # (mdio.ingestion.metadata.add_grid_override_to_metadata); the resolver only
-        # reshapes the schema, keeping it override-mechanics-only.
-        effect = self._registry.schema_effect(grid_overrides)
         if effect is not None:
             schema = effect.apply(schema)
-
         return schema
 
     def _template_to_schema(self, template: AbstractDatasetTemplate) -> ResolvedSchema:
