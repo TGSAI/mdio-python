@@ -154,7 +154,7 @@ def validate_overrides_for_template(
         if not isinstance(template, Seismic3DStreamerFieldRecordsTemplate):
             actual = type(template).__name__ if template is not None else "None"
             msg = (
-                f"auto_shot_wrap only supports Seismic3DStreamerFieldRecordsTemplate, "
+                f"auto_shot_wrap only supports {Seismic3DStreamerFieldRecordsTemplate.__name__}, "
                 f"got {actual}. For OBN templates, use calculate_shot_index."
             )
             raise TypeError(msg)
@@ -164,5 +164,5 @@ def validate_overrides_for_template(
 
         if not isinstance(template, Seismic3DObnReceiverGathersTemplate):
             actual = type(template).__name__ if template is not None else "None"
-            msg = f"calculate_shot_index only supports Seismic3DObnReceiverGathersTemplate, got {actual}."
+            msg = f"calculate_shot_index only supports {Seismic3DObnReceiverGathersTemplate.__name__}, got {actual}."
             raise TypeError(msg)
