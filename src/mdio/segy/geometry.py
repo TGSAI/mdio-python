@@ -78,6 +78,9 @@ class GridOverrides(BaseModel):
         Raises:
             GridOverrideMissingParameterError: When ``non_binned`` is set without both
                 ``chunksize`` and ``non_binned_dims``.
+
+        Returns:
+            GridOverrides: The validated GridOverrides instance.
         """
         if not self.non_binned:
             return self
