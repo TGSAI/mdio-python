@@ -92,9 +92,6 @@ def _add_dimensions_and_coordinates(
         schema: Resolved schema.
         sizes: Actual sizes of each dimension.
         units: Dictionary mapping coordinate/dimension names to AllUnitModel.
-
-    Raises:
-        ValueError: If a coordinate with the same name already exists but has different attributes.
     """
     for dim_spec, size in zip(schema.dimensions, sizes, strict=True):
         builder.add_dimension(dim_spec.name, size)
@@ -111,17 +108,13 @@ def _add_dimensions_and_coordinates(
 
     compressor = compressors.Blosc(cname=compressors.BloscCname.zstd)
     for coord_spec in schema.coordinates:
-        try:
-            builder.add_coordinate(
-                name=coord_spec.name,
-                dimensions=coord_spec.dimensions,
-                data_type=coord_spec.dtype,
-                compressor=compressor,
-                metadata=CoordinateMetadata(units_v1=units.get(coord_spec.name)),
-            )
-        except ValueError as exc:
-            if "same name twice" not in str(exc):
-                raise
+        builder.add_coordinate(
+            name=coord_spec.name,
+            dimensions=coord_spec.dimensions,
+            data_type=coord_spec.dtype,
+            compressor=compressor,
+            metadata=CoordinateMetadata(units_v1=units.get(coord_spec.name)),
+        )
 
 
 def _add_trace_mask_and_headers(
