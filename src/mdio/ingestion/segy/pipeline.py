@@ -42,17 +42,17 @@ logger = logging.getLogger(__name__)
 
 
 def _resolve_output_path(output_path: UPath | Path | str, overwrite: bool) -> UPath:
-    """Normalize the output path and enforce the overwrite policy.
+    """Normalize output path and verify overwrite policy.
 
     Args:
-        output_path: Requested output location.
-        overwrite: Whether an existing location may be overwritten.
+        output_path: Output location path.
+        overwrite: Whether to allow overwriting an existing directory.
 
     Returns:
-        The normalized output path.
+        Normalized output path.
 
     Raises:
-        FileExistsError: If the location exists and ``overwrite`` is False.
+        FileExistsError: If output path exists and overwrite is False.
     """
     output_path = _normalize_path(output_path)
     if not overwrite and output_path.exists():
@@ -66,12 +66,12 @@ def _verify_calculated_dimensions(
     dimensions: list[Dimension],
     template_name: str,
 ) -> None:
-    """Ensure every calculated dimension required by the schema was produced.
+    """Verify all calculated dimensions required by the schema were produced.
 
     Args:
-        schema: The resolved schema.
-        dimensions: Dimensions produced by header analysis.
-        template_name: Template name, used only for the error message.
+        schema: Resolved dataset schema.
+        dimensions: Dimensions produced during header analysis.
+        template_name: Name of the dataset template.
 
     Raises:
         ValueError: If a required calculated dimension is missing.
@@ -86,18 +86,18 @@ def _verify_calculated_dimensions(
 
 
 def _build_grid(dimensions: list[Dimension], indexed_headers: np.ndarray, num_traces: int) -> Grid:
-    """Build the ingestion grid, run density QC, and verify the live trace count.
+    """Build the ingestion grid, run density QC, and verify live trace count.
 
     Args:
-        dimensions: Ordered spatial + vertical dimensions.
-        indexed_headers: Transformed trace headers used to build the grid map.
-        num_traces: Number of traces reported by the SEG-Y file.
+        dimensions: Ordered dimensions.
+        indexed_headers: Transformed trace headers.
+        num_traces: Expected trace count.
 
     Returns:
-        The built and validated grid.
+        Built and validated ingestion grid.
 
     Raises:
-        GridTraceCountError: If the live trace count does not match ``num_traces``.
+        GridTraceCountError: If live trace count does not match expected trace count.
     """
     grid = Grid(dims=dimensions)
     grid_density_qc(grid, num_traces)
@@ -122,26 +122,21 @@ def segy_to_mdio(  # noqa: PLR0913
     grid_overrides: GridOverrides | None = None,
     segy_header_overrides: SegyHeaderOverrides | None = None,
 ) -> None:
-    """Convert SEG-Y to MDIO.
-
-    Pipeline phases: schema resolution, header analysis, index strategy, grid build,
-    dataset build, data write.
+    """Convert SEG-Y file to MDIO dataset.
 
     Args:
-        segy_spec: The SEG-Y specification to use for the conversion.
-        mdio_template: The MDIO template to use for the conversion.
-        input_path: The universal path of the input SEG-Y file.
-        output_path: The universal path for the output MDIO v1 file.
-        overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
-        grid_overrides: Grid override configuration for non-standard geometries.
-        segy_header_overrides: Option to override specific SEG-Y headers during ingestion.
+        segy_spec: SEG-Y file specification.
+        mdio_template: MDIO dataset template.
+        input_path: Input SEG-Y file path.
+        output_path: Output MDIO dataset path.
+        overwrite: Whether to overwrite existing output.
+        grid_overrides: Grid override configuration.
+        segy_header_overrides: Specific header overrides.
 
     Raises:  # noqa: DOC502
-        FileExistsError: If the output location already exists and overwrite is False.
-        ValueError: If required fields are missing from segy_spec or required computed
-            dimensions are not produced after grid overrides are applied.
-        GridTraceCountError: If the live trace count in the built grid does not match
-            the number of traces reported by the SEG-Y file.
+        FileExistsError: If output path exists and overwrite is False.
+        ValueError: If required fields are missing or required calculated dimensions are missing.
+        GridTraceCountError: If built grid live trace count does not match SEG-Y file trace count.
     """
     validate_overrides_for_template(grid_overrides, mdio_template)
     validate_spec_in_template(segy_spec, mdio_template)
