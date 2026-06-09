@@ -68,27 +68,23 @@ class GridOverrides(BaseModel):
 
     @model_validator(mode="after")
     def _check_non_binned_parameters(self) -> GridOverrides:
-        """Require the parameters ``non_binned`` depends on.
-
-        ``chunksize`` and ``non_binned_dims`` are only meaningful when collapsing dims into a
-        ``trace`` axis. Enforcing the dependency on the model means every construction path
-        (typed instance or a coerced legacy dict) fails fast with the same error, so the
-        ingestion pipeline does not need to re-check it.
+        """Validate parameters when non_binned is True.
 
         Raises:
-            GridOverrideMissingParameterError: When ``non_binned`` is set without both
-                ``chunksize`` and ``non_binned_dims``.
+            GridOverrideMissingParameterError: If chunksize or non_binned_dims is missing.
 
         Returns:
-            GridOverrides: The validated GridOverrides instance.
+            The validated GridOverrides instance.
         """
         if not self.non_binned:
             return self
-        missing: set[str] = set()
+
+        missing = set()
         if self.chunksize is None:
             missing.add("chunksize")
         if not self.non_binned_dims:
             missing.add("non_binned_dims")
+
         if missing:
             command = "NonBinned"
             raise GridOverrideMissingParameterError(command, missing)
