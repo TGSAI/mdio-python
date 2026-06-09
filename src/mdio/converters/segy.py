@@ -36,7 +36,7 @@ def _coerce_grid_overrides(
 
     logger.warning(
         "Passing `grid_overrides` as a dict is deprecated as of 1.2 and is planned for removal "
-        "in 1.2.5; pass a `mdio.GridOverrides` instance instead."
+        "in a future release; pass a `mdio.GridOverrides` instance instead."
     )
     return GridOverrides.model_validate(grid_overrides)
 
@@ -62,7 +62,7 @@ def segy_to_mdio(  # noqa: PLR0913
         overwrite: Whether to overwrite the output file if it already exists. Defaults to False.
         grid_overrides: Option to add grid overrides. Prefer a :class:`mdio.GridOverrides`
             instance; ``dict`` is still accepted (deprecated as of 1.2, planned for removal in
-            1.2.5) but logs a deprecation warning.
+            a future release) but logs a deprecation warning.
         segy_header_overrides: Option to override specific SEG-Y headers during ingestion.
     """
     typed_grid_overrides = _coerce_grid_overrides(grid_overrides)

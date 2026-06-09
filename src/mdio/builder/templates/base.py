@@ -152,7 +152,7 @@ class AbstractDatasetTemplate(ABC):
         """Template method that builds the dataset.
 
         .. deprecated:: 1.2
-            ``build_dataset`` is deprecated and is planned for removal in 1.2.5. SEG-Y
+            ``build_dataset`` is deprecated and is planned for removal in a future release. SEG-Y
             ingestion now builds datasets from a resolved schema via the schema-driven
             factory (:func:`mdio.ingestion.dataset_factory.build_mdio_dataset`); use
             :func:`mdio.segy_to_mdio` for ingestion.
@@ -170,7 +170,7 @@ class AbstractDatasetTemplate(ABC):
         """
         logger.warning(
             "AbstractDatasetTemplate.build_dataset is deprecated as of 1.2 and is planned for "
-            "removal in 1.2.5; SEG-Y ingestion builds datasets via the schema-driven factory. "
+            "removal in a future release; SEG-Y ingestion builds datasets via the schema-driven factory. "
             "Use `mdio.segy_to_mdio` for ingestion."
         )
         self._dim_sizes = sizes
