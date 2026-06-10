@@ -6,6 +6,7 @@ from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.types import CoordinateSpec
+from mdio.builder.templates.types import DimCoordinateTypes
 from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -45,32 +46,42 @@ class Seismic3DShotReceiverLineGathersTemplate(AbstractDatasetTemplate):
             CoordinateSpec(name="orig_field_record_num", dimensions=source_dims, dtype=ScalarType.UINT32),
         )
 
+    def declare_dim_coordinate_types(self) -> DimCoordinateTypes:
+        """Declare the data types for each dimension coordinate in this template."""
+        return {
+            "shot_line": ScalarType.UINT32,
+            "shot_point": ScalarType.UINT32,
+            "receiver_line": ScalarType.UINT32,
+            "receiver": ScalarType.UINT32,
+            self._data_domain: ScalarType.INT32,
+        }
+
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
         self._builder.add_coordinate(
             "shot_line",
             dimensions=("shot_line",),
-            data_type=ScalarType.UINT32,
+            data_type=self._dim_dtype("shot_line"),
         )
         self._builder.add_coordinate(
             "shot_point",
             dimensions=("shot_point",),
-            data_type=ScalarType.UINT32,
+            data_type=self._dim_dtype("shot_point"),
         )
         self._builder.add_coordinate(
             "receiver_line",
             dimensions=("receiver_line",),
-            data_type=ScalarType.UINT32,
+            data_type=self._dim_dtype("receiver_line"),
         )
         self._builder.add_coordinate(
             "receiver",
             dimensions=("receiver",),
-            data_type=ScalarType.UINT32,
+            data_type=self._dim_dtype("receiver"),
         )
         self._builder.add_coordinate(
             self._data_domain,
             dimensions=(self._data_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self._data_domain),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self._data_domain)),
         )
 

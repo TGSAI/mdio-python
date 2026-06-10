@@ -1,6 +1,6 @@
 """Unit tests for the v1.2 ingestion index strategies and the strategy registry.
 
-These tests exercise individual :class:`mdio.ingestion.index_strategies.IndexStrategy`
+These tests exercise individual :class:`mdio.ingestion.segy.index_strategies.IndexStrategy`
 subclasses with synthetic structured numpy arrays (mimicking the shape semantics of
 :class:`segy.arrays.HeaderArray`) so they remain fast and do not require any real SEG-Y
 data.
@@ -8,21 +8,54 @@ data.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+from typing import Any
+
 import numpy as np
 import pytest
 
 from mdio.builder.template_registry import TemplateRegistry
-from mdio.ingestion.index_strategies import ChannelWrappingStrategy
-from mdio.ingestion.index_strategies import ComponentSynthesisStrategy
-from mdio.ingestion.index_strategies import CompositeStrategy
-from mdio.ingestion.index_strategies import DuplicateHandlingStrategy
-from mdio.ingestion.index_strategies import IndexStrategyRegistry
-from mdio.ingestion.index_strategies import NonBinnedStrategy
-from mdio.ingestion.index_strategies import RegularGridStrategy
-from mdio.ingestion.index_strategies import ShotWrappingStrategy
+from mdio.ingestion.segy.index_strategies import ChannelWrappingStrategy
+
+if TYPE_CHECKING:
+    from mdio.builder.templates.base import AbstractDatasetTemplate
+from mdio.ingestion.segy.index_strategies import ComponentSynthesisStrategy
+from mdio.ingestion.segy.index_strategies import CompositeStrategy
+from mdio.ingestion.segy.index_strategies import DuplicateHandlingStrategy
+from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
+from mdio.ingestion.segy.index_strategies import NonBinnedStrategy
+from mdio.ingestion.segy.index_strategies import RegularGridStrategy
+from mdio.ingestion.segy.index_strategies import ShotWrappingStrategy
+from mdio.ingestion.segy.schema_effects import CollapseToTraceEffect
+from mdio.ingestion.segy.schema_effects import InsertTraceDimEffect
 from mdio.segy.exceptions import GridOverrideKeysError
-from mdio.segy.geometry import GridOverrider
 from mdio.segy.geometry import GridOverrides
+from mdio.segy.geometry import _resolve_synthesize_dims
+from mdio.segy.geometry import validate_overrides_for_template
+
+
+class GridOverrider:
+    """Mock GridOverrider shim for template and keys validation tests."""
+
+    def run(
+        self,
+        headers: np.ndarray,
+        index_names: tuple[str, ...],  # noqa: ARG002
+        grid_overrides: dict[str, Any],
+        template: AbstractDatasetTemplate | None,
+    ) -> np.ndarray:
+        """Run mock strategy validation and transform."""
+        config = GridOverrides.model_validate(grid_overrides)
+        validate_overrides_for_template(config, template)
+        synthesize_dims = _resolve_synthesize_dims(template)
+        registry = IndexStrategyRegistry()
+        strategy = registry.create_strategy(
+            grid_overrides=config,
+            synthesize_dims=synthesize_dims,
+            template=template,
+        )
+        strategy.validate_headers(headers)
+        return strategy.transform_headers(headers)
 
 
 def _make_struct(data: dict[str, np.ndarray]) -> np.ndarray:
@@ -62,12 +95,11 @@ class TestIndexStrategyRegistry:
         assert strategy.synthesize_dims == ("component",)
 
     def test_non_binned_only(self) -> None:
-        """``non_binned`` -> NonBinnedStrategy with chunksize and excluded dims wired."""
+        """``non_binned`` -> NonBinnedStrategy with the collapsed dims excluded from grouping."""
         overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["channel"])
         strategy = IndexStrategyRegistry().create_strategy(grid_overrides=overrides)
         assert isinstance(strategy, NonBinnedStrategy)
-        assert strategy.chunksize == 64
-        assert strategy.non_binned_dims == ("channel",)
+        assert strategy.excluded_fields == frozenset({"channel"})
 
     def test_has_duplicates_only(self) -> None:
         """``has_duplicates`` -> DuplicateHandlingStrategy."""
@@ -219,6 +251,12 @@ class TestDuplicateHandlingStrategy:
         # shot_point alone so each row in the same shot_point gets a fresh counter.
         np.testing.assert_array_equal(out["trace"], [1, 2, 3])
 
+    def test_owns_insert_trace_dim_effect(self) -> None:
+        """The strategy owns its schema reshape: a chunksize-1 inserted ``trace`` dim."""
+        effect = DuplicateHandlingStrategy().schema_effect()
+        assert isinstance(effect, InsertTraceDimEffect)
+        assert effect.chunksize == 1
+
 
 # ---------------------------------------------------------------------------
 # NonBinnedStrategy
@@ -227,12 +265,6 @@ class TestDuplicateHandlingStrategy:
 
 class TestNonBinnedStrategy:
     """``NonBinned`` is the duplicate counter wired with explicit collapse dims."""
-
-    def test_chunksize_and_dims_recorded(self) -> None:
-        """Constructor stores both for the ``GridOverrider`` shim to use."""
-        strategy = NonBinnedStrategy(chunksize=4, non_binned_dims=("channel",))
-        assert strategy.chunksize == 4
-        assert strategy.non_binned_dims == ("channel",)
 
     def test_collapse_dim_excluded_from_counter(self) -> None:
         """The non-binned dim must NOT participate in the duplicate counter grouping."""
@@ -266,6 +298,13 @@ class TestNonBinnedStrategy:
         out = strategy.transform_headers(headers)
         # Grouping is by shot_point only -> each shot_point has 2 rows -> counters {1, 2}.
         np.testing.assert_array_equal(out["trace"], [1, 2, 1, 2])
+
+    def test_owns_collapse_to_trace_effect(self) -> None:
+        """The strategy owns its schema reshape, carrying chunksize and collapse dims."""
+        effect = NonBinnedStrategy(chunksize=8, non_binned_dims=("channel",)).schema_effect()
+        assert isinstance(effect, CollapseToTraceEffect)
+        assert effect.chunksize == 8
+        assert effect.collapse_dims == ("channel",)
 
 
 # ---------------------------------------------------------------------------

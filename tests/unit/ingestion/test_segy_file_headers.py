@@ -12,7 +12,7 @@ import pytest
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
 
-from mdio.ingestion.segy.file_headers import _add_segy_file_headers
+from mdio.ingestion.segy.file_headers import add_segy_file_headers
 
 
 def _valid_text_header() -> str:
@@ -37,14 +37,14 @@ def _empty_dataset() -> xr_Dataset:
 
 
 class TestAddSegyFileHeaders:
-    """Tests for ``_add_segy_file_headers``."""
+    """Tests for ``add_segy_file_headers``."""
 
     def test_disabled_returns_dataset_unchanged(self) -> None:
         """When the save flag is off the dataset must not be modified."""
         info = _make_segy_info()
         ds = _empty_dataset()
         with patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "false"}):
-            result = _add_segy_file_headers(ds, info)
+            result = add_segy_file_headers(ds, info)
 
         assert "segy_file_header" not in result
 
@@ -53,7 +53,7 @@ class TestAddSegyFileHeaders:
         info = _make_segy_info()
         ds = _empty_dataset()
         with patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "true"}):
-            result = _add_segy_file_headers(ds, info)
+            result = add_segy_file_headers(ds, info)
 
         attrs = result["segy_file_header"].attrs
         assert attrs["textHeader"] == info.text_header
@@ -69,7 +69,7 @@ class TestAddSegyFileHeaders:
             "MDIO__IMPORT__RAW_HEADERS": "true",
         }
         with patch.dict(os.environ, env):
-            result = _add_segy_file_headers(ds, info)
+            result = add_segy_file_headers(ds, info)
 
         encoded = base64.b64encode(b"abc").decode("ascii")
         assert result["segy_file_header"].attrs["rawBinaryHeader"] == encoded
@@ -83,7 +83,7 @@ class TestAddSegyFileHeaders:
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "true"}),
             pytest.raises(ValueError, match="Invalid text header line count"),
         ):
-            _add_segy_file_headers(ds, info)
+            add_segy_file_headers(ds, info)
 
     def test_invalid_column_count_raises(self) -> None:
         """Text header rows shorter than 80 chars must raise."""
@@ -95,4 +95,4 @@ class TestAddSegyFileHeaders:
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "true"}),
             pytest.raises(ValueError, match="Invalid text header line widths"),
         ):
-            _add_segy_file_headers(ds, info)
+            add_segy_file_headers(ds, info)

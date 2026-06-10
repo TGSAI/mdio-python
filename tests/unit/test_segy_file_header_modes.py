@@ -1,4 +1,4 @@
-"""Tests for ``_add_segy_file_headers`` mode handling.
+"""Tests for ``add_segy_file_headers`` mode handling.
 
 Covers the three values of ``MDIO__IMPORT__SAVE_SEGY_FILE_HEADER``:
 0 skips, 1 raises on a malformed text header, 2 corrects a malformed text header.
@@ -13,7 +13,7 @@ from unittest.mock import patch
 import pytest
 import xarray as xr
 
-from mdio.ingestion.segy.file_headers import _add_segy_file_headers
+from mdio.ingestion.segy.file_headers import add_segy_file_headers
 from mdio.segy.file import SegyFileInfo
 
 
@@ -57,7 +57,7 @@ class TestSaveSegyFileHeaderModes:
         """Mode 0 leaves the dataset without a ``segy_file_header`` variable."""
         ds = xr.Dataset()
         with patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "0"}):
-            result = _add_segy_file_headers(ds, _segy_info(_malformed_header()))
+            result = add_segy_file_headers(ds, _segy_info(_malformed_header()))
 
         assert "segy_file_header" not in result
 
@@ -66,7 +66,7 @@ class TestSaveSegyFileHeaderModes:
         ds = xr.Dataset()
         header = _well_formed_header()
         with patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "1"}):
-            result = _add_segy_file_headers(ds, _segy_info(header))
+            result = add_segy_file_headers(ds, _segy_info(header))
 
         assert result["segy_file_header"].attrs["textHeader"] == header
 
@@ -77,7 +77,7 @@ class TestSaveSegyFileHeaderModes:
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "1"}),
             pytest.raises(ValueError, match="non-ASCII or non-printable"),
         ):
-            _add_segy_file_headers(ds, _segy_info(_malformed_header()))
+            add_segy_file_headers(ds, _segy_info(_malformed_header()))
 
     def test_mode_one_raises_on_replacement_char(self) -> None:
         """Mode 1 raises on U+FFFD."""
@@ -86,7 +86,7 @@ class TestSaveSegyFileHeaderModes:
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "1"}),
             pytest.raises(ValueError, match="non-ASCII or non-printable"),
         ):
-            _add_segy_file_headers(ds, _segy_info(_replacement_char_header()))
+            add_segy_file_headers(ds, _segy_info(_replacement_char_header()))
 
     def test_mode_two_corrects_malformed(self, caplog: pytest.LogCaptureFixture) -> None:
         """Mode 2 repairs a NUL byte and stores a 40x80 header."""
@@ -95,7 +95,7 @@ class TestSaveSegyFileHeaderModes:
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "2"}),
             caplog.at_level(logging.WARNING, logger="mdio.ingestion.segy.file_headers"),
         ):
-            result = _add_segy_file_headers(ds, _segy_info(_malformed_header()))
+            result = add_segy_file_headers(ds, _segy_info(_malformed_header()))
 
         stored = result["segy_file_header"].attrs["textHeader"]
         assert "\x00" not in stored
@@ -110,7 +110,7 @@ class TestSaveSegyFileHeaderModes:
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "2"}),
             caplog.at_level(logging.WARNING, logger="mdio.ingestion.segy.file_headers"),
         ):
-            result = _add_segy_file_headers(ds, _segy_info(_replacement_char_header()))
+            result = add_segy_file_headers(ds, _segy_info(_replacement_char_header()))
 
         stored = result["segy_file_header"].attrs["textHeader"]
         assert "\ufffd" not in stored
@@ -125,7 +125,7 @@ class TestSaveSegyFileHeaderModes:
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "2"}),
             caplog.at_level(logging.WARNING, logger="mdio.ingestion.segy.file_headers"),
         ):
-            result = _add_segy_file_headers(ds, _segy_info(header))
+            result = add_segy_file_headers(ds, _segy_info(header))
 
         assert result["segy_file_header"].attrs["textHeader"] == header
         assert not any("Correcting" in record.message for record in caplog.records)
@@ -140,7 +140,7 @@ class TestSaveSegyFileHeaderModes:
             patch.dict(os.environ, {"MDIO__IMPORT__SAVE_SEGY_FILE_HEADER": "2"}),
             caplog.at_level(logging.WARNING, logger="mdio.ingestion.segy.file_headers"),
         ):
-            result = _add_segy_file_headers(ds, _segy_info(wrapped))
+            result = add_segy_file_headers(ds, _segy_info(wrapped))
 
         stored = result["segy_file_header"].attrs["textHeader"]
         stored_rows = stored.split("\n")

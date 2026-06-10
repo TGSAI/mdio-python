@@ -16,45 +16,14 @@ from mdio.builder.schemas.v1.units import AngleUnitModel
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel
 from mdio.builder.templates.base import AbstractDatasetTemplate
-from mdio.builder.templates.seismic_3d_poststack import Seismic3DPostStackTemplate
-from mdio.ingestion.segy.coordinates import _get_coordinates
-from mdio.ingestion.segy.coordinates import _get_spatial_coordinate_unit
-from mdio.ingestion.segy.coordinates import _populate_coordinates
-from mdio.ingestion.segy.coordinates import _update_template_units
-from tests.unit.ingestion.testing_helpers import make_grid
+from mdio.ingestion.segy.coordinates import get_spatial_coordinate_unit
+from mdio.ingestion.segy.coordinates import populate_coordinates
+from mdio.ingestion.segy.coordinates import resolve_units
 from tests.unit.ingestion.testing_helpers import make_grid_with_map
-from tests.unit.ingestion.testing_helpers import make_header_array
-
-
-class TestGetCoordinates:
-    """Tests for ``_get_coordinates``."""
-
-    def test_returns_dims_and_coords_in_template_order(self) -> None:
-        """Dim coords and non-dim coords should follow the template's declared order."""
-        inline = np.array([1, 2, 3], dtype=np.int32)
-        crossline = np.array([10, 20], dtype=np.int32)
-        sample = np.array([0, 4, 8, 12], dtype=np.int32)
-        grid = make_grid([("inline", inline), ("crossline", crossline), ("time", sample)])
-
-        n = inline.size * crossline.size
-        cdp_x = np.arange(n, dtype=np.float64)
-        cdp_y = np.arange(n, dtype=np.float64) + 100.0
-        headers = make_header_array({"cdp_x": cdp_x, "cdp_y": cdp_y})
-
-        template = Seismic3DPostStackTemplate(data_domain="time")
-
-        dim_coords, non_dim = _get_coordinates(grid, headers, template)
-
-        assert [d.name for d in dim_coords] == ["inline", "crossline", "time"]
-        np.testing.assert_array_equal(dim_coords[0].coords, inline)
-        np.testing.assert_array_equal(dim_coords[1].coords, crossline)
-        assert list(non_dim.keys()) == ["cdp_x", "cdp_y"]
-        np.testing.assert_array_equal(non_dim["cdp_x"], cdp_x)
-        np.testing.assert_array_equal(non_dim["cdp_y"], cdp_y)
 
 
 class TestPopulateCoordinates:
-    """Tests for the ``_populate_coordinates`` wrapper.
+    """Tests for the ``populate_coordinates`` wrapper.
 
     These pin the contract that wraps ``populate_dim_coordinates`` +
     ``populate_non_dim_coordinates``: dim names land in ``drop_vars`` before coord
@@ -86,7 +55,7 @@ class TestPopulateCoordinates:
             }
         )
 
-        dataset, drop_vars = _populate_coordinates(
+        dataset, drop_vars = populate_coordinates(
             dataset,
             grid,
             coords={"cdp_x": cdp_x},
@@ -102,7 +71,7 @@ class TestPopulateCoordinates:
 
 
 class TestGetSpatialCoordinateUnit:
-    """Tests for ``_get_spatial_coordinate_unit``."""
+    """Tests for ``get_spatial_coordinate_unit``."""
 
     @pytest.mark.parametrize(
         ("code", "expected_unit"),
@@ -114,7 +83,7 @@ class TestGetSpatialCoordinateUnit:
     def test_known_measurement_codes(self, code: int, expected_unit: LengthUnitEnum) -> None:
         """Codes 1 (m) and 2 (ft) return the corresponding length unit."""
         info = SimpleNamespace(binary_header_dict={"measurement_system_code": code})
-        result = _get_spatial_coordinate_unit(info)
+        result = get_spatial_coordinate_unit(info)
         assert isinstance(result, LengthUnitModel)
         assert result.length == expected_unit
 
@@ -122,40 +91,36 @@ class TestGetSpatialCoordinateUnit:
         """Unexpected codes should log a warning and return ``None``."""
         info = SimpleNamespace(binary_header_dict={"measurement_system_code": 7})
         with caplog.at_level(logging.WARNING, logger="mdio.ingestion.segy.coordinates"):
-            result = _get_spatial_coordinate_unit(info)
+            result = get_spatial_coordinate_unit(info)
         assert result is None
         assert any("Unexpected value in coordinate unit" in r.message for r in caplog.records)
 
 
-class TestUpdateTemplateUnits:
-    """Tests for ``_update_template_units``."""
+class TestResolveUnits:
+    """Tests for ``resolve_units``."""
 
     def _stub_template(self) -> MagicMock:
         template = MagicMock(spec=AbstractDatasetTemplate)
-        template.get_unit_by_key.return_value = None
+        template.units = {}
         return template
 
     def test_adds_angle_units_only_when_spatial_unit_missing(self) -> None:
         """Without a spatial unit, only angle units should be added."""
         template = self._stub_template()
-        result = _update_template_units(template, unit=None)
+        result = resolve_units(template, unit=None)
 
-        template.add_units.assert_called_once()
-        added = template.add_units.call_args.args[0]
-        assert set(added.keys()) == {"angle", "azimuth"}
-        for unit in added.values():
+        assert set(result.keys()) == {"angle", "azimuth"}
+        for unit in result.values():
             assert isinstance(unit, AngleUnitModel)
             assert unit.angle == AngleUnitEnum.DEGREES
-        assert result is template
 
     def test_adds_spatial_units_when_unit_provided(self) -> None:
         """A non-None unit should populate all SPATIAL keys plus angle keys."""
         template = self._stub_template()
         unit = LengthUnitModel(length=LengthUnitEnum.METER)
 
-        _update_template_units(template, unit=unit)
+        result = resolve_units(template, unit=unit)
 
-        added = template.add_units.call_args.args[0]
         expected_keys = {
             "angle",
             "azimuth",
@@ -167,9 +132,9 @@ class TestUpdateTemplateUnits:
             "group_coord_y",
             "offset",
         }
-        assert set(added.keys()) == expected_keys
+        assert set(result.keys()) == expected_keys
         for key in ("cdp_x", "cdp_y", "source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y", "offset"):
-            assert added[key] is unit
+            assert result[key] is unit
 
     def test_preserves_pre_existing_spatial_units(self, caplog: pytest.LogCaptureFixture) -> None:
         """Keys that already have a template unit must not be overwritten."""
@@ -177,16 +142,11 @@ class TestUpdateTemplateUnits:
         new_unit = LengthUnitModel(length=LengthUnitEnum.METER)
 
         template = MagicMock(spec=AbstractDatasetTemplate)
-
-        def fake_lookup(key: str) -> LengthUnitModel | None:
-            return existing if key == "cdp_x" else None
-
-        template.get_unit_by_key.side_effect = fake_lookup
+        template.units = {"cdp_x": existing}
 
         with caplog.at_level(logging.WARNING, logger="mdio.ingestion.segy.coordinates"):
-            _update_template_units(template, unit=new_unit)
+            result = resolve_units(template, unit=new_unit)
 
-        added = template.add_units.call_args.args[0]
-        assert "cdp_x" not in added
-        assert added["cdp_y"] is new_unit
+        assert result["cdp_x"] is existing
+        assert result["cdp_y"] is new_unit
         assert any("already in template" in r.message for r in caplog.records)

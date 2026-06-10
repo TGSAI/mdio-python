@@ -11,7 +11,7 @@ from segy.standards import get_segy_standard
 from mdio.builder.template_registry import TemplateRegistry
 from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate
-from mdio.ingestion.segy.validation import _validate_spec_in_template
+from mdio.ingestion.segy.validation import validate_spec_in_template
 
 
 class TestValidateSpecInTemplate:
@@ -25,7 +25,7 @@ class TestValidateSpecInTemplate:
         template.calculated_dimension_names = ()
 
         segy_spec = get_segy_standard(1.0)
-        _validate_spec_in_template(segy_spec, template)
+        validate_spec_in_template(segy_spec, template)
 
     def test_missing_fields_listed_in_error(self) -> None:
         """The error message must enumerate all missing required fields."""
@@ -40,7 +40,7 @@ class TestValidateSpecInTemplate:
         spec = spec.customize(trace_header_fields=[HeaderField(name="custom_dim1", byte=189, format="int32")])
 
         with pytest.raises(ValueError, match=r"Required fields.*not found in.*segy_spec") as exc:
-            _validate_spec_in_template(spec, template)
+            validate_spec_in_template(spec, template)
 
         msg = str(exc.value)
         assert "custom_dim2" in msg
@@ -48,7 +48,7 @@ class TestValidateSpecInTemplate:
         assert "CustomTemplate" in msg
 
     def test_missing_coordinate_scalar_raises(self) -> None:
-        """A spec without ``coordinate_scalar`` must always fail."""
+        """A spec without ``coordinate_scalar`` must fail if fields require scaling."""
         template = MagicMock(spec=AbstractDatasetTemplate)
         template.name = "TestTemplate"
         template.spatial_dimension_names = ("inline", "crossline")
@@ -61,7 +61,23 @@ class TestValidateSpecInTemplate:
         spec = spec.customize(trace_header_fields=kept)
 
         with pytest.raises(ValueError, match=r"coordinate_scalar"):
-            _validate_spec_in_template(spec, template)
+            validate_spec_in_template(spec, template)
+
+    def test_missing_coordinate_scalar_passes_if_not_needed(self) -> None:
+        """A spec without ``coordinate_scalar`` passes if no fields require scaling."""
+        template = MagicMock(spec=AbstractDatasetTemplate)
+        template.name = "TestTemplate"
+        template.spatial_dimension_names = ("inline", "crossline")
+        template.coordinate_names = ("source_to_receiver_distance",)
+        template.calculated_dimension_names = ()
+
+        spec = get_segy_standard(1.0)
+        kept = [f for f in spec.trace.header.fields if f.name != "coordinate_scalar"]
+        kept.append(HeaderField(name="not_coordinate_scalar", byte=71, format="int16"))
+        spec = spec.customize(trace_header_fields=kept)
+
+        # Should not raise ValueError because 'offset' is not in SCALE_COORDINATE_KEYS
+        validate_spec_in_template(spec, template)
 
     def test_calculated_dimensions_are_not_required(self) -> None:
         """Dimensions in ``calculated_dimension_names`` should not be required from the spec."""
@@ -72,7 +88,7 @@ class TestValidateSpecInTemplate:
         template.calculated_dimension_names = ("calculated_only",)
 
         segy_spec = get_segy_standard(1.0)
-        _validate_spec_in_template(segy_spec, template)
+        validate_spec_in_template(segy_spec, template)
 
     def test_obn_template_excludes_component_requirement(self) -> None:
         """OBN templates synthesize ``component`` when absent → not required from spec."""
@@ -95,7 +111,7 @@ class TestValidateSpecInTemplate:
             ]
         )
 
-        _validate_spec_in_template(spec, template)
+        validate_spec_in_template(spec, template)
 
     def test_obn_template_missing_other_required_field_still_fails(self) -> None:
         """Even with the ``component`` carve-out, other missing fields should error."""
@@ -103,4 +119,4 @@ class TestValidateSpecInTemplate:
         spec = get_segy_standard(1.0)  # missing OBN-specific fields like 'receiver', 'shot_line', etc.
 
         with pytest.raises(ValueError, match=r"Required fields.*not found"):
-            _validate_spec_in_template(spec, template)
+            validate_spec_in_template(spec, template)

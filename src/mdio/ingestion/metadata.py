@@ -9,7 +9,7 @@ if TYPE_CHECKING:
     from mdio.segy.geometry import GridOverrides
 
 
-def _add_grid_override_to_metadata(dataset: Dataset, grid_overrides: GridOverrides | None) -> None:
+def add_grid_override_to_metadata(dataset: Dataset, grid_overrides: GridOverrides | None) -> None:
     """Add grid override to Dataset metadata if needed."""
     if dataset.metadata.attributes is None:
         dataset.metadata.attributes = {}

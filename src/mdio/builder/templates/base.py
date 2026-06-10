@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import copy
+import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -19,10 +19,13 @@ from mdio.builder.schemas.v1.units import AllUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
 from mdio.builder.templates.types import CoordinateSpec
+from mdio.builder.templates.types import DimCoordinateTypes
 
 if TYPE_CHECKING:
     from mdio.builder.schemas.v1.dataset import Dataset
     from mdio.builder.templates.types import SeismicDataDomain
+
+logger = logging.getLogger(__name__)
 
 
 class AbstractDatasetTemplate(ABC):
@@ -45,12 +48,6 @@ class AbstractDatasetTemplate(ABC):
         self._logical_coord_names: tuple[str, ...] = ()
         self._var_chunk_shape: tuple[int, ...] = ()
         self.synthesize_missing_dims: tuple[str, ...] = ()
-
-        # TEMPORARY (removed with declare_coordinate_specs): set when grid overrides mutate this
-        # template in-place (dims collapsed into 'trace', extra coordinates added). Once mutated,
-        # the runtime layout intentionally diverges from the static declare_coordinate_specs()
-        # contract, so the drift guard in build_dataset() must not run.
-        self._grid_overrides_applied: bool = False
 
         self._builder: MDIODatasetBuilder | None = None
         self._dim_sizes: tuple[int, ...] = ()
@@ -114,6 +111,38 @@ class AbstractDatasetTemplate(ABC):
         )
         return tuple(specs)
 
+    def declare_dim_coordinate_types(self) -> DimCoordinateTypes:
+        """Declare data types for each dimension coordinate in this template.
+
+        Returns:
+            A dictionary mapping dimension name to ScalarType.
+        """
+        return dict.fromkeys(self.dimension_names, ScalarType.INT32)
+
+    def _dim_dtype(self, name: str) -> ScalarType:
+        """Return the declared dtype for a dimension coordinate.
+
+        Args:
+            name: The dimension name.
+
+        Returns:
+            The declared ScalarType, defaulting to INT32.
+        """
+        return self.declare_dim_coordinate_types().get(name, ScalarType.INT32)
+
+    def _add_dimension_coordinate(self, name: str) -> None:
+        """Add a single dimension coordinate.
+
+        Args:
+            name: The dimension name.
+        """
+        self._builder.add_coordinate(
+            name,
+            dimensions=(name,),
+            data_type=self._dim_dtype(name),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
+        )
+
     def build_dataset(
         self,
         name: str,
@@ -121,6 +150,12 @@ class AbstractDatasetTemplate(ABC):
         header_dtype: StructuredType = None,
     ) -> Dataset:
         """Template method that builds the dataset.
+
+        .. deprecated:: 1.2
+            ``build_dataset`` is deprecated and is planned for removal in a future release. SEG-Y
+            ingestion now builds datasets from a resolved schema via the schema-driven
+            factory (:func:`mdio.ingestion.dataset_factory.build_mdio_dataset`); use
+            :func:`mdio.segy_to_mdio` for ingestion.
 
         Args:
             name: The name of the dataset.
@@ -133,6 +168,11 @@ class AbstractDatasetTemplate(ABC):
         Raises:
             ValueError: If coordinate already exists from subclass override.
         """
+        logger.warning(
+            "AbstractDatasetTemplate.build_dataset is deprecated as of 1.2 and is planned for "
+            "removal in a future release; SEG-Y ingestion builds datasets via the schema-driven factory. "
+            "Use `mdio.segy_to_mdio` for ingestion."
+        )
         self._dim_sizes = sizes
 
         attributes = self._load_dataset_attributes() or {}
@@ -154,10 +194,7 @@ class AbstractDatasetTemplate(ABC):
             except ValueError as exc:  # coordinate may already exist
                 if "same name twice" not in str(exc):
                     raise
-        # Skip the static drift guard when grid overrides have transformed the template: the
-        # runtime layout no longer matches the declared (override-free) specs by design.
-        if not self._grid_overrides_applied:
-            self._validate_declared_coordinate_specs()
+        self._validate_declared_coordinate_specs()
         self._add_variables()
         self._add_trace_mask()
 
@@ -174,30 +211,6 @@ class AbstractDatasetTemplate(ABC):
                 raise ValueError(msg)
         self._units |= units
 
-    def apply_resolved_dimensions(
-        self,
-        dim_names: tuple[str, ...],
-        chunk_shape: tuple[int, ...],
-    ) -> None:
-        """Update the template's dimension layout from a resolved schema.
-
-        Supported entry point for the ingestion pipeline to push back dimension names
-        and chunk shape after the SchemaResolver has applied grid overrides
-        (e.g. NonBinned, HasDuplicates), instead of mutating private attributes.
-
-        Args:
-            dim_names: Final ordered dimension names.
-            chunk_shape: Chunk shape matching ``dim_names`` length.
-
-        Raises:
-            ValueError: If ``len(chunk_shape) != len(dim_names)``.
-        """
-        if len(chunk_shape) != len(dim_names):
-            msg = f"chunk_shape length {len(chunk_shape)} does not match dim_names length {len(dim_names)}"
-            raise ValueError(msg)
-        self._dim_names = tuple(dim_names)
-        self._var_chunk_shape = tuple(chunk_shape)
-
     def _validate_declared_coordinate_specs(self) -> None:
         """Fail the build if :meth:`declare_coordinate_specs` drifted from the built coordinates.
 
@@ -206,11 +219,8 @@ class AbstractDatasetTemplate(ABC):
         :meth:`_add_coordinates`, this guard ensures the two never diverge in name, dimensions,
         or dtype. The ingestion ``SchemaResolver`` trusts the declared specs, so silent drift
         would corrupt resolved schemas. The check runs for every template (built-in and
-        user-defined) on every ``build_dataset`` call that does not apply grid overrides. Grid
-        overrides mutate the template in-place (collapsing dims into ``trace`` and adding
-        coordinates), so the runtime layout intentionally diverges from the declared specs and
-        the guard is skipped for those builds. It is removed once ``_add_coordinates`` is derived
-        from the resolved schema and the duplication no longer exists.
+        user-defined) on every ``build_dataset`` call. It is removed once ``_add_coordinates``
+        is derived from the resolved schema and the duplication no longer exists.
 
         Raises:
             ValueError: If the declared specs do not match the built non-dimension coordinates.
@@ -266,32 +276,32 @@ class AbstractDatasetTemplate(ABC):
     @property
     def spatial_dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions excluding the last axis."""
-        return copy.deepcopy(self._dim_names[:-1])
+        return self._dim_names[:-1]
 
     @property
     def dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions."""
-        return copy.deepcopy(self._dim_names)
+        return self._dim_names
 
     @property
     def calculated_dimension_names(self) -> tuple[str, ...]:
-        """Returns the names of the dimensions."""
-        return copy.deepcopy(self._calculated_dims)
+        """Returns the names of the calculated dimensions."""
+        return self._calculated_dims
 
     @property
     def physical_coordinate_names(self) -> tuple[str, ...]:
         """Returns the names of the physical (world) coordinates."""
-        return copy.deepcopy(self._physical_coord_names)
+        return self._physical_coord_names
 
     @property
     def logical_coordinate_names(self) -> tuple[str, ...]:
         """Returns the names of the logical (grid) coordinates."""
-        return copy.deepcopy(self._logical_coord_names)
+        return self._logical_coord_names
 
     @property
     def coordinate_names(self) -> tuple[str, ...]:
         """Returns names of all coordinates."""
-        return copy.deepcopy(self._physical_coord_names + self._logical_coord_names)
+        return self._physical_coord_names + self._logical_coord_names
 
     @property
     def full_chunk_shape(self) -> tuple[int, ...]:
@@ -354,6 +364,15 @@ class AbstractDatasetTemplate(ABC):
             The dataset attributes as a dictionary
         """
 
+    @property
+    def units(self) -> dict[str, AllUnitModel]:
+        """Return a copy of the template's configured units.
+
+        Read-only view for collaborators (e.g. ingestion unit resolution) so they do not
+        reach into the private ``_units`` mapping.
+        """
+        return dict(self._units)
+
     def get_unit_by_key(self, key: str) -> AllUnitModel | None:
         """Get units by variable/dimension/coordinate name. Returns None if not found."""
         return self._units.get(key, None)
@@ -375,12 +394,7 @@ class AbstractDatasetTemplate(ABC):
         """
         # Add dimension coordinates
         for name in self._dim_names:
-            self._builder.add_coordinate(
-                name,
-                dimensions=(name,),
-                data_type=ScalarType.INT32,
-                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
-            )
+            self._add_dimension_coordinate(name)
 
         # Add non-dimension coordinates
         # Note: coordinate_names may be modified at runtime by grid overrides,
@@ -400,7 +414,7 @@ class AbstractDatasetTemplate(ABC):
                     raise
 
     def _add_trace_mask(self) -> None:
-        """Add trace mask variables."""
+        """Add trace mask variable."""
         self._builder.add_variable(
             name="trace_mask",
             dimensions=self.spatial_dimension_names,
@@ -410,7 +424,7 @@ class AbstractDatasetTemplate(ABC):
         )
 
     def _add_trace_headers(self, header_dtype: StructuredType) -> None:
-        """Add trace mask variables."""
+        """Add trace headers variable."""
         chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.full_chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",

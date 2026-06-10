@@ -48,18 +48,18 @@ class Seismic2DCdpGathersTemplate(AbstractDatasetTemplate):
         self._builder.add_coordinate(
             "cdp",
             dimensions=("cdp",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("cdp"),
         )
         self._builder.add_coordinate(
             self._gather_domain,
             dimensions=(self._gather_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self._gather_domain),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self._gather_domain)),
         )
         self._builder.add_coordinate(
             self.trace_domain,
             dimensions=(self.trace_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self.trace_domain),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
         )
 
