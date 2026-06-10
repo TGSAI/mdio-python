@@ -14,6 +14,7 @@ from mdio.segy.file import SegyFileArguments
 from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
     from segy import SegyFile
     from zarr import Array as zarr_Array
 
@@ -74,7 +75,7 @@ def trace_worker(  # noqa: PLR0913
     header_array: zarr_Array | None,
     raw_header_array: zarr_Array | None,
     region: dict[str, slice],
-    grid_map: zarr_Array,
+    local_grid_map: NDArray,
 ) -> SummaryStatistics | None:
     """Writes a subset of traces from a region of the dataset of Zarr file.
 
@@ -84,7 +85,7 @@ def trace_worker(  # noqa: PLR0913
         header_array: Zarr array for writing trace headers (or None if not needed).
         raw_header_array: Zarr array for writing raw headers (or None if not needed).
         region: Region of the dataset to write to.
-        grid_map: Zarr array mapping live traces to their positions in the dataset.
+        local_grid_map: Sliced numpy array mapping live traces to their positions.
 
     Returns:
         SummaryStatistics object containing statistics about the written traces.
@@ -94,7 +95,6 @@ def trace_worker(  # noqa: PLR0913
     zarr_config.set({"threading.max_workers": 1})
 
     region_slices = tuple(region.values())
-    local_grid_map = grid_map[region_slices[:-1]]  # minus last (vertical) axis
 
     # The dtype.max is the sentinel value for the grid map.
     # Normally, this is uint32, but some grids need to be promoted to uint64.

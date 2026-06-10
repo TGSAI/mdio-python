@@ -113,7 +113,9 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     with executor:
         futures = []
         for region in chunk_iter:
-            # Pass zarr array handles directly to workers
+            region_slices = tuple(region.values())
+            local_grid_map = grid_map[region_slices[:-1]]
+            # Pass zarr array handles and local grid map slice to workers
             future = executor.submit(
                 trace_worker,
                 segy_file,
@@ -121,7 +123,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
                 header_array,
                 raw_header_array,
                 region,
-                grid_map,
+                local_grid_map,
             )
             futures.append(future)
 
