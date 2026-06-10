@@ -110,11 +110,14 @@ def to_zarr(  # noqa: PLR0913, PLR0915
 
     segy_file = SegyFile(**segy_file_kwargs)
 
+    # Load in-memory Zarr grid map to NumPy array once to avoid Zarr slicing overhead in the submission loop
+    grid_map_np = grid_map[:]
+
     with executor:
         futures = []
         for region in chunk_iter:
             region_slices = tuple(region.values())
-            local_grid_map = grid_map[region_slices[:-1]]
+            local_grid_map = grid_map_np[region_slices[:-1]]
             # Pass zarr array handles and local grid map slice to workers
             future = executor.submit(
                 trace_worker,
