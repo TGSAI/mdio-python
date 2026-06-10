@@ -1,17 +1,16 @@
 """Type aliases and declarative specs for templates."""
 
 from typing import Literal
-from typing import TypeAlias
 
 from pydantic import BaseModel
 
 from mdio.builder.schemas.dtype import ScalarType
 
-SeismicDataDomain: TypeAlias = Literal["depth", "time"]
+type SeismicDataDomain = Literal["depth", "time"]
 
-CdpGatherDomain: TypeAlias = Literal["offset", "angle"]
+type CdpGatherDomain = Literal["offset", "angle"]
 
-DimCoordinateTypes: TypeAlias = dict[str, ScalarType]
+type DimCoordinateTypes = dict[str, ScalarType]
 
 
 class CoordinateSpec(BaseModel):

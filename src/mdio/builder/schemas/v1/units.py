@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from typing import TypeAlias
-
 from pint import UnitRegistry
 
 from mdio.builder.schemas.units import UnitEnum
@@ -97,7 +95,7 @@ VoltageUnitModel = create_unit_model(VoltageUnitEnum, "VoltageUnitModel", "volta
 
 
 # Composite model types
-AllUnitModel: TypeAlias = (
+AllUnitModel = (
     LengthUnitModel
     | TimeUnitModel
     | AngleUnitModel

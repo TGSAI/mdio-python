@@ -18,8 +18,6 @@ a histogram with count of each bin.
 
 from __future__ import annotations
 
-from typing import TypeAlias
-
 from pydantic import Field
 
 from mdio.builder.schemas.core import CamelCaseStrictModel
@@ -44,7 +42,7 @@ class EdgeDefinedHistogram(BaseHistogram):
     bin_widths: list[float | int] = Field(..., description="The widths of the histogram bins.")
 
 
-Histogram: TypeAlias = CenteredBinHistogram | EdgeDefinedHistogram
+type Histogram = CenteredBinHistogram | EdgeDefinedHistogram
 
 
 class SummaryStatistics(CamelCaseStrictModel):
