@@ -12,7 +12,6 @@ import numpy as np
 import zarr
 from dask.array import Array
 from dask.array import map_blocks
-from segy import SegyFile
 from tqdm.auto import tqdm
 from zarr import open_group as zarr_open_group
 
@@ -23,6 +22,7 @@ from mdio.constants import ZarrFormat
 from mdio.core.config import MDIOSettings
 from mdio.core.indexing import ChunkIterator
 from mdio.segy._workers import trace_worker
+from mdio.segy._workers import trace_worker_init
 from mdio.segy.creation import SegyPartRecord
 from mdio.segy.creation import concat_files
 from mdio.segy.creation import serialize_to_segy_stack
@@ -82,52 +82,44 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     num_chunks = chunk_iter.num_chunks
 
     zarr_format = zarr.config.get("default_zarr_format")
+    use_consolidated = zarr_format == ZarrFormat.V2
 
-    # Open zarr group once in main process
+    # Open zarr group once in main process (used for final stats update below).
     storage_options = _normalize_storage_options(output_path)
     zarr_group = zarr_open_group(
         output_path.as_posix(),
         mode="r+",
         storage_options=storage_options,
-        use_consolidated=zarr_format == ZarrFormat.V2,
+        use_consolidated=use_consolidated,
     )
-
-    # Get array handles from the opened group
-    data_array = zarr_group[data_variable_name]
-    header_array = zarr_group.get("headers")
-    raw_header_array = zarr_group.get("raw_headers")
 
     # For Unix async writes with s3fs/fsspec & multiprocessing, use 'spawn' instead of default
     # 'fork' to avoid deadlocks on cloud stores. Slower but necessary. Default on Windows.
     num_workers = min(num_chunks, settings.import_cpus)
     context = mp.get_context("spawn")
 
-    # Use initializer to open segy file once per worker
+    # Open the SEG-Y file, Zarr output handles, and transfer the compressed grid map once per worker
+    # via the initializer. The grid map stays a compressed in-memory Zarr array and is sliced lazily
+    # inside each worker, so we avoid both re-pickling per block and materializing the full dense map.
     executor = ProcessPoolExecutor(
         max_workers=num_workers,
         mp_context=context,
+        initializer=trace_worker_init,
+        initargs=(
+            segy_file_kwargs,
+            output_path.as_posix(),
+            storage_options,
+            use_consolidated,
+            data_variable_name,
+            grid_map,
+        ),
     )
-
-    segy_file = SegyFile(**segy_file_kwargs)
-
-    # Load in-memory Zarr grid map to NumPy array once to avoid Zarr slicing overhead in the submission loop
-    grid_map_np = grid_map[:]
 
     with executor:
         futures = []
         for region in chunk_iter:
-            region_slices = tuple(region.values())
-            local_grid_map = grid_map_np[region_slices[:-1]]
-            # Pass zarr array handles and local grid map slice to workers
-            future = executor.submit(
-                trace_worker,
-                segy_file,
-                data_array,
-                header_array,
-                raw_header_array,
-                region,
-                local_grid_map,
-            )
+            # Only the lightweight region is pickled per block; shared inputs live in worker state.
+            future = executor.submit(trace_worker, region)
             futures.append(future)
 
         iterable = tqdm(

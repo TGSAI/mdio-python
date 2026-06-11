@@ -6,7 +6,9 @@ import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
+from segy import SegyFile
 from segy.arrays import HeaderArray
+from zarr import open_group as zarr_open_group
 
 from mdio.core.config import MDIOSettings
 from mdio.segy._raw_trace_wrapper import SegyFileRawTraceWrapper
@@ -14,8 +16,6 @@ from mdio.segy.file import SegyFileArguments
 from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
-    from numpy.typing import NDArray
-    from segy import SegyFile
     from zarr import Array as zarr_Array
 
 from zarr.core.config import config as zarr_config
@@ -69,32 +69,73 @@ def header_scan_worker(
     return HeaderArray(trace_header)  # wrap back so we can use aliases
 
 
-def trace_worker(  # noqa: PLR0913
-    segy_file: SegyFile,
-    data_array: zarr_Array,
-    header_array: zarr_Array | None,
-    raw_header_array: zarr_Array | None,
-    region: dict[str, slice],
-    local_grid_map: NDArray,
-) -> SummaryStatistics | None:
-    """Writes a subset of traces from a region of the dataset of Zarr file.
+# Per-worker process state populated once by `trace_worker_init`. Keeping the SEG-Y handle,
+# Zarr array handles, and the (compressed, in-memory) grid map here lets us pickle them a single
+# time per worker via the pool initializer instead of once per submitted block. The grid map is
+# retained as a compressed in-memory Zarr array and sliced lazily per region, so each worker only
+# materializes its own block rather than the full dense map.
+_worker_state: dict[str, object] = {}
+
+
+def trace_worker_init(
+    segy_file_kwargs: SegyFileArguments,
+    output_path: str,
+    storage_options: dict[str, object] | None,
+    use_consolidated: bool,
+    data_variable_name: str,
+    grid_map: zarr_Array,
+) -> None:
+    """Initialize per-process state for trace ingestion workers.
+
+    Used as the `ProcessPoolExecutor` initializer so the SEG-Y file, Zarr output handles, and grid
+    map are opened/transferred once per worker process rather than re-pickled for every block.
 
     Args:
-        segy_file: The opened SEG-Y file.
-        data_array: Zarr array for writing trace data.
-        header_array: Zarr array for writing trace headers (or None if not needed).
-        raw_header_array: Zarr array for writing raw headers (or None if not needed).
-        region: Region of the dataset to write to.
-        local_grid_map: Sliced numpy array mapping live traces to their positions.
-
-    Returns:
-        SummaryStatistics object containing statistics about the written traces.
+        segy_file_kwargs: Arguments to open the SegyFile instance.
+        output_path: POSIX path to the output MDIO Zarr store.
+        storage_options: fsspec storage options for the output store.
+        use_consolidated: Whether to open the group with consolidated metadata (Zarr V2).
+        data_variable_name: Name of the data variable in the dataset.
+        grid_map: Compressed in-memory Zarr array mapping live traces to their positions.
     """
     # Setting the zarr config to 1 thread to ensure we honor the `MDIO__IMPORT__CPU_COUNT` environment variable.
     # The Zarr 3 engine utilizes multiple threads. This can lead to resource contention and unpredictable memory usage.
     zarr_config.set({"threading.max_workers": 1})
 
+    zarr_group = zarr_open_group(
+        output_path,
+        mode="r+",
+        storage_options=storage_options,
+        use_consolidated=use_consolidated,
+    )
+
+    _worker_state["segy_file"] = SegyFile(**segy_file_kwargs)
+    _worker_state["data_array"] = zarr_group[data_variable_name]
+    _worker_state["header_array"] = zarr_group.get("headers")
+    _worker_state["raw_header_array"] = zarr_group.get("raw_headers")
+    _worker_state["grid_map"] = grid_map
+
+
+def trace_worker(region: dict[str, slice]) -> SummaryStatistics | None:
+    """Writes a subset of traces from a region of the dataset of Zarr file.
+
+    Reads its shared inputs (SEG-Y handle, Zarr arrays, grid map) from the per-process state set up
+    by `trace_worker_init`, so only the lightweight `region` is pickled per block.
+
+    Args:
+        region: Region of the dataset to write to.
+
+    Returns:
+        SummaryStatistics object containing statistics about the written traces.
+    """
+    segy_file: SegyFile = _worker_state["segy_file"]
+    data_array: zarr_Array = _worker_state["data_array"]
+    header_array: zarr_Array | None = _worker_state["header_array"]
+    raw_header_array: zarr_Array | None = _worker_state["raw_header_array"]
+    grid_map: zarr_Array = _worker_state["grid_map"]
+
     region_slices = tuple(region.values())
+    local_grid_map = grid_map[region_slices[:-1]]  # minus last (vertical) axis
 
     # The dtype.max is the sentinel value for the grid map.
     # Normally, this is uint32, but some grids need to be promoted to uint64.
