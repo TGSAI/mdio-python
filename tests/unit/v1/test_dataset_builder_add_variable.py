@@ -178,6 +178,9 @@ def test_add_variable_full_parameters() -> None:
         attributes={"MGA": 51, "UnitSystem": "Imperial"},
         chunk_grid=RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=(20,))),
         stats_v1=stats,
+        crs="EPSG:32610",
+        bin_inl=12.5,
+        bin_xl=25.0,
     )
     builder.add_variable(
         "ampl",
@@ -214,3 +217,6 @@ def test_add_variable_full_parameters() -> None:
     assert v.metadata.stats_v1.max == 10.84
     assert v.metadata.stats_v1.histogram.bin_centers == [1, 2]
     assert v.metadata.stats_v1.histogram.counts == [10, 15]
+    assert v.metadata.crs == "EPSG:32610"
+    assert v.metadata.bin_inl == 12.5
+    assert v.metadata.bin_xl == 25.0
