@@ -66,6 +66,7 @@ A warning is logged when component is synthesized:
 from segy.schema import HeaderField
 from segy.standards import get_segy_standard
 
+from mdio import GridOverrides
 from mdio import segy_to_mdio
 from mdio.builder.template_registry import get_template
 
@@ -91,7 +92,7 @@ segy_to_mdio(
     output_path="obn_data.mdio",
     segy_spec=obn_spec,
     mdio_template=get_template("ObnReceiverGathers3D"),
-    grid_overrides={"CalculateShotIndex": True},
+    grid_overrides=GridOverrides(calculate_shot_index=True),
     overwrite=True,
 )
 ```

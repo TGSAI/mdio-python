@@ -18,7 +18,9 @@ import pytest
 from numpy.testing import assert_array_equal
 from segy.factory import SegyFactory
 from segy.schema import HeaderField
+from segy.schema import HeaderSpec
 from segy.schema import SegySpec
+from segy.schema import TraceSpec
 from segy.standards import get_segy_standard
 
 from mdio import mdio_to_segy
@@ -560,3 +562,125 @@ class TestNdImportExport:
             assert_array_equal(mdio_header_bytes, segy_header_bytes)
 
             segy_trace_idx += 1
+
+
+def _spec_with_trace_header_fields(base_spec: SegySpec, fields: list[HeaderField]) -> SegySpec:
+    """Return a copy of base_spec whose trace header contains exactly the given fields.
+
+    Unlike ``SegySpec.customize``, which merges into the base field set, this builds a
+    fresh ``HeaderSpec`` so we can produce true subsets and arbitrary orderings used in
+    the header projection tests.
+    """
+    trace = TraceSpec(
+        header=HeaderSpec(
+            fields=fields,
+            item_size=base_spec.trace.header.item_size,
+            endianness=base_spec.trace.header.endianness,
+        ),
+        data=base_spec.trace.data,
+    )
+    return SegySpec(
+        segy_standard=base_spec.segy_standard,
+        text_header=base_spec.text_header,
+        binary_header=base_spec.binary_header,
+        trace=trace,
+        endianness=base_spec.endianness,
+    )
+
+
+@dataclass
+class ProjectionFixture:
+    """Pre-ingested MDIO and baseline SegySpec shared by header projection tests."""
+
+    root: Path
+    mdio_path: Path
+    baseline_spec: SegySpec
+
+
+@pytest.fixture(scope="module")
+def projection_mdio(tmp_path_factory: pytest.TempPathFactory) -> ProjectionFixture:
+    """Ingest a small 3D-stack SEG-Y once for the header projection tests."""
+    grid_conf, factory_conf, to_mdio_conf, _ = STACK_3D_CONF
+    root = tmp_path_factory.mktemp("header_projection")
+    segy_path = root / f"{grid_conf.name}.sgy"
+    mdio_path = root / f"{grid_conf.name}.mdio"
+
+    mock_nd_segy(segy_path, grid_conf, factory_conf)
+    baseline_spec = _segy_spec_mock_nd_segy(grid_conf, factory_conf)
+    segy_to_mdio(
+        segy_spec=baseline_spec,
+        mdio_template=TemplateRegistry().get(to_mdio_conf.template),
+        input_path=segy_path,
+        output_path=mdio_path,
+        overwrite=True,
+    )
+    return ProjectionFixture(root=root, mdio_path=mdio_path, baseline_spec=baseline_spec)
+
+
+class TestExportSegySpecHeaderProjection:
+    """Verify mdio_to_segy supports subset and reordered SegySpecs (issue #769)."""
+
+    def test_reordered_spec_produces_identical_bytes(self, projection_mdio: ProjectionFixture) -> None:
+        """Reordering trace header fields must not change the serialized SEG-Y."""
+        baseline_spec = projection_mdio.baseline_spec
+        reordered_spec = _spec_with_trace_header_fields(
+            baseline_spec,
+            list(reversed(baseline_spec.trace.header.fields)),
+        )
+
+        baseline_out = projection_mdio.root / "baseline.sgy"
+        reordered_out = projection_mdio.root / "reordered.sgy"
+
+        mdio_to_segy(segy_spec=baseline_spec, input_path=projection_mdio.mdio_path, output_path=baseline_out)
+        mdio_to_segy(segy_spec=reordered_spec, input_path=projection_mdio.mdio_path, output_path=reordered_out)
+
+        assert baseline_out.read_bytes() == reordered_out.read_bytes()
+
+    def test_subset_spec_preserves_selected_fields(self, projection_mdio: ProjectionFixture) -> None:
+        """Subsetting trace header fields writes those fields at their declared byte locations."""
+        baseline_spec = projection_mdio.baseline_spec
+
+        subset_fields = [
+            HeaderField(name="crossline", byte=193, format="int32"),
+            HeaderField(name="inline", byte=189, format="int32"),
+            HeaderField(name="samples_per_trace", byte=115, format="int16"),
+            HeaderField(name="sample_interval", byte=117, format="int16"),
+        ]
+        subset_spec = _spec_with_trace_header_fields(baseline_spec, subset_fields)
+
+        baseline_out = projection_mdio.root / "baseline_for_subset.sgy"
+        subset_out = projection_mdio.root / "subset.sgy"
+
+        mdio_to_segy(segy_spec=baseline_spec, input_path=projection_mdio.mdio_path, output_path=baseline_out)
+        mdio_to_segy(segy_spec=subset_spec, input_path=projection_mdio.mdio_path, output_path=subset_out)
+
+        baseline_sgy = SegyFileWrapper(baseline_out, spec=baseline_spec)
+        subset_sgy = SegyFileWrapper(subset_out, spec=subset_spec)
+
+        assert baseline_sgy.num_traces == subset_sgy.num_traces
+
+        baseline_traces = baseline_sgy.trace[:]
+        subset_traces = subset_sgy.trace[:]
+
+        for name in ("inline", "crossline", "samples_per_trace", "sample_interval"):
+            assert_array_equal(subset_traces.header[name], baseline_traces.header[name])
+        assert_array_equal(subset_traces.sample, baseline_traces.sample)
+
+    def test_missing_field_in_mdio_raises(self, projection_mdio: ProjectionFixture) -> None:
+        """SegySpec with a field absent from MDIO headers must raise ValueError."""
+        # 'offset' is not ingested for STACK_3D_CONF; requesting it must fail.
+        bad_fields = [
+            HeaderField(name="inline", byte=189, format="int32"),
+            HeaderField(name="crossline", byte=193, format="int32"),
+            HeaderField(name="offset", byte=37, format="int32"),
+            HeaderField(name="samples_per_trace", byte=115, format="int16"),
+            HeaderField(name="sample_interval", byte=117, format="int16"),
+        ]
+        bad_spec = _spec_with_trace_header_fields(projection_mdio.baseline_spec, bad_fields)
+
+        with pytest.raises(ValueError, match="offset"):
+            mdio_to_segy(
+                segy_spec=bad_spec,
+                input_path=projection_mdio.mdio_path,
+                output_path=projection_mdio.root / "should_not_exist.sgy",
+            )

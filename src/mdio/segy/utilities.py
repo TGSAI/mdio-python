@@ -5,182 +5,63 @@ from __future__ import annotations
 import itertools
 import logging
 from typing import TYPE_CHECKING
-from typing import Any
 
 import numpy as np
 from dask.array.core import normalize_chunks
 
-from mdio.core import Dimension
-from mdio.segy.geometry import GridOverrider
-from mdio.segy.parsers import parse_headers
-
 if TYPE_CHECKING:
+    from dask.array import Array as DaskArray
     from numpy.typing import DTypeLike
-    from segy.arrays import HeaderArray
+    from numpy.typing import NDArray
+    from segy.schema import SegySpec
 
-    from mdio.builder.templates.base import AbstractDatasetTemplate
-    from mdio.segy.file import SegyFileArguments
-    from mdio.segy.file import SegyFileInfo
 
 logger = logging.getLogger(__name__)
 
 
-def get_grid_plan(  # noqa:  C901, PLR0912, PLR0913, PLR0915
-    segy_file_kwargs: SegyFileArguments,
-    segy_file_info: SegyFileInfo,
-    chunksize: tuple[int, ...] | None,
-    template: AbstractDatasetTemplate,
-    return_headers: bool = False,
-    grid_overrides: dict[str, Any] | None = None,
-) -> tuple[list[Dimension], tuple[int, ...]] | tuple[list[Dimension], tuple[int, ...], HeaderArray]:
-    """Infer dimension ranges, and increments.
+def project_headers_to_segy_spec(headers: DaskArray, segy_spec: SegySpec) -> DaskArray:
+    """Project stored MDIO trace headers onto the SegySpec trace header layout.
 
-    Generates multiple dimensions with the following steps:
-    1. Read index headers
-    2. Get min, max, and increments
-    3. Create `Dimension` with appropriate range, index, and description.
-    4. Create `Dimension` for sample axis using binary header.
+    ``SegyFactory.create_traces`` assigns headers by numpy structured-array slot position,
+    not by field name, so the input must expose exactly the SegySpec fields in SegySpec
+    order. A packed (no-padding), native-byte-order dtype is used to avoid numpy byteswap
+    artifacts over padding bytes.
 
     Args:
-        segy_file_kwargs: SEG-Y file arguments.
-        segy_file_info: SegyFileInfo instance containing the num_traces and sample_labels.
-        chunksize:  Chunk sizes to be used in grid plan.
-        template: MDIO template where coordinate names and domain will be taken.
-        return_headers: Option to return parsed headers with `Dimension` objects. Default is False.
-        grid_overrides: Option to add grid overrides. See main documentation.
+        headers: Dask array holding MDIO trace headers with structured dtype.
+        segy_spec: Target SegySpec describing the output SEG-Y trace header layout.
 
     Returns:
-        All index dimensions and chunksize or dimensions and chunksize together with header values.
+        Dask array with a packed, native-byte-order dtype ordered like the SegySpec.
 
     Raises:
-        ValueError: If computed fields are not found after grid overrides.
+        ValueError: If SegySpec requests header fields that do not exist in MDIO headers.
     """
-    if grid_overrides is None:
-        grid_overrides = {}
+    spec_header_dtype = segy_spec.trace.header.dtype
+    target_names = list(spec_header_dtype.names)
 
-    # Keep only dimension and non-dimension coordinates excluding the vertical axis
-    horizontal_dimensions = template.spatial_dimension_names
-    horizontal_coordinates = horizontal_dimensions + template.coordinate_names
-    # Exclude calculated dimensions - they don't exist in SEG-Y headers
-    calculated_dims = set(template.calculated_dimension_names)
-
-    # Remove any to be computed fields - preserve order by using list comprehension instead of set operations
-    computed_fields = set(template.calculated_dimension_names)
-    horizontal_coordinates = tuple(c for c in horizontal_coordinates if c not in computed_fields)
-
-    # Ensure non_binned_dims are included in the headers to parse, even if not in template
-    if grid_overrides and "non_binned_dims" in grid_overrides:
-        for dim in grid_overrides["non_binned_dims"]:
-            if dim not in horizontal_coordinates:
-                horizontal_coordinates = horizontal_coordinates + (dim,)
-
-    # For OBN template: skip 'component' if not in SEG-Y spec (will be synthesized later)
-    # Import here to avoid circular imports at module load time
-    from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
-
-    spec = segy_file_kwargs.get("spec")
-    spec_fields = {field.name for field in spec.trace.header.fields} if spec else set()
-    fields_to_skip = calculated_dims.copy()
-
-    if isinstance(template, Seismic3DObnReceiverGathersTemplate) and "component" not in spec_fields:
-        fields_to_skip.add("component")
-
-    headers_subset = parse_headers(
-        segy_file_kwargs=segy_file_kwargs,
-        num_traces=segy_file_info.num_traces,
-        subset=tuple(c for c in horizontal_coordinates if c not in fields_to_skip),
-    )
-
-    # Handle grid overrides.
-    override_handler = GridOverrider()
-    headers_subset, horizontal_coordinates, chunksize = override_handler.run(
-        headers_subset,
-        horizontal_coordinates,
-        chunksize=chunksize,
-        grid_overrides=grid_overrides,
-        template=template,
-    )
-
-    # After grid overrides, determine final spatial dimensions and their chunk sizes
-    non_binned_dims = set()
-    if "NonBinned" in grid_overrides and "non_binned_dims" in grid_overrides:
-        non_binned_dims = set(grid_overrides["non_binned_dims"])
-
-    # Create mapping from dimension name to original chunk size for easy lookup
-    original_spatial_dims = list(template.spatial_dimension_names)
-    original_chunks = list(template.full_chunk_shape[:-1])  # Exclude vertical (sample/time) dimension
-    dim_to_chunk = dict(zip(original_spatial_dims, original_chunks, strict=True))
-
-    # Final spatial dimensions: keep trace and original dims, exclude non-binned dims
-    final_spatial_dims = []
-    final_spatial_chunks = []
-    for name in horizontal_coordinates:
-        if name in non_binned_dims:
-            continue  # Skip dimensions that became coordinates
-        if name == "trace":
-            # Special handling for trace dimension
-            chunk_val = int(grid_overrides.get("chunksize", 1)) if "NonBinned" in grid_overrides else 1
-            final_spatial_dims.append(name)
-            final_spatial_chunks.append(chunk_val)
-        elif name in dim_to_chunk:
-            # Use original chunk size for known dimensions
-            final_spatial_dims.append(name)
-            final_spatial_chunks.append(dim_to_chunk[name])
-
-    if len(computed_fields) > 0 and not computed_fields.issubset(headers_subset.dtype.names):
-        err = (
-            f"Required computed fields {sorted(computed_fields)} for template {template.name} "
-            f"not found after grid overrides. Please ensure correct overrides are applied."
+    source_names = headers.dtype.names
+    missing = [name for name in target_names if name not in source_names]
+    if missing:
+        msg = (
+            f"SegySpec requires trace header fields not present in MDIO: {missing}. "
+            f"Available MDIO header fields: {sorted(source_names)}."
         )
-        raise ValueError(err)
+        raise ValueError(msg)
 
-    # Create dimensions from final_spatial_dims plus any computed fields that were added by grid overrides
-    all_dimension_names = list(final_spatial_dims)
-    added_computed_fields = []
-    for computed_field in computed_fields:
-        if computed_field in headers_subset.dtype.names and computed_field not in all_dimension_names:
-            # Insert in template order
-            if computed_field in template.spatial_dimension_names:
-                insert_idx = template.spatial_dimension_names.index(computed_field)
-                # Find position in all_dimension_names that corresponds to this template position
-                actual_idx = min(insert_idx, len(all_dimension_names))
-                all_dimension_names.insert(actual_idx, computed_field)
-                # Track where we inserted and what chunk size it should have
-                template_chunk_idx = template.spatial_dimension_names.index(computed_field)
-                chunk_val = template.full_chunk_shape[template_chunk_idx]
-                added_computed_fields.append((actual_idx, chunk_val))
-            else:
-                all_dimension_names.append(computed_field)
-                added_computed_fields.append((len(all_dimension_names) - 1, 1))
+    target_dtype = np.dtype([(name, spec_header_dtype.fields[name][0].newbyteorder("=")) for name in target_names])
 
-    # Build chunksize including chunks for computed fields
-    if added_computed_fields:
-        chunk_list = list(final_spatial_chunks)
-        for insert_idx, chunk_val in sorted(added_computed_fields, reverse=True):
-            chunk_list.insert(insert_idx, chunk_val)
-        chunksize = tuple(chunk_list + [template.full_chunk_shape[-1]])
-    else:
-        chunksize = tuple(final_spatial_chunks + [template.full_chunk_shape[-1]])
+    # Don't actually project if the dtype is already the same as the target dtype.
+    if headers.dtype == target_dtype:
+        return headers
 
-    dimensions = []
-    for dim_name in all_dimension_names:
-        if dim_name not in headers_subset.dtype.names:
-            continue
-        dim_unique = np.unique(headers_subset[dim_name])
-        dimensions.append(Dimension(coords=dim_unique, name=dim_name))
+    def _project_block(block: NDArray) -> NDArray:
+        out = np.empty(block.shape, dtype=target_dtype)
+        for name in target_names:
+            out[name] = block[name]
+        return out
 
-    sample_labels = segy_file_info.sample_labels / 1000  # normalize
-
-    if all(sample_labels.astype("int64") == sample_labels):
-        sample_labels = sample_labels.astype("int64")
-
-    vertical_dim = Dimension(coords=sample_labels, name=template.trace_domain)
-    dimensions.append(vertical_dim)
-
-    if return_headers:
-        return dimensions, chunksize, headers_subset
-
-    return dimensions, chunksize
+    return headers.map_blocks(_project_block, dtype=target_dtype)
 
 
 def find_trailing_ones_index(dim_blocks: tuple[int, ...]) -> int:

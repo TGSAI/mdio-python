@@ -6,6 +6,8 @@ from mdio.builder.schemas import compressors
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
+from mdio.builder.templates.types import CoordinateSpec
+from mdio.builder.templates.types import DimCoordinateTypes
 from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -26,34 +28,51 @@ class Seismic3DCocaGathersTemplate(AbstractDatasetTemplate):
     def _load_dataset_attributes(self) -> dict[str, Any]:
         return {"surveyType": "3D", "gatherType": "common_offset_common_azimuth"}
 
+    def declare_coordinate_specs(self) -> tuple[CoordinateSpec, ...]:
+        """Declare inline/crossline-indexed X/Y coordinates for the 3D CoCA gathers template."""
+        return (
+            CoordinateSpec(name="cdp_x", dimensions=("inline", "crossline"), dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="cdp_y", dimensions=("inline", "crossline"), dtype=ScalarType.FLOAT64),
+        )
+
+    def declare_dim_coordinate_types(self) -> DimCoordinateTypes:
+        """Declare the data types for each dimension coordinate in this template."""
+        return {
+            "inline": ScalarType.INT32,
+            "crossline": ScalarType.INT32,
+            "offset": ScalarType.INT32,
+            "azimuth": ScalarType.FLOAT32,
+            self._data_domain: ScalarType.INT32,
+        }
+
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
         self._builder.add_coordinate(
             "inline",
             dimensions=("inline",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("inline"),
         )
         self._builder.add_coordinate(
             "crossline",
             dimensions=("crossline",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("crossline"),
         )
         self._builder.add_coordinate(
             "offset",
             dimensions=("offset",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("offset"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("offset")),  # same unit as X/Y
         )
         self._builder.add_coordinate(
             "azimuth",
             dimensions=("azimuth",),
-            data_type=ScalarType.FLOAT32,
+            data_type=self._dim_dtype("azimuth"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("azimuth")),
         )
         self._builder.add_coordinate(
             self.trace_domain,
             dimensions=(self.trace_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self.trace_domain),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
         )
 

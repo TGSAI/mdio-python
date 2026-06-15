@@ -21,20 +21,24 @@ UNITS_SECOND = TimeUnitModel(time=TimeUnitEnum.SECOND)
 EXPECTED_COORDINATES = [
     "receiver_x",
     "receiver_y",
-    "shot_point",
     "source_coord_x",
     "source_coord_y",
 ]
 
-DATASET_SIZE_MAP = {"receiver": 100, "shot_line": 10, "shot_index": 500, "time": 2048}
+DATASET_SIZE_MAP = {"receiver": 100, "shot_line": 10, "shot_point": 500, "time": 2048}
 
 
 def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType) -> None:
     """Validate the coordinate, headers, trace_mask variables in the dataset."""
-    dataset_dtype_map = {"receiver": "uint32", "shot_line": "uint32", "time": "int32"}
+    dataset_dtype_map = {
+        "receiver": "uint32",
+        "shot_line": "uint32",
+        "shot_point": "uint32",
+        "time": "int32",
+    }
 
     # Verify variables
-    # 3 dim coords (excluding shot_index) + 5 non-dim coords + 1 data + 1 trace mask + 1 headers = 11 variables
+    # 4 dim coords + 4 non-dim coords + 1 data + 1 trace mask + 1 headers = 11 variables
     assert len(dataset.variables) == 11
 
     # Verify trace headers
@@ -54,11 +58,8 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
         dtype=ScalarType.BOOL,
     )
 
-    # Verify dimension coordinate variables (excluding shot_index which is calculated)
+    # Verify dimension coordinate variables
     for dim_name, dim_size in DATASET_SIZE_MAP.items():
-        if dim_name == "shot_index":
-            continue
-
         validate_variable(
             dataset,
             name=dim_name,
@@ -86,18 +87,6 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
     )
     assert receiver_y.metadata.units_v1.length == LengthUnitEnum.METER
 
-    # Verify shot_point coordinate (logical)
-    validate_variable(
-        dataset,
-        name="shot_point",
-        dims=[
-            ("shot_line", DATASET_SIZE_MAP["shot_line"]),
-            ("shot_index", DATASET_SIZE_MAP["shot_index"]),
-        ],
-        coords=["shot_point"],
-        dtype=ScalarType.UINT32,
-    )
-
     # Verify source coordinate variables
     for coord_name in ["source_coord_x", "source_coord_y"]:
         coord = validate_variable(
@@ -105,7 +94,7 @@ def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: Structur
             name=coord_name,
             dims=[
                 ("shot_line", DATASET_SIZE_MAP["shot_line"]),
-                ("shot_index", DATASET_SIZE_MAP["shot_index"]),
+                ("shot_point", DATASET_SIZE_MAP["shot_point"]),
             ],
             coords=[coord_name],
             dtype=ScalarType.FLOAT64,
@@ -122,10 +111,10 @@ class TestSeismic3DReceiverGathersTemplate:
 
         # Template attributes
         assert t.name == "ReceiverGathers3D"
-        assert t._dim_names == ("receiver", "shot_line", "shot_index", "time")
-        assert t._calculated_dims == ("shot_index",)
+        assert t._dim_names == ("receiver", "shot_line", "shot_point", "time")
+        assert t._calculated_dims == ()
         assert t._physical_coord_names == ("receiver_x", "receiver_y", "source_coord_x", "source_coord_y")
-        assert t._logical_coord_names == ("shot_point",)
+        assert t._logical_coord_names == ()
         assert t.full_chunk_shape == (1, 1, 512, 4096)
 
         # Variables instantiated when build_dataset() is called

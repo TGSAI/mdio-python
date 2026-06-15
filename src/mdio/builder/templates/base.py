@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import copy
+import logging
 from abc import ABC
 from abc import abstractmethod
 from typing import TYPE_CHECKING
@@ -18,10 +18,14 @@ from mdio.builder.schemas.dtype import StructuredType
 from mdio.builder.schemas.v1.units import AllUnitModel
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.schemas.v1.variable import VariableMetadata
+from mdio.builder.templates.types import CoordinateSpec
+from mdio.builder.templates.types import DimCoordinateTypes
 
 if TYPE_CHECKING:
     from mdio.builder.schemas.v1.dataset import Dataset
     from mdio.builder.templates.types import SeismicDataDomain
+
+logger = logging.getLogger(__name__)
 
 
 class AbstractDatasetTemplate(ABC):
@@ -43,6 +47,7 @@ class AbstractDatasetTemplate(ABC):
         self._physical_coord_names: tuple[str, ...] = ()
         self._logical_coord_names: tuple[str, ...] = ()
         self._var_chunk_shape: tuple[int, ...] = ()
+        self.synthesize_missing_dims: tuple[str, ...] = ()
 
         self._builder: MDIODatasetBuilder | None = None
         self._dim_sizes: tuple[int, ...] = ()
@@ -67,6 +72,77 @@ class AbstractDatasetTemplate(ABC):
         """Return an HTML representation of the template for Jupyter notebooks."""
         return template_repr_html(self)
 
+    def declare_coordinate_specs(self) -> tuple[CoordinateSpec, ...]:
+        """Declare the non-dimension coordinate specs (name, dims, dtype) for this template.
+
+        The ingestion ``SchemaResolver`` uses these specs to determine which trace-header
+        fields to read and how to rewrite coordinate dimensions under grid overrides.
+
+        .. note::
+            TEMPORARY (to be removed before the next minor release): these specs currently
+            duplicate the non-dimension coordinates created in :meth:`_add_coordinates`.
+            :meth:`build_dataset` validates that the two stay in sync (see
+            :meth:`_validate_declared_coordinate_specs`). Once the ingestion pipeline builds
+            datasets directly from the resolved schema, ``_add_coordinates`` will be derived
+            from these specs and the duplication will disappear.
+
+            The default implementation assumes every non-dimension coordinate spans **all**
+            spatial dimensions. Subclasses whose coordinates span only a subset (or use a
+            non-default dtype) must override this method, otherwise ``build_dataset`` raises.
+
+        Returns:
+            The declared non-dimension coordinate specs.
+        """
+        specs = [
+            CoordinateSpec(
+                name=coord_name,
+                dimensions=self.spatial_dimension_names,
+                dtype=ScalarType.FLOAT64,
+            )
+            for coord_name in self.physical_coordinate_names
+        ]
+        specs.extend(
+            CoordinateSpec(
+                name=coord_name,
+                dimensions=self.spatial_dimension_names,
+                dtype=ScalarType.UINT8 if coord_name == "gun" else ScalarType.INT32,
+            )
+            for coord_name in self.logical_coordinate_names
+        )
+        return tuple(specs)
+
+    def declare_dim_coordinate_types(self) -> DimCoordinateTypes:
+        """Declare data types for each dimension coordinate in this template.
+
+        Returns:
+            A dictionary mapping dimension name to ScalarType.
+        """
+        return dict.fromkeys(self.dimension_names, ScalarType.INT32)
+
+    def _dim_dtype(self, name: str) -> ScalarType:
+        """Return the declared dtype for a dimension coordinate.
+
+        Args:
+            name: The dimension name.
+
+        Returns:
+            The declared ScalarType, defaulting to INT32.
+        """
+        return self.declare_dim_coordinate_types().get(name, ScalarType.INT32)
+
+    def _add_dimension_coordinate(self, name: str) -> None:
+        """Add a single dimension coordinate.
+
+        Args:
+            name: The dimension name.
+        """
+        self._builder.add_coordinate(
+            name,
+            dimensions=(name,),
+            data_type=self._dim_dtype(name),
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
+        )
+
     def build_dataset(
         self,
         name: str,
@@ -74,6 +150,12 @@ class AbstractDatasetTemplate(ABC):
         header_dtype: StructuredType = None,
     ) -> Dataset:
         """Template method that builds the dataset.
+
+        .. deprecated:: 1.2
+            ``build_dataset`` is deprecated and is planned for removal in a future release. SEG-Y
+            ingestion now builds datasets from a resolved schema via the schema-driven
+            factory (:func:`mdio.ingestion.dataset_factory.build_mdio_dataset`); use
+            :func:`mdio.segy_to_mdio` for ingestion.
 
         Args:
             name: The name of the dataset.
@@ -86,6 +168,11 @@ class AbstractDatasetTemplate(ABC):
         Raises:
             ValueError: If coordinate already exists from subclass override.
         """
+        logger.warning(
+            "AbstractDatasetTemplate.build_dataset is deprecated as of 1.2 and is planned for "
+            "removal in a future release; SEG-Y ingestion builds datasets via the schema-driven factory. "
+            "Use `mdio.segy_to_mdio` for ingestion."
+        )
         self._dim_sizes = sizes
 
         attributes = self._load_dataset_attributes() or {}
@@ -107,6 +194,7 @@ class AbstractDatasetTemplate(ABC):
             except ValueError as exc:  # coordinate may already exist
                 if "same name twice" not in str(exc):
                     raise
+        self._validate_declared_coordinate_specs()
         self._add_variables()
         self._add_trace_mask()
 
@@ -122,6 +210,53 @@ class AbstractDatasetTemplate(ABC):
                 msg = f"Unit {unit} is not an instance of `AllUnitModel`"
                 raise ValueError(msg)
         self._units |= units
+
+    def _validate_declared_coordinate_specs(self) -> None:
+        """Fail the build if :meth:`declare_coordinate_specs` drifted from the built coordinates.
+
+        TEMPORARY (to be removed before the next minor release): while
+        :meth:`declare_coordinate_specs` duplicates the non-dimension coordinates created in
+        :meth:`_add_coordinates`, this guard ensures the two never diverge in name, dimensions,
+        or dtype. The ingestion ``SchemaResolver`` trusts the declared specs, so silent drift
+        would corrupt resolved schemas. The check runs for every template (built-in and
+        user-defined) on every ``build_dataset`` call. It is removed once ``_add_coordinates``
+        is derived from the resolved schema and the duplication no longer exists.
+
+        Raises:
+            ValueError: If the declared specs do not match the built non-dimension coordinates.
+        """
+        dim_names = set(self._dim_names)
+        built = {coord.name: coord for coord in self._builder._coordinates if coord.name not in dim_names}
+        declared = {spec.name: spec for spec in self.declare_coordinate_specs()}
+
+        if set(declared) != set(built):
+            built_only = sorted(set(built) - set(declared))
+            declared_only = sorted(set(declared) - set(built))
+            msg = (
+                f"declare_coordinate_specs() for template {self.name!r} is out of sync with the "
+                f"coordinates built by _add_coordinates(). Built but not declared: {built_only}. "
+                f"Declared but not built: {declared_only}. Override declare_coordinate_specs() so "
+                f"it matches the non-dimension coordinates this template creates."
+            )
+            raise ValueError(msg)
+
+        for coord_name, spec in declared.items():
+            coord = built[coord_name]
+            built_dims = tuple(dim.name for dim in coord.dimensions)
+            if built_dims != spec.dimensions:
+                msg = (
+                    f"declare_coordinate_specs() for template {self.name!r} declares coordinate "
+                    f"{coord_name!r} over dimensions {spec.dimensions}, but _add_coordinates() built "
+                    f"it over {built_dims}."
+                )
+                raise ValueError(msg)
+            if coord.data_type != spec.dtype:
+                msg = (
+                    f"declare_coordinate_specs() for template {self.name!r} declares coordinate "
+                    f"{coord_name!r} as {spec.dtype}, but _add_coordinates() built it as "
+                    f"{coord.data_type}."
+                )
+                raise ValueError(msg)
 
     @property
     def name(self) -> str:
@@ -141,32 +276,32 @@ class AbstractDatasetTemplate(ABC):
     @property
     def spatial_dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions excluding the last axis."""
-        return copy.deepcopy(self._dim_names[:-1])
+        return self._dim_names[:-1]
 
     @property
     def dimension_names(self) -> tuple[str, ...]:
         """Returns the names of the dimensions."""
-        return copy.deepcopy(self._dim_names)
+        return self._dim_names
 
     @property
     def calculated_dimension_names(self) -> tuple[str, ...]:
-        """Returns the names of the dimensions."""
-        return copy.deepcopy(self._calculated_dims)
+        """Returns the names of the calculated dimensions."""
+        return self._calculated_dims
 
     @property
     def physical_coordinate_names(self) -> tuple[str, ...]:
         """Returns the names of the physical (world) coordinates."""
-        return copy.deepcopy(self._physical_coord_names)
+        return self._physical_coord_names
 
     @property
     def logical_coordinate_names(self) -> tuple[str, ...]:
         """Returns the names of the logical (grid) coordinates."""
-        return copy.deepcopy(self._logical_coord_names)
+        return self._logical_coord_names
 
     @property
     def coordinate_names(self) -> tuple[str, ...]:
         """Returns names of all coordinates."""
-        return copy.deepcopy(self._physical_coord_names + self._logical_coord_names)
+        return self._physical_coord_names + self._logical_coord_names
 
     @property
     def full_chunk_shape(self) -> tuple[int, ...]:
@@ -229,6 +364,15 @@ class AbstractDatasetTemplate(ABC):
             The dataset attributes as a dictionary
         """
 
+    @property
+    def units(self) -> dict[str, AllUnitModel]:
+        """Return a copy of the template's configured units.
+
+        Read-only view for collaborators (e.g. ingestion unit resolution) so they do not
+        reach into the private ``_units`` mapping.
+        """
+        return dict(self._units)
+
     def get_unit_by_key(self, key: str) -> AllUnitModel | None:
         """Get units by variable/dimension/coordinate name. Returns None if not found."""
         return self._units.get(key, None)
@@ -250,12 +394,7 @@ class AbstractDatasetTemplate(ABC):
         """
         # Add dimension coordinates
         for name in self._dim_names:
-            self._builder.add_coordinate(
-                name,
-                dimensions=(name,),
-                data_type=ScalarType.INT32,
-                metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(name)),
-            )
+            self._add_dimension_coordinate(name)
 
         # Add non-dimension coordinates
         # Note: coordinate_names may be modified at runtime by grid overrides,
@@ -275,7 +414,7 @@ class AbstractDatasetTemplate(ABC):
                     raise
 
     def _add_trace_mask(self) -> None:
-        """Add trace mask variables."""
+        """Add trace mask variable."""
         self._builder.add_variable(
             name="trace_mask",
             dimensions=self.spatial_dimension_names,
@@ -285,7 +424,7 @@ class AbstractDatasetTemplate(ABC):
         )
 
     def _add_trace_headers(self, header_dtype: StructuredType) -> None:
-        """Add trace mask variables."""
+        """Add trace headers variable."""
         chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=self.full_chunk_shape[:-1]))
         self._builder.add_variable(
             name="headers",

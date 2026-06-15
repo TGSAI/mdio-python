@@ -6,6 +6,8 @@ from mdio.builder.schemas import compressors
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
+from mdio.builder.templates.types import CoordinateSpec
+from mdio.builder.templates.types import DimCoordinateTypes
 from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -33,36 +35,53 @@ class Seismic3DOffsetTilesTemplate(AbstractDatasetTemplate):
     def _load_dataset_attributes(self) -> dict[str, Any]:
         return {"surveyType": "3D", "gatherType": "offset_tiles"}
 
+    def declare_coordinate_specs(self) -> tuple[CoordinateSpec, ...]:
+        """Declare inline/crossline-indexed X/Y coordinates for the 3D offset tiles template."""
+        return (
+            CoordinateSpec(name="cdp_x", dimensions=("inline", "crossline"), dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="cdp_y", dimensions=("inline", "crossline"), dtype=ScalarType.FLOAT64),
+        )
+
+    def declare_dim_coordinate_types(self) -> DimCoordinateTypes:
+        """Declare the data types for each dimension coordinate in this template."""
+        return {
+            "inline": ScalarType.INT32,
+            "crossline": ScalarType.INT32,
+            "inline_offset_tile": ScalarType.INT16,
+            "crossline_offset_tile": ScalarType.INT16,
+            self._data_domain: ScalarType.INT32,
+        }
+
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
         self._builder.add_coordinate(
             "inline",
             dimensions=("inline",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("inline"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("inline")),
         )
         self._builder.add_coordinate(
             "crossline",
             dimensions=("crossline",),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype("crossline"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("crossline")),
         )
         self._builder.add_coordinate(
             "inline_offset_tile",
             dimensions=("inline_offset_tile",),
-            data_type=ScalarType.INT16,
+            data_type=self._dim_dtype("inline_offset_tile"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("inline_offset_tile")),
         )
         self._builder.add_coordinate(
             "crossline_offset_tile",
             dimensions=("crossline_offset_tile",),
-            data_type=ScalarType.INT16,
+            data_type=self._dim_dtype("crossline_offset_tile"),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("crossline_offset_tile")),
         )
         self._builder.add_coordinate(
             self.trace_domain,
             dimensions=(self.trace_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self.trace_domain),
             metadata=CoordinateMetadata(units_v1=self.get_unit_by_key(self.trace_domain)),
         )
 

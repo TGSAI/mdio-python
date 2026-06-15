@@ -21,9 +21,10 @@ except ImportError:
     raise SystemExit(dedent(message)) from None
 
 package = "mdio"
-python_versions = ["3.13", "3.12", "3.11"]
+python_versions = ["3.13", "3.12"]
 nox.needs_version = ">=2025.2.9"
 nox.options.default_venv_backend = "uv"
+nox.options.reuse_venv = "yes"
 nox.options.sessions = ("pre-commit", "safety", "mypy", "tests", "typeguard", "xdoctest", "docs-build")
 
 
@@ -184,9 +185,7 @@ def tests(session: Session) -> None:
             session.notify("coverage", posargs=[])
 
 
-# We must pass `--clear` due to different session options during pipeline runs
-# https://github.com/TGSAI/mdio-python/blob/3d01a6d8c93cabeaeff1829599327ae83c7d6593/.github/workflows/tests.yml#L123-L130
-@session(python=python_versions[0], venv_params=["--clear"])
+@session(python=python_versions[0])
 def coverage(session: Session) -> None:
     """Produce the coverage report."""
     args = session.posargs or ["report"]

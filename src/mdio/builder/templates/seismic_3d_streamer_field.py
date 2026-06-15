@@ -5,6 +5,8 @@ from typing import Any
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.variable import CoordinateMetadata
 from mdio.builder.templates.base import AbstractDatasetTemplate
+from mdio.builder.templates.types import CoordinateSpec
+from mdio.builder.templates.types import DimCoordinateTypes
 from mdio.builder.templates.types import SeismicDataDomain
 
 
@@ -38,33 +40,56 @@ class Seismic3DStreamerFieldRecordsTemplate(AbstractDatasetTemplate):
     def _load_dataset_attributes(self) -> dict[str, Any]:
         return {"surveyDimensionality": "3D", "gatherType": "common_source"}
 
+    def declare_coordinate_specs(self) -> tuple[CoordinateSpec, ...]:
+        """Declare shot- and receiver-indexed coordinates for the 3D streamer field records template."""
+        shot_dims = ("sail_line", "gun", "shot_index")
+        receiver_dims = ("sail_line", "gun", "shot_index", "cable", "channel")
+        return (
+            CoordinateSpec(name="orig_field_record_num", dimensions=shot_dims, dtype=ScalarType.UINT32),
+            CoordinateSpec(name="shot_point", dimensions=shot_dims, dtype=ScalarType.UINT32),
+            CoordinateSpec(name="source_coord_x", dimensions=shot_dims, dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="source_coord_y", dimensions=shot_dims, dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="group_coord_x", dimensions=receiver_dims, dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="group_coord_y", dimensions=receiver_dims, dtype=ScalarType.FLOAT64),
+        )
+
+    def declare_dim_coordinate_types(self) -> DimCoordinateTypes:
+        """Declare the data types for each dimension coordinate in this template."""
+        return {
+            "sail_line": ScalarType.UINT32,
+            "gun": ScalarType.UINT8,
+            "cable": ScalarType.UINT8,
+            "channel": ScalarType.UINT16,
+            self._data_domain: ScalarType.INT32,
+        }
+
     def _add_coordinates(self) -> None:
         # Add dimension coordinates
         # EXCLUDE: `shot_index` since its 0-N
         self._builder.add_coordinate(
             "sail_line",
             dimensions=("sail_line",),
-            data_type=ScalarType.UINT32,
+            data_type=self._dim_dtype("sail_line"),
         )
         self._builder.add_coordinate(
             "gun",
             dimensions=("gun",),
-            data_type=ScalarType.UINT8,
+            data_type=self._dim_dtype("gun"),
         )
         self._builder.add_coordinate(
             "cable",
             dimensions=("cable",),
-            data_type=ScalarType.UINT8,
+            data_type=self._dim_dtype("cable"),
         )
         self._builder.add_coordinate(
             "channel",
             dimensions=("channel",),
-            data_type=ScalarType.UINT16,
+            data_type=self._dim_dtype("channel"),
         )
         self._builder.add_coordinate(
             self._data_domain,
             dimensions=(self._data_domain,),
-            data_type=ScalarType.INT32,
+            data_type=self._dim_dtype(self._data_domain),
         )
 
         # Add non-dimension coordinates
