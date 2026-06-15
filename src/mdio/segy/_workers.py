@@ -77,7 +77,7 @@ def header_scan_worker(
 _worker_state: dict[str, object] = {}
 
 
-def trace_worker_init(
+def trace_worker_init(  # noqa: PLR0913
     segy_file_kwargs: SegyFileArguments,
     output_path: str,
     storage_options: dict[str, object] | None,
