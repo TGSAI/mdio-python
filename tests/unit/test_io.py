@@ -16,6 +16,6 @@ def test_normalize_storage_options_is_not_mappingproxy() -> None:
     ingestion passes these options into ``ProcessPoolExecutor`` initargs, so a mappingproxy breaks
     spawned workers with ``TypeError: cannot pickle 'mappingproxy' object``.
     """
-    storage_options = _normalize_storage_options(UPath("s3://bucket/key", key="access", secret="secret"))
+    storage_options = _normalize_storage_options(UPath("s3://bucket/key", key="access", secret="secret"))  # noqa: S106
 
     assert not isinstance(storage_options, MappingProxyType)
