@@ -8,6 +8,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 from dask.array.core import normalize_chunks
+from segy.schema import ScalarType as SegyScalarType
+
+from mdio.builder.schemas.dtype import ScalarType as MdioScalarType
+from mdio.builder.schemas.dtype import StructuredType
+from mdio.converters.type_converter import to_numpy_dtype
+from mdio.converters.type_converter import to_structured_type
 
 if TYPE_CHECKING:
     from dask.array import Array as DaskArray
@@ -17,6 +23,46 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+
+def ibm32_header_field_names(segy_spec: SegySpec) -> set[str]:
+    """Return the names of trace-header fields declared as IBM 32-bit floats.
+
+    The segy schema maps an ``ibm32`` header field to a raw ``uint32`` slot (the 4-byte
+    IBM word) but decodes it to ``float32`` on read. Callers use these names to promote
+    the affected fields to ``float32`` so the decoded value is stored and projected
+    without truncating decimals or wrapping the sign of negative values.
+
+    Args:
+        segy_spec: SEG-Y specification whose trace header fields are inspected.
+
+    Returns:
+        Set of header field names whose declared format is ``ibm32``.
+    """
+    return {field.name for field in segy_spec.trace.header.fields if field.format == SegyScalarType.IBM32}
+
+
+def build_mdio_header_type(segy_spec: SegySpec) -> StructuredType:
+    """Build the MDIO ``headers`` variable type from a SegySpec.
+
+    ``ibm32`` header fields are promoted from their raw ``uint32`` slot to ``float32`` so
+    the persisted header matches the decoded array the ingestion worker writes. Without
+    this promotion the decoded float would be cast down to an integer on write, truncating
+    decimals (``118.625`` -> ``118``) and wrapping signed values (``-50.25`` -> a large
+    unsigned integer).
+
+    Args:
+        segy_spec: SEG-Y specification describing the trace header layout.
+
+    Returns:
+        The MDIO structured type for the persisted ``headers`` variable.
+    """
+    structured = to_structured_type(segy_spec.trace.header.dtype)
+    ibm32_names = ibm32_header_field_names(segy_spec)
+    for field in structured.fields:
+        if field.name in ibm32_names:
+            field.format = MdioScalarType.FLOAT32
+    return structured
 
 
 def project_headers_to_segy_spec(headers: DaskArray, segy_spec: SegySpec) -> DaskArray:
@@ -49,7 +95,10 @@ def project_headers_to_segy_spec(headers: DaskArray, segy_spec: SegySpec) -> Das
         )
         raise ValueError(msg)
 
-    target_dtype = np.dtype([(name, spec_header_dtype.fields[name][0].newbyteorder("=")) for name in target_names])
+    # The export target must equal the dtype the headers were stored with at ingest, so route
+    # through the same builder. That keeps ibm32 fields as float32, which flows into
+    # SegyFactory.create_traces for IBM encoding instead of re-truncating to the raw uint32 slot.
+    target_dtype = to_numpy_dtype(build_mdio_header_type(segy_spec))
 
     # Don't actually project if the dtype is already the same as the target dtype.
     if headers.dtype == target_dtype:
