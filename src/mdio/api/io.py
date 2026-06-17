@@ -30,7 +30,9 @@ def _normalize_path(path: UPath | Path | str) -> UPath:
 
 
 def _normalize_storage_options(path: UPath) -> dict[str, Any] | None:
-    return None if len(path.storage_options) == 0 else path.storage_options
+    # UPath.storage_options returns a read-only mappingproxy which cannot be pickled. Copy it into a
+    # plain dict so callers can safely pass it across process boundaries (e.g. spawned workers).
+    return None if len(path.storage_options) == 0 else dict(path.storage_options)
 
 
 def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dataset:
