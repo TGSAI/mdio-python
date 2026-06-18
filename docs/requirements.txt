@@ -1,4 +1,4 @@
-aiohttp==3.13.5
+aiohttp==3.14.1
 autodoc-pydantic==2.2.0
 furo==2025.12.19
 linkify-it-py==2.1.0
