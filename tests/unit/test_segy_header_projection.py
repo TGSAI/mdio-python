@@ -12,6 +12,9 @@ from segy.schema import TraceDataSpec
 from segy.schema import TraceSpec
 from segy.standards import get_segy_standard
 
+from mdio.builder.schemas.dtype import ScalarType as MdioScalarType
+from mdio.segy.utilities import build_mdio_header_type
+from mdio.segy.utilities import ibm32_header_field_names
 from mdio.segy.utilities import project_headers_to_segy_spec
 
 
@@ -162,6 +165,31 @@ class TestProjectHeadersToSegySpec:
         for name in spec.trace.header.names:
             np.testing.assert_array_equal(a[name], b[name])
 
+    def test_ibm32_field_projected_as_float32_preserves_decimals_and_sign(self) -> None:
+        """An ibm32 header stored as float32 must project to float32, not the raw uint32 slot.
+
+        Casting to the raw uint32 slot would truncate decimals and wrap negatives, which is the
+        ingestion/export corruption (Defect A) this guards against.
+        """
+        num = 4
+        mdio_dtype = np.dtype([("inline", "<i4"), ("elevation", "<f4")])
+        headers_np = np.zeros(num, dtype=mdio_dtype)
+        headers_np["inline"] = np.arange(num, dtype=np.int32)
+        headers_np["elevation"] = np.array([118.625, -50.25, 0.5, -1.5], dtype=np.float32)
+        headers = da.from_array(headers_np, chunks=2)
+
+        spec = _make_segy_spec(
+            [
+                HeaderField(name="inline", byte=189, format="int32"),
+                HeaderField(name="elevation", byte=193, format="ibm32"),
+            ]
+        )
+
+        projected = project_headers_to_segy_spec(headers, spec).compute()
+
+        assert projected.dtype.fields["elevation"][0] == np.dtype("float32")
+        np.testing.assert_array_equal(projected["elevation"], np.array([118.625, -50.25, 0.5, -1.5], dtype=np.float32))
+
     def test_short_circuit_on_matching_dtype(self) -> None:
         """If source headers dtype exactly matches target dtype, return array unchanged."""
         spec = _make_segy_spec(
@@ -188,3 +216,37 @@ class TestProjectHeadersToSegySpec:
 
         # The exact same dask array object should be returned (no map_blocks overhead)
         assert projected_da is headers_da
+
+
+class TestBuildMdioHeaderType:
+    """Cases covering the ingestion-side MDIO header type derived from a SegySpec."""
+
+    def test_ibm32_header_promoted_to_float32(self) -> None:
+        """An ibm32 header field must be stored as float32, not the raw uint32 slot."""
+        spec = _make_segy_spec(
+            [
+                HeaderField(name="inline", byte=189, format="int32"),
+                HeaderField(name="elevation", byte=193, format="ibm32"),
+            ]
+        )
+
+        header_type = build_mdio_header_type(spec)
+        formats = {field.name: field.format for field in header_type.fields}
+
+        assert formats["inline"] == MdioScalarType.INT32
+        assert formats["elevation"] == MdioScalarType.FLOAT32
+
+    def test_non_ibm32_spec_unchanged(self) -> None:
+        """Specs without ibm32 fields keep their original scalar types."""
+        spec = _make_segy_spec(
+            [
+                HeaderField(name="inline", byte=189, format="int32"),
+                HeaderField(name="crossline", byte=193, format="int16"),
+            ]
+        )
+
+        header_type = build_mdio_header_type(spec)
+        formats = {field.name: field.format for field in header_type.fields}
+
+        assert formats == {"inline": MdioScalarType.INT32, "crossline": MdioScalarType.INT16}
+        assert ibm32_header_field_names(spec) == set()

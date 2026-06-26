@@ -10,7 +10,6 @@ from segy.config import SegyFileSettings
 
 from mdio.api.io import _normalize_path
 from mdio.converters.exceptions import GridTraceCountError
-from mdio.converters.type_converter import to_structured_type
 from mdio.core.grid import Grid
 from mdio.ingestion.dataset_factory import build_mdio_dataset
 from mdio.ingestion.grid_qc import grid_density_qc
@@ -25,6 +24,7 @@ from mdio.ingestion.segy.serializer import serialize_to_mdio
 from mdio.ingestion.segy.validation import validate_spec_in_template
 from mdio.segy.file import get_segy_file_info
 from mdio.segy.geometry import validate_overrides_for_template
+from mdio.segy.utilities import build_mdio_header_type
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -173,7 +173,7 @@ def segy_to_mdio(  # noqa: PLR0913
 
     grid = _build_grid(dimensions, indexed_headers, segy_file_info.num_traces)
 
-    header_dtype = to_structured_type(segy_spec.trace.header.dtype)
+    header_dtype = build_mdio_header_type(segy_spec)
     extra_variables = build_raw_header_variables(schema)
     mdio_ds = build_mdio_dataset(
         schema=schema,
