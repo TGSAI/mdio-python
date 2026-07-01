@@ -2,7 +2,7 @@ aiohttp==3.13.5
 autodoc-pydantic==2.2.0
 furo==2025.12.19
 linkify-it-py==2.1.0
-matplotlib==3.10.9
+matplotlib==3.11.0
 myst-nb==1.4.0
 sphinx==8.2.3
 sphinx-click==6.2.0
