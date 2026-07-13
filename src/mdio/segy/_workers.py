@@ -116,7 +116,7 @@ def trace_worker_init(  # noqa: PLR0913
     _worker_state["grid_map"] = grid_map
 
 
-def trace_worker(region: dict[str, slice]) -> SummaryStatistics | None:
+def trace_worker(region: dict[str, slice], merge: bool = False) -> SummaryStatistics | None:
     """Writes a subset of traces from a region of the dataset of Zarr file.
 
     Reads its shared inputs (SEG-Y handle, Zarr arrays, grid map) from the per-process state set up
@@ -124,6 +124,11 @@ def trace_worker(region: dict[str, slice]) -> SummaryStatistics | None:
 
     Args:
         region: Region of the dataset to write to.
+        merge: If True, read-modify-write this chunk region: start from the chunk's current
+            contents (preserving traces already written by another shard) instead of the
+            fill value, then overlay this shard's live traces. Used for multi-shard
+            consolidation where a chunk is shared across shards. Defaults to False, which
+            preserves the original fast pure-write behavior.
 
     Returns:
         SummaryStatistics object containing statistics about the written traces.
@@ -154,25 +159,34 @@ def trace_worker(region: dict[str, slice]) -> SummaryStatistics | None:
     # Compute slices once (headers exclude sample dimension)
     header_region_slices = region_slices[:-1]  # Exclude sample dimension
 
-    full_shape = tuple(s.stop - s.start for s in region_slices)
-    header_shape = tuple(s.stop - s.start for s in header_region_slices)
-
     # Write raw headers if array was provided
     # Headers only have spatial dimensions (no sample dimension)
     if raw_header_array is not None:
-        tmp_raw_headers = np.full(header_shape, raw_header_array.fill_value)
+        if merge:
+            tmp_raw_headers = np.asarray(raw_header_array[header_region_slices])
+        else:
+            header_shape = tuple(s.stop - s.start for s in header_region_slices)
+            tmp_raw_headers = np.full(header_shape, raw_header_array.fill_value)
         tmp_raw_headers[not_null] = traces.raw_header
         raw_header_array[header_region_slices] = tmp_raw_headers
 
     # Write headers if array was provided
     # Headers only have spatial dimensions (no sample dimension)
     if header_array is not None:
-        tmp_headers = np.full(header_shape, header_array.fill_value)
+        if merge:
+            tmp_headers = np.asarray(header_array[header_region_slices])
+        else:
+            header_shape = tuple(s.stop - s.start for s in header_region_slices)
+            tmp_headers = np.full(header_shape, header_array.fill_value)
         tmp_headers[not_null] = traces.header
         header_array[header_region_slices] = tmp_headers
 
     # Write the data variable
-    tmp_samples = np.full(full_shape, data_array.fill_value)
+    if merge:
+        tmp_samples = np.asarray(data_array[region_slices])
+    else:
+        full_shape = tuple(s.stop - s.start for s in region_slices)
+        tmp_samples = np.full(full_shape, data_array.fill_value)
     tmp_samples[not_null] = traces.sample
     data_array[region_slices] = tmp_samples
 

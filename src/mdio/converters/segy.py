@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from upath import UPath
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
+    from mdio.core.dimension import Dimension
 
 
 def _coerce_grid_overrides(
@@ -77,4 +78,93 @@ def segy_to_mdio(  # noqa: PLR0913
         overwrite=overwrite,
         grid_overrides=typed_grid_overrides,
         segy_header_overrides=segy_header_overrides,
+    )
+
+
+def allocate_mdio_grid(  # noqa: PLR0913
+    segy_spec: SegySpec,
+    mdio_template: AbstractDatasetTemplate,
+    global_dimensions: list[Dimension],
+    output_path: UPath | Path | str,
+    reference_segy_path: UPath | Path | str,
+    overwrite: bool = False,
+    grid_overrides: GridOverrides | dict[str, Any] | None = None,
+) -> UPath:
+    """Allocate an empty global MDIO store for multi-shard consolidation.
+
+    ADDITIVE: creates the dataset skeleton sized to ``global_dimensions`` (the union of
+    all shards' coordinates, including the trailing sample dimension) so shards can be
+    written into sub-regions with :func:`append_segy_shard`. Does not alter single-file
+    ``segy_to_mdio`` behavior.
+
+    Args:
+        segy_spec: SEG-Y spec shared by all shards.
+        mdio_template: MDIO template shared by all shards.
+        global_dimensions: Ordered global grid dimensions (incl. sample dimension).
+        output_path: Output MDIO store path.
+        reference_segy_path: Any one shard, used only to derive store units/metadata.
+        overwrite: Whether to overwrite an existing store.
+        grid_overrides: Optional grid overrides (dict accepted but deprecated).
+
+    Returns:
+        The normalized output path of the allocated store.
+    """
+    typed_grid_overrides = _coerce_grid_overrides(grid_overrides)
+
+    from mdio.ingestion.segy.consolidate import allocate_mdio_grid as _allocate  # noqa: PLC0415
+
+    return _allocate(
+        segy_spec=segy_spec,
+        mdio_template=mdio_template,
+        global_dimensions=global_dimensions,
+        output_path=output_path,
+        reference_segy_path=reference_segy_path,
+        overwrite=overwrite,
+        grid_overrides=typed_grid_overrides,
+    )
+
+
+def append_segy_shard(  # noqa: PLR0913
+    segy_spec: SegySpec,
+    mdio_template: AbstractDatasetTemplate,
+    global_dimensions: list[Dimension],
+    input_path: UPath | Path | str,
+    output_path: UPath | Path | str,
+    grid_overrides: GridOverrides | dict[str, Any] | None = None,
+    segy_header_overrides: SegyHeaderOverrides | None = None,
+    merge_chunks: set[tuple[int, ...]] | None = None,
+) -> dict[str, slice]:
+    """Ingest one SEG-Y shard into its region of a pre-allocated global MDIO store.
+
+    ADDITIVE: the store must already exist (see :func:`allocate_mdio_grid`). The shard's
+    traces are placed at their global grid positions via an in-place (``mode="r+"``)
+    write; other regions are untouched. Call once per shard.
+
+    Args:
+        segy_spec: SEG-Y spec (same as allocation).
+        mdio_template: MDIO template (same as allocation).
+        global_dimensions: Global grid dimensions used at allocation (incl. sample dim).
+        input_path: The shard SEG-Y path.
+        output_path: The pre-allocated global MDIO store path.
+        grid_overrides: Optional grid overrides (dict accepted but deprecated).
+        segy_header_overrides: Optional SEG-Y header overrides for this shard.
+        merge_chunks: Optional set of shared chunk-grid indices to write read-modify-write
+            (e.g. ``plan.merge_chunks_for(shard_id)`` from :func:`mdio.plan_consolidation`).
+
+    Returns:
+        The spatial region (dim name -> slice) the shard was written into.
+    """
+    typed_grid_overrides = _coerce_grid_overrides(grid_overrides)
+
+    from mdio.ingestion.segy.consolidate import append_segy_shard as _append  # noqa: PLC0415
+
+    return _append(
+        segy_spec=segy_spec,
+        mdio_template=mdio_template,
+        global_dimensions=global_dimensions,
+        input_path=input_path,
+        output_path=output_path,
+        grid_overrides=typed_grid_overrides,
+        segy_header_overrides=segy_header_overrides,
+        merge_chunks=merge_chunks,
     )
