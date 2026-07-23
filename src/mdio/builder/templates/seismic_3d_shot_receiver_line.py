@@ -23,8 +23,17 @@ class Seismic3DShotReceiverLineGathersTemplate(AbstractDatasetTemplate):
             "source_coord_y",
             "group_coord_x",
             "group_coord_y",
+            "source_surface_elevation",
+            "receiver_group_elevation",
         )
         self._logical_coord_names = ("orig_field_record_num",)
+        # Elevation (z) makes the source/receiver layout a true 3-D geometry rather than a flat
+        # map. Land and OBN acquisitions record it; marine and many synthetics don't - so it is
+        # OPTIONAL: populated when the SEG-Y carries it, pruned otherwise (see
+        # AbstractDatasetTemplate.optional_coordinate_names). NB: elevations are NOT in
+        # SCALE_COORDINATE_KEYS, so MDIO stores them as read (any elevation_depth_scalar is not
+        # applied); the coordinate is the raw header value.
+        self._optional_coord_names = ("source_surface_elevation", "receiver_group_elevation")
         self._var_chunk_shape = (1, 32, 1, 32, 2048)
 
     @property
@@ -44,6 +53,9 @@ class Seismic3DShotReceiverLineGathersTemplate(AbstractDatasetTemplate):
             CoordinateSpec(name="group_coord_x", dimensions=group_dims, dtype=ScalarType.FLOAT64),
             CoordinateSpec(name="group_coord_y", dimensions=group_dims, dtype=ScalarType.FLOAT64),
             CoordinateSpec(name="orig_field_record_num", dimensions=source_dims, dtype=ScalarType.UINT32),
+            # Optional z (see __init__); pruned by the ingestion path when the SEG-Y lacks it.
+            CoordinateSpec(name="source_surface_elevation", dimensions=source_dims, dtype=ScalarType.FLOAT64),
+            CoordinateSpec(name="receiver_group_elevation", dimensions=group_dims, dtype=ScalarType.FLOAT64),
         )
 
     def declare_dim_coordinate_types(self) -> DimCoordinateTypes:
@@ -114,4 +126,19 @@ class Seismic3DShotReceiverLineGathersTemplate(AbstractDatasetTemplate):
             "orig_field_record_num",
             dimensions=("shot_line", "shot_point"),
             data_type=ScalarType.UINT32,
+        )
+
+        # Optional elevation (z) coordinates - see __init__. Declared so they materialize when
+        # present; the ingestion path prunes them when the source has no such header field.
+        self._builder.add_coordinate(
+            "source_surface_elevation",
+            dimensions=("shot_line", "shot_point"),
+            data_type=ScalarType.FLOAT64,
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("source_surface_elevation")),
+        )
+        self._builder.add_coordinate(
+            "receiver_group_elevation",
+            dimensions=("receiver_line", "receiver"),
+            data_type=ScalarType.FLOAT64,
+            metadata=CoordinateMetadata(units_v1=self.get_unit_by_key("receiver_group_elevation")),
         )

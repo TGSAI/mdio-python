@@ -21,6 +21,7 @@ from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
 from mdio.ingestion.segy.raw_headers import build_raw_header_variables
 from mdio.ingestion.segy.reader import read_index_headers
 from mdio.ingestion.segy.serializer import serialize_to_mdio
+from mdio.ingestion.segy.validation import prune_absent_optional_coordinates
 from mdio.ingestion.segy.validation import validate_spec_in_template
 from mdio.segy.file import get_segy_file_info
 from mdio.segy.geometry import validate_overrides_for_template
@@ -160,6 +161,7 @@ def segy_to_mdio(  # noqa: PLR0913
     # format-agnostic resolver then applies.
     schema_effect = IndexStrategyRegistry().schema_effect(grid_overrides)
     schema = SchemaResolver().resolve(mdio_template, schema_effect)
+    schema = prune_absent_optional_coordinates(schema, segy_spec, mdio_template)
 
     indexed_headers, dimensions = read_index_headers(
         segy_file_kwargs=segy_file_kwargs,

@@ -46,6 +46,7 @@ class AbstractDatasetTemplate(ABC):
         self._calculated_dims: tuple[str, ...] = ()
         self._physical_coord_names: tuple[str, ...] = ()
         self._logical_coord_names: tuple[str, ...] = ()
+        self._optional_coord_names: tuple[str, ...] = ()
         self._var_chunk_shape: tuple[int, ...] = ()
         self.synthesize_missing_dims: tuple[str, ...] = ()
 
@@ -302,6 +303,18 @@ class AbstractDatasetTemplate(ABC):
     def coordinate_names(self) -> tuple[str, ...]:
         """Returns names of all coordinates."""
         return self._physical_coord_names + self._logical_coord_names
+
+    @property
+    def optional_coordinate_names(self) -> tuple[str, ...]:
+        """Coordinates that are populated when present in the source but are NOT required.
+
+        Unlike required coordinates, a missing optional coordinate does not fail ingestion: it
+        is simply omitted from the built dataset (see
+        :func:`mdio.ingestion.segy.validation.prune_absent_optional_coordinates`). This lets a
+        template carry a coordinate that only *some* surveys record (e.g. ``gun`` on a
+        single-source streamer acquisition) without hard-requiring it of every file.
+        """
+        return self._optional_coord_names
 
     @property
     def full_chunk_shape(self) -> tuple[int, ...]:

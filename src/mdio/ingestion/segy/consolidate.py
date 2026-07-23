@@ -50,6 +50,7 @@ from mdio.ingestion.segy.coordinates import resolve_units
 from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
 from mdio.ingestion.segy.raw_headers import build_raw_header_variables
 from mdio.ingestion.segy.reader import read_index_headers
+from mdio.ingestion.segy.validation import prune_absent_optional_coordinates
 from mdio.ingestion.segy.validation import validate_spec_in_template
 from mdio.segy import blocked_io
 from mdio.segy.file import get_segy_file_info
@@ -71,10 +72,17 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-def _resolve_schema(mdio_template: AbstractDatasetTemplate, grid_overrides: GridOverrides | None):
-    """Resolve the (format-agnostic) schema for a template + optional grid overrides."""
+def _resolve_schema(
+    mdio_template: AbstractDatasetTemplate, grid_overrides: GridOverrides | None, segy_spec: SegySpec
+):
+    """Resolve the (format-agnostic) schema for a template + optional grid overrides.
+
+    Optional coordinates absent from ``segy_spec`` are pruned so they aren't built as empty
+    vars (mirrors the single-file path in :mod:`mdio.ingestion.segy.pipeline`).
+    """
     schema_effect = IndexStrategyRegistry().schema_effect(grid_overrides)
-    return SchemaResolver().resolve(mdio_template, schema_effect)
+    schema = SchemaResolver().resolve(mdio_template, schema_effect)
+    return prune_absent_optional_coordinates(schema, segy_spec, mdio_template)
 
 
 def allocate_mdio_grid(  # noqa: PLR0913
@@ -127,7 +135,7 @@ def allocate_mdio_grid(  # noqa: PLR0913
     file_info = get_segy_file_info(ref_kwargs)
     units = resolve_units(mdio_template, get_spatial_coordinate_unit(file_info))
 
-    schema = _resolve_schema(mdio_template, grid_overrides)
+    schema = _resolve_schema(mdio_template, grid_overrides, segy_spec)
 
     grid = Grid(dims=list(global_dimensions))
     header_dtype = build_mdio_header_type(segy_spec)
@@ -229,7 +237,7 @@ def append_segy_shard(  # noqa: PLR0913
     }
     file_info = get_segy_file_info(segy_file_kwargs)
     units = resolve_units(mdio_template, get_spatial_coordinate_unit(file_info))
-    schema = _resolve_schema(mdio_template, grid_overrides)
+    schema = _resolve_schema(mdio_template, grid_overrides, segy_spec)
 
     indexed_headers, _shard_dims = read_index_headers(
         segy_file_kwargs=segy_file_kwargs,
