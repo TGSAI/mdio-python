@@ -83,12 +83,21 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     final_stats = _create_stats()
 
     data_variable_chunks = data.encoding.get("chunks")
-    worker_chunks = data_variable_chunks[:-1] + (data.shape[-1],)  # un-chunk sample axis
+
+    # Write-block granularity. With Zarr v3 sharding, a shard is a single storage object holding
+    # a grid of chunks; two workers writing different chunks of the *same* shard would perform
+    # concurrent read-modify-write on that object and clobber each other. So when the array is
+    # sharded we make the write block one whole shard (spatial), guaranteeing each worker owns a
+    # distinct set of shard objects. Unsharded arrays keep the original per-chunk write block.
+    shard_shape = data.encoding.get("shards")
+    write_block = tuple(shard_shape) if shard_shape else data_variable_chunks
+
+    worker_chunks = write_block[:-1] + (data.shape[-1],)  # un-chunk sample axis
     chunk_iter = ChunkIterator(shape=data.shape, chunks=worker_chunks, dim_names=data.dims)
     num_chunks = chunk_iter.num_chunks
 
-    # Spatial chunk sizes used to map a region back to its chunk-grid index for merge lookups.
-    spatial_chunk_sizes = data_variable_chunks[:-1]
+    # Spatial write-block sizes used to map a region back to its block-grid index for merge lookups.
+    spatial_chunk_sizes = write_block[:-1]
 
     zarr_format = zarr.config.get("default_zarr_format")
     use_consolidated = zarr_format == ZarrFormat.V2

@@ -48,6 +48,7 @@ class AbstractDatasetTemplate(ABC):
         self._logical_coord_names: tuple[str, ...] = ()
         self._optional_coord_names: tuple[str, ...] = ()
         self._var_chunk_shape: tuple[int, ...] = ()
+        self._var_shard_shape: tuple[int, ...] = ()
         self.synthesize_missing_dims: tuple[str, ...] = ()
 
         self._builder: MDIODatasetBuilder | None = None
@@ -343,6 +344,39 @@ class AbstractDatasetTemplate(ABC):
                 raise ValueError(msg)
 
         self._var_chunk_shape = shape
+
+    @property
+    def full_shard_shape(self) -> tuple[int, ...]:
+        """Returns the shard (storage-object) shape, or ``()`` when sharding is disabled."""
+        if not self._var_shard_shape:
+            return ()
+        if len(self._dim_sizes) != len(self._dim_names):
+            return self._var_shard_shape
+        return tuple(
+            dim_size if shard_size == -1 else shard_size
+            for shard_size, dim_size in zip(self._var_shard_shape, self._dim_sizes, strict=False)
+        )
+
+    @full_shard_shape.setter
+    def full_shard_shape(self, shape: tuple[int, ...]) -> None:
+        """Sets the shard shape for the variables (``()`` disables sharding).
+
+        The shard is the Zarr v3 storage-object/write unit; it must have the same rank as the
+        chunk shape and every entry must be a positive integer or ``-1`` (full dimension). The
+        multiple-of-chunk-shape constraint is enforced downstream at build time, once ``-1``
+        placeholders are resolved against the real dimension sizes.
+        """
+        if not shape:
+            self._var_shard_shape = ()
+            return
+        if len(shape) != len(self._dim_names):
+            msg = f"Shard shape {shape} has {len(shape)} dimensions, expected {len(self._dim_names)}"
+            raise ValueError(msg)
+        for shard_size in shape:
+            if shard_size != -1 and shard_size <= 0:
+                msg = f"Shard size must be positive integer or -1, got {shard_size}"
+                raise ValueError(msg)
+        self._var_shard_shape = shape
 
     @property
     @abstractmethod

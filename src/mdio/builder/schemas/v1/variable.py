@@ -39,6 +39,16 @@ class VariableMetadata(CoordinateMetadata):
         description="Chunk grid specification for the array.",
     )
 
+    shard_grid: RegularChunkGrid | None = Field(
+        default=None,
+        description=(
+            "Optional Zarr v3 shard grid: the storage-object (write) unit. When set, the array is "
+            "stored with the sharding_indexed codec - each shard is a single object holding a grid "
+            "of chunks (the read unit given by ``chunk_grid``). The shard shape must be a whole "
+            "multiple of the chunk shape along every dimension. Ignored for Zarr v2."
+        ),
+    )
+
     stats_v1: SummaryStatistics | list[SummaryStatistics] | None = Field(
         default=None,
         description="Minimal summary statistics.",
