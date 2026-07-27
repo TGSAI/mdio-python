@@ -10,6 +10,7 @@ Welcome to the MDIO guides. This section provides in-depth documentation on adva
 
 grid_overrides
 obn_data_import
+crg_data_import
 ```
 
 ## Overview
@@ -29,3 +30,14 @@ Ocean Bottom Node (OBN) data has unique characteristics requiring specialized ha
 - Component synthesis for single-component data
 
 See [OBN Data Import](obn_data_import.md) for the complete guide.
+
+### CRG Data Import
+
+Continuous Receiver Gathers (CRG) split each ocean-bottom node's continuous recording into
+fixed-length segments. The CRG guide covers:
+
+- The `ObnContinuousReceiverGathers3D` template
+- The `HasDuplicates` grid override that builds the per-receiver segment axis
+- Component synthesis for single-component data
+
+See [CRG Data Import](crg_data_import.md) for the complete guide.
