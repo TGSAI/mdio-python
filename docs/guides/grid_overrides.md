@@ -88,10 +88,10 @@ axis. Used for continuous receiver gathers, where many segments share the same
 
 **Parameters:**
 
-| Parameter     | Default | Description                                                               |
-| ------------- | ------- | ------------------------------------------------------------------------- |
-| `chunksize`   | `1`     | Chunk size for the inserted `trace` dimension.                            |
-| `trace_dtype` | `int16` | NumPy dtype for the `trace` counter (e.g. `"uint32"` for large gathers).  |
+| Parameter     | Default | Description                                                              |
+| ------------- | ------- | ------------------------------------------------------------------------ |
+| `chunksize`   | `1`     | Chunk size for the inserted `trace` dimension.                           |
+| `trace_dtype` | `int16` | NumPy dtype for the `trace` counter (e.g. `"uint32"` for large gathers). |
 
 Both parameters are optional and backwards compatible: omitting them reproduces the legacy
 behavior (chunk size `1`, `int16` counter).

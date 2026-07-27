@@ -12,13 +12,13 @@ per-receiver axis while preserving each segment's absolute recording time in the
 
 The `ObnContinuousReceiverGathers3D` template organizes data with the following dimensions:
 
-| Dimension      | Description                                                                        |
-| -------------- | ---------------------------------------------------------------------------------- |
-| `component`    | Sensor component (e.g., 1=X, 2=Y, 3=Z, 4=Hydrophone); synthesized when absent      |
-| `receiver_line`| Receiver line number                                                               |
-| `receiver`     | Receiver station number                                                            |
-| `trace`        | Dense per-receiver segment index, inserted at ingest (see below)                   |
-| `time`/`depth` | Vertical sample axis (whole trace kept in one chunk)                               |
+| Dimension       | Description                                                                   |
+| --------------- | ----------------------------------------------------------------------------- |
+| `component`     | Sensor component (e.g., 1=X, 2=Y, 3=Z, 4=Hydrophone); synthesized when absent |
+| `receiver_line` | Receiver line number                                                          |
+| `receiver`      | Receiver station number                                                       |
+| `trace`         | Dense per-receiver segment index, inserted at ingest (see below)              |
+| `time`/`depth`  | Vertical sample axis (whole trace kept in one chunk)                          |
 
 ### Coordinates
 
@@ -143,15 +143,15 @@ receiver_gather["amplitude"].plot()
 
 ## Required Header Fields
 
-| Field               | Required | Notes                                        |
-| ------------------- | -------- | -------------------------------------------- |
-| `receiver_line`     | Yes      |                                              |
-| `receiver`          | Yes      | Receiver station                             |
-| `coordinate_scalar` | Yes      |                                              |
-| `group_coord_x`     | Yes      | Receiver X                                   |
-| `group_coord_y`     | Yes      | Receiver Y                                   |
-| `component`         | No       | Synthesized with value 1 if missing          |
-| `epoch`             | No       | Recommended; per-trace time kept in headers  |
+| Field               | Required | Notes                                       |
+| ------------------- | -------- | ------------------------------------------- |
+| `receiver_line`     | Yes      |                                             |
+| `receiver`          | Yes      | Receiver station                            |
+| `coordinate_scalar` | Yes      |                                             |
+| `group_coord_x`     | Yes      | Receiver X                                  |
+| `group_coord_y`     | Yes      | Receiver Y                                  |
+| `component`         | No       | Synthesized with value 1 if missing         |
+| `epoch`             | No       | Recommended; per-trace time kept in headers |
 
 ## See Also
 
