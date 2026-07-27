@@ -127,7 +127,10 @@ class DuplicateHandlingStrategy(IndexStrategy):
         excluded_fields: Additional fields to exclude from grouping. Used by
             `NonBinnedStrategy` to keep the explicit `non_binned_dims` from
             polluting the per-tuple counter.
-        dtype: NumPy dtype for the appended `trace` counter.
+        dtype: NumPy dtype for the appended `trace` counter. Defaults to `int16`;
+            widen to e.g. `uint32` for gathers with more than ~32k traces per index tuple.
+        chunksize: Chunk size assigned to the inserted `trace` dimension by the schema
+            effect. Defaults to 1 (one trace per chunk), preserving legacy behavior.
     """
 
     def __init__(
@@ -135,10 +138,12 @@ class DuplicateHandlingStrategy(IndexStrategy):
         coord_fields: Iterable[str] = (),
         excluded_fields: Iterable[str] = (),
         dtype: DTypeLike = np.int16,
+        chunksize: int = 1,
     ) -> None:
         self.coord_fields = frozenset(coord_fields)
         self.excluded_fields = frozenset(excluded_fields)
         self.dtype = dtype
+        self._chunksize = chunksize
 
     def _dim_fields(self, headers: HeaderArray) -> list[str]:
         """Header field names that participate in the duplicate grouping."""
@@ -161,8 +166,8 @@ class DuplicateHandlingStrategy(IndexStrategy):
         return rfn.append_fields(headers, "trace", trace_values, usemask=False)
 
     def schema_effect(self) -> SchemaEffect:
-        """Insert a chunksize-1 ``trace`` dimension to disambiguate duplicate index tuples."""
-        return InsertTraceDimEffect(chunksize=1)
+        """Insert a ``trace`` dimension (chunk sized by ``chunksize``) to disambiguate duplicates."""
+        return InsertTraceDimEffect(chunksize=self._chunksize)
 
 
 class NonBinnedStrategy(DuplicateHandlingStrategy):
@@ -450,7 +455,13 @@ class IndexStrategyRegistry:
                     )
                 )
             elif grid_overrides.has_duplicates:
-                strategies.append(DuplicateHandlingStrategy(coord_fields=coord_fields))
+                strategies.append(
+                    DuplicateHandlingStrategy(
+                        coord_fields=coord_fields,
+                        chunksize=grid_overrides.chunksize or 1,
+                        dtype=grid_overrides.trace_dtype or np.int16,
+                    )
+                )
 
         if not strategies:
             return RegularGridStrategy()

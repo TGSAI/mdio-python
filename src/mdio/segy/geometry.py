@@ -12,9 +12,11 @@ import logging
 from typing import TYPE_CHECKING
 from typing import Any
 
+import numpy as np
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import field_validator
 from pydantic import model_validator
 
 from mdio.segy.exceptions import GridOverrideMissingParameterError
@@ -54,17 +56,37 @@ class GridOverrides(BaseModel):
     has_duplicates: bool = Field(
         default=False,
         alias="HasDuplicates",
-        description="Add a trace dimension (chunksize 1) to disambiguate duplicate trace indices.",
+        description="Add a trace dimension to disambiguate duplicate trace indices "
+        "(chunk size from `chunksize`, defaulting to 1).",
     )
     chunksize: int | None = Field(
         default=None,
         gt=0,
-        description="Chunk size for the trace dimension when `non_binned` is True.",
+        description="Chunk size for the inserted trace dimension. Required when `non_binned` "
+        "is True; optional for `has_duplicates` (defaults to 1 when omitted).",
+    )
+    trace_dtype: str | None = Field(
+        default=None,
+        description="NumPy dtype for the inserted trace counter on the `has_duplicates` path "
+        "(e.g. 'uint32' for gathers exceeding int16's ~32k range). Defaults to int16.",
     )
     non_binned_dims: list[str] | None = Field(
         default=None,
         description="Dimension names to collapse into the trace dimension when `non_binned` is True.",
     )
+
+    @field_validator("trace_dtype")
+    @classmethod
+    def _check_trace_dtype(cls, value: str | None) -> str | None:
+        """Reject a `trace_dtype` string that numpy cannot interpret as a dtype."""
+        if value is None:
+            return value
+        try:
+            np.dtype(value)
+        except TypeError as exc:
+            msg = f"trace_dtype {value!r} is not a valid numpy dtype"
+            raise ValueError(msg) from exc
+        return value
 
     @model_validator(mode="after")
     def _check_non_binned_parameters(self) -> GridOverrides:
@@ -108,18 +130,13 @@ class GridOverrides(BaseModel):
 def _resolve_synthesize_dims(template: AbstractDatasetTemplate | None) -> tuple[str, ...]:
     """Return dimension fields to synthesize when missing for a given template.
 
-    Only the OBN receiver gathers template currently synthesizes ``component``; every
-    other template returns ``()`` so the strategy registry skips synthesis entirely.
+    Templates that accept optional dimensions (e.g. a synthesized ``component`` for
+    single-component OBN/CRG data) declare them via ``synthesize_missing_dims``; every
+    other template leaves it empty, so the strategy registry skips synthesis entirely.
     """
     if template is None:
         return ()
-    # Lazy import: builder templates pull in builder schemas that indirectly import this
-    # module's ``GridOverrides``, so a top-level import would cycle.
-    from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
-
-    if isinstance(template, Seismic3DObnReceiverGathersTemplate):
-        return ("component",)
-    return ()
+    return tuple(getattr(template, "synthesize_missing_dims", ()) or ())
 
 
 def validate_overrides_for_template(

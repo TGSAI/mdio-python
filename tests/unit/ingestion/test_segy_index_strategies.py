@@ -102,9 +102,20 @@ class TestIndexStrategyRegistry:
         assert strategy.excluded_fields == frozenset({"channel"})
 
     def test_has_duplicates_only(self) -> None:
-        """``has_duplicates`` -> DuplicateHandlingStrategy."""
+        """``has_duplicates`` -> DuplicateHandlingStrategy with legacy chunk-1/int16 defaults."""
         strategy = IndexStrategyRegistry().create_strategy(grid_overrides=GridOverrides(has_duplicates=True))
         assert isinstance(strategy, DuplicateHandlingStrategy)
+        # Backwards compatible: no chunksize/trace_dtype -> chunk 1, int16 (unchanged behavior).
+        assert strategy.dtype == np.int16
+        assert strategy.schema_effect().chunksize == 1
+
+    def test_has_duplicates_wires_chunksize_and_dtype(self) -> None:
+        """``has_duplicates`` forwards the override's chunksize and trace_dtype to the strategy."""
+        overrides = GridOverrides(has_duplicates=True, chunksize=1024, trace_dtype="uint32")
+        strategy = IndexStrategyRegistry().create_strategy(grid_overrides=overrides)
+        assert isinstance(strategy, DuplicateHandlingStrategy)
+        assert strategy.dtype == "uint32"
+        assert strategy.schema_effect().chunksize == 1024
 
     def test_non_binned_wins_over_has_duplicates(self) -> None:
         """Both flags set -> NonBinned wins (matches v1.x semantics)."""
@@ -164,6 +175,29 @@ class TestIndexStrategyRegistry:
         )
         assert isinstance(strategy, DuplicateHandlingStrategy)
         assert strategy.coord_fields == frozenset(template.coordinate_names)
+
+
+class TestResolveSynthesizeDims:
+    """`_resolve_synthesize_dims` reads the template's own `synthesize_missing_dims`."""
+
+    def test_none_template_returns_empty(self) -> None:
+        """No template -> nothing to synthesize."""
+        assert _resolve_synthesize_dims(None) == ()
+
+    def test_obn_template_synthesizes_component(self) -> None:
+        """The OBN template keeps declaring an optional (synthesized) component."""
+        template = TemplateRegistry().get("ObnReceiverGathers3D")
+        assert _resolve_synthesize_dims(template) == ("component",)
+
+    def test_crg_template_synthesizes_component(self) -> None:
+        """The CRG template opts into component synthesis via the generalized hook."""
+        template = TemplateRegistry().get("ObnContinuousReceiverGathers3D")
+        assert _resolve_synthesize_dims(template) == ("component",)
+
+    def test_plain_template_synthesizes_nothing(self) -> None:
+        """A template without optional dims yields no synthesis."""
+        template = TemplateRegistry().get("PostStack3DTime")
+        assert _resolve_synthesize_dims(template) == ()
 
 
 # ---------------------------------------------------------------------------
@@ -252,10 +286,16 @@ class TestDuplicateHandlingStrategy:
         np.testing.assert_array_equal(out["trace"], [1, 2, 3])
 
     def test_owns_insert_trace_dim_effect(self) -> None:
-        """The strategy owns its schema reshape: a chunksize-1 inserted ``trace`` dim."""
+        """The strategy owns its schema reshape: a chunksize-1 inserted ``trace`` dim by default."""
         effect = DuplicateHandlingStrategy().schema_effect()
         assert isinstance(effect, InsertTraceDimEffect)
         assert effect.chunksize == 1
+
+    def test_chunksize_flows_into_schema_effect(self) -> None:
+        """A caller-supplied chunksize sizes the inserted ``trace`` dimension."""
+        effect = DuplicateHandlingStrategy(chunksize=1024).schema_effect()
+        assert isinstance(effect, InsertTraceDimEffect)
+        assert effect.chunksize == 1024
 
 
 # ---------------------------------------------------------------------------

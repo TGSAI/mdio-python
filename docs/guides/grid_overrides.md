@@ -77,6 +77,39 @@ segy_to_mdio(
 See [OBN Data Import](obn_data_import.md) for a complete guide on importing OBN data.
 ```
 
+## HasDuplicates
+
+Inserts a `trace` dimension to disambiguate traces that share the same index tuple, by
+appending a dense per-tuple counter (in trace order) as the `trace` axis before the vertical
+axis. Used for continuous receiver gathers, where many segments share the same
+`(component, receiver_line, receiver)` index.
+
+**Supported Templates:** any template (commonly `ObnContinuousReceiverGathers3D`)
+
+**Parameters:**
+
+| Parameter     | Default | Description                                                               |
+| ------------- | ------- | ------------------------------------------------------------------------- |
+| `chunksize`   | `1`     | Chunk size for the inserted `trace` dimension.                            |
+| `trace_dtype` | `int16` | NumPy dtype for the `trace` counter (e.g. `"uint32"` for large gathers).  |
+
+Both parameters are optional and backwards compatible: omitting them reproduces the legacy
+behavior (chunk size `1`, `int16` counter).
+
+**Usage:**
+
+```python
+from mdio import GridOverrides
+
+# ~64 MiB chunks for a whole-trace (15001-sample) continuous receiver gather.
+GridOverrides(has_duplicates=True, chunksize=1024, trace_dtype="uint32")
+```
+
+```{note}
+See [CRG Data Import](crg_data_import.md) for a complete guide on importing continuous
+receiver gathers.
+```
+
 ## Special Behaviors
 
 Some templates have special behaviors that are applied automatically during import, independent of grid overrides.

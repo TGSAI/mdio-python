@@ -56,10 +56,16 @@ class TestRegistrySchemaEffectSelection:
         assert effect.collapse_dims == ("channel",)
 
     def test_has_duplicates_inserts_trace(self) -> None:
-        """HasDuplicates yields a 1-wide InsertTraceDimEffect."""
+        """HasDuplicates yields a 1-wide InsertTraceDimEffect by default (backwards compatible)."""
         effect = IndexStrategyRegistry().schema_effect(GridOverrides(has_duplicates=True))
         assert isinstance(effect, InsertTraceDimEffect)
         assert effect.chunksize == 1
+
+    def test_has_duplicates_honours_chunksize(self) -> None:
+        """HasDuplicates with a chunksize sizes the inserted trace dim accordingly."""
+        effect = IndexStrategyRegistry().schema_effect(GridOverrides(has_duplicates=True, chunksize=1024))
+        assert isinstance(effect, InsertTraceDimEffect)
+        assert effect.chunksize == 1024
 
 
 class TestInsertTraceDimEffect:

@@ -24,6 +24,7 @@ def test_grid_overrides_defaults() -> None:
     assert not overrides.non_binned
     assert not overrides.has_duplicates
     assert overrides.chunksize is None
+    assert overrides.trace_dtype is None
     assert overrides.non_binned_dims is None
     assert not bool(overrides)
 
@@ -56,6 +57,25 @@ def test_grid_overrides_rejects_unknown_keys() -> None:
     """Unknown keys are rejected at construction by ``extra='forbid'``."""
     with pytest.raises(ValidationError):
         GridOverrides.model_validate({"FutureFlag": True})
+
+
+def test_grid_overrides_trace_dtype_accepts_valid_dtype() -> None:
+    """A valid numpy dtype string is accepted on the has_duplicates path."""
+    overrides = GridOverrides(has_duplicates=True, chunksize=1024, trace_dtype="uint32")
+    assert overrides.trace_dtype == "uint32"
+
+
+def test_grid_overrides_trace_dtype_rejects_garbage() -> None:
+    """A string numpy cannot parse as a dtype is rejected at construction."""
+    with pytest.raises(ValidationError):
+        GridOverrides(has_duplicates=True, trace_dtype="not-a-dtype")
+
+
+def test_grid_overrides_trace_dtype_serialization() -> None:
+    """``trace_dtype`` round-trips through the legacy dict when set, and is omitted by default."""
+    overrides = GridOverrides(has_duplicates=True, chunksize=1024, trace_dtype="uint32")
+    assert overrides.to_legacy_dict() == {"HasDuplicates": True, "chunksize": 1024, "trace_dtype": "uint32"}
+    assert GridOverrides(has_duplicates=True).to_legacy_dict() == {"HasDuplicates": True}
 
 
 def test_grid_overrides_serialization() -> None:
