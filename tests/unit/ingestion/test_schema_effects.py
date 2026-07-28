@@ -7,6 +7,7 @@ from mdio.builder.templates.types import CoordinateSpec
 from mdio.ingestion.schema import DimensionSpec
 from mdio.ingestion.schema import ResolvedSchema
 from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
+from mdio.ingestion.segy.schema_effects import LEGACY_TRACE_DTYPE
 from mdio.ingestion.segy.schema_effects import CollapseToTraceEffect
 from mdio.ingestion.segy.schema_effects import InsertTraceDimEffect
 from mdio.segy.geometry import GridOverrides
@@ -56,10 +57,11 @@ class TestRegistrySchemaEffectSelection:
         assert effect.collapse_dims == ("channel",)
 
     def test_has_duplicates_inserts_trace(self) -> None:
-        """HasDuplicates yields a 1-wide InsertTraceDimEffect by default (backwards compatible)."""
+        """HasDuplicates yields a 1-wide int32 InsertTraceDimEffect by default (backwards compatible)."""
         effect = IndexStrategyRegistry().schema_effect(GridOverrides(has_duplicates=True))
         assert isinstance(effect, InsertTraceDimEffect)
         assert effect.chunksize == 1
+        assert effect.dtype == LEGACY_TRACE_DTYPE
 
     def test_has_duplicates_honours_chunksize(self) -> None:
         """HasDuplicates with a chunksize sizes the inserted trace dim accordingly."""
@@ -78,8 +80,16 @@ class TestInsertTraceDimEffect:
         assert result.chunk_shape == (8, 1, 128, 1, 2048)
         trace = next(d for d in result.dimensions if d.name == "trace")
         assert trace.is_calculated is True
+        # No dtype requested -> the trace coordinate keeps the legacy int32 it always had.
+        assert trace.dtype == LEGACY_TRACE_DTYPE
         # Coordinates are unchanged by duplicate handling.
         assert result.coordinates[0].dimensions == ("shot_point", "cable", "channel")
+
+    def test_stores_requested_trace_dtype(self) -> None:
+        """A requested dtype lands on the stored trace coordinate, not just the counter."""
+        result = InsertTraceDimEffect(chunksize=1024, dtype=ScalarType.UINT32).apply(_schema())
+        trace = next(d for d in result.dimensions if d.name == "trace")
+        assert trace.dtype == ScalarType.UINT32
 
 
 class TestCollapseToTraceEffect:
@@ -90,6 +100,14 @@ class TestCollapseToTraceEffect:
         result = CollapseToTraceEffect(chunksize=64, collapse_dims=None).apply(_schema())
         assert [d.name for d in result.dimensions] == ["shot_point", "trace", "time"]
         assert result.chunk_shape == (8, 64, 2048)
+        trace = next(d for d in result.dimensions if d.name == "trace")
+        assert trace.dtype == LEGACY_TRACE_DTYPE
+
+    def test_stores_requested_trace_dtype(self) -> None:
+        """The collapsed trace axis honours a requested dtype, like the inserted one."""
+        result = CollapseToTraceEffect(chunksize=64, collapse_dims=None, dtype=ScalarType.UINT32).apply(_schema())
+        trace = next(d for d in result.dimensions if d.name == "trace")
+        assert trace.dtype == ScalarType.UINT32
 
     def test_explicit_collapse_dims(self) -> None:
         """Only the named dims collapse; the coordinate is rewritten onto trace."""

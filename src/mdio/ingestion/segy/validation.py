@@ -21,7 +21,7 @@ def validate_spec_in_template(segy_spec: SegySpec, mdio_template: AbstractDatase
 
     # Dimensions the template can synthesize when absent (e.g. 'component' for
     # single-component OBN/CRG data) are optional in the SEG-Y spec.
-    required_fields -= set(getattr(mdio_template, "synthesize_missing_dims", ()))
+    required_fields -= set(mdio_template.synthesize_missing_dims)
 
     if any(field in SCALE_COORDINATE_KEYS for field in required_fields):
         required_fields = required_fields | {"coordinate_scalar"}

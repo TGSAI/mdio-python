@@ -48,8 +48,10 @@ GridOverrides(has_duplicates=True, chunksize=1024)
 
 - `chunksize` sizes the inserted `trace` dimension. It is optional and defaults to `1` (the
   legacy behavior), but a production CRG ingest should set it so chunks are a sensible size.
-- `trace_dtype` sets the counter's dtype (default `int16`). Use `"uint32"` for full-campaign
-  products where a single receiver has more than ~32,000 segments.
+- `trace_dtype` sets the dtype of both the segment counter and the stored `trace` coordinate.
+  Omitting it keeps the legacy `int16` counter stored as `int32`, which tops out at 32,767
+  segments per receiver and raises `OverflowError` past that. Use `"uint32"` for
+  full-campaign products, where a single receiver holds far more segments.
 
 ```{note}
 Real recording time is **not** encoded into the segment index. The `trace` axis is a dense
@@ -101,7 +103,7 @@ segy_to_mdio(
     output_path="crg_data.mdio",
     segy_spec=crg_spec,
     mdio_template=get_template("ObnContinuousReceiverGathers3D"),
-    grid_overrides=GridOverrides(has_duplicates=True, chunksize=1024),
+    grid_overrides=GridOverrides(has_duplicates=True, chunksize=1024, trace_dtype="uint32"),
     overwrite=True,
 )
 ```

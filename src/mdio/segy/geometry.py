@@ -12,13 +12,13 @@ import logging
 from typing import TYPE_CHECKING
 from typing import Any
 
-import numpy as np
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import field_validator
 from pydantic import model_validator
 
+from mdio.builder.schemas.dtype import ScalarType
 from mdio.segy.exceptions import GridOverrideMissingParameterError
 
 if TYPE_CHECKING:
@@ -26,6 +26,20 @@ if TYPE_CHECKING:
 
 
 logger = logging.getLogger(__name__)
+
+# The inserted `trace` axis counts traces, so only integer types can carry it.
+TRACE_COUNTER_DTYPES = frozenset(
+    {
+        ScalarType.INT8,
+        ScalarType.INT16,
+        ScalarType.INT32,
+        ScalarType.INT64,
+        ScalarType.UINT8,
+        ScalarType.UINT16,
+        ScalarType.UINT32,
+        ScalarType.UINT64,
+    }
+)
 
 
 class GridOverrides(BaseModel):
@@ -65,10 +79,12 @@ class GridOverrides(BaseModel):
         description="Chunk size for the inserted trace dimension. Required when `non_binned` "
         "is True; optional for `has_duplicates` (defaults to 1 when omitted).",
     )
-    trace_dtype: str | None = Field(
+    trace_dtype: ScalarType | None = Field(
         default=None,
-        description="NumPy dtype for the inserted trace counter on the `has_duplicates` path "
-        "(e.g. 'uint32' for gathers exceeding int16's ~32k range). Defaults to int16.",
+        description="Integer dtype of the inserted trace dimension, applied to both the "
+        "counter and its stored coordinate. Omit it to keep the legacy pair (an int16 "
+        "counter stored as int32); set e.g. 'uint32' when one index tuple holds more "
+        "traces than an int16 counter can reach (~32k).",
     )
     non_binned_dims: list[str] | None = Field(
         default=None,
@@ -77,15 +93,22 @@ class GridOverrides(BaseModel):
 
     @field_validator("trace_dtype")
     @classmethod
-    def _check_trace_dtype(cls, value: str | None) -> str | None:
-        """Reject a `trace_dtype` string that numpy cannot interpret as a dtype."""
-        if value is None:
-            return value
-        try:
-            np.dtype(value)
-        except TypeError as exc:
-            msg = f"trace_dtype {value!r} is not a valid numpy dtype"
-            raise ValueError(msg) from exc
+    def _check_trace_dtype(cls, value: ScalarType | None) -> ScalarType | None:
+        """Reject a `trace_dtype` that cannot hold a trace counter.
+
+        Args:
+            value: Requested trace dtype, or None for the legacy int16/int32 pair.
+
+        Returns:
+            The validated dtype.
+
+        Raises:
+            ValueError: If the dtype is not a signed or unsigned integer.
+        """
+        if value is not None and value not in TRACE_COUNTER_DTYPES:
+            allowed = ", ".join(sorted(TRACE_COUNTER_DTYPES))
+            msg = f"trace_dtype must be an integer type ({allowed}), got {value.value!r}"
+            raise ValueError(msg)
         return value
 
     @model_validator(mode="after")
@@ -136,7 +159,7 @@ def _resolve_synthesize_dims(template: AbstractDatasetTemplate | None) -> tuple[
     """
     if template is None:
         return ()
-    return tuple(getattr(template, "synthesize_missing_dims", ()) or ())
+    return template.synthesize_missing_dims
 
 
 def validate_overrides_for_template(

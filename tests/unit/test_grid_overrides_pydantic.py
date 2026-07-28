@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import pytest
 from pydantic import ValidationError
 
+from mdio.builder.schemas.dtype import ScalarType
 from mdio.converters.segy import _coerce_grid_overrides
 from mdio.segy.geometry import GridOverrides
 
@@ -60,15 +61,16 @@ def test_grid_overrides_rejects_unknown_keys() -> None:
 
 
 def test_grid_overrides_trace_dtype_accepts_valid_dtype() -> None:
-    """A valid numpy dtype string is accepted on the has_duplicates path."""
+    """A wider integer dtype is accepted for the inserted trace dimension."""
     overrides = GridOverrides(has_duplicates=True, chunksize=1024, trace_dtype="uint32")
-    assert overrides.trace_dtype == "uint32"
+    assert overrides.trace_dtype == ScalarType.UINT32
 
 
-def test_grid_overrides_trace_dtype_rejects_garbage() -> None:
-    """A string numpy cannot parse as a dtype is rejected at construction."""
+@pytest.mark.parametrize("dtype", ["not-a-dtype", "float32", "bool"])
+def test_grid_overrides_trace_dtype_rejects_non_integer(dtype: str) -> None:
+    """Anything that cannot count traces is rejected at construction, not at ingest."""
     with pytest.raises(ValidationError):
-        GridOverrides(has_duplicates=True, trace_dtype="not-a-dtype")
+        GridOverrides(has_duplicates=True, trace_dtype=dtype)
 
 
 def test_grid_overrides_trace_dtype_serialization() -> None:

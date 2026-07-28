@@ -176,6 +176,9 @@ class TestImportCrgWithComponent:
         # HasDuplicates inserts `trace` between the spatial dims and the vertical axis.
         assert ds["amplitude"].dims == ("component", "receiver_line", "receiver", "trace", "time")
         assert ds.sizes == {"component": 2, "receiver_line": 1, "receiver": 3, "trace": 4, "time": 25}
+        # `trace_dtype` reaches the stored segment axis, not just the in-flight counter.
+        assert ds["trace"].dtype == np.uint32
+        assert ds["amplitude"].encoding["chunks"] == (1, 1, 1, 2, 16384)
 
         xrt.assert_duckarray_equal(ds["component"], [1, 2])
         xrt.assert_duckarray_equal(ds["receiver_line"], [4871])
@@ -203,6 +206,9 @@ class TestImportCrgSyntheticComponent:
 
         assert ds["amplitude"].dims == ("component", "receiver_line", "receiver", "trace", "time")
         assert ds.sizes == {"component": 1, "receiver_line": 1, "receiver": 3, "trace": 4, "time": 25}
+        # No trace_dtype requested -> the legacy int32 segment axis, chunked one trace deep.
+        assert ds["trace"].dtype == np.int32
+        assert ds["amplitude"].encoding["chunks"] == (1, 1, 1, 1, 16384)
         # Component synthesized with the default constant value 1.
         xrt.assert_duckarray_equal(ds["component"], [1])
         xrt.assert_duckarray_equal(ds["receiver"], [5908, 5909, 5910])

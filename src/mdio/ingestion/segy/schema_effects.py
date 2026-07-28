@@ -17,16 +17,23 @@ from mdio.ingestion.schema.models import SchemaEffect
 
 _TRACE_DIM = "trace"
 
+# Dtype of the inserted `trace` coordinate when the caller does not pick one. Datasets
+# written before the dtype was configurable stored it as int32, so that is what an
+# unspecified dtype keeps producing.
+LEGACY_TRACE_DTYPE = ScalarType.INT32
+
 
 class InsertTraceDimEffect(SchemaEffect):
     """Insert a calculated trace dimension before the vertical axis.
 
     Args:
         chunksize: Chunk size for the trace dimension.
+        dtype: Dtype of the stored trace coordinate. Defaults to `LEGACY_TRACE_DTYPE`.
     """
 
-    def __init__(self, chunksize: int = 1) -> None:
+    def __init__(self, chunksize: int = 1, dtype: ScalarType | None = None) -> None:
         self.chunksize = chunksize
+        self.dtype = dtype or LEGACY_TRACE_DTYPE
 
     def apply(self, schema: ResolvedSchema) -> ResolvedSchema:
         """Insert the trace dimension and its chunk before the vertical dimension."""
@@ -35,7 +42,7 @@ class InsertTraceDimEffect(SchemaEffect):
             chunk for dim, chunk in zip(schema.dimensions, schema.chunk_shape, strict=True) if dim.is_spatial
         ]
 
-        trace_dim = DimensionSpec(name=_TRACE_DIM, is_spatial=True, is_calculated=True)
+        trace_dim = DimensionSpec(name=_TRACE_DIM, is_spatial=True, is_calculated=True, dtype=self.dtype)
         new_dimensions = [*spatial_dims, trace_dim]
         new_chunk_shape = [*spatial_chunks, self.chunksize]
 
@@ -54,11 +61,18 @@ class CollapseToTraceEffect(SchemaEffect):
         chunksize: Chunk size for the trace dimension.
         collapse_dims: Names of spatial dimensions to collapse. If None, collapses
             all spatial dimensions except the first.
+        dtype: Dtype of the stored trace coordinate. Defaults to `LEGACY_TRACE_DTYPE`.
     """
 
-    def __init__(self, chunksize: int | None, collapse_dims: tuple[str, ...] | None = None) -> None:
+    def __init__(
+        self,
+        chunksize: int | None,
+        collapse_dims: tuple[str, ...] | None = None,
+        dtype: ScalarType | None = None,
+    ) -> None:
         self.chunksize = chunksize
         self.collapse_dims = collapse_dims
+        self.dtype = dtype or LEGACY_TRACE_DTYPE
 
     def _resolve_collapse_dims(self, schema: ResolvedSchema) -> tuple[str, ...]:
         """Resolve the spatial dimensions to collapse."""
@@ -84,7 +98,7 @@ class CollapseToTraceEffect(SchemaEffect):
         new_chunk_shape = [chunk for _, chunk in spatial_dims]
 
         if replaced_count > 0:
-            new_dimensions.append(DimensionSpec(name=_TRACE_DIM, is_spatial=True, is_calculated=True))
+            new_dimensions.append(DimensionSpec(name=_TRACE_DIM, is_spatial=True, is_calculated=True, dtype=self.dtype))
             new_chunk_shape.append(self.chunksize)
 
         for dim, chunk in zip(schema.dimensions, schema.chunk_shape, strict=True):

@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 from numpy.lib import recfunctions as rfn
 
+from mdio.builder.schemas.dtype import ScalarType
 from mdio.core import Dimension
 from mdio.ingestion.segy.header_analysis import ShotGunGeometryType
 from mdio.ingestion.segy.header_analysis import StreamerShotGeometryType
@@ -30,7 +31,6 @@ from mdio.segy.exceptions import GridOverrideKeysError
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
-    from numpy.typing import DTypeLike
     from segy.arrays import HeaderArray
 
     from mdio.builder.templates.base import AbstractDatasetTemplate
@@ -38,6 +38,10 @@ if TYPE_CHECKING:
     from mdio.segy.geometry import GridOverrides
 
 logger = logging.getLogger(__name__)
+
+# Dtype of the appended `trace` counter when the caller does not pick one. Counters were
+# int16 before the dtype was configurable, so that is what an unspecified dtype keeps.
+LEGACY_COUNTER_DTYPE = ScalarType.INT16
 
 
 class IndexStrategy(ABC):
@@ -127,8 +131,12 @@ class DuplicateHandlingStrategy(IndexStrategy):
         excluded_fields: Additional fields to exclude from grouping. Used by
             `NonBinnedStrategy` to keep the explicit `non_binned_dims` from
             polluting the per-tuple counter.
-        dtype: NumPy dtype for the appended `trace` counter. Defaults to `int16`;
-            widen to e.g. `uint32` for gathers with more than ~32k traces per index tuple.
+        dtype: Integer dtype of the inserted `trace` dimension, used both for the counter
+            appended here and for the coordinate the schema effect stores. `None` keeps the
+            legacy pair -- an int16 counter stored as an int32 coordinate -- so ingests
+            predating this knob are unchanged. Widen it (e.g. `ScalarType.UINT32`) when
+            traces per index tuple outgrow the counter dtype, which raises `OverflowError`
+            rather than wrapping.
         chunksize: Chunk size assigned to the inserted `trace` dimension by the schema
             effect. Defaults to 1 (one trace per chunk), preserving legacy behavior.
     """
@@ -137,7 +145,7 @@ class DuplicateHandlingStrategy(IndexStrategy):
         self,
         coord_fields: Iterable[str] = (),
         excluded_fields: Iterable[str] = (),
-        dtype: DTypeLike = np.int16,
+        dtype: ScalarType | None = None,
         chunksize: int = 1,
     ) -> None:
         self.coord_fields = frozenset(coord_fields)
@@ -157,7 +165,7 @@ class DuplicateHandlingStrategy(IndexStrategy):
         """Append a per-dimension-tuple `trace` counter to headers."""
         dim_fields = self._dim_fields(headers)
         dim_headers = headers[dim_fields] if dim_fields else headers
-        with_trace = analyze_non_indexed_headers(dim_headers, dtype=self.dtype)
+        with_trace = analyze_non_indexed_headers(dim_headers, dtype=self.dtype or LEGACY_COUNTER_DTYPE)
 
         if with_trace is None or "trace" not in with_trace.dtype.names:
             return headers
@@ -167,7 +175,7 @@ class DuplicateHandlingStrategy(IndexStrategy):
 
     def schema_effect(self) -> SchemaEffect:
         """Insert a ``trace`` dimension (chunk sized by ``chunksize``) to disambiguate duplicates."""
-        return InsertTraceDimEffect(chunksize=self._chunksize)
+        return InsertTraceDimEffect(chunksize=self._chunksize, dtype=self.dtype)
 
 
 class NonBinnedStrategy(DuplicateHandlingStrategy):
@@ -184,7 +192,8 @@ class NonBinnedStrategy(DuplicateHandlingStrategy):
         non_binned_dims: Header fields collapsed into `trace`. They are excluded from
             the duplicate grouping so the counter only varies along the remaining dims.
         coord_fields: Template coordinate names to exclude from grouping.
-        dtype: NumPy dtype for the appended `trace` counter.
+        dtype: Integer dtype of the inserted `trace` dimension; see
+            `DuplicateHandlingStrategy`.
     """
 
     def __init__(
@@ -192,7 +201,7 @@ class NonBinnedStrategy(DuplicateHandlingStrategy):
         chunksize: int,
         non_binned_dims: Iterable[str],
         coord_fields: Iterable[str] = (),
-        dtype: DTypeLike = np.int16,
+        dtype: ScalarType | None = None,
     ) -> None:
         collapse_dims = tuple(non_binned_dims)
         super().__init__(
@@ -205,7 +214,11 @@ class NonBinnedStrategy(DuplicateHandlingStrategy):
 
     def schema_effect(self) -> SchemaEffect:
         """Collapse the non-binned dims into a ``trace`` dimension sized by ``chunksize``."""
-        return CollapseToTraceEffect(chunksize=self._chunksize, collapse_dims=self._collapse_dims)
+        return CollapseToTraceEffect(
+            chunksize=self._chunksize,
+            collapse_dims=self._collapse_dims,
+            dtype=self.dtype,
+        )
 
 
 class ChannelWrappingStrategy(IndexStrategy):
@@ -452,6 +465,7 @@ class IndexStrategyRegistry:
                         chunksize=grid_overrides.chunksize,
                         non_binned_dims=grid_overrides.non_binned_dims or (),
                         coord_fields=coord_fields,
+                        dtype=grid_overrides.trace_dtype,
                     )
                 )
             elif grid_overrides.has_duplicates:
@@ -459,7 +473,7 @@ class IndexStrategyRegistry:
                     DuplicateHandlingStrategy(
                         coord_fields=coord_fields,
                         chunksize=grid_overrides.chunksize or 1,
-                        dtype=grid_overrides.trace_dtype or np.int16,
+                        dtype=grid_overrides.trace_dtype,
                     )
                 )
 

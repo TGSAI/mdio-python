@@ -35,6 +35,11 @@ class AbstractDatasetTemplate(ABC):
     to override specific steps.
     """
 
+    # Dimensions ingestion may synthesize when the SEG-Y spec does not carry them (e.g.
+    # `component` for single-component data). Declared on the class, not in `__init__`, so
+    # ingestion can read the hook off any template; subclasses opt in by setting it.
+    synthesize_missing_dims: tuple[str, ...] = ()
+
     def __init__(self, data_domain: SeismicDataDomain) -> None:
         self._data_domain = data_domain.lower()
 
@@ -47,7 +52,6 @@ class AbstractDatasetTemplate(ABC):
         self._physical_coord_names: tuple[str, ...] = ()
         self._logical_coord_names: tuple[str, ...] = ()
         self._var_chunk_shape: tuple[int, ...] = ()
-        self.synthesize_missing_dims: tuple[str, ...] = ()
 
         self._builder: MDIODatasetBuilder | None = None
         self._dim_sizes: tuple[int, ...] = ()

@@ -8,17 +8,15 @@ data.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
 from typing import Any
 
 import numpy as np
 import pytest
 
+from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.template_registry import TemplateRegistry
+from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.ingestion.segy.index_strategies import ChannelWrappingStrategy
-
-if TYPE_CHECKING:
-    from mdio.builder.templates.base import AbstractDatasetTemplate
 from mdio.ingestion.segy.index_strategies import ComponentSynthesisStrategy
 from mdio.ingestion.segy.index_strategies import CompositeStrategy
 from mdio.ingestion.segy.index_strategies import DuplicateHandlingStrategy
@@ -26,6 +24,7 @@ from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
 from mdio.ingestion.segy.index_strategies import NonBinnedStrategy
 from mdio.ingestion.segy.index_strategies import RegularGridStrategy
 from mdio.ingestion.segy.index_strategies import ShotWrappingStrategy
+from mdio.ingestion.segy.schema_effects import LEGACY_TRACE_DTYPE
 from mdio.ingestion.segy.schema_effects import CollapseToTraceEffect
 from mdio.ingestion.segy.schema_effects import InsertTraceDimEffect
 from mdio.segy.exceptions import GridOverrideKeysError
@@ -102,20 +101,35 @@ class TestIndexStrategyRegistry:
         assert strategy.excluded_fields == frozenset({"channel"})
 
     def test_has_duplicates_only(self) -> None:
-        """``has_duplicates`` -> DuplicateHandlingStrategy with legacy chunk-1/int16 defaults."""
+        """``has_duplicates`` -> DuplicateHandlingStrategy with the legacy chunk-1/int32 axis."""
         strategy = IndexStrategyRegistry().create_strategy(grid_overrides=GridOverrides(has_duplicates=True))
         assert isinstance(strategy, DuplicateHandlingStrategy)
-        # Backwards compatible: no chunksize/trace_dtype -> chunk 1, int16 (unchanged behavior).
-        assert strategy.dtype == np.int16
+        # Backwards compatible: no chunksize/trace_dtype -> chunk 1, int32 stored trace axis.
+        assert strategy.dtype is None
         assert strategy.schema_effect().chunksize == 1
+        assert strategy.schema_effect().dtype == LEGACY_TRACE_DTYPE
 
     def test_has_duplicates_wires_chunksize_and_dtype(self) -> None:
         """``has_duplicates`` forwards the override's chunksize and trace_dtype to the strategy."""
         overrides = GridOverrides(has_duplicates=True, chunksize=1024, trace_dtype="uint32")
         strategy = IndexStrategyRegistry().create_strategy(grid_overrides=overrides)
         assert isinstance(strategy, DuplicateHandlingStrategy)
-        assert strategy.dtype == "uint32"
+        assert strategy.dtype == ScalarType.UINT32
         assert strategy.schema_effect().chunksize == 1024
+        assert strategy.schema_effect().dtype == ScalarType.UINT32
+
+    def test_non_binned_wires_dtype(self) -> None:
+        """``trace_dtype`` reaches the NonBinned path too; both insert the same ``trace`` axis."""
+        overrides = GridOverrides(
+            non_binned=True,
+            chunksize=64,
+            non_binned_dims=["channel"],
+            trace_dtype="uint32",
+        )
+        strategy = IndexStrategyRegistry().create_strategy(grid_overrides=overrides)
+        assert isinstance(strategy, NonBinnedStrategy)
+        assert strategy.dtype == ScalarType.UINT32
+        assert strategy.schema_effect().dtype == ScalarType.UINT32
 
     def test_non_binned_wins_over_has_duplicates(self) -> None:
         """Both flags set -> NonBinned wins (matches v1.x semantics)."""
@@ -198,6 +212,10 @@ class TestResolveSynthesizeDims:
         """A template without optional dims yields no synthesis."""
         template = TemplateRegistry().get("PostStack3DTime")
         assert _resolve_synthesize_dims(template) == ()
+
+    def test_hook_is_part_of_the_base_class_contract(self) -> None:
+        """The hook is a class attribute, so consumers can read it off any template."""
+        assert AbstractDatasetTemplate.synthesize_missing_dims == ()
 
 
 # ---------------------------------------------------------------------------
@@ -296,6 +314,24 @@ class TestDuplicateHandlingStrategy:
         effect = DuplicateHandlingStrategy(chunksize=1024).schema_effect()
         assert isinstance(effect, InsertTraceDimEffect)
         assert effect.chunksize == 1024
+
+    def test_default_counter_dtype_is_legacy_int16(self) -> None:
+        """Without a dtype the appended counter stays ``int16``, as before the knob existed."""
+        headers = _make_struct({"inline": np.array([1, 1, 2], dtype=np.int32)})
+        out = DuplicateHandlingStrategy().transform_headers(headers)
+        assert out["trace"].dtype == np.int16
+
+    def test_dtype_widens_the_counter(self) -> None:
+        """A requested dtype is applied to the counter, lifting the int16 trace-count ceiling."""
+        headers = _make_struct({"inline": np.array([1, 1, 2], dtype=np.int32)})
+        out = DuplicateHandlingStrategy(dtype=ScalarType.UINT32).transform_headers(headers)
+        assert out["trace"].dtype == np.uint32
+
+    def test_int16_counter_overflows_loudly(self) -> None:
+        """Exceeding the counter dtype raises instead of silently wrapping to a wrong index."""
+        headers = _make_struct({"inline": np.ones(np.iinfo(np.int16).max + 1, dtype=np.int32)})
+        with pytest.raises(OverflowError):
+            DuplicateHandlingStrategy().transform_headers(headers)
 
 
 # ---------------------------------------------------------------------------

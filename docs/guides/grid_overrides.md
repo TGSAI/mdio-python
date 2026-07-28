@@ -88,13 +88,16 @@ axis. Used for continuous receiver gathers, where many segments share the same
 
 **Parameters:**
 
-| Parameter     | Default | Description                                                              |
-| ------------- | ------- | ------------------------------------------------------------------------ |
-| `chunksize`   | `1`     | Chunk size for the inserted `trace` dimension.                           |
-| `trace_dtype` | `int16` | NumPy dtype for the `trace` counter (e.g. `"uint32"` for large gathers). |
+| Parameter     | Default | Description                                                               |
+| ------------- | ------- | ------------------------------------------------------------------------- |
+| `chunksize`   | `1`     | Chunk size for the inserted `trace` dimension.                            |
+| `trace_dtype` | -       | Integer dtype for the `trace` counter and the coordinate it is stored as. |
 
 Both parameters are optional and backwards compatible: omitting them reproduces the legacy
-behavior (chunk size `1`, `int16` counter).
+behavior (chunk size `1`, an `int16` counter stored as an `int32` coordinate). An `int16`
+counter tops out at 32,767 traces per index tuple and raises `OverflowError` beyond that, so
+set `trace_dtype` for larger gathers. `trace_dtype` applies to `NonBinned` as well, since it
+inserts the same `trace` axis.
 
 **Usage:**
 
