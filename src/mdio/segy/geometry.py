@@ -166,13 +166,14 @@ def validate_overrides_for_template(
     config: GridOverrides | None,
     template: AbstractDatasetTemplate | None,
 ) -> None:
-    """Reject grid override / template pairings that v1.1 forbade.
+    """Reject invalid grid override / template pairings.
 
     ``auto_shot_wrap`` is streamer-only and ``calculate_shot_index`` is OBN-only; using
     either with the wrong template silently produced wrong shot indices in v1.1 unless
     the per-command validator caught it. This is the one guard the :class:`GridOverrides`
     model cannot enforce on its own (it depends on the chosen template), so the ingestion
-    pipeline calls it before any header parsing.
+    pipeline calls it before any header parsing. The CRG template requires
+    ``has_duplicates`` because that override supplies its undeclared ``trace`` dimension.
 
     Args:
         config: Typed grid overrides, or ``None`` when no overrides were requested.
@@ -181,7 +182,14 @@ def validate_overrides_for_template(
     Raises:
         TypeError: When ``auto_shot_wrap`` is set without a streamer template, or
             ``calculate_shot_index`` is set without an OBN receiver-gathers template.
+        ValueError: When the CRG template is used without ``has_duplicates``.
     """
+    from mdio.builder.templates.seismic_3d_crg import Seismic3DCrgReceiverGathersTemplate  # noqa: PLC0415
+
+    if isinstance(template, Seismic3DCrgReceiverGathersTemplate) and (config is None or not config.has_duplicates):
+        msg = "ObnContinuousReceiverGathers3D requires the HasDuplicates grid override."
+        raise ValueError(msg)
+
     if not config:
         return
 

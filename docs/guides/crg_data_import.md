@@ -75,7 +75,7 @@ A warning is logged when component is synthesized:
 
 ## Usage
 
-### Basic Import
+### Single-Component Import
 
 ```python
 from segy.schema import HeaderField
@@ -106,25 +106,6 @@ segy_to_mdio(
     grid_overrides=GridOverrides(has_duplicates=True, chunksize=1024, trace_dtype="uint32"),
     overwrite=True,
 )
-```
-
-### Single-Component Data
-
-For data without a `component` header field, simply omit it from the spec — the template
-synthesizes `component = 1`:
-
-```python
-# Same as above, but without a component field.
-crg_headers = [
-    HeaderField(name="channel", byte=13, format="int32"),
-    HeaderField(name="coordinate_scalar", byte=71, format="int16"),
-    HeaderField(name="group_coord_x", byte=81, format="int32"),
-    HeaderField(name="group_coord_y", byte=85, format="int32"),
-    HeaderField(name="receiver_line", byte=137, format="int16"),
-    HeaderField(name="receiver", byte=139, format="int16"),
-    HeaderField(name="epoch", byte=189, format="int64"),
-    # component omitted - will be synthesized
-]
 ```
 
 ### Exploring the Data

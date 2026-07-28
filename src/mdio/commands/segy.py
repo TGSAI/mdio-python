@@ -296,14 +296,15 @@ def segy_import(  # noqa: PLR0913
 
         \b
         For dataset with expected duplicate traces we have the following parameterization. This
-        will use the same logic as NonBinned with a fixed chunksize of 1. The other keys are still
-        important. The below example allows multiple traces per receiver (i.e. reshoot).
+        uses the same duplicate-counter logic as NonBinned. The inserted trace dimension defaults
+        to a chunksize of 1, which can be configured as shown below. The other keys are still
+        important. This example allows multiple traces per receiver (i.e. reshoot).
         \b
         --header-locations 9,213,13
         --header-names shot,cable,chan
         --header-types int32,int16,int32
         --chunk-size 8,2,256,512
-        --grid-overrides '{"HasDuplicates": True}'
+        --grid-overrides '{"HasDuplicates": True, "chunksize": 16}'
     """
     # Lazy import to reduce CLI startup time
     from mdio import segy_to_mdio  # noqa: PLC0415

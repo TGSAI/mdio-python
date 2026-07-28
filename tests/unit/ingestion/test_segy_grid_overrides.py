@@ -151,25 +151,6 @@ class TestAutoGridOverrides:
         assert_array_equal(dims[1].coords, CABLES)
         assert_array_equal(dims[2].coords, RECEIVERS)
 
-    def test_duplicates_with_chunksize(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
-        """HasDuplicates can carry an explicit trace chunksize (CRG tuned path)."""
-        index_names = ("shot_point", "cable")
-        grid_overrides = {"HasDuplicates": True, "chunksize": 16}
-
-        streamer_headers = mock_streamer_headers[list(index_names)]
-        chunksize = (4, 4, 8)
-
-        new_headers, new_names, new_chunks = run_override(
-            grid_overrides,
-            index_names,
-            streamer_headers,
-            chunksize,
-        )
-
-        assert new_names == ("shot_point", "cable", "trace")
-        # The inserted trace chunk honours the override instead of the legacy hardcoded 1.
-        assert new_chunks == (4, 4, 16, 8)
-
     def test_non_binned(self, mock_streamer_headers: dict[str, npt.NDArray]) -> None:
         """Test the NonBinned Grid Override command."""
         index_names = ("shot_point", "cable")

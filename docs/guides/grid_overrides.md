@@ -117,15 +117,19 @@ receiver gathers.
 
 Some templates have special behaviors that are applied automatically during import, independent of grid overrides.
 
-### Component Synthesis (OBN)
+### Component Synthesis
 
-When using the `ObnReceiverGathers3D` template, if the SEG-Y specification does not include a `component` field, MDIO automatically synthesizes it with value `1` for all traces. This allows single-component data (e.g., hydrophone-only) to use the same template without modification.
+Templates can declare optional dimensions through `synthesize_missing_dims`. The
+`ObnReceiverGathers3D` and `ObnContinuousReceiverGathers3D` templates use this hook for
+`component`: if the SEG-Y specification omits that field, MDIO synthesizes it with value
+`1` for all traces. This allows single-component data (e.g., hydrophone-only) to use the
+same template without modification.
 
 ```{note}
 A warning is logged when component is synthesized:
 
-> SEG-Y headers do not contain 'component' field required by template 'ObnReceiverGathers3D'.
-> Synthesizing 'component' dimension with constant value 1 for all traces.
+> SEG-Y headers do not contain 'component' field required by template; synthesizing dimension
+> with constant value 1 for all traces.
 ```
 
 ## Error Handling

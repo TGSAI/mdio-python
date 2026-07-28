@@ -118,6 +118,18 @@ class TestGridOverrideValidationThroughPublicApi:
                 grid_overrides={"NonBinned": True},
             )
 
+    @pytest.mark.parametrize("grid_overrides", [None, {}])
+    def test_crg_without_has_duplicates_raises(self, grid_overrides: dict | None) -> None:
+        """The CRG template requires ``HasDuplicates`` to supply its trace dimension."""
+        with pytest.raises(ValueError, match="requires the HasDuplicates grid override"):
+            segy_to_mdio(
+                segy_spec=None,
+                mdio_template=TemplateRegistry().get("ObnContinuousReceiverGathers3D"),
+                input_path="in.segy",
+                output_path="out.mdio",
+                grid_overrides=grid_overrides,
+            )
+
 
 class TestBuildRawHeaderVariables:
     """Tests for the isolated experimental raw-headers feature."""
