@@ -22,15 +22,16 @@ if TYPE_CHECKING:
 from mdio.ingestion.segy.index_strategies import ComponentSynthesisStrategy
 from mdio.ingestion.segy.index_strategies import CompositeStrategy
 from mdio.ingestion.segy.index_strategies import DuplicateHandlingStrategy
+from mdio.ingestion.segy.index_strategies import HeaderRankingStrategy
 from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
 from mdio.ingestion.segy.index_strategies import NonBinnedStrategy
 from mdio.ingestion.segy.index_strategies import RegularGridStrategy
 from mdio.ingestion.segy.index_strategies import ShotWrappingStrategy
+from mdio.ingestion.segy.index_strategies import append_header_field
 from mdio.ingestion.segy.schema_effects import CollapseToTraceEffect
 from mdio.ingestion.segy.schema_effects import InsertTraceDimEffect
 from mdio.segy.exceptions import GridOverrideKeysError
 from mdio.segy.geometry import GridOverrides
-from mdio.segy.geometry import _resolve_synthesize_dims
 from mdio.segy.geometry import validate_overrides_for_template
 
 
@@ -47,7 +48,7 @@ class GridOverrider:
         """Run mock strategy validation and transform."""
         config = GridOverrides.model_validate(grid_overrides)
         validate_overrides_for_template(config, template)
-        synthesize_dims = _resolve_synthesize_dims(template)
+        synthesize_dims = template.synthesize_missing_dims if template is not None else ()
         registry = IndexStrategyRegistry()
         strategy = registry.create_strategy(
             grid_overrides=config,
@@ -154,6 +155,21 @@ class TestIndexStrategyRegistry:
         assert isinstance(strategy, ShotWrappingStrategy)
         assert strategy.line_field == "shot_line"
         assert strategy.always_calculate is True
+
+    def test_calculate_segment_index_ranks_epoch_per_receiver(self) -> None:
+        """calculate_segment_index builds HeaderRankingStrategy over template spatial dims."""
+        template = TemplateRegistry().get("NodalContinuousReceiverGathers3D")
+        strategy = IndexStrategyRegistry().create_strategy(
+            grid_overrides=GridOverrides(calculate_segment_index=True),
+            synthesize_dims=template.synthesize_missing_dims,
+            template=template,
+        )
+        assert isinstance(strategy, CompositeStrategy)
+        ranking = strategy.strategies[-1]
+        assert isinstance(ranking, HeaderRankingStrategy)
+        assert ranking.value_field == "epoch"
+        assert ranking.index_name == "segment_index"
+        assert ranking.group_fields == ("receiver_line", "receiver", "component")
 
     def test_template_coord_names_propagate_to_duplicate_strategy(self) -> None:
         """Template coordinates flow into the duplicate-handling strategy as exclusions."""
@@ -463,6 +479,124 @@ class TestComponentSynthesisStrategy:
         )
         out = ComponentSynthesisStrategy(("component",)).transform_headers(headers)
         np.testing.assert_array_equal(out["component"], [2, 3, 4])
+
+
+# ---------------------------------------------------------------------------
+# HeaderRankingStrategy
+# ---------------------------------------------------------------------------
+
+
+def _continuous_headers(receivers: np.ndarray, epochs: np.ndarray) -> np.ndarray:
+    """Build continuous-recording headers for one component and one receiver line."""
+    return _make_struct(
+        {
+            "component": np.ones(len(receivers), dtype=np.uint8),
+            "receiver_line": np.full(len(receivers), 10, dtype=np.uint32),
+            "receiver": receivers.astype(np.uint32),
+            "epoch": epochs.astype(np.int64),
+        }
+    )
+
+
+class TestHeaderRankingStrategy:
+    """Tests for HeaderRankingStrategy."""
+
+    GROUP_FIELDS = ("receiver_line", "receiver", "component")
+
+    def _strategy(self) -> HeaderRankingStrategy:
+        return HeaderRankingStrategy(
+            value_field="epoch",
+            index_name="segment_index",
+            group_fields=self.GROUP_FIELDS,
+        )
+
+    def test_ranks_by_header_not_file_order(self) -> None:
+        """Ranks by header value, not by file order."""
+        headers = _continuous_headers(
+            receivers=np.array([101, 101, 101, 101]),
+            epochs=np.array([90, 30, 60, 0]),
+        )
+        out = self._strategy().transform_headers(headers)
+        np.testing.assert_array_equal(out["segment_index"], [3, 1, 2, 0])
+
+    def test_ranks_independently_per_group(self) -> None:
+        """Each group gets its own dense 0-based index."""
+        headers = _continuous_headers(
+            receivers=np.array([101, 101, 101, 102, 102, 102]),
+            epochs=np.array([0, 30, 60, 7, 37, 67]),
+        )
+        out = self._strategy().transform_headers(headers)
+        np.testing.assert_array_equal(out["segment_index"], [0, 1, 2, 0, 1, 2])
+
+    def test_ranks_each_component_independently(self) -> None:
+        """Uneven coverage per component ranks each component independently."""
+        headers = _make_struct(
+            {
+                "component": np.array([1, 1, 1, 2, 2], dtype=np.uint8),
+                "receiver_line": np.full(5, 10, dtype=np.uint32),
+                "receiver": np.full(5, 101, dtype=np.uint32),
+                "epoch": np.array([0, 30, 60, 0, 60], dtype=np.int64),
+            }
+        )
+        out = self._strategy().transform_headers(headers)
+        np.testing.assert_array_equal(out["segment_index"], [0, 1, 2, 0, 1])
+
+    def test_source_values_are_untouched(self) -> None:
+        """Ranked header values are left unmodified."""
+        epochs = np.array([1_556_582_074_780_000, 1_556_582_044_780_000], dtype=np.int64)
+        headers = _continuous_headers(receivers=np.array([101, 101]), epochs=epochs)
+        out = self._strategy().transform_headers(headers)
+        np.testing.assert_array_equal(out["epoch"], epochs)
+
+    def test_gaps_do_not_break_density(self) -> None:
+        """Gaps in values still produce contiguous ranks."""
+        headers = _continuous_headers(
+            receivers=np.array([101, 101, 101]),
+            epochs=np.array([0, 30, 6000]),  # long gap before the last segment
+        )
+        out = self._strategy().transform_headers(headers)
+        np.testing.assert_array_equal(out["segment_index"], [0, 1, 2])
+
+    def test_index_dtype_spans_long_deployments(self) -> None:
+        """Index dtype is uint32."""
+        headers = _continuous_headers(receivers=np.array([101]), epochs=np.array([0]))
+        out = self._strategy().transform_headers(headers)
+        assert out.dtype["segment_index"] == np.uint32
+
+    def test_empty_group_fields_raises(self) -> None:
+        """Empty group_fields raises ValueError."""
+        with pytest.raises(ValueError, match="non-empty group_fields"):
+            HeaderRankingStrategy(value_field="epoch", index_name="segment_index", group_fields=())
+
+    def test_duplicate_epoch_raises(self) -> None:
+        """Duplicate value_field within a group raises ValueError."""
+        headers = _continuous_headers(
+            receivers=np.array([101, 101]),
+            epochs=np.array([100, 100]),
+        )
+        with pytest.raises(ValueError, match=r"Duplicate 'epoch'.*receiver=101"):
+            self._strategy().transform_headers(headers)
+
+    def test_missing_required_field_raises(self) -> None:
+        """Missing required fields raise GridOverrideKeysError."""
+        headers = _make_struct({"receiver": np.array([1, 2], dtype=np.uint32)})
+        with pytest.raises(GridOverrideKeysError, match="HeaderRankingStrategy"):
+            self._strategy().validate_headers(headers)
+
+    def test_no_schema_effect(self) -> None:
+        """HeaderRankingStrategy does not reshape the schema."""
+        assert self._strategy().schema_effect() is None
+
+
+class TestAppendHeaderField:
+    """Tests for append_header_field."""
+
+    def test_appends_to_full_array(self) -> None:
+        """Appends a new field aligned with existing rows."""
+        headers = _make_struct({"receiver": np.array([1, 2, 3], dtype=np.uint32)})
+        out = append_header_field(headers, "segment_index", np.array([0, 1, 2], dtype=np.uint32))
+        np.testing.assert_array_equal(out["segment_index"], [0, 1, 2])
+        assert len(out) == 3
 
 
 # ---------------------------------------------------------------------------

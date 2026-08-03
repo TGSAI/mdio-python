@@ -35,6 +35,9 @@ class AbstractDatasetTemplate(ABC):
     to override specific steps.
     """
 
+    # Opt-in dims synthesized with a constant when absent from the SEG-Y spec.
+    synthesize_missing_dims: tuple[str, ...] = ()
+
     def __init__(self, data_domain: SeismicDataDomain) -> None:
         self._data_domain = data_domain.lower()
 
@@ -47,7 +50,6 @@ class AbstractDatasetTemplate(ABC):
         self._physical_coord_names: tuple[str, ...] = ()
         self._logical_coord_names: tuple[str, ...] = ()
         self._var_chunk_shape: tuple[int, ...] = ()
-        self.synthesize_missing_dims: tuple[str, ...] = ()
 
         self._builder: MDIODatasetBuilder | None = None
         self._dim_sizes: tuple[int, ...] = ()

@@ -29,12 +29,13 @@ class Seismic3DObnReceiverGathersTemplate(AbstractDatasetTemplate):
         ``synthesize_missing_dims`` and handled by ``ComponentSynthesisStrategy``.
     """
 
+    synthesize_missing_dims = ("component",)
+
     def __init__(self, data_domain: SeismicDataDomain = "time"):
         super().__init__(data_domain=data_domain)
 
         self._spatial_dim_names = ("component", "receiver", "shot_line", "gun", "shot_index")
         self._calculated_dims = ("shot_index",)
-        self.synthesize_missing_dims = ("component",)
         self._dim_names = (*self._spatial_dim_names, self._data_domain)
         self._physical_coord_names = (
             "group_coord_x",

@@ -14,12 +14,13 @@ from numpy import meshgrid
 from numpy import unique
 from numpy.testing import assert_array_equal
 
+from mdio.builder.template_registry import TemplateRegistry
 from mdio.core import Dimension
 from mdio.ingestion.segy.index_strategies import IndexStrategyRegistry
+from mdio.segy.exceptions import GridOverrideIncompatibleError
 from mdio.segy.exceptions import GridOverrideMissingParameterError
 from mdio.segy.exceptions import GridOverrideUnknownError
 from mdio.segy.geometry import GridOverrides
-from mdio.segy.geometry import _resolve_synthesize_dims
 from mdio.segy.geometry import validate_overrides_for_template
 
 if TYPE_CHECKING:
@@ -55,7 +56,7 @@ def run_override(
     # production pipeline so this helper cannot drift from what `segy_to_mdio` runs.
     validate_overrides_for_template(config, template)
 
-    synthesize_dims = _resolve_synthesize_dims(template)
+    synthesize_dims = template.synthesize_missing_dims if template is not None else ()
     registry = IndexStrategyRegistry()
     strategy = registry.create_strategy(
         grid_overrides=config,
@@ -283,3 +284,59 @@ class TestObnGridOverrides:
         gun2_shot_indices = np.unique(new_headers["shot_index"][gun2_mask])
         assert_array_equal(gun1_shot_indices, [0, 1, 2])
         assert_array_equal(gun2_shot_indices, [1, 2, 3])
+
+
+class TestCalculateSegmentIndex:
+    """Tests for the CalculateSegmentIndex grid override."""
+
+    CRG_TEMPLATE_NAME = "NodalContinuousReceiverGathers3D"
+
+    @staticmethod
+    def _crg_headers() -> npt.NDArray:
+        """Two receivers, three segments each, written out of time order."""
+        hdr_dtype = np.dtype(
+            {
+                "names": ["receiver_line", "receiver", "component", "epoch"],
+                "formats": ["uint32", "uint32", "uint8", "int64"],
+            }
+        )
+        start = 1_556_582_074_780_000
+        step = 30_000_000
+        records = [
+            (10, receiver, 1, start + receiver_idx * 7_000_000 + segment * step)
+            for receiver_idx, receiver in enumerate((101, 102))
+            for segment in (2, 0, 1)
+        ]
+        return np.array(records, dtype=hdr_dtype)
+
+    def test_ranks_epoch_into_segment_index(self) -> None:
+        """Ranks each receiver's epochs into a dense segment_index."""
+        headers = self._crg_headers()
+        new_headers, _, _ = run_override(
+            {"CalculateSegmentIndex": True},
+            ("receiver_line", "receiver", "component", "epoch"),
+            headers,
+            template=TemplateRegistry().get(self.CRG_TEMPLATE_NAME),
+        )
+
+        assert "segment_index" in new_headers.dtype.names
+        assert_array_equal(new_headers["segment_index"], [2, 0, 1, 2, 0, 1])
+        assert_array_equal(new_headers["epoch"], headers["epoch"])
+
+    def test_requires_continuous_receiver_template(self) -> None:
+        """Rejects CalculateSegmentIndex with a non-CRG template."""
+        with pytest.raises(TypeError, match="calculate_segment_index only supports"):
+            validate_overrides_for_template(
+                GridOverrides(calculate_segment_index=True),
+                TemplateRegistry().get("ObnReceiverGathers3D"),
+            )
+
+    @pytest.mark.parametrize("other", ["has_duplicates", "non_binned"])
+    def test_rejects_trace_dimension_overrides(self, other: str) -> None:
+        """Rejects pairing CalculateSegmentIndex with NonBinned or HasDuplicates."""
+        extra: dict[str, Any] = {other: True}
+        if other == "non_binned":
+            extra |= {"chunksize": 8, "non_binned_dims": ["receiver"]}
+
+        with pytest.raises(GridOverrideIncompatibleError, match="CalculateSegmentIndex"):
+            GridOverrides(calculate_segment_index=True, **extra)

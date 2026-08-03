@@ -17,6 +17,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import model_validator
 
+from mdio.segy.exceptions import GridOverrideIncompatibleError
 from mdio.segy.exceptions import GridOverrideMissingParameterError
 
 if TYPE_CHECKING:
@@ -45,6 +46,11 @@ class GridOverrides(BaseModel):
         default=False,
         alias="CalculateShotIndex",
         description="OBN: derive dense shot_index from sparse shot_point values per shot_line.",
+    )
+    calculate_segment_index: bool = Field(
+        default=False,
+        alias="CalculateSegmentIndex",
+        description="Continuous recording: derive dense segment_index by ranking epoch per receiver.",
     )
     non_binned: bool = Field(
         default=False,
@@ -90,12 +96,32 @@ class GridOverrides(BaseModel):
             raise GridOverrideMissingParameterError(command, missing)
         return self
 
+    @model_validator(mode="after")
+    def _check_segment_index_exclusivity(self) -> GridOverrides:
+        """Reject pairing ``calculate_segment_index`` with ``non_binned`` or ``has_duplicates``.
+
+        Raises:
+            GridOverrideIncompatibleError: If incompatible overrides are combined.
+
+        Returns:
+            The validated GridOverrides instance.
+        """
+        if not self.calculate_segment_index:
+            return self
+
+        this_command = "CalculateSegmentIndex"
+        for flag, other_command in ((self.non_binned, "NonBinned"), (self.has_duplicates, "HasDuplicates")):
+            if flag:
+                raise GridOverrideIncompatibleError(this_command, other_command)
+        return self
+
     def __bool__(self) -> bool:
         """Return True if any override flag is enabled."""
         return (
             self.auto_channel_wrap
             or self.auto_shot_wrap
             or self.calculate_shot_index
+            or self.calculate_segment_index
             or self.non_binned
             or self.has_duplicates
         )
@@ -105,48 +131,30 @@ class GridOverrides(BaseModel):
         return self.model_dump(by_alias=True, exclude_defaults=True)
 
 
-def _resolve_synthesize_dims(template: AbstractDatasetTemplate | None) -> tuple[str, ...]:
-    """Return dimension fields to synthesize when missing for a given template.
-
-    Only the OBN receiver gathers template currently synthesizes ``component``; every
-    other template returns ``()`` so the strategy registry skips synthesis entirely.
-    """
-    if template is None:
-        return ()
-    # Lazy import: builder templates pull in builder schemas that indirectly import this
-    # module's ``GridOverrides``, so a top-level import would cycle.
-    from mdio.builder.templates.seismic_3d_obn import Seismic3DObnReceiverGathersTemplate  # noqa: PLC0415
-
-    if isinstance(template, Seismic3DObnReceiverGathersTemplate):
-        return ("component",)
-    return ()
-
-
 def validate_overrides_for_template(
     config: GridOverrides | None,
     template: AbstractDatasetTemplate | None,
 ) -> None:
     """Reject grid override / template pairings that v1.1 forbade.
 
-    ``auto_shot_wrap`` is streamer-only and ``calculate_shot_index`` is OBN-only; using
-    either with the wrong template silently produced wrong shot indices in v1.1 unless
-    the per-command validator caught it. This is the one guard the :class:`GridOverrides`
-    model cannot enforce on its own (it depends on the chosen template), so the ingestion
-    pipeline calls it before any header parsing.
+    ``auto_shot_wrap`` is streamer-only, ``calculate_shot_index`` is OBN-only, and
+    ``calculate_segment_index`` is continuous-recording-only. These are the guards
+    :class:`GridOverrides` cannot enforce on its own (they depend on the chosen template),
+    so the ingestion pipeline calls it before any header parsing.
 
     Args:
         config: Typed grid overrides, or ``None`` when no overrides were requested.
         template: Template chosen by the caller, or ``None`` if omitted.
 
     Raises:
-        TypeError: When ``auto_shot_wrap`` is set without a streamer template, or
-            ``calculate_shot_index`` is set without an OBN receiver-gathers template.
+        TypeError: When an override is paired with an unsupported template.
     """
     if not config:
         return
 
     if config.auto_shot_wrap:
-        # Lazy import: see ``_resolve_synthesize_dims`` for the cycle rationale.
+        # Lazy import: builder templates pull in builder schemas that indirectly import this
+        # module's ``GridOverrides``, so a top-level import would cycle.
         from mdio.builder.templates.seismic_3d_streamer_field import (  # noqa: PLC0415
             Seismic3DStreamerFieldRecordsTemplate,
         )
@@ -165,4 +173,17 @@ def validate_overrides_for_template(
         if not isinstance(template, Seismic3DObnReceiverGathersTemplate):
             actual = type(template).__name__ if template is not None else "None"
             msg = f"calculate_shot_index only supports {Seismic3DObnReceiverGathersTemplate.__name__}, got {actual}."
+            raise TypeError(msg)
+
+    if config.calculate_segment_index:
+        from mdio.builder.templates.seismic_3d_nodal_continuous_receiver_gathers import (  # noqa: PLC0415
+            Seismic3DNodalContinuousReceiverGathersTemplate,
+        )
+
+        if not isinstance(template, Seismic3DNodalContinuousReceiverGathersTemplate):
+            actual = type(template).__name__ if template is not None else "None"
+            msg = (
+                f"calculate_segment_index only supports "
+                f"{Seismic3DNodalContinuousReceiverGathersTemplate.__name__}, got {actual}."
+            )
             raise TypeError(msg)

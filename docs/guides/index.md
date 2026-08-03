@@ -10,6 +10,7 @@ Welcome to the MDIO guides. This section provides in-depth documentation on adva
 
 grid_overrides
 obn_data_import
+continuous_receiver_gathers
 ```
 
 ## Overview
@@ -29,3 +30,13 @@ Ocean Bottom Node (OBN) data has unique characteristics requiring specialized ha
 - Component synthesis for single-component data
 
 See [OBN Data Import](obn_data_import.md) for the complete guide.
+
+### Continuous Receiver Gathers
+
+Continuously recording land nodes and OBN receivers have no shots to index on, only a timestamp per fixed-length segment. This guide covers:
+
+- The `NodalContinuousReceiverGathers3D` template
+- Why absolute time cannot be a dimension, and how the `CalculateSegmentIndex` override fixes it
+- How exact epoch values are preserved, including ragged-receiver fill semantics
+
+See [Continuous Receiver Gathers](continuous_receiver_gathers.md) for the complete guide.

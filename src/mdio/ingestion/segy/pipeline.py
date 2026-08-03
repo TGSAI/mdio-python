@@ -158,7 +158,7 @@ def segy_to_mdio(  # noqa: PLR0913
 
     # Grid overrides are SEG-Y specific: the registry maps them to a schema reshape that the
     # format-agnostic resolver then applies.
-    schema_effect = IndexStrategyRegistry().schema_effect(grid_overrides)
+    schema_effect = IndexStrategyRegistry().schema_effect(grid_overrides, mdio_template)
     schema = SchemaResolver().resolve(mdio_template, schema_effect)
 
     indexed_headers, dimensions = read_index_headers(

@@ -19,6 +19,15 @@ if TYPE_CHECKING:
     from segy.schema import SegySpec
 
 
+def _write_segy_factory_file(path: Path, factory: SegyFactory, headers: np.ndarray, samples: np.ndarray) -> Path:
+    """Write a SegyFactory-built header/sample pair to disk."""
+    with path.open(mode="wb") as fp:
+        fp.write(factory.create_textual_header())
+        fp.write(factory.create_binary_header())
+        fp.write(factory.create_traces(headers, samples))
+    return path
+
+
 def get_segy_mock_4d_spec() -> SegySpec:
     """Create a mock 4D SEG-Y specification."""
     trace_header_fields = [
@@ -283,12 +292,7 @@ def create_segy_mock_obn(  # noqa: PLR0913
 
                         trc_idx += 1
 
-    with segy_path.open(mode="wb") as fp:
-        fp.write(factory.create_textual_header())
-        fp.write(factory.create_binary_header())
-        fp.write(factory.create_traces(headers, samples))
-
-    return segy_path
+    return _write_segy_factory_file(segy_path, factory, headers, samples)
 
 
 @pytest.fixture(scope="module")
@@ -384,6 +388,131 @@ def segy_mock_obn_multiline_type_a(fake_segy_tmp: Path) -> Path:
     )
 
 
+def get_segy_mock_crg_spec(include_component: bool = True) -> SegySpec:
+    """Create a mock continuous receiver gather SEG-Y specification.
+
+    Args:
+        include_component: Whether to include the component header field.
+
+    Returns:
+        SegySpec configured for continuous receiver gather data.
+    """
+    trace_header_fields = [
+        HeaderField(name="orig_field_record_num", byte=9, format="int32"),
+        HeaderField(name="channel", byte=13, format="int32"),
+        HeaderField(name="coordinate_scalar", byte=71, format="int16"),
+        HeaderField(name="group_coord_x", byte=81, format="int32"),
+        HeaderField(name="group_coord_y", byte=85, format="int32"),
+        HeaderField(name="samples_per_trace", byte=115, format="int16"),
+        HeaderField(name="sample_interval", byte=117, format="int16"),
+        HeaderField(name="receiver_line", byte=137, format="int16"),
+        HeaderField(name="receiver", byte=139, format="int16"),
+        HeaderField(name="epoch", byte=189, format="int64"),
+    ]
+
+    if include_component:
+        trace_header_fields.append(HeaderField(name="component", byte=237, format="int16"))
+
+    rev1_spec = get_segy_standard(1.0)
+    spec = rev1_spec.customize(trace_header_fields=trace_header_fields)
+    spec.segy_standard = SegyStandard.REV1
+    return spec
+
+
+# Mock continuous-recording epochs (microseconds) with staggered receiver starts.
+CRG_START_EPOCH = 1_556_582_074_780_000
+CRG_SEGMENT_DURATION = 30_000_000
+CRG_RECEIVER_STAGGER = 7_000_000
+CRG_SEGMENTS_PER_RECORD = 2
+
+
+def crg_expected_epochs(receiver_index: int, num_segments: int) -> list[int]:
+    """Return the epochs a mock receiver records, in time order."""
+    start = CRG_START_EPOCH + receiver_index * CRG_RECEIVER_STAGGER
+    return [start + segment * CRG_SEGMENT_DURATION for segment in range(num_segments)]
+
+
+def create_segy_mock_crg(  # noqa: PLR0913
+    fake_segy_tmp: Path,
+    num_samples: int,
+    receiver_line: int,
+    receivers: list[int],
+    num_segments: int | list[int],
+    components: list[int] | None = None,
+    filename_suffix: str = "",
+) -> Path:
+    """Create a mock continuous receiver gather SEG-Y file for use in tests.
+
+    Args:
+        fake_segy_tmp: Temporary directory for SEG-Y files.
+        num_samples: Number of samples per trace.
+        receiver_line: Receiver line ID shared by all receivers.
+        receivers: List of receiver IDs.
+        num_segments: Segments per receiver. A scalar applies to every receiver; a sequence
+            sets a per-receiver count (ragged grids).
+        components: List of component IDs. If None, no component header is written.
+        filename_suffix: Optional suffix for the filename.
+
+    Returns:
+        Path to the created SEG-Y file.
+
+    Raises:
+        ValueError: If a ``num_segments`` sequence length does not match ``receivers``.
+    """
+    include_component = components is not None
+    segy_path = fake_segy_tmp / f"crg{'_' + filename_suffix if filename_suffix else ''}.sgy"
+
+    if isinstance(num_segments, int):
+        segments_per_receiver = [num_segments] * len(receivers)
+    else:
+        segments_per_receiver = list(num_segments)
+        if len(segments_per_receiver) != len(receivers):
+            msg = "num_segments sequence length must match receivers"
+            raise ValueError(msg)
+
+    component_list = components if include_component else [None]
+    traces = [
+        (component, receiver_idx, receiver, segment)
+        for component in component_list
+        for receiver_idx, receiver in enumerate(receivers)
+        for segment in range(segments_per_receiver[receiver_idx])
+    ]
+    np.random.default_rng(seed=42).shuffle(traces)
+
+    factory = SegyFactory(
+        spec=get_segy_mock_crg_spec(include_component=include_component),
+        sample_interval=2000,
+        samples_per_trace=num_samples,
+    )
+
+    headers = factory.create_trace_header_template(len(traces))
+    samples = factory.create_trace_sample_template(len(traces))
+
+    start_x = 700000
+    start_y = 4000000
+    step_x = 100
+
+    for trc_idx, (component, receiver_idx, receiver, segment) in enumerate(traces):
+        n_segments = segments_per_receiver[receiver_idx]
+        headers["orig_field_record_num"][trc_idx] = 1 + segment // CRG_SEGMENTS_PER_RECORD
+        headers["channel"][trc_idx] = 1 + segment % CRG_SEGMENTS_PER_RECORD
+        headers["receiver_line"][trc_idx] = receiver_line
+        headers["receiver"][trc_idx] = receiver
+        headers["epoch"][trc_idx] = crg_expected_epochs(receiver_idx, n_segments)[segment]
+
+        if include_component:
+            headers["component"][trc_idx] = component
+
+        headers["coordinate_scalar"][trc_idx] = -100
+        headers["group_coord_x"][trc_idx] = start_x + step_x * receiver_idx
+        headers["group_coord_y"][trc_idx] = start_y
+
+        # Sample data encodes receiver * 1000 + segment for placement checks
+        samples[trc_idx] = receiver * 1000 + segment
+
+    return _write_segy_factory_file(segy_path, factory, headers, samples)
+
+
 @pytest.fixture(scope="module")
 def segy_mock_obn_multiline_type_a_sparse(fake_segy_tmp: Path) -> Path:
     """Generate mock OBN SEG-Y file with Type A geometry and sparse shot points.
@@ -415,3 +544,87 @@ def segy_mock_obn_multiline_type_a_sparse(fake_segy_tmp: Path) -> Path:
         components=components,
         filename_suffix="multiline_type_a_sparse",
     )
+
+
+@pytest.fixture(scope="module")
+def segy_mock_crg_with_component(fake_segy_tmp: Path) -> Path:
+    """Generate mock continuous receiver gather SEG-Y file written out of time order."""
+    return create_segy_mock_crg(
+        fake_segy_tmp,
+        num_samples=25,
+        receiver_line=10,
+        receivers=[101, 102, 103],
+        num_segments=4,
+        components=[1, 2],
+        filename_suffix="with_component",
+    )
+
+
+@pytest.fixture(scope="module")
+def segy_mock_crg_no_component(fake_segy_tmp: Path) -> Path:
+    """Generate mock continuous receiver gather SEG-Y file without a component header."""
+    return create_segy_mock_crg(
+        fake_segy_tmp,
+        num_samples=25,
+        receiver_line=10,
+        receivers=[101, 102, 103],
+        num_segments=4,
+        components=None,
+        filename_suffix="no_component",
+    )
+
+
+@pytest.fixture(scope="module")
+def segy_mock_crg_ragged(fake_segy_tmp: Path) -> Path:
+    """Generate mock CRG SEG-Y file with unequal segment counts per receiver."""
+    return create_segy_mock_crg(
+        fake_segy_tmp,
+        num_samples=25,
+        receiver_line=10,
+        receivers=[101, 102, 103],
+        num_segments=[4, 3, 2],
+        components=[1],
+        filename_suffix="ragged",
+    )
+
+
+@pytest.fixture(scope="module")
+def segy_mock_crg_uneven_components(fake_segy_tmp: Path) -> Path:
+    """Generate mock CRG SEG-Y file with uneven segment coverage across components."""
+    include_component = True
+    receivers = [101]
+    receiver_line = 10
+    num_samples = 25
+    # component 1: segments 0,1,2; component 2: segments 0,2
+    traces = [
+        (1, 0),
+        (1, 1),
+        (1, 2),
+        (2, 0),
+        (2, 2),
+    ]
+    np.random.default_rng(seed=7).shuffle(traces)
+
+    segy_path = fake_segy_tmp / "crg_uneven_components.sgy"
+    factory = SegyFactory(
+        spec=get_segy_mock_crg_spec(include_component=include_component),
+        sample_interval=2000,
+        samples_per_trace=num_samples,
+    )
+    headers = factory.create_trace_header_template(len(traces))
+    samples = factory.create_trace_sample_template(len(traces))
+    epochs = crg_expected_epochs(0, 3)
+
+    for trc_idx, (component, segment) in enumerate(traces):
+        headers["orig_field_record_num"][trc_idx] = 1
+        headers["channel"][trc_idx] = 1
+        headers["receiver_line"][trc_idx] = receiver_line
+        headers["receiver"][trc_idx] = receivers[0]
+        headers["epoch"][trc_idx] = epochs[segment]
+        headers["component"][trc_idx] = component
+        headers["coordinate_scalar"][trc_idx] = -100
+        headers["group_coord_x"][trc_idx] = 700000
+        headers["group_coord_y"][trc_idx] = 4000000
+        samples[trc_idx] = component * 1000 + segment
+
+    return _write_segy_factory_file(segy_path, factory, headers, samples)
