@@ -7,8 +7,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import zarr
-from numcodecs.zarr3 import Blosc
 from zarr.codecs import BloscCodec
+from zarr.codecs.numcodecs import Blosc
 
 from mdio.constants import UINT32_MAX
 from mdio.constants import ZarrFormat

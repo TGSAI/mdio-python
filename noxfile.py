@@ -21,7 +21,7 @@ except ImportError:
     raise SystemExit(dedent(message)) from None
 
 package = "mdio"
-python_versions = ["3.13", "3.12"]
+python_versions = ["3.13", "3.14", "3.12"]
 nox.needs_version = ">=2025.2.9"
 nox.options.default_venv_backend = "uv"
 nox.options.reuse_venv = "yes"

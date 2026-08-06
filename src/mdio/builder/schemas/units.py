@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from enum import Enum
+from enum import StrEnum
 from enum import unique
+from typing import Self
 
 from pydantic import Field
 from pydantic import create_model
@@ -12,8 +13,15 @@ from mdio.builder.schemas.core import CamelCaseStrictModel
 
 
 @unique
-class UnitEnum(str, Enum):
+class UnitEnum(StrEnum):
     """An Enum representing units as strings, from pint."""
+
+    def __new__(cls, value: object) -> Self:
+        """Coerce Pint units to their configured string representation."""
+        string_value = str(value)
+        member = str.__new__(cls, string_value)
+        member._value_ = string_value
+        return member
 
 
 def create_unit_model(

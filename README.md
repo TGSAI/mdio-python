@@ -126,7 +126,7 @@ please [file an issue] along with a detailed description.
 
 # Credits
 
-This project was established at [TGS](https://www.tgs.com/). The current maintainer is [Altay Sansal](https://github.com/tasansal) with the support of
+This project was established at [TGS](https://www.tgs.com/). The current maintainer is [Brian Michell](https://github.com/BrianMichell) with the support of
 many more great colleagues.
 
 [pypi]: https://pypi.org/

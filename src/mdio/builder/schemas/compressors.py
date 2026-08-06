@@ -11,10 +11,27 @@ from enum import StrEnum
 
 from pydantic import Field
 from pydantic import model_validator
-from zarr.codecs import BloscCname
-from zarr.codecs import BloscShuffle
 
 from mdio.builder.schemas.core import CamelCaseStrictModel
+
+
+class BloscCname(StrEnum):
+    """Supported Blosc compression algorithms."""
+
+    lz4 = "lz4"
+    lz4hc = "lz4hc"
+    blosclz = "blosclz"
+    snappy = "snappy"
+    zlib = "zlib"
+    zstd = "zstd"
+
+
+class BloscShuffle(StrEnum):
+    """Supported Blosc shuffle modes."""
+
+    noshuffle = "noshuffle"
+    shuffle = "shuffle"
+    bitshuffle = "bitshuffle"
 
 
 class Blosc(CamelCaseStrictModel):

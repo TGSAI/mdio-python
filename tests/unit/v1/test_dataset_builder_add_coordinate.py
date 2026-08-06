@@ -1,11 +1,11 @@
 """Tests the schema v1 dataset_builder.add_coordinate() public API."""
 
 import pytest
-from zarr.codecs import BloscCname
 
 from mdio.builder.dataset_builder import MDIODatasetBuilder
 from mdio.builder.dataset_builder import _BuilderState
 from mdio.builder.schemas.compressors import Blosc
+from mdio.builder.schemas.compressors import BloscCname
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.v1.units import LengthUnitEnum
 from mdio.builder.schemas.v1.units import LengthUnitModel

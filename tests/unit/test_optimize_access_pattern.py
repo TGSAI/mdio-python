@@ -116,7 +116,7 @@ class TestOptimizeAccessPattern:
         assert "fast_crossline" in ds.variables
         assert ds["fast_crossline"].encoding["chunks"] == (32, 8, 32)
         assert isinstance(actual_compressor, zarr_BloscCodec)
-        assert actual_compressor.cname == BloscCname.blosclz
+        assert getattr(actual_compressor.cname, "value", actual_compressor.cname) == BloscCname.blosclz
         assert actual_compressor.clevel == 1
 
     def test_user_provided_client(self, mdio_dataset_path: str) -> None:

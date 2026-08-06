@@ -237,9 +237,9 @@ class TestCompressorToEncoding:
         result = _compressor_to_encoding(mdio_compressor)
 
         assert isinstance(result["compressors"], BloscCodec)
-        assert result["compressors"].cname == BloscCname.lz4
+        assert getattr(result["compressors"].cname, "value", result["compressors"].cname) == BloscCname.lz4
         assert result["compressors"].clevel == 5
-        assert result["compressors"].shuffle == BloscShuffle.bitshuffle
+        assert getattr(result["compressors"].shuffle, "value", result["compressors"].shuffle) == BloscShuffle.bitshuffle
         assert result["compressors"].blocksize == 1024
 
     def test_compressor_encoding_zfp(self) -> None:
