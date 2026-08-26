@@ -57,6 +57,7 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     grid_map: zarr_Array,
     dataset: xr_Dataset,
     data_variable_name: str,
+    merge_chunks: set[tuple[int, ...]] | None = None,
 ) -> SummaryStatistics:
     """Blocked I/O from SEG-Y to chunked `xarray.Dataset`.
 
@@ -66,6 +67,11 @@ def to_zarr(  # noqa: PLR0913, PLR0915
         grid_map: Zarr array with grid map for the traces.
         dataset: Handle for xarray.Dataset we are writing trace data
         data_variable_name: Name of the data variable in the dataset.
+        merge_chunks: Optional set of chunk-grid indices (one int per spatial dim) that must
+            be written in read-modify-write ("merge") mode instead of a pure fill write.
+            Used for multi-shard consolidation so shards sharing a boundary chunk don't
+            clobber each other. When None (default), every chunk uses the original fast
+            pure-write path, so single-file ingestion behavior is unchanged.
 
     Returns:
         None
@@ -77,9 +83,21 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     final_stats = _create_stats()
 
     data_variable_chunks = data.encoding.get("chunks")
-    worker_chunks = data_variable_chunks[:-1] + (data.shape[-1],)  # un-chunk sample axis
+
+    # Write-block granularity. With Zarr v3 sharding, a shard is a single storage object holding
+    # a grid of chunks; two workers writing different chunks of the *same* shard would perform
+    # concurrent read-modify-write on that object and clobber each other. So when the array is
+    # sharded we make the write block one whole shard (spatial), guaranteeing each worker owns a
+    # distinct set of shard objects. Unsharded arrays keep the original per-chunk write block.
+    shard_shape = data.encoding.get("shards")
+    write_block = tuple(shard_shape) if shard_shape else data_variable_chunks
+
+    worker_chunks = write_block[:-1] + (data.shape[-1],)  # un-chunk sample axis
     chunk_iter = ChunkIterator(shape=data.shape, chunks=worker_chunks, dim_names=data.dims)
     num_chunks = chunk_iter.num_chunks
+
+    # Spatial write-block sizes used to map a region back to its block-grid index for merge lookups.
+    spatial_chunk_sizes = write_block[:-1]
 
     zarr_format = zarr.config.get("default_zarr_format")
     use_consolidated = zarr_format == ZarrFormat.V2
@@ -118,8 +136,15 @@ def to_zarr(  # noqa: PLR0913, PLR0915
     with executor:
         futures = []
         for region in chunk_iter:
-            # Only the lightweight region is pickled per block; shared inputs live in worker state.
-            future = executor.submit(trace_worker, region)
+            merge = False
+            if merge_chunks:
+                region_slices = tuple(region.values())
+                chunk_index = tuple(
+                    int(region_slices[i].start // spatial_chunk_sizes[i]) for i in range(len(spatial_chunk_sizes))
+                )
+                merge = chunk_index in merge_chunks
+            # Only the lightweight region (+ merge flag) is pickled per block; shared inputs live in worker state.
+            future = executor.submit(trace_worker, region, merge)
             futures.append(future)
 
         iterable = tqdm(

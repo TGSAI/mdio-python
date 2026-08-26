@@ -37,14 +37,19 @@ EXPECTED_COORDINATES = [
     "group_coord_x",
     "group_coord_y",
     "orig_field_record_num",
+    # Optional 3-D geometry (z); built here because build_dataset materializes every declared
+    # coordinate. The SEG-Y ingestion path prunes these when the source lacks elevation.
+    "source_surface_elevation",
+    "receiver_group_elevation",
 ]
 
 
 def _validate_coordinates_headers_trace_mask(dataset: Dataset, headers: StructuredType, domain: str) -> None:
     """Validate the coordinate, headers, trace_mask variables in the dataset."""
     # Verify variables
-    # 5 dim coords + 5 non-dim coords + 1 data + 1 trace mask + 1 headers = 13 variables
-    assert len(dataset.variables) == 13
+    # 5 dim coords + 7 non-dim coords + 1 data + 1 trace mask + 1 headers = 15 variables
+    # (non-dim coords now include the two optional elevation coordinates)
+    assert len(dataset.variables) == 15
 
     # Verify trace headers
     validate_variable(
@@ -112,8 +117,11 @@ class TestSeismic3DShotReceiverLineGathersTemplate:
             "source_coord_y",
             "group_coord_x",
             "group_coord_y",
+            "source_surface_elevation",
+            "receiver_group_elevation",
         )
         assert t._logical_coord_names == ("orig_field_record_num",)
+        assert t.optional_coordinate_names == ("source_surface_elevation", "receiver_group_elevation")
         assert t._var_chunk_shape == (1, 32, 1, 32, 2048)
 
         assert t._builder is None

@@ -19,6 +19,10 @@ class Seismic3DStreamerShotGathersTemplate(AbstractDatasetTemplate):
         self._dim_names = ("shot_point", "cable", "channel", self._data_domain)
         self._physical_coord_names = ("source_coord_x", "source_coord_y", "group_coord_x", "group_coord_y")
         self._logical_coord_names = ("gun",)
+        # 'gun' is recorded only by some acquisitions (multi-source). Keep it as a coordinate
+        # populated when the source carries it, but don't hard-require it: single-source
+        # streamer shot data has no gun field and must still ingest as 3D.
+        self._optional_coord_names = ("gun",)
         self._var_chunk_shape = (8, 1, 128, 2048)
 
     @property

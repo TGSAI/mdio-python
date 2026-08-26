@@ -71,6 +71,7 @@ class SchemaResolver:
             dimensions=dimensions,
             coordinates=list(template.declare_coordinate_specs()),
             chunk_shape=template.full_chunk_shape,
+            shard_shape=template.full_shard_shape,
             metadata=template._load_dataset_attributes() or {},
             default_variable_name=template.default_variable_name,
         )

@@ -6,9 +6,13 @@ from importlib import metadata
 
 from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
+from mdio.converters import allocate_mdio_grid
+from mdio.converters import append_segy_shard
 from mdio.converters import mdio_to_segy
 from mdio.converters import segy_to_mdio
 from mdio.ingestion import ResolvedSchema
+from mdio.ingestion.consolidation import ConsolidationPlan
+from mdio.ingestion.consolidation import plan_consolidation
 from mdio.optimize.access_pattern import OptimizedAccessPatternConfig
 from mdio.optimize.access_pattern import optimize_access_patterns
 from mdio.segy.geometry import GridOverrides
@@ -24,6 +28,10 @@ __all__ = [
     "GridOverrides",
     "open_mdio",
     "to_mdio",
+    "allocate_mdio_grid",
+    "append_segy_shard",
+    "plan_consolidation",
+    "ConsolidationPlan",
     "mdio_to_segy",
     "segy_to_mdio",
     "OptimizedAccessPatternConfig",

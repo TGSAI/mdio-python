@@ -64,6 +64,53 @@ def _resolve_chunks(chunk_shape: tuple[int, ...], sizes: tuple[int, ...]) -> tup
     return tuple(size if chunk_size == -1 else chunk_size for chunk_size, size in zip(chunk_shape, sizes, strict=True))
 
 
+def _resolve_shards(
+    shard_shape: tuple[int, ...],
+    chunk_shape: tuple[int, ...],
+    sizes: tuple[int, ...],
+) -> tuple[int, ...]:
+    """Resolve the shard shape (``-1`` -> full size) and validate it against the chunk shape.
+
+    An empty ``shard_shape`` means sharding is disabled and returns ``()``. Otherwise the shard
+    is the Zarr v3 storage-object unit and must be a whole multiple of the (resolved) chunk shape
+    along every dimension, so an integer number of chunks packs into each shard.
+
+    Args:
+        shard_shape: Configured shard shape (may contain ``-1``); ``()`` disables sharding.
+        chunk_shape: Already-resolved chunk shape (no ``-1``).
+        sizes: Actual sizes of each dimension.
+
+    Returns:
+        The resolved shard shape, or ``()`` when sharding is disabled.
+
+    Raises:
+        ValueError: If the shard rank differs from the chunk rank, or a shard extent is not a
+            positive whole multiple of the corresponding chunk extent.
+    """
+    if not shard_shape:
+        return ()
+    if len(shard_shape) != len(chunk_shape):
+        msg = f"Shard shape {shard_shape} rank does not match chunk shape {chunk_shape}."
+        raise ValueError(msg)
+    resolved = tuple(size if s == -1 else s for s, size in zip(shard_shape, sizes, strict=True))
+    for shard_size, chunk_size in zip(resolved, chunk_shape, strict=True):
+        if shard_size <= 0 or shard_size % chunk_size != 0:
+            msg = (
+                f"Shard shape {resolved} must be a positive whole multiple of the chunk shape "
+                f"{chunk_shape} along every dimension (offending pair: shard={shard_size}, "
+                f"chunk={chunk_size})."
+            )
+            raise ValueError(msg)
+    return resolved
+
+
+def _shard_grid(shard_shape: tuple[int, ...]) -> RegularChunkGrid | None:
+    """Build a shard grid model from a resolved shard shape (``()`` -> ``None``)."""
+    if not shard_shape:
+        return None
+    return RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=shard_shape))
+
+
 def _create_dataset_builder(schema: ResolvedSchema) -> MDIODatasetBuilder:
     """Create and initialize the MDIODatasetBuilder with attributes.
 
@@ -145,6 +192,10 @@ def _add_trace_mask_and_headers(
 
     if header_dtype is not None:
         chunk_grid = RegularChunkGrid(configuration=RegularChunkShape(chunk_shape=resolved_chunks[:-1]))
+        # NOTE: headers are intentionally NOT sharded. They use a structured (void) dtype, and
+        # Zarr's sharding partial-encode path tries to hash the void fill value
+        # (TypeError: unhashable 'writeable void-scalar'). Headers are also tiny relative to the
+        # sample cube, so sharding them has little upside. Sharding applies to the data variable.
         builder.add_variable(
             name="headers",
             dimensions=spatial_dim_names,
@@ -159,6 +210,7 @@ def _add_main_and_extra_variables(
     builder: MDIODatasetBuilder,
     schema: ResolvedSchema,
     resolved_chunks: tuple[int, ...],
+    resolved_shards: tuple[int, ...],
     units: dict[str, AllUnitModel],
     extra_variables: list[dict[str, Any]],
 ) -> None:
@@ -168,6 +220,7 @@ def _add_main_and_extra_variables(
         builder: MDIO dataset builder.
         schema: Resolved schema.
         resolved_chunks: Resolved chunk shapes.
+        resolved_shards: Resolved shard shapes (``()`` disables sharding).
         units: Dictionary mapping coordinate/dimension names to AllUnitModel.
         extra_variables: Optional list of additional variables.
     """
@@ -181,7 +234,11 @@ def _add_main_and_extra_variables(
         data_type=ScalarType.FLOAT32,
         compressor=compressor,
         coordinates=coordinate_names,
-        metadata=VariableMetadata(chunk_grid=chunk_grid, units_v1=units.get(schema.default_variable_name)),
+        metadata=VariableMetadata(
+            chunk_grid=chunk_grid,
+            shard_grid=_shard_grid(resolved_shards),
+            units_v1=units.get(schema.default_variable_name),
+        ),
     )
 
     for var_dict in extra_variables:
@@ -223,6 +280,7 @@ def build_mdio_dataset(
     extra_variables = extra_variables or []
 
     resolved_chunks = _resolve_chunks(schema.chunk_shape, sizes)
+    resolved_shards = _resolve_shards(schema.shard_shape, resolved_chunks, sizes)
     builder = _create_dataset_builder(schema)
 
     _add_dimensions_and_coordinates(
@@ -243,6 +301,7 @@ def build_mdio_dataset(
         builder=builder,
         schema=schema,
         resolved_chunks=resolved_chunks,
+        resolved_shards=resolved_shards,
         units=units,
         extra_variables=extra_variables,
     )
