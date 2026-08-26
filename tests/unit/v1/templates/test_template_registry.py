@@ -38,6 +38,7 @@ EXPECTED_DEFAULT_TEMPLATE_NAMES = [
     "StreamerShotGathers3D",
     "StreamerFieldRecords3D",
     "ObnReceiverGathers3D",
+    "SingleNodeContRecvrGathers",
     "ShotReceiverLineGathers3D",
 ]
 
@@ -245,7 +246,7 @@ class TestTemplateRegistrySingleton:
         registry.register(template2)
 
         templates = registry.list_all_templates()
-        assert len(templates) == 22 + 2  # 22 default + 2 custom
+        assert len(templates) == 23 + 2  # 23 default + 2 custom
         assert "Template_One" in templates
         assert "Template_Two" in templates
 
@@ -255,7 +256,7 @@ class TestTemplateRegistrySingleton:
 
         # Default templates are always installed
         templates = list_templates()
-        assert len(templates) == 22
+        assert len(templates) == 23
 
         # Add some templates
         template1 = MockDatasetTemplate("Template1")
@@ -264,7 +265,7 @@ class TestTemplateRegistrySingleton:
         registry.register(template1)
         registry.register(template2)
 
-        assert len(registry.list_all_templates()) == 22 + 2  # 22 default + 2 custom
+        assert len(registry.list_all_templates()) == 23 + 2  # 23 default + 2 custom
 
         # Clear all
         registry.clear()
@@ -397,7 +398,7 @@ class TestGlobalFunctions:
         register_template(template2)
 
         templates = list_templates()
-        assert len(templates) == 24  # 22 default + 2 custom
+        assert len(templates) == 25  # 23 default + 2 custom
         assert "template1" in templates
         assert "template2" in templates
 
@@ -440,7 +441,7 @@ class TestConcurrentAccess:
         assert len(errors) == 0
         assert len(results) == 10
         # Including default templates
-        assert len(registry.list_all_templates()) == 32  # 22 default + 10 registered
+        assert len(registry.list_all_templates()) == 33  # 23 default + 10 registered
 
         # Check all templates are registered
         for i in range(10):
