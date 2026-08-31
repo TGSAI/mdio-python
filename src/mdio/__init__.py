@@ -12,6 +12,8 @@ from mdio.ingestion import ResolvedSchema
 from mdio.optimize.access_pattern import OptimizedAccessPatternConfig
 from mdio.optimize.access_pattern import optimize_access_patterns
 from mdio.segy.geometry import GridOverrides
+from mdio.segy.headers import SegyFileHeaders
+from mdio.segy.headers import update_segy_file_headers
 
 try:
     __version__ = metadata.version("multidimio")
@@ -22,8 +24,10 @@ except metadata.PackageNotFoundError:
 __all__ = [
     "__version__",
     "GridOverrides",
+    "SegyFileHeaders",
     "open_mdio",
     "to_mdio",
+    "update_segy_file_headers",
     "mdio_to_segy",
     "segy_to_mdio",
     "OptimizedAccessPatternConfig",

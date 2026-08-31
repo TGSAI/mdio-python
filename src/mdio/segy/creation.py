@@ -95,8 +95,8 @@ def mdio_spec_to_segy(
 
     if "segy_file_header" not in dataset:
         msg = (
-            "MDIO does not contain SEG-Y file headers to write to output. Please add a dummy segy_file_header "
-            "variable and fill its metadata (.attrs) with `textHeader` and `binaryHeader`."
+            "MDIO does not contain SEG-Y file headers to write to output. "
+            "Call mdio.update_segy_file_headers(...) to add textHeader and binaryHeader."
         )
         raise MDIOMissingVariableError(msg)
 

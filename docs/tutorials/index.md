@@ -14,4 +14,5 @@ compression
 rechunking
 corrupt_files
 custom_template
+file_headers
 ```

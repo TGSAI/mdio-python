@@ -38,6 +38,16 @@ and
 .. autopydantic_model:: mdio.GridOverrides
 ```
 
+### SEG-Y File Headers
+
+```{eval-rst}
+.. automodule:: mdio.segy.headers
+   :members:
+
+.. automodule:: mdio.segy.text_header
+   :members:
+```
+
 ## Core Functionality
 
 ### Dimensions
