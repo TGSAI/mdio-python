@@ -44,6 +44,21 @@ class VariableMetadata(CoordinateMetadata):
         description="Minimal summary statistics.",
     )
 
+    crs: str | None = Field(
+        default=None,
+        description="Coordinate Reference System as an EPSG code (e.g., 'EPSG:4326').",
+    )
+
+    bin_inl: float | None = Field(
+        default=None,
+        description="Inline bin size in grid units.",
+    )
+
+    bin_xl: float | None = Field(
+        default=None,
+        description="Crossline bin size in grid units.",
+    )
+
 
 class Coordinate(NamedArray):
     """A simple MDIO Coordinate array with metadata.
