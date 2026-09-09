@@ -1,6 +1,6 @@
 [project]
 name = "multidimio"
-version = "1.2.1"
+version = "1.2.2"
 description = "Cloud-native, scalable, and user-friendly multi dimensional energy data!"
 authors = [{ name = "Brian Michell", email = "brian.michell@tgs.com" }]
 requires-python = ">=3.12,<3.15"
@@ -183,7 +183,7 @@ init_typed = true
 warn_required_dynamic_aliases = true
 
 [tool.bumpversion]
-current_version = "1.2.1"
+current_version = "1.2.2"
 allow_dirty = true
 commit = false
 tag = false
