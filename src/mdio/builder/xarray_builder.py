@@ -22,7 +22,6 @@ from mdio.builder.schemas.v1.variable import Variable
 from mdio.constants import ZarrFormat
 from mdio.constants import fill_value_map
 from mdio.converters.type_converter import to_numpy_dtype
-from mdio.core.zarr_io import zarr_warnings_suppress_unstable_numcodecs_v3
 
 
 def _import_numcodecs_zfpy() -> "type[numcodecs.ZFPY]":
@@ -153,9 +152,7 @@ def _compressor_to_encoding(
     kwargs["mode"] = compressor.mode.int_code
     if is_v2:
         return {"compressors": numcodecs_ZFPY(**kwargs)}
-    with zarr_warnings_suppress_unstable_numcodecs_v3():
-        serializer = zarr_ZFPY(**kwargs)
-    return {"serializer": serializer, "compressors": None}
+    return {"serializer": zarr_ZFPY(**kwargs), "compressors": None}
 
 
 def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:

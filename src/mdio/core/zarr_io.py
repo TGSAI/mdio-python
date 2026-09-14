@@ -7,7 +7,6 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING
 
 from zarr.errors import UnstableSpecificationWarning
-from zarr.errors import ZarrUserWarning
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -15,21 +14,12 @@ if TYPE_CHECKING:
 
 @contextmanager
 def zarr_warnings_suppress_unstable_structs_v3() -> Generator[None, None, None]:
-    """Context manager to suppress Zarr V3 unstable structured array warning."""
+    """Context manager to suppress Zarr V3 unstable data-type warning.
+
+    Covers unspecified v3 types such as ``raw_bytes`` (MDIO ``raw_headers`` / ``V240``).
+    Filters are scoped with ``warnings.catch_warnings`` and restored on exit.
+    """
     warn = r"The data type \((.*?)\) does not have a Zarr V3 specification\."
-    warnings.filterwarnings("ignore", message=warn, category=UnstableSpecificationWarning)
-    try:
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", message=warn, category=UnstableSpecificationWarning)
         yield
-    finally:
-        pass
-
-
-@contextmanager
-def zarr_warnings_suppress_unstable_numcodecs_v3() -> Generator[None, None, None]:
-    """Context manager to suppress Zarr V3 unstable numcodecs warning."""
-    warn = r"Numcodecs codecs are not in the Zarr version 3 specification"
-    warnings.filterwarnings("ignore", message=warn, category=ZarrUserWarning)
-    try:
-        yield
-    finally:
-        pass

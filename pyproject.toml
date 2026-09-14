@@ -31,7 +31,7 @@ dependencies = [
     "tqdm>=4.68.3",
     "universal-pathlib>=0.3.10",
     "xarray>=2026.4.0",
-    "zarr>=3.2.1",
+    "zarr>=3.3.0",
 ]
 
 [project.optional-dependencies]
