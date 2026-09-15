@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import warnings
-from typing import TYPE_CHECKING
+from pathlib import Path
+from shutil import copyfile
 from urllib.request import urlretrieve
 
 import pytest
 
-if TYPE_CHECKING:
-    from pathlib import Path
+SODA_LAKE_SHOT_URL = "https://gdr-data-lake.s3.us-west-2.amazonaws.com/soda_lake/raw_seismic/2010/v1.0.0/F7733R1.SGY"
 
 # Suppress Dask's chunk balancing warning
 warnings.filterwarnings(
@@ -28,16 +29,20 @@ def fake_segy_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 @pytest.fixture(scope="session")
 def segy_input_uri() -> str:
-    """Path to dome dataset for cloud testing."""
-    return "http://s3.amazonaws.com/teapot/filt_mig.sgy"
+    """URL or local path to the Soda Lake shot SEG-Y used in integration tests."""
+    return os.environ.get("MDIO_TEST_SEGY_URI", SODA_LAKE_SHOT_URL)
 
 
 @pytest.fixture(scope="session")
 def segy_input(segy_input_uri: str, tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Download teapot dome dataset for testing."""
+    """Fetch the Soda Lake shot SEG-Y for testing."""
     tmp_dir = tmp_path_factory.mktemp("segy")
-    tmp_file = tmp_dir / "teapot.segy"
-    urlretrieve(segy_input_uri, tmp_file)  # noqa: S310
+    tmp_file = tmp_dir / "soda_lake.segy"
+    source = Path(segy_input_uri)
+    if source.is_file():
+        copyfile(source, tmp_file)
+    else:
+        urlretrieve(segy_input_uri, tmp_file)  # noqa: S310
     return tmp_file
 
 
@@ -57,4 +62,4 @@ def zarr_tmp2(tmp_path_factory: pytest.TempPathFactory) -> Path:  # pragma: no c
 def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the round-trip IBM SEG-Y."""
     tmp_dir = tmp_path_factory.mktemp("segy")
-    return tmp_dir / "teapot_roundtrip.segy"
+    return tmp_dir / "soda_lake_roundtrip.segy"
