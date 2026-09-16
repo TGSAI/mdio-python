@@ -92,7 +92,10 @@ def mdio_segy_spec(version_str: str | None = None) -> SegySpec:
 def encode_segy_revision(binary_header: dict) -> dict:
     """Encode revision code to binary header.
 
-    Return the correctly Rev1-like encoded revision code, ready to write to SEG-Y.
+    Packs ``segy_revision_major`` / ``segy_revision_minor`` into the single 16-bit
+    ``segy_revision`` field used by rev 1-style specs (``(major << 8) | minor``). Only call
+    this when the export spec declares the ``segy_revision`` field; rev 2+ specs declare
+    major/minor separately and must keep those keys as-is.
 
     Args:
         binary_header: Dictionary representing the SEG-Y binary header. Contains keys for major

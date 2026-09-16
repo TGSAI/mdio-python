@@ -47,6 +47,24 @@ def _ensure_exportable_text_header(text_header: str) -> str:
     return text_header
 
 
+def _prepare_export_revision(segy_spec: SegySpec, binary_header: dict[str, int]) -> dict[str, int]:
+    """Make MDIO revision keys match the export spec.
+
+    Import always stores ``segy_revision_major`` / ``segy_revision_minor``. The export spec
+    may use those names (rev 2+), a single ``segy_revision`` field (rev 1), or neither.
+    """
+    names = segy_spec.binary_header.names
+    # Do not inject rev-1 ``segy_revision`` over rev-2 major/minor — same bytes, customize evicts them.
+    if not any(name.startswith("segy_revision") for name in names):
+        segy_spec.binary_header.customize(fields=binary.Rev1.SEGY_REVISION.model)
+        names = segy_spec.binary_header.names
+
+    # Pack major/minor into the combined 16-bit field only when the spec uses that name.
+    if "segy_revision" in names:
+        return encode_segy_revision(binary_header)
+    return binary_header
+
+
 def make_segy_factory(spec: SegySpec, binary_header: dict[str, int]) -> SegyFactory:
     """Generate SEG-Y factory from MDIO metadata."""
     sample_interval = binary_header["sample_interval"]
@@ -102,20 +120,12 @@ def mdio_spec_to_segy(
 
     file_header = dataset["segy_file_header"]
     text_header = file_header.attrs["textHeader"]
-    binary_header = file_header.attrs["binaryHeader"]
-    binary_header = encode_segy_revision(binary_header)
+    binary_header = _prepare_export_revision(segy_spec, file_header.attrs["binaryHeader"])
 
     factory = make_segy_factory(spec=segy_spec, binary_header=binary_header)
 
     text_header = _ensure_exportable_text_header(text_header)
     text_header_bytes = factory.create_textual_header(text_header)
-
-    # During MDIO SEGY import, TGSAI/segy always creates revision major/minor fields
-    # We may not have it in the user desired spec. In that case we add it here
-    if "segy_revision" not in segy_spec.binary_header.names:
-        rev_field = binary.Rev1.SEGY_REVISION.model
-        segy_spec.binary_header.customize(fields=rev_field)
-
     binary_header_bytes = factory.create_binary_header(binary_header)
 
     with output_path.open(mode="wb") as fp:
