@@ -2265,7 +2265,7 @@ requires-dist = [
     { name = "tqdm", specifier = ">=4.68.3" },
     { name = "universal-pathlib", specifier = ">=0.3.10" },
     { name = "xarray", specifier = ">=2026.4.0" },
-    { name = "zarr", specifier = ">=3.2.1" },
+    { name = "zarr", specifier = ">=3.3.0" },
     { name = "zfpy", marker = "extra == 'lossy'", specifier = ">=1.0.1" },
 ]
 provides-extras = ["cloud", "distributed", "lossy"]
