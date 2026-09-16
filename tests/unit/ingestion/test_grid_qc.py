@@ -34,6 +34,23 @@ class TestGridDensityQc:
             grid_density_qc(grid, num_traces=100)
         assert caplog.records == []
 
+    def test_logs_dimension_summary_at_info(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Dense grids emit the scan summary at INFO, without the sparse prefix."""
+        grid = _make_grid((10, 10, 100))
+        with caplog.at_level(logging.INFO, logger="mdio.ingestion.grid_qc"):
+            grid_density_qc(grid, num_traces=100)
+
+        assert len(caplog.records) == 1
+        assert caplog.records[0].levelno == logging.INFO
+        message = caplog.records[0].message
+        assert "Ingestion grid is sparse" not in message
+        assert "Sparsity ratio: 1.00" in message
+        assert "SEG-Y trace count: 100" in message
+        assert "grid trace count: 100" in message
+        assert "{'dim_0': 10, 'dim_1': 10, 'sample': 100}" in message
+        for dim_name in ("dim_0", "dim_1", "sample"):
+            assert f"\n{dim_name} min: 0 max:" in message
+
     def test_warns_when_above_warn_threshold(self, caplog: pytest.LogCaptureFixture) -> None:
         """Sparsity above warn but below limit logs a warning, no raise."""
         grid = _make_grid((10, 10, 100))  # 100 grid traces
