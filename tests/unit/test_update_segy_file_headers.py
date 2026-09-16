@@ -37,11 +37,16 @@ def _write_minimal_store(
     with_header_var: bool = True,
     text_header: str | None = None,
     binary_header: dict[str, int] | None = None,
-    samples: int = 8,
+    sample_coords: np.ndarray | None = None,
 ) -> Path:
-    """Create a tiny MDIO store through the public write API."""
+    """Create a tiny MDIO store through the public write API.
+
+    Sample coordinates use 4 ms spacing, matching MDIO ingest (SEG-Y us / 1000).
+    """
+    sample_coords = np.arange(8, dtype=np.int64) * 4 if sample_coords is None else sample_coords
     dataset = xr.Dataset(
-        {"amplitude": (("sample",), np.arange(samples, dtype=np.float32))},
+        {"amplitude": (("sample",), np.arange(sample_coords.size, dtype=np.float32))},
+        coords={"sample": sample_coords},
         attrs={"attributes": {"defaultVariableName": "amplitude"}},
     )
     if with_header_var:
@@ -119,7 +124,7 @@ class TestUpdateSegyFileHeaders:
 
     def test_creates_missing_variable_with_defaults(self, tmp_path: Path) -> None:
         """Store without ``segy_file_header`` gets a scalar var plus Rev1 defaults."""
-        store = _write_minimal_store(tmp_path / "no_headers.mdio", with_header_var=False, samples=8)
+        store = _write_minimal_store(tmp_path / "no_headers.mdio", with_header_var=False)
 
         result = update_segy_file_headers(store)
 
@@ -127,9 +132,9 @@ class TestUpdateSegyFileHeaders:
         stored_text, stored_binary = _stored_headers(store)
         assert stored_text == result.text_header
         assert stored_binary["samples_per_trace"] == 8
+        assert stored_binary["sample_interval"] == 4000
         assert stored_binary["segy_revision_major"] == 1
         assert stored_binary["segy_revision_minor"] == 0
-        assert "sample_interval" in stored_binary
 
     def test_fills_missing_attrs_on_existing_variable(self, tmp_path: Path) -> None:
         """Empty header variable receives default text and binary attrs."""
@@ -140,6 +145,7 @@ class TestUpdateSegyFileHeaders:
         validate_text_header(result.text_header)
         _, stored_binary = _stored_headers(store)
         assert stored_binary["samples_per_trace"] == 8
+        assert stored_binary["sample_interval"] == 4000
 
     def test_user_binary_overlays_defaults_when_missing(self, tmp_path: Path) -> None:
         """Partial user binary sits on top of the generated default header."""
@@ -209,3 +215,34 @@ class TestUpdateSegyFileHeaders:
         with caplog.at_level(logging.WARNING, logger="mdio.segy.headers"):
             update_segy_file_headers(store, binary_header={"not_a_segy_field": 1})
         assert any("not_a_segy_field" in record.message for record in caplog.records)
+
+    def test_supplied_interval_only_infers_samples_per_trace(self, tmp_path: Path) -> None:
+        """A supplied interval avoids inference while sample count still comes from shape."""
+        store = _write_minimal_store(
+            tmp_path / "supplied-interval.mdio",
+            with_header_var=False,
+            sample_coords=np.zeros(4, dtype=np.int64),
+        )
+
+        result = update_segy_file_headers(store, binary_header={"sample_interval": 2000})
+
+        assert result.binary_header["sample_interval"] == 2000
+        assert result.binary_header["samples_per_trace"] == 4
+
+    @pytest.mark.parametrize(
+        "sample_coords",
+        [
+            np.zeros(3, dtype=np.int64),
+            np.array([0.0, 1.234567, 2.469134]),
+        ],
+    )
+    def test_invalid_sample_spacing_raises(self, tmp_path: Path, sample_coords: np.ndarray) -> None:
+        """Sample spacing must represent a positive integer microsecond interval."""
+        store = _write_minimal_store(
+            tmp_path / "invalid.mdio",
+            with_header_var=False,
+            sample_coords=sample_coords,
+        )
+
+        with pytest.raises(ValueError, match="Cannot infer sample_interval"):
+            update_segy_file_headers(store)

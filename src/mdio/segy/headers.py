@@ -43,8 +43,7 @@ SEGY_FILE_HEADER_VARIABLE = "segy_file_header"
 TEXT_HEADER_ATTR = "textHeader"
 BINARY_HEADER_ATTR = "binaryHeader"
 
-_DEFAULT_SAMPLE_INTERVAL = 4000
-_DEFAULT_SAMPLES_PER_TRACE = 1500
+_MILLISECONDS_TO_MICROSECONDS = 1000
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,8 +73,12 @@ def update_segy_file_headers(
 
     ``None`` arguments leave that header unchanged when it already exists. If the variable
     or an attribute is missing, a default is written. Defaults come from ``template`` when
-    given, otherwise SEG-Y Revision 1.0. ``samples_per_trace`` is taken from the default
-    data variable shape when that metadata is present.
+    given, otherwise SEG-Y Revision 1.0.
+
+    Missing ``samples_per_trace`` and ``sample_interval`` values are inferred from the
+    fastest (last) dimension of the default data variable. MDIO sample coordinates are
+    milliseconds; the binary header stores the interval in microseconds. Inference raises
+    if the spacing does not represent one positive, integer number of microseconds.
 
     User ``binary_header`` values are merged onto the existing header, or onto the default
     header when the file has none. Prefer updating values of keys that already exist.
@@ -92,8 +95,9 @@ def update_segy_file_headers(
 
     Raises:
         MDIONotFoundError: If ``mdio_path`` does not exist.
-        ValueError: If a provided text header cannot be sanitized or a binary field is not
-            an integer.
+        ValueError: If a provided text header cannot be sanitized, a binary field is not an
+            integer, or ``sample_interval`` / ``samples_per_trace`` cannot be inferred from
+            the fastest dimension.
     """
     path = _normalize_path(mdio_path)
     if not path.exists():
@@ -112,7 +116,8 @@ def update_segy_file_headers(
     default_binary: dict[str, int] | None = None
     if (user_text is None and existing_text is None) or existing_binary is None:
         spec = _resolve_spec(template)
-        sample_interval, samples_per_trace = _resolve_factory_params(dataset, existing_binary)
+        supplied_binary = {**(existing_binary or {}), **(user_binary or {})}
+        sample_interval, samples_per_trace = _resolve_factory_params(dataset, supplied_binary)
         default_text, default_binary = _build_defaults(spec, sample_interval, samples_per_trace)
 
     if user_text is not None:
@@ -158,28 +163,47 @@ def _resolve_spec(template: SegySpec | None) -> SegySpec:
     return template.model_copy(deep=True)
 
 
-def _resolve_factory_params(dataset: xr_Dataset, existing_binary: dict[str, int] | None) -> tuple[int, int]:
-    """Pick sample interval and samples-per-trace for default header generation."""
-    sample_interval = _DEFAULT_SAMPLE_INTERVAL
-    samples_per_trace = _infer_samples_per_trace(dataset) or _DEFAULT_SAMPLES_PER_TRACE
-    if existing_binary is not None:
-        sample_interval = existing_binary.get("sample_interval", sample_interval)
-        samples_per_trace = existing_binary.get("samples_per_trace", samples_per_trace)
+def _resolve_factory_params(dataset: xr_Dataset, binary_header: dict[str, int]) -> tuple[int, int]:
+    """Pick sample interval and samples-per-trace for default header generation.
+
+    Supplied binary-header values win. Missing values are inferred from the fastest
+    dimension of the default data variable. No numeric fallbacks.
+    """
+    sample_interval = binary_header.get("sample_interval")
+    samples_per_trace = binary_header.get("samples_per_trace")
+    if sample_interval is not None and samples_per_trace is not None:
+        return sample_interval, samples_per_trace
+
+    attributes = dataset.attrs.get("attributes")
+    variable_name = attributes.get("defaultVariableName") if isinstance(attributes, dict) else None
+    if not isinstance(variable_name, str) or variable_name not in dataset:
+        msg = "Cannot infer SEG-Y sample headers: default data variable is missing"
+        raise ValueError(msg)
+    data = dataset[variable_name]
+    if not data.dims:
+        msg = "Cannot infer SEG-Y sample headers: default data variable has no dimensions"
+        raise ValueError(msg)
+
+    dim_name = data.dims[-1]
+    if samples_per_trace is None:
+        samples_per_trace = int(data.sizes[dim_name])
+    if sample_interval is None:
+        sample_interval = _infer_sample_interval(dataset, dim_name)
     return sample_interval, samples_per_trace
 
 
-def _infer_samples_per_trace(dataset: xr_Dataset) -> int | None:
-    """Return the last-axis length of the default data variable, if present."""
-    attributes = dataset.attrs.get("attributes")
-    if not isinstance(attributes, dict):
-        return None
-    variable_name = attributes.get("defaultVariableName")
-    if not isinstance(variable_name, str) or variable_name not in dataset:
-        return None
-    data = dataset[variable_name]
-    if not data.dims:
-        return None
-    return int(data.sizes[data.dims[-1]])
+def _infer_sample_interval(dataset: xr_Dataset, dim_name: str) -> int:
+    """Infer the SEG-Y sample interval in microseconds from an MDIO dimension."""
+    if dim_name not in dataset.coords or dataset.sizes[dim_name] <= 1:
+        msg = f"Cannot infer sample_interval from dimension {dim_name!r}"
+        raise ValueError(msg)
+
+    coords = dataset[dim_name]
+    sample_interval = float((coords[1] - coords[0]).item()) * _MILLISECONDS_TO_MICROSECONDS
+    if sample_interval <= 0 or not sample_interval.is_integer():
+        msg = f"Cannot infer sample_interval from dimension {dim_name!r}"
+        raise ValueError(msg)
+    return int(sample_interval)
 
 
 def _build_defaults(spec: SegySpec, sample_interval: int, samples_per_trace: int) -> tuple[str, dict[str, int]]:
