@@ -65,7 +65,7 @@ def _resolve_chunks(chunk_shape: tuple[int, ...], sizes: tuple[int, ...]) -> tup
 
 
 def _create_dataset_builder(schema: ResolvedSchema) -> MDIODatasetBuilder:
-    """Create and initialize the MDIODatasetBuilder with attributes.
+    """Create and initialize the MDIODatasetBuilder.
 
     Args:
         schema: Resolved schema.
@@ -76,7 +76,7 @@ def _create_dataset_builder(schema: ResolvedSchema) -> MDIODatasetBuilder:
     attributes = dict(schema.metadata) if schema.metadata else {}
     attributes["defaultVariableName"] = schema.default_variable_name
 
-    return MDIODatasetBuilder(name=schema.name, attributes=attributes)
+    return MDIODatasetBuilder(name=schema.name, attributes=attributes, crs=schema.crs)
 
 
 def _add_dimensions_and_coordinates(

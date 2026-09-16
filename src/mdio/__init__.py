@@ -6,6 +6,7 @@ from importlib import metadata
 
 from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
+from mdio.api.io import update_crs
 from mdio.converters import mdio_to_segy
 from mdio.converters import segy_to_mdio
 from mdio.ingestion import ResolvedSchema
@@ -27,6 +28,7 @@ __all__ = [
     "SegyFileHeaders",
     "open_mdio",
     "to_mdio",
+    "update_crs",
     "update_segy_file_headers",
     "mdio_to_segy",
     "segy_to_mdio",

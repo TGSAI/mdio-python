@@ -43,6 +43,7 @@ class ResolvedSchema(BaseModel):
         chunk_shape: Chunk size for each dimension.
         metadata: Metadata attributes.
         default_variable_name: Name of the primary data variable.
+        crs: Optional coordinate reference system identifier, e.g. ``EPSG:32610``.
     """
 
     name: str
@@ -51,6 +52,7 @@ class ResolvedSchema(BaseModel):
     chunk_shape: tuple[int, ...]
     metadata: dict[str, Any] = Field(default_factory=dict)
     default_variable_name: str = "amplitude"
+    crs: str | None = None
 
     def required_fields(self) -> set[str]:
         """Get names of fields required from the source to materialize this schema."""

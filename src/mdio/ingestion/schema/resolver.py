@@ -73,4 +73,5 @@ class SchemaResolver:
             chunk_shape=template.full_chunk_shape,
             metadata=template._load_dataset_attributes() or {},
             default_variable_name=template.default_variable_name,
+            crs=template.crs,
         )

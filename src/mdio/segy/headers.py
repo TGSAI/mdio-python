@@ -12,15 +12,13 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
-import zarr
 from segy.factory import SegyFactory
 from segy.factory import get_default_text
 from segy.standards import get_segy_standard
 
 from mdio.api.io import _normalize_path
-from mdio.api.io import _normalize_storage_options
+from mdio.api.io import _open_for_metadata_update
 from mdio.api.io import open_mdio
-from mdio.constants import ZarrFormat
 from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
 from mdio.exceptions import MDIONotFoundError
 from mdio.segy.text_header import sanitize_text_header
@@ -83,6 +81,12 @@ def update_segy_file_headers(
     User ``binary_header`` values are merged onto the existing header, or onto the default
     header when the file has none. Prefer updating values of keys that already exist.
     Adding or removing binary fields can break SEG-Y export.
+
+    The resolved ``textHeader`` and ``binaryHeader`` values replace those two attributes
+    on ``segy_file_header``. Other attributes on that variable, including
+    ``rawBinaryHeader``, and all attributes on other nodes are preserved. For Zarr v2
+    stores, unconsolidated node metadata is the source of truth and consolidated metadata
+    is rebuilt from the opened group's format after the update.
 
     Args:
         mdio_path: Local or remote path to the MDIO store.
@@ -262,18 +266,9 @@ def _warn_unknown_binary_keys(user_binary: dict[str, int], template: SegySpec | 
 
 def _write_header_attrs(path: UPath, text_header: str, binary_header: dict[str, int]) -> None:
     """Persist header attributes through Zarr."""
-    storage_options = _normalize_storage_options(path)
-    zarr_format = zarr.config.get("default_zarr_format")
-    group = zarr.open_group(
-        path.as_posix(),
-        mode="r+",
-        storage_options=storage_options,
-        use_consolidated=zarr_format == ZarrFormat.V2,
-    )
-    header_array = _ensure_header_array(group)
-    header_array.attrs.update({TEXT_HEADER_ATTR: text_header, BINARY_HEADER_ATTR: binary_header})
-    if zarr_format == ZarrFormat.V2:
-        zarr.consolidate_metadata(group.store)
+    with _open_for_metadata_update(path) as group:
+        header_array = _ensure_header_array(group)
+        header_array.attrs.update({TEXT_HEADER_ATTR: text_header, BINARY_HEADER_ATTR: binary_header})
 
 
 def _ensure_header_array(group: ZarrGroup) -> ZarrArray:

@@ -57,6 +57,14 @@ class TestSchemaResolverNoOverrides:
         assert {"inline", "crossline", "offset", "cdp_x", "cdp_y"}.issubset(required)
         assert "coordinate_scalar" not in required
 
+    def test_template_crs_copied_onto_schema(self) -> None:
+        """A configured template CRS is copied onto the resolved schema."""
+        template = Seismic3DCdpGathersTemplate(data_domain="time", gather_domain="offset")
+        template.crs = "EPSG:32610"
+        schema = SchemaResolver().resolve(template)
+
+        assert schema.crs == "EPSG:32610"
+
 
 class TestSchemaResolverNonBinned:
     """NonBinned overrides collapse spatial dimensions into a single ``trace`` axis."""
@@ -100,6 +108,15 @@ class TestSchemaResolverNonBinned:
         overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["channel"])
         schema = _resolve_with_overrides(template, overrides)
         assert "gridOverrides" not in schema.metadata
+
+    def test_crs_survives_schema_effect(self) -> None:
+        """Layout reshape keeps the template CRS on the resolved schema."""
+        template = Seismic3DStreamerShotGathersTemplate(data_domain="time")
+        template.crs = "EPSG:32610"
+        overrides = GridOverrides(non_binned=True, chunksize=64, non_binned_dims=["cable", "channel"])
+        schema = _resolve_with_overrides(template, overrides)
+
+        assert schema.crs == "EPSG:32610"
 
 
 class TestSchemaResolverHasDuplicates:

@@ -52,6 +52,7 @@ class AbstractDatasetTemplate(ABC):
         self._builder: MDIODatasetBuilder | None = None
         self._dim_sizes: tuple[int, ...] = ()
         self._units: dict[str, AllUnitModel] = {}
+        self.crs: str | None = None
 
     def __repr__(self) -> str:
         """Return a string representation of the template."""
@@ -65,7 +66,8 @@ class AbstractDatasetTemplate(ABC):
             f"logical_coord_names={self._logical_coord_names}, "
             f"var_chunk_shape={self._var_chunk_shape}, "
             f"dim_sizes={self._dim_sizes}, "
-            f"units={self._units})"
+            f"units={self._units}, "
+            f"crs={self.crs!r})"
         )
 
     def _repr_html_(self) -> str:
@@ -177,7 +179,7 @@ class AbstractDatasetTemplate(ABC):
 
         attributes = self._load_dataset_attributes() or {}
         attributes["defaultVariableName"] = self._default_variable_name
-        self._builder = MDIODatasetBuilder(name=name, attributes=attributes)
+        self._builder = MDIODatasetBuilder(name=name, attributes=attributes, crs=self.crs)
         self._add_dimensions()
         self._add_coordinates()
         # Ensure any coordinates declared on the template but not added by _add_coordinates

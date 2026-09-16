@@ -9,6 +9,7 @@ from shutil import copyfile
 from urllib.request import urlretrieve
 
 import pytest
+import zarr
 
 SODA_LAKE_SHOT_URL = "https://gdr-data-lake.s3.us-west-2.amazonaws.com/soda_lake/raw_seismic/2010/v1.0.0/F7733R1.SGY"
 
@@ -63,3 +64,12 @@ def segy_export_tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """Make a temp file for the round-trip IBM SEG-Y."""
     tmp_dir = tmp_path_factory.mktemp("segy")
     return tmp_dir / "soda_lake_roundtrip.segy"
+
+
+def zarr_attrs_tree(path: Path) -> dict[str, dict[str, object]]:
+    """Return user attrs for the root group and every descendant node."""
+    root = zarr.open_group(path.as_posix(), mode="r")
+    tree: dict[str, dict[str, object]] = {"": dict(root.attrs)}
+    for name, node in root.members(max_depth=None):
+        tree[name] = dict(node.attrs)
+    return tree
