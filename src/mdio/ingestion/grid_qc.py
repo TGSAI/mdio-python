@@ -20,9 +20,9 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     """Quality control for sensible grid density during SEG-Y to MDIO conversion.
 
     This function checks the density of the proposed grid by comparing the total possible traces
-    (`grid_traces`) to the actual number of traces in the SEG-Y file (`num_traces`). A warning is
-    logged if the sparsity ratio (`grid_traces / num_traces`) exceeds a configurable threshold,
-    indicating potential inefficiency or misconfiguration.
+    (`grid_traces`) to the actual number of traces in the SEG-Y file (`num_traces`). Grid extents
+    are always logged: INFO when the grid is dense, WARNING when the sparsity ratio exceeds a
+    configurable threshold.
 
     The warning threshold is set via the environment variable `MDIO__GRID__SPARSITY_RATIO_WARN`
     (default 2), and the error threshold via `MDIO__GRID__SPARSITY_RATIO_LIMIT` (default 10). To
@@ -48,22 +48,19 @@ def grid_density_qc(grid: Grid, num_traces: int) -> None:
     should_warn = sparsity_ratio > warning_ratio
     should_error = sparsity_ratio > error_ratio and not ignore_checks
 
-    if not should_warn and not should_error:
-        return
-
     dims = dict(zip(grid.dim_names, grid.shape, strict=True))
+    dim_lines = "\n".join(f"{name} min: {grid.get_min(name)} max: {grid.get_max(name)}" for name in grid.dim_names)
     msg = (
-        f"Ingestion grid is sparse. Sparsity ratio: {sparsity_ratio:.2f}. "
+        f"Sparsity ratio: {sparsity_ratio:.2f}. "
         f"Ingestion grid: {dims}. "
-        f"SEG-Y trace count: {num_traces}, grid trace count: {grid_traces}."
+        f"SEG-Y trace count: {num_traces}, grid trace count: {grid_traces}.\n"
+        f"{dim_lines}"
     )
-    for dim_name in grid.dim_names:
-        dim_min = grid.get_min(dim_name)
-        dim_max = grid.get_max(dim_name)
-        msg += f"\n{dim_name} min: {dim_min} max: {dim_max}"
-
     if should_warn:
+        msg = f"Ingestion grid is sparse. {msg}"
         logger.warning(msg)
+    else:
+        logger.info(msg)
 
     if should_error:
         raise GridTraceSparsityError(grid.shape, num_traces, msg)
