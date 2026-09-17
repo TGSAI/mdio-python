@@ -126,3 +126,10 @@ class TestBuildMdioDataset:
         dataset = build_mdio_dataset(schema=basic_schema, sizes=(2, 3, 4), units={"cdp_x": meter})
         cdp_x = _vars_by_name(dataset)["cdp_x"]
         assert cdp_x.metadata.units_v1 == meter
+
+    def test_crs_attached_to_dataset_metadata(self, basic_schema: ResolvedSchema) -> None:
+        """Optional CRS is stored on dataset metadata, not the attributes bag."""
+        schema = basic_schema.model_copy(update={"crs": "EPSG:32610"})
+        dataset = build_mdio_dataset(schema=schema, sizes=(2, 3, 4))
+        assert dataset.metadata.crs == "EPSG:32610"
+        assert "crs" not in dataset.metadata.attributes

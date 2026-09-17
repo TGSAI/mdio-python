@@ -1,7 +1,8 @@
-"""Utils for reading MDIO dataset."""
+"""Reading, writing, and metadata updates for MDIO datasets."""
 
 from __future__ import annotations
 
+from contextlib import contextmanager
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Literal
@@ -14,8 +15,10 @@ from xarray.backends.writers import to_zarr as xr_to_zarr
 
 from mdio.constants import ZarrFormat
 from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
+from mdio.exceptions import MDIONotFoundError
 
 if TYPE_CHECKING:
+    from collections.abc import Generator
     from collections.abc import Mapping
     from pathlib import Path
 
@@ -32,6 +35,34 @@ def _normalize_storage_options(path: UPath) -> dict[str, Any] | None:
     # UPath.storage_options returns a read-only mappingproxy which cannot be pickled. Copy it into a
     # plain dict so callers can safely pass it across process boundaries (e.g. spawned workers).
     return None if len(path.storage_options) == 0 else dict(path.storage_options)
+
+
+@contextmanager
+def _open_for_metadata_update(path: UPath) -> Generator[zarr.Group, None, None]:
+    """Open an existing store to update its attributes.
+
+    Xarray cannot persist attribute updates on an existing store, so attribute writes go
+    through Zarr. Updates read unconsolidated node metadata as the source of truth so stale
+    consolidated metadata cannot erase newer attributes. For Zarr v2 stores, consolidated
+    metadata is rebuilt from the opened group's format after the body returns or raises.
+
+    Args:
+        path: Universal path of the MDIO store.
+
+    Yields:
+        The root Zarr group, opened for update.
+    """
+    group = zarr.open_group(
+        path.as_posix(),
+        mode="r+",
+        storage_options=_normalize_storage_options(path),
+        use_consolidated=False,
+    )
+    try:
+        yield group
+    finally:
+        if group.metadata.zarr_format == ZarrFormat.V2:
+            zarr.consolidate_metadata(group.store)
 
 
 def open_mdio(input_path: UPath | Path | str, chunks: T_Chunks = None) -> xr_Dataset:
@@ -103,3 +134,30 @@ def to_mdio(  # noqa: PLR0913
             storage_options=storage_options,
             write_empty_chunks=False,
         )
+
+
+def update_crs(mdio_path: UPath | Path | str, crs: str | None) -> None:
+    """Set or remove the coordinate reference system on an existing MDIO file.
+
+    Replaces only the root ``crs`` attribute, preserving all other root and array
+    attributes. Passing ``None`` removes only ``crs``. Array payloads are not read or
+    rewritten. For Zarr v2 stores, unconsolidated node metadata is the source of truth
+    and consolidated metadata is rebuilt from the opened group's format after the update.
+
+    Args:
+        mdio_path: Local or remote path to the MDIO store.
+        crs: Replacement CRS string, e.g. ``"EPSG:32610"``, or ``None`` to remove it.
+
+    Raises:
+        MDIONotFoundError: If ``mdio_path`` does not exist.
+    """
+    path = _normalize_path(mdio_path)
+    if not path.exists():
+        msg = f"MDIO file not found: {path}"
+        raise MDIONotFoundError(msg)
+
+    with _open_for_metadata_update(path) as group:
+        if crs is None:
+            group.attrs.pop("crs", None)
+        else:
+            group.attrs["crs"] = crs

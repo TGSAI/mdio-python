@@ -305,6 +305,7 @@ def template_repr_html(template: AbstractDatasetTemplate) -> str:
         ("Data Domain", template._data_domain),
         ("Default Variable", template.default_variable_name),
         ("Default Variable Units", default_var_units),
+        ("CRS", template.crs or "—"),
     ]
     metadata_html = make_metadata_section(metadata_items)
 

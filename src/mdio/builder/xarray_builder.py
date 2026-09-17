@@ -265,5 +265,7 @@ def to_xarray_dataset(mdio_ds: Dataset) -> xr_Dataset:  # noqa: PLR0912
         xr_ds.attrs["name"] = mdio_ds.metadata.name
         if mdio_ds.metadata.attributes:
             xr_ds.attrs["attributes"] = mdio_ds.metadata.attributes
+        if mdio_ds.metadata.crs is not None:
+            xr_ds.attrs["crs"] = mdio_ds.metadata.crs
 
     return xr_ds

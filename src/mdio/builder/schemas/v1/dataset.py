@@ -30,6 +30,11 @@ class DatasetMetadata(CamelCaseStrictModel):
 
     attributes: dict[str, Any] | None = Field(default=None, description="User defined attributes as key/value pairs.")
 
+    crs: str | None = Field(
+        default=None,
+        description="Optional coordinate reference system identifier, e.g. 'EPSG:32610'.",
+    )
+
 
 class Dataset(BaseDataset):
     """Represents an MDIO v1 dataset.

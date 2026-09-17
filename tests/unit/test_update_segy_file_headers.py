@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 import xarray as xr
+import zarr
 from segy.standards import get_segy_standard
 
 from mdio import open_mdio
@@ -20,6 +21,7 @@ from mdio.segy.headers import TEXT_HEADER_ATTR
 from mdio.segy.text_header import EXPECTED_COLS
 from mdio.segy.text_header import EXPECTED_ROWS
 from mdio.segy.text_header import validate_text_header
+from tests.unit.testing_helpers import zarr_attrs_tree
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -180,6 +182,59 @@ class TestUpdateSegyFileHeaders:
 
         after = open_mdio(store)["amplitude"].values
         np.testing.assert_array_equal(before, after)
+
+    def test_preserves_sibling_attributes(self, tmp_path: Path) -> None:
+        """Header write changes only ``textHeader`` / ``binaryHeader`` on that array."""
+        dataset = xr.Dataset(
+            {"amplitude": (("sample",), np.arange(8, dtype=np.float32))},
+            coords={"sample": np.arange(8, dtype=np.int64) * 4},
+            attrs={"attributes": {"defaultVariableName": "amplitude"}, "name": "survey"},
+        )
+        dataset["amplitude"].attrs["statsV1"] = '{"count": 8}'
+        dataset[SEGY_FILE_HEADER_VARIABLE] = ((), "")
+        dataset[SEGY_FILE_HEADER_VARIABLE].attrs.update(
+            {
+                TEXT_HEADER_ATTR: _well_formed_header("A"),
+                BINARY_HEADER_ATTR: {"job_id": 1, "sample_interval": 4000, "samples_per_trace": 8},
+                "rawBinaryHeader": "YWJj",
+                "customExtra": "keep-me",
+            }
+        )
+        store = tmp_path / "headers.mdio"
+        to_mdio(dataset, store, mode="w")
+        before = zarr_attrs_tree(store)
+
+        update_segy_file_headers(store, text_header=_well_formed_header("B"), binary_header={"job_id": 2})
+
+        after = zarr_attrs_tree(store)
+        header_before = before[SEGY_FILE_HEADER_VARIABLE]
+        header_after = after[SEGY_FILE_HEADER_VARIABLE]
+        untouched = (TEXT_HEADER_ATTR, BINARY_HEADER_ATTR)
+        assert {key: value for key, value in header_after.items() if key not in untouched} == {
+            key: value for key, value in header_before.items() if key not in untouched
+        }
+        assert header_after["rawBinaryHeader"] == "YWJj"
+        assert header_after["customExtra"] == "keep-me"
+        assert {key: attrs for key, attrs in after.items() if key != SEGY_FILE_HEADER_VARIABLE} == {
+            key: attrs for key, attrs in before.items() if key != SEGY_FILE_HEADER_VARIABLE
+        }
+
+    def test_preserves_unconsolidated_header_attributes_in_v2(self, tmp_path: Path) -> None:
+        """A stale v2 consolidated snapshot cannot erase newer header attributes."""
+        with zarr.config.set({"default_zarr_format": 2}):
+            store = _write_minimal_store(
+                tmp_path / "stale-headers.mdio",
+                text_header=_well_formed_header("A"),
+                binary_header={"job_id": 1, "sample_interval": 4000, "samples_per_trace": 8},
+            )
+            root = zarr.open_group(store.as_posix(), mode="r+", use_consolidated=False)
+            root[SEGY_FILE_HEADER_VARIABLE].attrs["addedAfterConsolidation"] = "keep-me"
+
+            update_segy_file_headers(store, text_header=_well_formed_header("B"))
+
+            attrs = open_mdio(store)[SEGY_FILE_HEADER_VARIABLE].attrs
+            assert attrs["addedAfterConsolidation"] == "keep-me"
+            assert attrs[TEXT_HEADER_ATTR] == _well_formed_header("B")
 
     def test_rejects_non_integer_binary_value(self, tmp_path: Path) -> None:
         """Non-integer binary field values raise ``ValueError``."""

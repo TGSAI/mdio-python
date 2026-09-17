@@ -76,7 +76,7 @@ def _create_dataset_builder(schema: ResolvedSchema) -> MDIODatasetBuilder:
     attributes = dict(schema.metadata) if schema.metadata else {}
     attributes["defaultVariableName"] = schema.default_variable_name
 
-    return MDIODatasetBuilder(name=schema.name, attributes=attributes)
+    return MDIODatasetBuilder(name=schema.name, attributes=attributes, crs=schema.crs)
 
 
 def _add_dimensions_and_coordinates(

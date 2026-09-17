@@ -62,12 +62,18 @@ class MDIODatasetBuilder:
     4. Must call build() to create the dataset.
     """
 
-    def __init__(self, name: str, attributes: dict[str, Any] | None = None):
+    def __init__(
+        self,
+        name: str,
+        attributes: dict[str, Any] | None = None,
+        crs: str | None = None,
+    ):
         self._metadata = DatasetMetadata(
             name=name,
             api_version=__version__,
             created_on=datetime.now(UTC),
             attributes=attributes,
+            crs=crs,
         )
         self._dimensions: list[NamedDimension] = []
         self._coordinates: list[Coordinate] = []
