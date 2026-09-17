@@ -36,6 +36,7 @@ def test_build() -> None:
 
     assert isinstance(dataset, Dataset)
     assert dataset.metadata.name == "test_dataset"
+    assert dataset.metadata.crs is None
     # 2 dim coord var + 2 non-dim coord var + 1 data variables = 5 variables
     assert len(dataset.variables) == 5
     assert next(v for v in dataset.variables if v.name == "inline") is not None
@@ -43,6 +44,18 @@ def test_build() -> None:
     assert next(v for v in dataset.variables if v.name == "x_coord") is not None
     assert next(v for v in dataset.variables if v.name == "y_coord") is not None
     assert next(v for v in dataset.variables if v.name == "data") is not None
+
+
+def test_build_with_crs() -> None:
+    """Test building a dataset with a CRS."""
+    dataset = (
+        MDIODatasetBuilder("test_dataset", crs="EPSG:32610")
+        .add_dimension("inline", 4)
+        .add_variable("data", dimensions=("inline",), data_type=ScalarType.FLOAT32)
+        .build()
+    )
+
+    assert dataset.metadata.crs == "EPSG:32610"
 
 
 def test_build_seismic_poststack_3d_acceptance_dataset() -> None:  # noqa: PLR0915 Too many statements (57 > 50)

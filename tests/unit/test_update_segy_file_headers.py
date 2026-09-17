@@ -21,7 +21,7 @@ from mdio.segy.headers import TEXT_HEADER_ATTR
 from mdio.segy.text_header import EXPECTED_COLS
 from mdio.segy.text_header import EXPECTED_ROWS
 from mdio.segy.text_header import validate_text_header
-from tests.conftest import zarr_attrs_tree
+from tests.unit.testing_helpers import zarr_attrs_tree
 
 if TYPE_CHECKING:
     from pathlib import Path

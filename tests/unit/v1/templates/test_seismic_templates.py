@@ -83,3 +83,12 @@ class TestSeismicTemplates:
             assert hasattr(template, "build_dataset")
 
         assert len(template_names) == len(set(template_names)), f"Duplicate template names found: {template_names}"
+
+    def test_crs_forwarded_by_build_dataset(self) -> None:
+        """Test that a configured template CRS is stored on the built dataset."""
+        template = Seismic2DPostStackTemplate("time")
+        template.crs = "EPSG:32610"
+
+        dataset = template.build_dataset("Line", sizes=(4, 8))
+
+        assert dataset.metadata.crs == "EPSG:32610"

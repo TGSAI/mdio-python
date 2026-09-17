@@ -13,7 +13,7 @@ from mdio import open_mdio
 from mdio import to_mdio
 from mdio import update_crs
 from mdio.exceptions import MDIONotFoundError
-from tests.conftest import zarr_attrs_tree
+from tests.unit.testing_helpers import zarr_attrs_tree
 
 if TYPE_CHECKING:
     from pathlib import Path

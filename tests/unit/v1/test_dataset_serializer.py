@@ -276,6 +276,30 @@ class TestCompressorToEncoding:
             _compressor_to_encoding(unsupported_compressor)
 
 
+def test_to_xarray_dataset_omits_missing_crs() -> None:
+    """Test that datasets without a CRS omit the root attribute."""
+    dataset = (
+        MDIODatasetBuilder("test_dataset")
+        .add_dimension("inline", 4)
+        .add_variable("data", dimensions=("inline",), data_type=ScalarType.FLOAT32)
+        .build()
+    )
+
+    assert "crs" not in to_xarray_dataset(dataset).attrs
+
+
+def test_to_xarray_dataset_includes_crs() -> None:
+    """Test that CRS serializes as a root string attribute."""
+    dataset = (
+        MDIODatasetBuilder("test_dataset", crs="EPSG:32610")
+        .add_dimension("inline", 4)
+        .add_variable("data", dimensions=("inline",), data_type=ScalarType.FLOAT32)
+        .build()
+    )
+
+    assert to_xarray_dataset(dataset).attrs["crs"] == "EPSG:32610"
+
+
 def test_to_xarray_dataset(tmp_path: Path) -> None:
     """Test building a complete dataset."""
     dataset = (
