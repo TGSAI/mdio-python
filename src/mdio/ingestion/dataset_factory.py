@@ -65,7 +65,7 @@ def _resolve_chunks(chunk_shape: tuple[int, ...], sizes: tuple[int, ...]) -> tup
 
 
 def _create_dataset_builder(schema: ResolvedSchema) -> MDIODatasetBuilder:
-    """Create and initialize the MDIODatasetBuilder.
+    """Create and initialize the MDIODatasetBuilder with attributes.
 
     Args:
         schema: Resolved schema.
