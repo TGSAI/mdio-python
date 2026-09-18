@@ -4,14 +4,26 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
   - package-ecosystem: pip
     directory: "/.github/workflows"
     schedule:
       interval: monthly
+    groups:
+      workflow-python:
+        patterns:
+          - "*"
   - package-ecosystem: pip
     directory: "/docs"
     schedule:
       interval: monthly
+    groups:
+      docs-python:
+        patterns:
+          - "*"
   - package-ecosystem: pip
     directory: "/"
     schedule:
@@ -19,3 +31,7 @@ updates:
     versioning-strategy: lockfile-only
     allow:
       - dependency-type: "all"
+    groups:
+      python-lockfile:
+        patterns:
+          - "*"
