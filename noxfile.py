@@ -57,7 +57,7 @@ def session_install_uv_package(session: Session, packages: list[str]) -> None:
     export_args = ["uv", "export", "--only-dev", "--no-hashes", "-o", requirements_tmp]
     session.run_install(*export_args, silent=True, env=env)
 
-    # Build constraints to pin setuptools for packages with legacy setup.py
+    # Build constraints to cap setuptools in isolated sdist builds.
     # See: https://github.com/RKrahl/pytest-dependency/issues/91
     build_constraints = Path(__file__).parent / ".github/workflows/build-constraints.txt"
 
