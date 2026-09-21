@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,8 @@ from zarr.codecs.numcodecs import Blosc
 from mdio.constants import UINT32_MAX
 from mdio.constants import ZarrFormat
 from mdio.core.utils_write import get_constrained_chunksize
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from segy.arrays import HeaderArray
@@ -61,6 +64,7 @@ class Grid:
 
     _TARGET_MEMORY_PER_BATCH = 1 * 1024**3  # 1GB target for batch processing
     _INTERNAL_CHUNK_SIZE_TARGET = 10 * 1024**2  # 10MB target for chunks
+    _VINDEX_WORKING_SET_MULTIPLIER = 8  # ~5.4x owned bytes measured; 8x headroom
 
     def __post_init__(self) -> None:
         """Initialize derived attributes."""
@@ -123,9 +127,12 @@ class Grid:
         self.live_mask = zarr.create_array(fill_value=0, dtype=bool, **common_kwargs)
 
         # Calculate batch size
-        memory_per_trace_index = index_headers.itemsize
+        memory_per_trace_index = (
+            (self.ndim - 1) * np.dtype(np.intp).itemsize + np.dtype(map_dtype).itemsize
+        ) * self._VINDEX_WORKING_SET_MULTIPLIER
         batch_size = max(1, int(self._TARGET_MEMORY_PER_BATCH / memory_per_trace_index))
         total_live_traces = index_headers.size
+        logger.debug("Building trace map: %d traces, %d per batch", total_live_traces, batch_size)
 
         # Process headers in batches
         for start in range(0, total_live_traces, batch_size):
@@ -135,12 +142,16 @@ class Grid:
             # Compute indices for the batch
             for dim in self.dims[:-1]:
                 dim_hdr = index_headers[dim.name][start:end]
-                indices = np.searchsorted(dim, dim_hdr).astype(np.uint32)
+                indices = np.searchsorted(dim, dim_hdr)
                 live_dim_indices.append(indices)
             live_dim_indices = tuple(live_dim_indices)
 
             # Assign trace indices
-            trace_indices = np.arange(start, end, dtype=np.uint64)
+            trace_indices = np.arange(start, end, dtype=map_dtype)
 
             self.map.vindex[live_dim_indices] = trace_indices
-            self.live_mask.vindex[live_dim_indices] = True
+
+        for block_id in np.ndindex(*self.map.cdata_shape):
+            chunk_live = self.map.blocks[block_id] != self.map.fill_value
+            if chunk_live.any():
+                self.live_mask.blocks[block_id] = chunk_live
