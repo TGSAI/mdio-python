@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Set up Python ${{ matrix.python }}
         uses: actions/setup-python@v6
@@ -67,7 +67,7 @@ jobs:
           print("result={}".format(result), file=open(os.environ['GITHUB_OUTPUT'], 'a'))
 
       - name: Restore pre-commit cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         if: matrix.session == 'pre-commit'
         with:
           path: ~/.cache/pre-commit
@@ -99,7 +99,7 @@ jobs:
     needs: tests
     steps:
       - name: Check out the repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install the pinned version of uv
         uses: astral-sh/setup-uv@v7
@@ -127,6 +127,6 @@ jobs:
           nox --session=coverage -- xml
 
       - name: Upload coverage report
-        uses: codecov/codecov-action@v6.0.0
+        uses: codecov/codecov-action@v7.1.1
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
