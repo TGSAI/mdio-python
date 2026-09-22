@@ -14,8 +14,10 @@ from zarr.codecs.numcodecs import ZFPY as zarr_ZFPY  # noqa: N811
 from mdio.builder.schemas.compressors import ZFP as mdio_ZFP  # noqa: N811
 from mdio.builder.schemas.compressors import Blosc as mdio_Blosc
 from mdio.builder.schemas.dimension import NamedDimension
+from mdio.builder.schemas.dtype import FixedStringType
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.dtype import is_fixed_string
 from mdio.builder.schemas.v1.dataset import Dataset
 from mdio.builder.schemas.v1.variable import Coordinate
 from mdio.builder.schemas.v1.variable import Variable
@@ -155,15 +157,18 @@ def _compressor_to_encoding(
     return {"serializer": zarr_ZFPY(**kwargs), "compressors": None}
 
 
-def _get_fill_value(data_type: ScalarType | StructuredType | str) -> any:
+def _get_fill_value(
+    data_type: ScalarType | FixedStringType | StructuredType,
+) -> int | float | complex | bytes | str | np.void | None:
     """Get the fill value for a given data type."""
     if isinstance(data_type, ScalarType):
         return fill_value_map.get(data_type)
     if isinstance(data_type, StructuredType):
+        return np.zeros(1, dtype=to_numpy_dtype(data_type))[0]
+    if is_fixed_string(data_type):
         numpy_dtype = to_numpy_dtype(data_type)
-        fill_value = (0,) * len(numpy_dtype.fields)
-        return np.void(fill_value, dtype=numpy_dtype)
-    if isinstance(data_type, str):
+        if numpy_dtype.kind == "S":
+            return b"\x00" * numpy_dtype.itemsize
         return ""
     # If we do not have a fill value for this type, use None
     return None

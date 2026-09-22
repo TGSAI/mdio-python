@@ -216,8 +216,23 @@ def test_get_fill_value() -> None:
     assert expected == result
 
     # Test 3: String type - should return empty string
-    result_string = _get_fill_value("string_type")
-    assert result_string == ""
+    bytes_type = StructuredType(
+        fields=[
+            StructuredField(name="inline", format=ScalarType.INT32),
+            StructuredField(name="trace_header_name", format="S8"),
+            StructuredField(name="note", format="U4"),
+        ]
+    )
+    bytes_fill = _get_fill_value(bytes_type)
+    raw = bytes_fill.tobytes()
+    name_offset = bytes_fill.dtype.fields["trace_header_name"][1]
+    note_offset = bytes_fill.dtype.fields["note"][1]
+    assert raw[name_offset : name_offset + 8] == b"\x00" * 8
+    assert raw[note_offset : note_offset + 16] == b"\x00" * 16
+    assert bytes_fill["trace_header_name"] == b""
+    assert bytes_fill["note"] == ""
+    assert _get_fill_value("S8") == b"\x00" * 8
+    assert _get_fill_value("U4") == ""
 
     # Test 4: Unknown type - should return None
     result_none = _get_fill_value(42)  # Invalid type
