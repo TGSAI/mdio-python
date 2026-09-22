@@ -250,3 +250,11 @@ class TestBuildMdioHeaderType:
 
         assert formats == {"inline": MdioScalarType.INT32, "crossline": MdioScalarType.INT16}
         assert ibm32_header_field_names(spec) == set()
+
+    @pytest.mark.parametrize("revision", [2.0, 2.1])
+    def test_rev2_trace_header_name_is_fixed_string(self, revision: float) -> None:
+        """SEG-Y rev 2 / 2.1 store trace_header_name as an 8-byte string."""
+        header_type = build_mdio_header_type(get_segy_standard(revision))
+        formats = {field.name: field.format for field in header_type.fields}
+
+        assert formats["trace_header_name"] == "S8"

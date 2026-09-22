@@ -15,6 +15,7 @@ from mdio.builder.formatting_html import dataset_builder_repr_html
 from mdio.builder.schemas.compressors import ZFP
 from mdio.builder.schemas.compressors import Blosc
 from mdio.builder.schemas.dimension import NamedDimension
+from mdio.builder.schemas.dtype import FixedStringType
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.dtype import StructuredType
 from mdio.builder.schemas.v1.dataset import Dataset
@@ -220,7 +221,7 @@ class MDIODatasetBuilder:
         *,
         long_name: str = None,
         dimensions: tuple[str, ...],
-        data_type: ScalarType | StructuredType,
+        data_type: ScalarType | FixedStringType | StructuredType,
         compressor: Blosc | ZFP | None = None,
         coordinates: tuple[str, ...] | None = None,
         metadata: VariableMetadata | None = None,

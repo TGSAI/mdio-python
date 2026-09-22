@@ -2,13 +2,15 @@
 
 from numpy import dtype as np_dtype
 
+from mdio.builder.schemas.dtype import FixedStringType
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.dtype import StructuredField
 from mdio.builder.schemas.dtype import StructuredType
+from mdio.builder.schemas.dtype import is_fixed_string
 
 
-def to_scalar_type(data_type: np_dtype) -> ScalarType:
-    """Convert numpy dtype to MDIO ScalarType.
+def to_scalar_type(data_type: np_dtype) -> ScalarType | FixedStringType:
+    """Convert numpy dtype to an MDIO ``ScalarType`` or ``FixedStringType``.
 
     Out of the 24 built-in numpy scalar type objects
     (see https://numpy.org/doc/stable/reference/arrays.dtypes.html)
@@ -27,15 +29,25 @@ def to_scalar_type(data_type: np_dtype) -> ScalarType:
         ScalarType.COMPLEX128 <-> complex128
         ScalarType.BOOL <-> bool
 
+    ``FixedStringType`` is accepted at any width. Numpy names ``|S<n>`` as
+    ``bytes<8n>`` and ``<U<n>`` as ``str<32n>``, and those names are not valid
+    ``np.dtype`` constructors, so ``FixedStringType`` uses the constructor form
+    ``S<n>`` or ``U<n>``.
+
     Args:
         data_type: numpy dtype to convert
 
     Returns:
-        ScalarType: corresponding MDIO scalar type
+        ``ScalarType`` or ``FixedStringType``.
 
     Raises:
         ValueError: if dtype is not supported
     """
+    # dtype.str is '<U8' / '|S8'. The tail is the canonical constructor token.
+    token = data_type.str[1:]
+    if is_fixed_string(token):
+        return token
+
     try:
         return ScalarType(data_type.name)
     except ValueError as exc:
@@ -49,8 +61,7 @@ def to_structured_type(data_type: np_dtype) -> StructuredType:
     This function supports only a limited subset of structured types.
     In particular:
     It does not support nested structured types.
-    It supports fields of only 13 out of 24 built-in numpy scalar types.
-    (see `to_scalar_type` for details).
+    Field types are the scalar subset from `to_scalar_type`, including ``FixedStringType``.
 
     Args:
         data_type: numpy dtype to convert
@@ -75,11 +86,13 @@ def to_structured_type(data_type: np_dtype) -> StructuredType:
     return StructuredType(fields=fields)
 
 
-def to_numpy_dtype(data_type: ScalarType | StructuredType) -> np_dtype:
+def to_numpy_dtype(data_type: ScalarType | FixedStringType | StructuredType) -> np_dtype:
     """Get the numpy dtype for a variable."""
+    if isinstance(data_type, StructuredType):
+        return np_dtype([(field.name, to_numpy_dtype(field.format)) for field in data_type.fields])
     if isinstance(data_type, ScalarType):
         return np_dtype(data_type.value)
-    if isinstance(data_type, StructuredType):
-        return np_dtype([(f.name, f.format.value) for f in data_type.fields])
-    msg = f"Expected ScalarType or StructuredType, got '{type(data_type).__name__}'"
+    if is_fixed_string(data_type):
+        return np_dtype(data_type)
+    msg = f"Expected ScalarType, FixedStringType, or StructuredType, got '{type(data_type).__name__}'"
     raise ValueError(msg)
