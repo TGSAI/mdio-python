@@ -6,11 +6,30 @@ complex numbers from numpy data types and allow those.
 
 from __future__ import annotations
 
+import re
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import Field
+from pydantic import StringConstraints
 
 from mdio.builder.schemas.core import CamelCaseStrictModel
+
+_FIXED_STRING = re.compile(r"^[SU][1-9][0-9]*$")
+
+FixedStringType = Annotated[str, StringConstraints(pattern=_FIXED_STRING.pattern)]
+
+
+def is_fixed_string(value: object) -> bool:
+    """Return whether ``value`` is a ``FixedStringType``.
+
+    Args:
+        value: Object to test.
+
+    Returns:
+        True when ``value`` is a ``FixedStringType``.
+    """
+    return isinstance(value, str) and _FIXED_STRING.fullmatch(value) is not None
 
 
 class ScalarType(StrEnum):
@@ -38,7 +57,7 @@ class ScalarType(StrEnum):
 class StructuredField(CamelCaseStrictModel):
     """Structured array field with name, format."""
 
-    format: ScalarType = Field(...)
+    format: ScalarType | FixedStringType = Field(...)
     name: str = Field(...)
 
 
@@ -51,4 +70,4 @@ class StructuredType(CamelCaseStrictModel):
 class DataTypeModel(CamelCaseStrictModel):
     """Structured array type with fields and total item size."""
 
-    data_type: ScalarType | StructuredType = Field(..., description="Type of the array.")
+    data_type: ScalarType | FixedStringType | StructuredType = Field(..., description="Type of the array.")

@@ -2,6 +2,7 @@
 
 import numpy as np
 import pytest
+from pydantic import ValidationError
 
 from mdio.builder.schemas.dtype import ScalarType
 from mdio.builder.schemas.dtype import StructuredField
@@ -51,7 +52,7 @@ def a_structured_type() -> StructuredType:
 def test_to_numpy_dtype(supported_scalar_types_map: tuple[ScalarType, str], a_structured_type: StructuredType) -> None:
     """Comprehensive test for to_numpy_dtype function."""
     # Test 0: invalid input
-    err = "Expected ScalarType or StructuredType, got 'str'"
+    err = "Expected ScalarType, FixedStringType, or StructuredType, got 'str'"
     with pytest.raises(ValueError, match=err):
         to_numpy_dtype("parameter of invalid type")
 
@@ -73,6 +74,33 @@ def test_to_numpy_dtype(supported_scalar_types_map: tuple[ScalarType, str], a_st
     assert isinstance(result_multi, np.dtype)
     assert len(result_multi.names) == 5
     assert set(result_multi.names) == {"x", "y", "z", "id", "valid"}
+
+
+@pytest.mark.parametrize("token", ["S1", "S8", "S32", "U1", "U8"])
+def test_fixed_string_roundtrip(token: str) -> None:
+    """Fixed-length byte and unicode strings survive conversion at any width."""
+    dtype = np.dtype(token)
+    assert to_scalar_type(dtype) == token
+    assert to_numpy_dtype(token) == np.dtype(token)
+
+    structured = to_structured_type(np.dtype([("label", token), ("inline", "int32")]))
+    assert structured.fields[0].format == token
+    assert to_numpy_dtype(structured).fields["label"][0] == np.dtype(token)
+
+
+@pytest.mark.parametrize("token", ["S0", "U0", "bytes64", "str256", "V8", "|S8"])
+def test_structured_field_rejects_noncanonical_string(token: str) -> None:
+    """Schema accepts only canonical S<n> and U<n> tokens."""
+    with pytest.raises(ValidationError, match="string_pattern_mismatch"):
+        StructuredField(name="label", format=token)
+
+
+def test_fixed_string_ignores_numpy_display_name() -> None:
+    """Numpy's bytes64 / str256 names are not valid dtype constructors."""
+    assert to_scalar_type(np.dtype("|S8")) == "S8"
+    assert to_scalar_type(np.dtype(">U8")) == "U8"
+    with pytest.raises(ValueError, match="void64"):
+        to_scalar_type(np.dtype("V8"))
 
 
 def test_to_scalar_type(supported_scalar_types_map: tuple[ScalarType, str]) -> None:
