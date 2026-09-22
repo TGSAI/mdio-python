@@ -2251,7 +2251,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.14.2" },
     { name = "rich", specifier = ">=15.0.0" },
     { name = "s3fs", marker = "extra == 'cloud'", specifier = ">=2026.9.0" },
-    { name = "segy", specifier = ">=0.6.0" },
+    { name = "segy", specifier = ">=0.6.2" },
     { name = "tqdm", specifier = ">=4.68.3" },
     { name = "universal-pathlib", specifier = ">=0.3.10" },
     { name = "xarray", specifier = ">=2026.4.0" },
@@ -3527,7 +3527,7 @@ wheels = [
 
 [[package]]
 name = "segy"
-version = "0.6.0"
+version = "0.6.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fsspec" },
@@ -3539,9 +3539,9 @@ dependencies = [
     { name = "rapidfuzz" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/e5/be/39961f0053378ecd2ab42fdffc7d76f8e79ac00f79bbf6ebf31183e9e0f0/segy-0.6.0.tar.gz", hash = "sha256:1ec623361e99ddbf952be286403912e4c50218f49bdddf73a0c907a9a06a74f7", size = 46333, upload-time = "2026-06-16T15:25:23.091Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4a/40/0eb376efb37ab2431326770740cc6ed9fceb886df2b6fe0191b5b10c50f8/segy-0.6.2.tar.gz", hash = "sha256:e454d08b78be72ee7fbfa3b22dc13fd6dcf106408dbc9b22bef8b9259d5263dc", size = 45001, upload-time = "2026-09-22T19:43:27.562Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/ab/c15b6ca03f5e3e8765dbcc477e8963263cf79ea171ed78a193ca5fc8bc4d/segy-0.6.0-py3-none-any.whl", hash = "sha256:82a3c772434ff7a12e0ef371a288362411d90798377c17946e66737a1791f473", size = 58689, upload-time = "2026-06-16T15:25:22.132Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/df/0698107779a0c791eb28bbc959534e08f7434f4ca10eb07cb64ddd367340/segy-0.6.2-py3-none-any.whl", hash = "sha256:e1523138f2738935a82230265a2150563b7f384887c23e2e0d976c14538ea6eb", size = 57647, upload-time = "2026-09-22T19:43:26.292Z" },
 ]
 
 [[package]]
