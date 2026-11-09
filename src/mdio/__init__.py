@@ -7,6 +7,11 @@ from importlib import metadata
 from mdio.api.io import open_mdio
 from mdio.api.io import to_mdio
 from mdio.api.io import update_crs
+from mdio.api.severance import apply_z_severance_mask
+from mdio.api.severance import create_z_severance_mask
+from mdio.api.severance import finalize_z_severance_mask
+from mdio.api.severance import resolve_z_severance_mask
+from mdio.api.severance import z_severance_mask_session
 from mdio.converters import mdio_to_segy
 from mdio.converters import segy_to_mdio
 from mdio.ingestion import ResolvedSchema
@@ -26,10 +31,15 @@ __all__ = [
     "__version__",
     "GridOverrides",
     "SegyFileHeaders",
+    "apply_z_severance_mask",
+    "create_z_severance_mask",
+    "finalize_z_severance_mask",
     "open_mdio",
+    "resolve_z_severance_mask",
     "to_mdio",
     "update_crs",
     "update_segy_file_headers",
+    "z_severance_mask_session",
     "mdio_to_segy",
     "segy_to_mdio",
     "OptimizedAccessPatternConfig",

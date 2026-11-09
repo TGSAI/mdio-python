@@ -8,8 +8,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 from tqdm.dask import TqdmCallback
 
+from mdio.api.io import _get_default_variable_name
 from mdio.api.io import _normalize_path
 from mdio.api.io import open_mdio
+from mdio.api.severance import apply_z_severance_mask
+from mdio.api.severance import resolve_z_severance_mask
 from mdio.core.config import MDIOSettings
 from mdio.segy.blocked_io import to_segy
 from mdio.segy.creation import concat_files
@@ -35,6 +38,7 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     output_path: UPath | Path | str,
     selection_mask: np.ndarray = None,
     client: distributed.Client = None,
+    severance_mask: str | None = None,
 ) -> None:
     """Convert MDIO file to SEG-Y format.
 
@@ -53,6 +57,8 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
         selection_mask: Array that lists the subset of traces
         client: Dask client. If `None` we will use local threaded scheduler. If `auto` is used we
             will create multiple processes (with 8 threads each).
+        severance_mask: Optional name of the N-D z-severance mask variable to apply during export.
+            If `None`, the latest severance mask (by `createdOn` metadata) is applied if present.
 
     Raises:
         ImportError: if distributed package isn't installed but requested.
@@ -77,8 +83,9 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     # First we open with vanilla zarr backend and then get some info
     # We will re-open with `new_chunks` and Dask later in mdio_spec_to_segy
     dataset = open_mdio(input_path)
+    resolved_severance_mask = resolve_z_severance_mask(dataset, severance_mask=severance_mask)
 
-    default_variable_name = dataset.attrs["attributes"]["defaultVariableName"]
+    default_variable_name = _get_default_variable_name(dataset)
     amplitude = dataset[default_variable_name]
     chunks = amplitude.encoding["preferred_chunks"]
     sizes = amplitude.sizes
@@ -124,6 +131,9 @@ def mdio_to_segy(  # noqa: PLR0912, PLR0913, PLR0915
     # Lazily pull the data with limits now.
     # All the variables, metadata, etc. is all sliced to the same range.
     dataset = dataset.isel(dim_slices)
+
+    if resolved_severance_mask is not None:
+        dataset = apply_z_severance_mask(dataset, resolved_severance_mask)
 
     if selection_mask is not None:
         selection_mask = selection_mask[dim_slices]
