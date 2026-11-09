@@ -37,7 +37,7 @@ dependencies = [
 [project.optional-dependencies]
 cloud = ["s3fs>=2026.9.0", "gcsfs>=2026.8.1", "adlfs>=2026.8.0"]
 distributed = ["distributed>=2026.7.0", "bokeh>=3.9.1"]
-lossy = ["zfpy>=1.0.1"]
+lossy = ["zfpy==1.0.1"]
 
 [project.urls]
 homepage = "https://mdio.dev/"
