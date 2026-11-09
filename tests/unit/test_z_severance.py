@@ -39,6 +39,7 @@ from mdio.segy.file import SegyFileWrapper
 
 if TYPE_CHECKING:
     from pathlib import Path
+
     from segy.schema import SegySpec
 
 
@@ -160,13 +161,14 @@ class TestCreateAndFinalizeZSeveranceMask:
         """Context manager leaves ``metadataLock`` active if business logic raises an error."""
         store = _write_test_store(tmp_path / "session.mdio")
 
-        with (
-            pytest.raises(RuntimeError, match="polygon failure"),
-            z_severance_mask_session(store, "z_severance_failed") as mask_arr,
-        ):
-            mask_arr[0, 0, 1:3] = True
-            msg = "polygon failure"
-            raise RuntimeError(msg)
+        def _failing_session() -> None:
+            with z_severance_mask_session(store, "z_severance_failed") as mask_arr:
+                mask_arr[0, 0, 1:3] = True
+                msg = "polygon failure"
+                raise RuntimeError(msg)
+
+        with pytest.raises(RuntimeError, match="polygon failure"):
+            _failing_session()
 
         ds_locked = open_mdio(store)
         with pytest.raises(MDIOSeveranceError, match="metadata lock"):

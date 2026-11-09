@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping
 from contextlib import contextmanager
 from datetime import UTC
 from datetime import datetime
@@ -27,6 +26,7 @@ from mdio.exceptions import MDIOSeveranceError
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+    from collections.abc import Mapping
     from pathlib import Path
 
     from upath import UPath
