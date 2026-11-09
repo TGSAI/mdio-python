@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
 from typing import Any
@@ -12,14 +13,16 @@ from upath import UPath
 from xarray import Dataset as xr_Dataset
 from xarray import open_zarr as xr_open_zarr
 from xarray.backends.writers import to_zarr as xr_to_zarr
+from zarr.codecs import BloscCodec
+from zarr.codecs.numcodecs import Blosc
 
 from mdio.constants import ZarrFormat
 from mdio.core.zarr_io import zarr_warnings_suppress_unstable_structs_v3
+from mdio.exceptions import MDIOMissingVariableError
 from mdio.exceptions import MDIONotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-    from collections.abc import Mapping
     from pathlib import Path
 
     from xarray import Dataset
@@ -35,6 +38,61 @@ def _normalize_storage_options(path: UPath) -> dict[str, Any] | None:
     # UPath.storage_options returns a read-only mappingproxy which cannot be pickled. Copy it into a
     # plain dict so callers can safely pass it across process boundaries (e.g. spawned workers).
     return None if len(path.storage_options) == 0 else dict(path.storage_options)
+
+
+def _get_default_variable_name(container: xr_Dataset | zarr.Group) -> str:
+    """Return the default variable name from dataset or Zarr group attributes."""
+    attributes = container.attrs.get("attributes")
+    var_name = attributes.get("defaultVariableName") if isinstance(attributes, Mapping) else None
+    if not isinstance(var_name, str) or var_name not in container:
+        msg = "Default variable name is missing or not found in MDIO dataset."
+        raise MDIOMissingVariableError(msg)
+    return var_name
+
+
+def _create_empty_mask_like(
+    group: zarr.Group,
+    name: str,
+    template_array: zarr.Array,
+    attributes: dict[str, object],
+    *,
+    overwrite: bool = False,
+) -> zarr.Array:
+    """Create a boolean Zarr array initialized to False with the same layout as ``template_array``."""
+    is_v2 = group.metadata.zarr_format == ZarrFormat.V2
+    dims = (
+        list(template_array.attrs.get("_ARRAY_DIMENSIONS", ()))
+        if is_v2
+        else list(template_array.metadata.dimension_names or ())
+    )
+
+    array_attrs = dict(attributes)
+    if "coordinates" in template_array.attrs:
+        array_attrs["coordinates"] = template_array.attrs["coordinates"]
+
+    if is_v2:
+        array_attrs["_ARRAY_DIMENSIONS"] = dims
+        create_kwargs: dict[str, object] = {
+            "compressors": Blosc(cname="zstd"),
+            "dimension_separator": "/",
+        }
+    else:
+        create_kwargs = {
+            "compressors": BloscCodec(cname="zstd"),
+            "dimension_names": dims,
+        }
+
+    with zarr_warnings_suppress_unstable_structs_v3():
+        return group.create_array(
+            name=name,
+            shape=template_array.shape,
+            chunks=template_array.chunks,
+            dtype=bool,
+            fill_value=False,
+            attributes=array_attrs,
+            overwrite=overwrite,
+            **create_kwargs,
+        )
 
 
 @contextmanager

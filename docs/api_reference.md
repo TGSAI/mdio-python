@@ -48,6 +48,13 @@ and
    :members:
 ```
 
+### Z-Severance Masks
+
+```{eval-rst}
+.. automodule:: mdio.api.severance
+   :members:
+```
+
 ## Core Functionality
 
 ### Dimensions

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+import zarr
 from xarray import DataArray as xr_DataArray
 from xarray import Dataset as xr_Dataset
 
@@ -199,6 +200,89 @@ class TestPopulateNonDimCoordinates:
         )
 
         np.testing.assert_array_equal(dataset["offset"].values, coord_values[:3])
+
+    def test_reduced_coordinate_falls_back_when_first_slice_is_dead(self) -> None:
+        """When offset index 0 is dead for a CDP cell, cdp_x/cdp_y should use the first live offset."""
+        inline = np.array([1, 2], dtype=np.int32)
+        crossline = np.array([10, 20], dtype=np.int32)
+        offset = np.array([100, 200], dtype=np.int32)
+        sample = np.array([0, 4], dtype=np.int32)
+        # (inline=1, crossline=20) has NO trace at offset=100, only at offset=200.
+        live = [
+            (1, 10, 100),
+            (1, 20, 200),
+            (2, 10, 100),
+            (2, 20, 100),
+        ]
+        grid = make_grid_with_map(
+            [("inline", inline), ("crossline", crossline), ("offset", offset), ("sample", sample)],
+            live_records=live,
+        )
+
+        coord_values = np.array([1000.0, 2000.0, 3000.0, 4000.0], dtype=np.float64)
+        dataset = self._make_dataset_with_coord(
+            coord_name="cdp_x",
+            shape=(2, 2),
+            dims=("inline", "crossline"),
+            encoding=None,
+            dtype=np.float64,
+        )
+
+        dataset, _ = populate_non_dim_coordinates(
+            dataset,
+            grid,
+            coordinates={"cdp_x": coord_values},
+            drop_vars_delayed=[],
+            spatial_coordinate_scalar=1,
+        )
+
+        expected = np.array([[1000.0, 2000.0], [3000.0, 4000.0]], dtype=np.float64)
+        np.testing.assert_array_equal(dataset["cdp_x"].values, expected)
+
+    def test_reduced_coordinate_falls_back_across_multiple_reduced_chunks(self) -> None:
+        """When grid.map is chunked along a reduced axis, fallback still finds live traces in later chunks."""
+        inline = np.array([1, 2], dtype=np.int32)
+        crossline = np.array([10, 20], dtype=np.int32)
+        offset = np.array([100, 200, 300], dtype=np.int32)
+        sample = np.array([0, 4], dtype=np.int32)
+        live = [
+            (1, 10, 100),
+            (1, 20, 300),  # Only live in the 3rd offset slice
+            (2, 10, 200),  # Only live in the 2nd offset slice
+            (2, 20, 100),
+        ]
+        grid = make_grid_with_map(
+            [("inline", inline), ("crossline", crossline), ("offset", offset), ("sample", sample)],
+            live_records=live,
+        )
+        # Re-chunk grid.map so the reduced offset axis spans 3 separate Zarr chunks
+        dense_map = np.asarray(grid.map[:])
+        grid.map = zarr.create_array(
+            store=None,
+            data=dense_map,
+            chunks=(1, 1, 1),
+            fill_value=grid.map.fill_value,
+        )
+
+        coord_values = np.array([1000.0, 2000.0, 3000.0, 4000.0], dtype=np.float64)
+        dataset = self._make_dataset_with_coord(
+            coord_name="cdp_x",
+            shape=(2, 2),
+            dims=("inline", "crossline"),
+            encoding=None,
+            dtype=np.float64,
+        )
+
+        dataset, _ = populate_non_dim_coordinates(
+            dataset,
+            grid,
+            coordinates={"cdp_x": coord_values},
+            drop_vars_delayed=[],
+            spatial_coordinate_scalar=1,
+        )
+
+        expected = np.array([[1000.0, 2000.0], [3000.0, 4000.0]], dtype=np.float64)
+        np.testing.assert_array_equal(dataset["cdp_x"].values, expected)
 
     def test_default_fill_value_is_nan_when_encoding_missing(self) -> None:
         """When no ``_FillValue`` / ``fill_value`` is set, dead traces become NaN."""

@@ -63,3 +63,7 @@ class MDIONotFoundError(MDIOError):
 
 class MDIOMissingVariableError(MDIOError):
     """Raised when a variable is missing from the MDIO dataset."""
+
+
+class MDIOSeveranceError(MDIOError):
+    """Raised when a z-severance mask is invalid, ambiguous, or locked."""
